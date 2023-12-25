@@ -1,10 +1,6 @@
 # Change Log
 
-## 1.0.0
+## 0.0.1
 
-* Initial release.
+* Initial plugin.
 
-## 1.0.1
-
-* Add translations for Japan and Chine languages.
-* Other improvements.

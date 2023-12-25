@@ -1,17 +1,17 @@
 {
-	"name" : "Mendeley",
+	"name" : "Biyue",
 	"nameLocale": {
-		"ru": "Mendeley",
-		"fr": "Mendeley",
-		"es": "Mendeley",
-		"de": "Mendeley"
+		"ru": "Biyue",
+		"fr": "Biyue",
+		"es": "Biyue",
+		"de": "Biyue"
 	},
 	"guid" : "asc.{BE5CBF95-C0AD-4842-B157-AC40FEDD9442}",
 	"version" : "1.0.1",
 
 	"variations" : [
 		{
-			"description": "Create bibliographies and insert citations using the Mendeley service.",
+			"description": "Use biyue platfrom.",
 			"descriptionLocale": {
 					"ru": "Работайте с библиографиями и цитированием, используя сервис Mendeley.",
 					"fr": "Créez des bibliographies et insérez des citations avec Mendeley.",
@@ -67,7 +67,7 @@
 			"isModal": false,
 			"isInsideMode": true,
 			"isUpdateOleOnResize": false,
-			"initOnSelectionChanged": false,
+			"initOnSelectionChanged": true,
 			"store": {
 				"background": {
 					"light" : "#E5222E",
@@ -82,7 +82,17 @@
 					"dark"  : "resources/store/icons"
 				},
 				"categories": ["specAbilities"]
-			}
+			},
+			"buttons": [
+				{
+					"text": "切题",
+					"primary": true
+				},
+				{
+					"text": "Show",
+					"primary": false
+				}
+			]
 		}
 	]
 }
