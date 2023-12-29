@@ -62,6 +62,7 @@
 				],
 			"isViewer": false,
 			"EditorsSupport": [ "word" ],
+			"events": [ "onClick" ],
 			"initDataType": "text",
 			"isVisual": true,
 			"isModal": false,

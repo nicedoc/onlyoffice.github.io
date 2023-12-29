@@ -1,28 +1,25 @@
 (function (window, undefined) {  
-    let splitQuestion = function(text) {
-        //const token = /(\d+．)|(（\d+）)/g;    
-        const token = /(\d+．)/g;    
+    let splitQuestion = function(text) {        
+        var index = 1;
+        let token = function(index) { return `${index}．`; }
         var nextstart = 0;
-        var next = text.substring(nextstart).search(token);
-        var offset = 0;
+        var next = text.substring(nextstart).search(token(index));
+        index = index + 1;
         var ranges = new Array();
         while (next !== -1) {
-            let elem = text.substring(nextstart, nextstart + offset + next);
-            ranges.push({beg: nextstart, end: nextstart + offset + next})
-            offset = 2;
-            nextstart = nextstart + offset + next;
-            next = text.substring(nextstart+offset).search(token);        
+            ranges.push({beg: nextstart, end: nextstart + next})
+            nextstart = nextstart +  next;
+            next = text.substring(nextstart).search(token(index));        
+            index = index + 1;
         }
     
         if (nextstart < text.length) {
-            let elem = text.substring(nextstart);
             ranges.push({beg: nextstart, end: text.length});
         }
         
         ranges.shift();
         return ranges;
     }
-
     // 插件初始化    
     window.Asc.plugin.init = function () {
         console.log("biyue plugin inited.");
@@ -114,22 +111,7 @@
 
         document.getElementById("showPosition").onclick = function() {
             console.log("showPosition on button clicked");
-            window.Asc.plugin.executeMethod("GetCurrentContentControl");
-            window.Asc.plugin.onMethodReturn = function(returnValue) {                
-                if (window.Asc.plugin.info.methodName == "GetCurrentContentControl") {                    
-                    console.log("controlId", JSON.stringify(returnValue));                
-                
-                    if (returnValue) {
-                        Asc.scope.controlId = returnValue;
-                        window.Asc.plugin.callCommand(function()  {
-                            var rect = Api.asc_GetContentControlBoundingRect(Asc.scope.controlId);                            
-                            return rect;
-                        }, false, false, onGetPos);
-                        
-                    }
-                }
-            };
-            
+            showPosition(window, onGetPos);            
         }
     });
         
@@ -152,5 +134,30 @@
     window.Asc.plugin.attachEvent("onSelectionChanged", function(data) {
         console.log("on SelectionChange");
     });
+
+
+    function showPosition(window, onGetPos) {
+        window.Asc.plugin.executeMethod("GetCurrentContentControl");
+        window.Asc.plugin.onMethodReturn = function (returnValue) {
+            if (window.Asc.plugin.info.methodName == "GetCurrentContentControl") {
+                console.log("controlId", JSON.stringify(returnValue));
+
+                if (returnValue) {
+                    Asc.scope.controlId = returnValue;
+                    window.Asc.plugin.callCommand(function () {
+                        var rect = Api.asc_GetContentControlBoundingRect(Asc.scope.controlId);
+                        return rect;
+                    }, false, false, onGetPos);
+
+                }
+            }
+        };
+    }
+
+
+    window.Asc.plugin.event_onClick = function(isSelectionUse) {
+        console.log("event click");
+        showPosition(window, onGetPos);
+    };
 })(window, undefined);
 
