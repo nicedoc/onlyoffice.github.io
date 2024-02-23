@@ -55,11 +55,11 @@
 
     function onGetPos(rect) {
         console.log(rect);
-
-        document.getElementById("x-value").innerHTML = rect[0];
-        document.getElementById("y-value").innerHTML = rect[1];
-        document.getElementById("w-value").innerHTML = rect[2] - rect[0];
-        document.getElementById("h-value").innerHTML = rect[3] - rect[1];
+        document.getElementById("p-value").innerHTML = rect.Page;
+        document.getElementById("x-value").innerHTML = rect.X0;
+        document.getElementById("y-value").innerHTML = rect.Y0;
+        document.getElementById("w-value").innerHTML = rect.X1 - rect.X0;
+        document.getElementById("h-value").innerHTML = rect.Y1 - rect.Y0;
     };
 
     setCurrentContentControlLock = function (lock) {
@@ -233,7 +233,14 @@
                 if (returnValue) {
                     Asc.scope.controlId = returnValue;
                     window.Asc.plugin.callCommand(function () {
-                        var rect = Api.asc_GetContentControlBoundingRect(Asc.scope.controlId);
+                        // get logic document
+
+                        // get control 
+                        // get bound rect
+                        // transform
+                        // return
+                        const isPageCoord = true;
+                        var rect = Api.asc_GetContentControlBoundingRect(Asc.scope.controlId, isPageCoord);
                         return rect;
                     }, false, false, onGetPos);
 
