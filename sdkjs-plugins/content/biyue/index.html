@@ -16,14 +16,14 @@
  <!DOCTYPE html>
  <html lang="en">
  <head>
-    
+
      <meta charset="UTF-8">
      <title>Biyue</title>
      <link rel="stylesheet" href="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.css"></link>
      <script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.js"></script>
      <script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins-ui.js"></script>
      <script src="vendor/jQuery-2.2.2-min/jquery-v2.2.2-min.js"></script>
-     
+
      <style>
          html, body {
              width: 100%;
@@ -55,28 +55,31 @@
         <div id="lockBtn" class="btn-text-default">锁定</div>
         <div id="unlockBtn" class="btn-text-default">解锁</div>
         <div id="showPosition" class="btn-text-default">显示渲染位置</div>
+        <div id="getSelectionBtn" class="btn-text-default">切出选中范围</div>
+        <div id="showAllContentBtn" class="btn-text-default">常亮切题区域</div>
+        <div id="showScoreContentBtn" class="btn-text-default">显示分数框</div>
         <div id="showMultiPagePos" class="btn-text-default">获取空间在多个页面位置 </div>
         <div id="insertDrawingObject" class="btn-text-default">插入绘图对象</div>
-        </div>
-        
-        <div id="controlPostion">
-            <table align="center" border="1" width="100px">
-                <tr>
-                    <td>p</td><td id="p-value" class="pos-value">0</td>
-                </tr>
-                <tr>
-                    <td>x</td><td id="x-value" class="pos-value">1</td>
-                </tr>
-                <tr>
-                    <td>y</td><td id="y-value" class="pos-value"></td>
-                </tr>
-                <tr>
-                    <td>w</td><td id="w-value" class="pos-value"></td>
-                </tr>
-                <tr>
-                    <td>h</td><td id="h-value" class="pos-value"></td>
-                </tr>
-            </table>
+      </div>
+
+      <div id="controlPostion">
+          <table align="center" border="1" width="100px">
+              <tr>
+                  <td>p</td><td id="p-value" class="pos-value">0</td>
+              </tr>
+              <tr>
+                  <td>x</td><td id="x-value" class="pos-value">1</td>
+              </tr>
+              <tr>
+                  <td>y</td><td id="y-value" class="pos-value"></td>
+              </tr>
+              <tr>
+                  <td>w</td><td id="w-value" class="pos-value"></td>
+              </tr>
+              <tr>
+                  <td>h</td><td id="h-value" class="pos-value"></td>
+              </tr>
+          </table>
         </div>
     </div>
     <script src="scripts/biyue.js"></script>
