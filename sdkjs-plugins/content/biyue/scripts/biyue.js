@@ -1,5 +1,6 @@
 (function (window, undefined) {
     var styleEnable = false;
+    let settingsWindow = null
 
     let splitQuestion = function (text, text_all) {
         var index = 1;
@@ -110,6 +111,10 @@
                 {
                     id: "onDismissGroup",
                     text: "解除分组",
+                },
+                {
+                  id: "onSettingDialog",
+                  text: "设置题目信息",
                 }
             ]
         }
@@ -129,6 +134,11 @@
         console.log("onDismissGroup");
         DismissGroup();
     });
+    window.Asc.plugin.attachContextMenuClickEvent('onSettingDialog', function() {
+      console.log("onSettingDialog");
+      SettingDialog()
+  });
+
 
     function onGetPos(rect) {
         if (rect === undefined) {
@@ -463,6 +473,14 @@
     // 在editor面板的插件按钮被点击
     window.Asc.plugin.button = function (id, windowID) {
         console.log("on plugin button id=${id} ${windowID}");
+        if (settingsWindow.id == windowID) {
+          // 设置窗口 -1为右上角的x，其他按创建时设置的buttons的顺序从0开始
+          if (id == -1) {
+            settingsWindow.close();
+            // 关闭窗口
+          }
+          return;
+        }
         if (id == -1) {
             this.executeCommand("close", '');
             StoreCustomData(function() {
@@ -825,7 +843,7 @@
             prevTagObj.group = prevControl.InternalId;
         }
 
-        if (prevTagObj.group === curControl.group) {
+        if (prevTagObj.group === curTagObj.group) {
             return;
         }
 
@@ -837,6 +855,35 @@
         // set tag
         setBatchTag(window, [{"InternalId": prevControl.InternalId, "tag": prevTag}, {"InternalId": curControl.InternalId, "tag": curTag}]);
     };
+    SettingDialog = function() {
+      // 题目设置信息窗口
+      let location  = window.location;
+      let start = location.pathname.lastIndexOf('/') + 1;
+      let file = location.pathname.substring(start);
+
+      let variation = {
+        url : location.href.replace(file, 'settings.html'),
+        description : window.Asc.plugin.tr('题目设置'),
+        isVisual : true,
+        buttons : [
+        {
+          'text': window.Asc.plugin.tr('确定'),
+          'primary': true
+        },
+        {
+          'text': window.Asc.plugin.tr('取消'),
+          'primary': false
+        }],
+        isModal : true,
+        EditorsSupport : ["word", "slide", "cell"],
+        size : [ 592, 200 ]
+      };
+
+      if (!settingsWindow) {
+        settingsWindow = new window.Asc.PluginWindow();
+      }
+      settingsWindow.show(variation);
+    }
 
 
     window.Asc.plugin.event_onFocusContentControl = function (control) {
