@@ -1,7 +1,7 @@
 (function (window, undefined) {
     var styleEnable = false;
 
-    let splitQuestion = function (text, text_all) {
+    let splitQuestion = function (text_all) {
         var index = 1;
  
         // 匹配 格式一、的题组结构
@@ -110,6 +110,10 @@
                 {
                     id: "onDismissGroup",
                     text: "解除分组",
+                }, 
+                {
+                    id: "onMakeGroup",
+                    text: "设置分组",
                 }
             ]
         }
@@ -128,6 +132,14 @@
     window.Asc.plugin.attachContextMenuClickEvent('onDismissGroup', function() {
         console.log("onDismissGroup");
         DismissGroup();
+    });
+
+    window.Asc.plugin.attachContextMenuClickEvent('onMakeGroup', function() {
+        console.log("onMakeGroup");
+        if (window.prevControl === undefined) {
+            return;
+        }
+        MakeGroup(window.prevControl, window.currControl);
     });
   
     function onGetPos(rect) {
@@ -308,17 +320,17 @@
         document.getElementById("splitQuestionBtn").onclick = function () {
             // get all text
             window.Asc.plugin.callCommand(function () {
-                Api.asc_EditSelectAll();
-                var text = Api.asc_GetSelectedText();
-                Api.asc_RemoveSelection();
-
+                // Api.asc_EditSelectAll();
+                // var text = Api.asc_GetSelectedText();
+                // Api.asc_RemoveSelection();
                 var oDocument = Api.GetDocument();
-                var text_all = oDocument.GetRange().Text || ''
-                return {text, text_all};
-            }, false, false, function (obj) {
+                var text_all = oDocument.GetRange().GetText({Math: false}) || "";            
+                
+                return text_all;
+            }, false, false, function (text_all) {
                 // split with token
-                console.log('splitQuestion:', obj)
-                var ranges = splitQuestion(obj.text, obj.text_all);
+                console.log('splitQuestion:', text_all)
+                var ranges = splitQuestion(text_all);
 
                 createContentControl(ranges);
             });
@@ -739,16 +751,16 @@
             false, 
             true, 
             function(ctrlKey) {
-                if (true ===  ctrlKey && prevControl !== undefined && control !== undefined && control.InternalId != prevControl.InternalId) {
-                    MakeGroup(prevControl, control);                    
+                if (true ===  ctrlKey && prevControl !== undefined && control !== undefined && control.InternalId != prevControl.InternalId) {                    
+                    window.currControl = control;
                 } else {
-                    
+                    window.prevControl = undefined;
+                    window.currControl = undefined;
                 }
-                window.prevControl = undefined;
+                
             }
         );
     }
-
 
 
     window.Asc.plugin.event_onClick = function (isSelectionUse) {
@@ -764,8 +776,6 @@
                 
             }
         );        
-        
-
         
     };
 })(window, undefined);
