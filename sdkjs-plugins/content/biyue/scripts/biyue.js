@@ -3,13 +3,30 @@
 
     let splitQuestion = function (text_all, text_pos) {
         var index = 1;
+
+        // replace uFF10-FF19 to 0-9 
+        text_all = text_all.replace(/[\uFF10-\uFF19]|．|（|）/g, function (c) {
+            if (c === '．') {
+                return '.';
+            }
+            if (c === '（') {
+                return '(';
+            }
+            if (c === '）') {
+                return ')';
+            }
+
+            return String.fromCharCode(c.charCodeAt(0) - 0xFEE0);
+        });        
  
         // 匹配 格式一、的题组结构
         var structPatt = /[一二三四五六七八九十]+、.*?(?=\n[一二三四五六七八九十]+、|\n\d+\.|\n$)/gs
         // 匹配 格式1.的题目 同时避开结构        
-        var quesPatt = /(?<=^|\r|\n)[\d]+\.?.*?(\n|\r).*?(?=((\n|\r)[\d]+\.?)|(\n[一二三四五六七八九十]+、)|$)/gs
+        var quesPatt = /(?<=^|\r|\n|\t)[ ]?[\d]+[\.]?.*?(\n|\r).*?(?=((\n|\r|\t)[ ]?[\d]+[\.]?)|(\n[一二三四五六七八九十]+、)|$)/gs
         // 匹配 批改作答区域
         var rangePatt = /(([\(]|[\（])(\s|\&nbsp\;)*([\）]|[\)]))|(___*)/gs
+        var inlineQuesPatt = /\(?\d+[\).].*?(?=(\(?\d+[\).])|\r|$)/gs;
+        
 
         var structTextArr = text_all.match(structPatt) || []
         var quesTextArr = text_all.match(quesPatt) || []
@@ -23,7 +40,7 @@
         structTextArr.map(item => {
           // 结构 例如：一、选择题
           var startIndex = text_all.indexOf(item);
-          var endIndex = startIndex + item.length + 1;
+          var endIndex = startIndex + item.length;
           info = { 'regionType': 'struct', 'mode': 1}
           ranges.push({ beg: text_pos[startIndex], end: text_pos[endIndex], controlType: 1, info: info });
         });
@@ -31,9 +48,13 @@
         quesTextArr.map(item => {
           // 题目 例如：1.xxx
           var startIndex = text_all.indexOf(item);
-          var endIndex = startIndex + item.length + 1;
+          var endIndex = startIndex + item.length;
+
+          
+          var inlineQuesTextArr = item.match(inlineQuesPatt) || []
+
           info = { 'ques_no': no, 'regionType': 'question', 'mode': 2, padding: [0, 0, 0.5, 0]}
-          ranges.push({ beg: text_pos[startIndex], end: text_pos[endIndex], controlType: 1, info: info });
+          ranges.push({ beg: text_pos[startIndex], end: text_pos[endIndex], controlType: 1, info: info, column : inlineQuesTextArr.length });
           no++
 
           // 匹配题目里下划线和括号之类的批改/作答区域
@@ -43,7 +64,7 @@
           info = { 'regionType': 'write', 'mode': 3}
           while ((match = rangePatt.exec(item)) !== null) {
             const startPos = startIndex + match.index;
-            const endPos = startIndex + match.index + match[0].length + 1;
+            const endPos = startIndex + match.index + match[0].length;
 
             if (!processedIndexes.has(startPos)) {
               ranges.push({ beg: text_pos[startIndex], end: text_pos[endIndex],  controlType: 2, info: info });
@@ -176,10 +197,41 @@
             for (var i = 0; i < ranges.length; i++) {
                 // set selection
                 var e = ranges[i];
-                console.log('createContentControl:', e);
-                Api.GetDocument().GetRange(e.beg, e.end - 1).Select()
-                Api.asc_AddContentControl(e.controlType || 1, {"Tag": e.info ? JSON.stringify(e.info) : ''});
+                console.log('createContentControl:', e);                
+                var range = Api.GetDocument().GetRange().GetRange(e.beg, e.end)
+                range.Select()
+                var oResult = Api.asc_AddContentControl(e.controlType || 1, {"Tag": e.info ? JSON.stringify(e.info) : ''});
                 Api.asc_RemoveSelection();
+                if (e.column !== undefined &&  e.column > 1) {
+                    /*
+                    // create table 1xN 
+                    var oTable = Api.CreateTable(1, e.column);
+                    oTable.SetWidth("percent", 100);
+                    // todo set table no border                    
+                    
+                    // split text 
+                    var text = range.GetText();
+                    var inlineQuesPatt = /\(?\d+[\).].*?(?=(\(?\d+[\).])|\r|$)/gs;
+                    var nEmptyLines = text.count("\n");
+                    text.match(inlineQuesPatt).forEach(function (item, index) {
+                        var oCell = oTable.GetCell(0, index);
+                        oCell.GetContent().GetElement(0).AddText(item);                        
+                    }
+                    
+
+                    
+                    
+
+
+
+
+                    // add text to table cell
+
+                    // set up child content control in table cell
+
+                    // remove root content control
+                    */
+                }
             }
         }, false, false, undefined);
     }
