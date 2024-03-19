@@ -3,23 +3,23 @@
     let settingsWindow = null
 	  let activeQuesItem = '';
 
-    let splitQuestion = function (text, text_all) {
+    let splitQuestion = function (text_all, text_pos) {
         var index = 1;
 
         // 匹配 格式一、的题组结构
         var structPatt = /[一二三四五六七八九十]+、.*?(?=\n[一二三四五六七八九十]+、|\n\d+\.|\n$)/gs
         // 匹配 格式1.的题目 同时避开结构
-        var quesPatt = /(?<=^|\r|\n)[\d]+\.?.*?(\n|\r).*?(?=((\n|\r)[\d]+\.?)|(\n[一二三四五六七八九十]+、)|$)/gs // /[\d]+\.?.*?\n.*?(?=(\n[\d]+\.?)|$)/gs
+        var quesPatt = /(?<=^|\r|\n)[\d]+\.?.*?(\n|\r).*?(?=((\n|\r)[\d]+\.?)|(\n[一二三四五六七八九十]+、)|$)/gs
         // 匹配 批改作答区域
         var rangePatt = /(([\(]|[\（])(\s|\&nbsp\;)*([\）]|[\)]))|(___*)/gs
 
         var structTextArr = text_all.match(structPatt) || []
         var quesTextArr = text_all.match(quesPatt) || []
 
-        structTextArr = structTextArr.map(text => text.replace(/[\n]/g, ''));
-        quesTextArr = quesTextArr.map(text => text.replace(/[\n]/g, ''));
+        //structTextArr = structTextArr.map(text => text.replace(/[\n]/g, ''));
+        //quesTextArr = quesTextArr.map(text => text.replace(/[\n]/g, ''));
 
-        text_all = text_all.replace(/[\n]/g, '')
+        //text_all = text_all.replace(/[\n]/g, '')
         var ranges = new Array();
         let info = {}
         structTextArr.map(item => {
@@ -27,7 +27,7 @@
           var startIndex = text_all.indexOf(item);
           var endIndex = startIndex + item.length + 1;
           info = { 'regionType': 'struct', 'mode': 1}
-          ranges.push({ beg: startIndex, end: endIndex, controlType: 1, info: info });
+          ranges.push({ beg: text_pos[startIndex], end: text_pos[endIndex], controlType: 1, info: info });
         });
         let no = 1
         quesTextArr.map(item => {
@@ -35,7 +35,7 @@
           var startIndex = text_all.indexOf(item);
           var endIndex = startIndex + item.length + 1;
           info = { 'ques_no': no, 'regionType': 'question', 'mode': 2, padding: [0, 0, 0.5, 0]}
-          ranges.push({ beg: startIndex, end: endIndex, controlType: 1, info: info });
+          ranges.push({ beg: text_pos[startIndex], end: text_pos[endIndex], controlType: 1, info: info });
           no++
 
           // 匹配题目里下划线和括号之类的批改/作答区域
@@ -48,7 +48,7 @@
             const endPos = startIndex + match.index + match[0].length + 1;
 
             if (!processedIndexes.has(startPos)) {
-              ranges.push({ beg: startPos, end: endPos,  controlType: 2, info: info });
+              ranges.push({ beg: text_pos[startIndex], end: text_pos[endIndex],  controlType: 2, info: info });
               for (let i = startPos; i < endPos; i++) {
                 processedIndexes.add(i);
               }
@@ -109,7 +109,10 @@
     function getContextMenuItems() {
         let settings = {
             guid: window.Asc.plugin.guid,
-            items : []
+            items : [{
+              id: "onMakeGroup",
+              text: "设置分组",
+          }]
         }
 
         let tagObj = ''
@@ -145,11 +148,21 @@
         console.log("onDismissGroup");
         DismissGroup();
     });
+
     window.Asc.plugin.attachContextMenuClickEvent('onSettingDialog', function() {
       console.log("onSettingDialog");
       SettingDialog()
-  });
+    });
 
+
+
+    window.Asc.plugin.attachContextMenuClickEvent('onMakeGroup', function() {
+        console.log("onMakeGroup");
+        if (window.prevControl === undefined) {
+            return;
+        }
+        MakeGroup(window.prevControl, window.currControl);
+    });
 
     function onGetPos(rect) {
         if (rect === undefined) {
@@ -330,25 +343,44 @@
         // 因此，1 毫米 = (96 / 25.4) 像素
         const pixelsPerMillimeter = 96 / 25.4;
         return Math.floor(mm * pixelsPerMillimeter);
-      }
+    }
+
+    function CalcTextPos(text_all, text_plain) {
+        text_plain = text_plain.replace(/[\r]/g, '');
+        var text_pos = new Array(text_all.length);
+        var j = 0;
+        for (var i = 0, n = text_plain.length; i < n; i++) {
+            while (text_all[j] !== text_plain[i]) {
+                text_pos[j] = i;
+                j++;
+            }
+            text_pos[j] = i;
+            j++;
+        }
+
+        return text_pos;
+    }
+
 
     $(document).ready(function () {
         // 切题
         document.getElementById("splitQuestionBtn").onclick = function () {
             // get all text
             window.Asc.plugin.callCommand(function () {
-                Api.asc_EditSelectAll();
-                var text = Api.asc_GetSelectedText();
-                Api.asc_RemoveSelection();
 
+                // Api.asc_EditSelectAll();
+                // var text = Api.asc_GetSelectedText();
+                // Api.asc_RemoveSelection();
                 var oDocument = Api.GetDocument();
-                // var text_all = oDocument.GetRange().Text || ''
                 var text_all = oDocument.GetRange().GetText({Math: false}) || "";
-                return {text, text_all};
-            }, false, false, function (obj) {
+                var text_plain = oDocument.GetRange().GetText({Math:false, Numbering: false});
+
+                return {text_all, text_plain};
+            }, false, false, function (result) {
                 // split with token
-                console.log('splitQuestion:', obj)
-                var ranges = splitQuestion(obj.text, obj.text_all);
+                console.log('splitQuestion:', result)
+                var text_pos = CalcTextPos(result.text_all, result.text_plain);
+                var ranges = splitQuestion(result.text_all, text_pos);
 
                 createContentControl(ranges);
             });
@@ -914,15 +946,14 @@
             true,
             function(ctrlKey) {
                 if (true ===  ctrlKey && prevControl !== undefined && control !== undefined && control.InternalId != prevControl.InternalId) {
-                    MakeGroup(prevControl, control);
+                    window.currControl = control;
                 } else {
-
+                    window.prevControl = undefined;
+                    window.currControl = undefined;
                 }
-                window.prevControl = undefined;
             }
         );
     }
-
 
 
     window.Asc.plugin.event_onClick = function (isSelectionUse) {
@@ -938,9 +969,6 @@
 
             }
         );
-
-
-
     };
 })(window, undefined);
 
