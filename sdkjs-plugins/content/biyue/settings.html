@@ -19,16 +19,28 @@
 
     <div class="setting-item">
       <label for="score">分数：</label>
-      <input type="input" id="score" style="width: 98px;">
+      <input type="input" id="score" placeholder="0" style="width: 98px;">
     </div>
 
     <div class="setting-item">
       <label>内容：</label>
-      <input type="input" id="tag">
+      <!-- <input type="input" id="tag"> -->
+      <div id="tag" style="
+      line-height: 1.8em;
+      background: #fff;
+      padding: 3px;"></div>
     </div>
 	</div>
 </body>
 </html>
-<scripts>
+<script>
+  // 监听消息事件
+  window.addEventListener('message', function(event) {
+    // 检查消息来源是否合法
+    if (event.origin !== window.location.origin) return;
 
-</scripts>
+    // 处理接收到的值
+    var receivedData = event.data;
+    console.log("接收到的值:", receivedData);
+  });
+</script>

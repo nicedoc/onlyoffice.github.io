@@ -1,6 +1,7 @@
 (function (window, undefined) {
     var styleEnable = false;
     let settingsWindow = null
+	  let activeQuesItem = '';
 
     let splitQuestion = function (text, text_all) {
         var index = 1;
@@ -8,7 +9,7 @@
         // 匹配 格式一、的题组结构
         var structPatt = /[一二三四五六七八九十]+、.*?(?=\n[一二三四五六七八九十]+、|\n\d+\.|\n$)/gs
         // 匹配 格式1.的题目 同时避开结构
-        var quesPatt = /(?<=^|\n)[\d]+\.?.*?\n.*?(?=(\n[\d]+\.?)|(\n[一二三四五六七八九十]+、)|$)/gs // /[\d]+\.?.*?\n.*?(?=(\n[\d]+\.?)|$)/gs
+        var quesPatt = /(?<=^|\r|\n)[\d]+\.?.*?(\n|\r).*?(?=((\n|\r)[\d]+\.?)|(\n[一二三四五六七八九十]+、)|$)/gs // /[\d]+\.?.*?\n.*?(?=(\n[\d]+\.?)|$)/gs
         // 匹配 批改作答区域
         var rangePatt = /(([\(]|[\（])(\s|\&nbsp\;)*([\）]|[\)]))|(___*)/gs
 
@@ -61,6 +62,7 @@
     // 插件初始化
     window.Asc.plugin.init = function () {
         console.log("biyue plugin inited.");
+		    window.Asc.plugin.sendToPlugin("getSettingsMessage");
 
         // create style
 
@@ -107,16 +109,25 @@
     function getContextMenuItems() {
         let settings = {
             guid: window.Asc.plugin.guid,
-            items : [
-                {
-                    id: "onDismissGroup",
-                    text: "解除分组",
-                },
-                {
-                  id: "onSettingDialog",
-                  text: "设置题目信息",
-                }
-            ]
+            items : []
+        }
+
+        let tagObj = ''
+        if (activeQuesItem) {
+          var controlTag = activeQuesItem ? activeQuesItem.Tag : "";
+          tagObj = JSON.parse(controlTag);
+          if (tagObj.group !== undefined && tagObj.group !== "") {
+            settings.items.push({
+              id: "onDismissGroup",
+              text: "解除分组",
+            })
+          }
+          if (tagObj.regionType == 'question') {
+            settings.items.push({
+              id: "onSettingDialog",
+              text: "设置题目信息",
+            })
+          }
         }
         return settings;
     }
@@ -331,7 +342,8 @@
                 Api.asc_RemoveSelection();
 
                 var oDocument = Api.GetDocument();
-                var text_all = oDocument.GetRange().Text || ''
+                // var text_all = oDocument.GetRange().Text || ''
+                var text_all = oDocument.GetRange().GetText({Math: false}) || "";
                 return {text, text_all};
             }, false, false, function (obj) {
                 // split with token
@@ -473,10 +485,11 @@
     // 在editor面板的插件按钮被点击
     window.Asc.plugin.button = function (id, windowID) {
         console.log("on plugin button id=${id} ${windowID}");
-        if (settingsWindow.id == windowID) {
+        if (settingsWindow && settingsWindow.id == windowID) {
           // 设置窗口 -1为右上角的x，其他按创建时设置的buttons的顺序从0开始
           if (id == -1) {
-            settingsWindow.close();
+            // settingsWindow.close();
+					  window.Asc.plugin.executeMethod('CloseWindow', [windowID]);
             // 关闭窗口
           }
           return;
@@ -493,8 +506,10 @@
     function showPosition(window, onGetPos) {
         window.Asc.plugin.executeMethod("GetCurrentContentControlPr", [], function (returnValue) {
             console.log("control", returnValue);
+            activeQuesItem = ''
 
             if (returnValue) {
+                activeQuesItem = returnValue || ''
                 Asc.scope.controlId = returnValue.InternalId;
                 window.Asc.plugin.callCommand(function () {
                     // get logic document
@@ -865,6 +880,8 @@
         url : location.href.replace(file, 'settings.html'),
         description : window.Asc.plugin.tr('题目设置'),
         isVisual : true,
+				isModal : true,
+				isViewer : true,
         buttons : [
         {
           'text': window.Asc.plugin.tr('确定'),
@@ -874,13 +891,15 @@
           'text': window.Asc.plugin.tr('取消'),
           'primary': false
         }],
-        isModal : true,
-        EditorsSupport : ["word", "slide", "cell"],
+        EditorsSupport : ["word"],
         size : [ 592, 200 ]
       };
 
       if (!settingsWindow) {
         settingsWindow = new window.Asc.PluginWindow();
+        settingsWindow.attachEvent("onBiyueMessage", function(message) {
+          settingsWindow.command('onParams', activeQuesItem)
+        });
       }
       settingsWindow.show(variation);
     }
