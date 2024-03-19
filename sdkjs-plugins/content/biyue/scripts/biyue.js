@@ -7,9 +7,9 @@
         var index = 1;
 
         // 匹配 格式一、的题组结构
-        var structPatt = /[一二三四五六七八九十]+、.*?(?=\n[一二三四五六七八九十]+、|\n\d+\.|\n$)/gs
+        var structPatt = /[一二三四五六七八九十]+、.*?(?=((\n|\r)[\d]+\.?)|((\n|\r)[一二三四五六七八九十]+、)|(?:$|[\r\n]))/gs
         // 匹配 格式1.的题目 同时避开结构
-        var quesPatt = /(?<=^|\r|\n)[\d]+\.?.*?(\n|\r).*?(?=((\n|\r)[\d]+\.?)|(\n[一二三四五六七八九十]+、)|$)/gs
+        var quesPatt = /(?<=^|\r|\n)[\d]+\.?.*?(\n|\r).*?(?=((\n|\r)[\d]+\.?)|((\n|\r)[一二三四五六七八九十]+、)|$)/gs
         // 匹配 批改作答区域
         var rangePatt = /(([\(]|[\（])(\s|\&nbsp\;)*([\）]|[\)]))|(___*)/gs
 
@@ -48,7 +48,7 @@
             const endPos = startIndex + match.index + match[0].length + 1;
 
             if (!processedIndexes.has(startPos)) {
-              ranges.push({ beg: text_pos[startIndex], end: text_pos[endIndex],  controlType: 2, info: info });
+              ranges.push({ beg: text_pos[startPos], end: text_pos[endPos],  controlType: 2, info: info });
               for (let i = startPos; i < endPos; i++) {
                 processedIndexes.add(i);
               }
