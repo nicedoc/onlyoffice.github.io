@@ -12,6 +12,7 @@
       { value: '7', label: '单选组合' },
       { value: '8', label: '作文' }
     ];
+    var activeQuesItem = ''
 
     window.Asc.plugin.init = function() {
       console.log("settings init");
@@ -32,19 +33,58 @@
     }
 
     function sanitizeInput(input) {
-      // 只允许输入数字
-      input.value = input.value.replace(/[^\d]/g, '');
-      // 将大写数字转换为小写
-      input.value = input.value.toLowerCase();
-      if (input.value > 100) {
-        // 限制单题分数上限
-        input.value = 100
+      let value = input.value
+      // 过滤非数字和小数点的字符
+      let filteredInput = value.replace(/[^0-9.]/g, '');
+
+      // 检查小数点的个数，如果多于一个，则进行处理
+      if (filteredInput.split('.').length > 2) {
+        let parts = filteredInput.split('.');
+        filteredInput = parts.shift() + '.' + parts.join('');
       }
+      // 如果开头是小数点，则加上 0
+      if (filteredInput.startsWith('.')) {
+        filteredInput = '0' + filteredInput;
+      }
+      // 限制小数位最多为1位
+      let decimalIndex = filteredInput.indexOf('.');
+      if (decimalIndex !== -1) {
+          let decimalPart = filteredInput.substring(decimalIndex + 1);
+          if (decimalPart.length > 1) {
+              filteredInput = filteredInput.substring(0, decimalIndex + 2);
+          }
+      }
+      // 去除数字前面多余的零
+      let parts = filteredInput.split('.');
+      parts[0] = String(Number(parts[0])); // 转换成数值然后转换回字符串，去除前面的零
+      filteredInput = parts.join('.');
+      // 将大写数字转换为小写
+      filteredInput = filteredInput.replace(/[０-９]/g, function(match) {
+          return String.fromCharCode(match.charCodeAt(0) - 65248);
+      });
+      if (filteredInput > 100) {
+        // 限制单题分数上限
+        filteredInput = 100
+      }
+      input.value = filteredInput;
+    }
+    function getDialogForm () {
+      let form = {}
+      let questionTypeDom = document.getElementById('questionType')
+      if (questionTypeDom) {
+        form.mode = questionTypeDom.value || ''
+      }
+      let scoreDom = document.getElementById('score')
+      if (scoreDom) {
+        form.score = scoreDom.value || 0
+      }
+      return form
     }
 
   window.Asc.plugin.attachEvent("onParams", function(message) {
     let result = message || {};
     console.log('接收的消息', result);
+    activeQuesItem = result || ''
     let tagObj = ''
     if (result.Tag) {
       tagObj = JSON.parse(result.Tag)
@@ -62,6 +102,15 @@
       scoreDom.value = tagObj.score || ''
     }
 
+  });
+  window.Asc.plugin.attachEvent("getParams", function() {
+    let params = {
+      form: getDialogForm(),
+      activeQuesItem: activeQuesItem
+    }
+
+    // 将窗口的信息传递出去
+    window.Asc.plugin.sendToPlugin("getSettingsMessage", params);
   });
 })(window, undefined);
 

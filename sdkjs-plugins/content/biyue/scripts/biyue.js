@@ -26,7 +26,7 @@
           // 结构 例如：一、选择题
           var startIndex = text_all.indexOf(item);
           var endIndex = startIndex + item.length + 1;
-          info = { 'regionType': 'struct', 'mode': 1}
+          info = { 'regionType': 'struct', 'color': '#f7ca91'}
           ranges.push({ beg: text_pos[startIndex], end: text_pos[endIndex], controlType: 1, info: info });
         });
         let no = 1
@@ -42,7 +42,7 @@
           const processedIndexes = new Set();
           let match;
 
-          info = { 'regionType': 'write', 'mode': 3}
+          info = { 'regionType': 'write', 'color': '#ffcccc'}
           while ((match = rangePatt.exec(item)) !== null) {
             const startPos = startIndex + match.index;
             const endPos = startIndex + match.index + match[0].length + 1;
@@ -62,7 +62,6 @@
     // 插件初始化
     window.Asc.plugin.init = function () {
         console.log("biyue plugin inited.");
-		    window.Asc.plugin.sendToPlugin("getSettingsMessage");
 
         // create style
 
@@ -453,23 +452,19 @@
                       }
                     }
                   }
-                  if (obj && obj.ques_no <= 4) {
+                  if (obj && obj.regionType == 'question' && obj.mode == 3) {
                     var oDocument = Api.GetDocument();
                     var oTableStyle = oDocument.CreateStyle("CustomTableStyle", "table");
-                    var oTable = Api.CreateTable(5, 1);
+                    let num = obj.score > 0 ? parseInt(obj.score)+1 : 1
+                    var oTable = Api.CreateTable(num, 1);
                     // oTable.SetWidth("percent", 100);
                     oTable.SetStyle(oTableStyle);
                     oTable.SetWrappingStyle(false);
-                    oTable.GetCell(0, 0).GetContent().GetElement(0).AddText("1")
-                    oTable.GetCell(0, 0).SetWidth('twips', 283)
-                    oTable.GetCell(0, 1).GetContent().GetElement(0).AddText("2")
-                    oTable.GetCell(0, 1).SetWidth('twips', 283)
-                    oTable.GetCell(0, 2).GetContent().GetElement(0).AddText("3")
-                    oTable.GetCell(0, 2).SetWidth('twips', 283)
-                    oTable.GetCell(0, 3).GetContent().GetElement(0).AddText("4")
-                    oTable.GetCell(0, 3).SetWidth('twips', 283)
-                    oTable.GetCell(0, 4).GetContent().GetElement(0).AddText("5")
-                    oTable.GetCell(0, 4).SetWidth('twips', 283)
+
+                    for (var i = 0; i < num; i++) {
+                      oTable.GetCell(0, i).GetContent().GetElement(0).AddText(i + '')
+                      oTable.GetCell(0, i).SetWidth('twips', 283)
+                    }
                     // oDocument.Push(oTable) // 添加到文档的底部
 
                     // 表格-高级设置 相关参数
@@ -520,9 +515,13 @@
         if (settingsWindow && settingsWindow.id == windowID) {
           // 设置窗口 -1为右上角的x，其他按创建时设置的buttons的顺序从0开始
           if (id == -1) {
-            // settingsWindow.close();
-					  window.Asc.plugin.executeMethod('CloseWindow', [windowID]);
+            settingsWindow.close();
+					  // window.Asc.plugin.executeMethod('CloseWindow', [windowID]);
+            settingsWindow = null
             // 关闭窗口
+          }
+          if (id == 0 && settingsWindow) {
+            settingsWindow.command('getParams')
           }
           return;
         }
@@ -588,7 +587,7 @@
                                 control.SetTag(Asc.scope.tag);
                             }
                         }
-                    }, false, false, undefined);
+                    }, false, true, undefined);
 
                 }
             }
@@ -659,41 +658,6 @@
         Api.asc_SetGlobalContentControlShowHighlight(styleEnable, 255, 204, 204);
       }, false, false, undefined);
     }
-
-    // 获取当前控件的tag
-    function getTag(window) {
-      window.Asc.plugin.callCommand(function () {
-        var prop = Api.asc_GetContentControlProperties();
-        return prop.Tag;
-      }, false, false, function(tag) {
-          console.log("tag=>", tag);
-      });
-    };
-
-    // 设置当前控件的tag
-    function setTag(window, tag) {
-        Asc.scope.tag = tag;
-        window.Asc.plugin.executeMethod("GetCurrentContentControl");
-        window.Asc.plugin.onMethodReturn = function (returnValue) {
-            if (window.Asc.plugin.info.methodName == "GetCurrentContentControl") {
-                if (returnValue) {
-                    Asc.scope.controlId = returnValue;
-                    window.Asc.plugin.callCommand(function () {
-                        var controls = Api.GetDocument().GetAllContentControls();
-                        for (var i = 0; i < controls.length; i++) {
-                            var control = controls[i];
-                            console.log("control", control, Asc.scope.controlId)
-                            if (control.Sdt.GetId() === Asc.scope.controlId) {
-                                control.SetTag(Asc.scope.tag);
-                            }
-                        }
-                    }, false, false, undefined);
-
-                }
-            }
-        };
-    }
-
 
     function getSelection() {
         // [类型]: 1为block的 2的为inline
@@ -932,6 +896,21 @@
         settingsWindow.attachEvent("onBiyueMessage", function(message) {
           settingsWindow.command('onParams', activeQuesItem)
         });
+        settingsWindow.attachEvent("getSettingsMessage", function(params) {
+          console.log('getSettingsMessage:', params)
+          let Tag = ''
+          if (params && params.activeQuesItem && params.form) {
+            let form = params.form || {}
+            let itemObj = JSON.parse(params.activeQuesItem.Tag) || {}
+            itemObj.score = form.score || 0
+            itemObj.mode = form.mode || 0
+            Tag = JSON.stringify(itemObj)
+          }
+
+          settingsWindow.close();
+          settingsWindow = null
+          setTag(window, Tag)
+        })
       }
       settingsWindow.show(variation);
     }
