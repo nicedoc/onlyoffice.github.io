@@ -25,7 +25,9 @@
         var quesPatt = /(?<=^|\r|\n|\t)[ ]?[\d]+[\.]?.*?(\n|\r).*?(?=((\n|\r|\t)[ ]?[\d]+[\.]?)|(\n[一二三四五六七八九十]+、)|$)/gs
         // 匹配 批改作答区域
         var rangePatt = /(([\(]|[\（])(\s|\&nbsp\;)*([\）]|[\)]))|(___*)/gs
-        var inlineQuesPatt = /\(?\d+[\).].*?(?=(\(?\d+[\).])|\r|$)/gs;
+        //var inlineQuesPatt = /(?<=^|\r|\n|\t| )\d+[.].*?(?=(\d+\.)|\r|$)/gs;
+        var isInlinePatt = /(?<=^|\r|\n)(\d+\..*)([ ]+\d+\..*)+/g;        
+        var inlineQuesPatt = /\(?\d+[\).].*?(?=(\d+\.)|(\(\d+\))|\r|$)/gs;
         
 
         var structTextArr = text_all.match(structPatt) || []
@@ -51,10 +53,22 @@
           var endIndex = startIndex + item.length;
 
           
-          var inlineQuesTextArr = item.match(inlineQuesPatt) || []
+            
+          var column = 1;
+          var isInlineArr = item.match(isInlinePatt) || []
+          if (isInlineArr.length >= 1) {
+            debugger
 
+            var r = isInlineArr[0].match(inlineQuesPatt);  
+            if (r !== undefined && r !== null) {
+              column = r.length;
+              console.log('column:', column , " of ques", no)
+            }
+          }
+
+          
           info = { 'ques_no': no, 'regionType': 'question', 'mode': 2, padding: [0, 0, 0.5, 0]}
-          ranges.push({ beg: text_pos[startIndex], end: text_pos[endIndex], controlType: 1, info: info, column : inlineQuesTextArr.length });
+          ranges.push({ beg: text_pos[startIndex], end: text_pos[endIndex], controlType: 1, info: info, column : column });
           no++
 
           // 匹配题目里下划线和括号之类的批改/作答区域
@@ -189,11 +203,35 @@
         }, false, false, undefined);
     };
 
+    // 批量处理表格
+    function postProcessTableColumn() {        
+        console.log("postProcessTableColumn")
+        
+        var tags = Asc.scope.ranges.filter(e => e.info !== undefined && e.column !== undefined && e.column > 1 ).map(e => JSON.stringify(e.info));
+        if (tags.length === 0) {
+            return;
+        }
+
+        window.Asc.plugin.executeMethod("GetAllContentControls", [], function (controls) {
+            processTableColumn(controls.filter(e => tags.includes(e.Tag)));
+        });
+    }
+
+    window.Asc.plugin.onCommandCallback = function(result) {
+        console.log("onCommandCallback", result);
+        if (window.isPostProcessTableColumn == true) {
+            window.isPostProcessTableColumn = false;
+            postProcessTableColumn(result);            
+        }
+    };
+
     createContentControl = function (ranges) {
         Asc.scope.ranges = ranges;
+        window.isPostProcessTableColumn = true;
         window.Asc.plugin.callCommand(function () {
             var ranges = Asc.scope.ranges;
 
+            var results = [];
             for (var i = 0; i < ranges.length; i++) {
                 // set selection
                 var e = ranges[i];
@@ -203,36 +241,14 @@
                 var oResult = Api.asc_AddContentControl(e.controlType || 1, {"Tag": e.info ? JSON.stringify(e.info) : ''});
                 Api.asc_RemoveSelection();
                 if (e.column !== undefined &&  e.column > 1) {
-                    /*
-                    // create table 1xN 
-                    var oTable = Api.CreateTable(1, e.column);
-                    oTable.SetWidth("percent", 100);
-                    // todo set table no border                    
-                    
-                    // split text 
-                    var text = range.GetText();
-                    var inlineQuesPatt = /\(?\d+[\).].*?(?=(\(?\d+[\).])|\r|$)/gs;
-                    var nEmptyLines = text.count("\n");
-                    text.match(inlineQuesPatt).forEach(function (item, index) {
-                        var oCell = oTable.GetCell(0, index);
-                        oCell.GetContent().GetElement(0).AddText(item);                        
-                    }
-                    
-
-                    
-                    
-
-
-
-
-                    // add text to table cell
-
-                    // set up child content control in table cell
-
-                    // remove root content control
-                    */
+                    results.push({
+                        "InternalId": oResult.InternalId,
+                        "Tag": oResult.Tag,
+                        "Column": e.column                        
+                    })
                 }
             }
+            return results;
         }, false, false, undefined);
     }
 
@@ -532,6 +548,11 @@
 
         document.getElementById("showMultiPagePos").onclick = function () {
             showMultiPagePos(window, onGetPos);
+        }
+
+        
+        document.getElementById("toTableColumn").onclick = function () {
+            toTableColumn(window);
         }
 
     });
@@ -850,5 +871,166 @@
         );        
         
     };
+
+    // 将一行多题目的控件转为表格
+    // oPr InternalId ID
+    // oPr Tag 标签    
+    function processTableColumn(oPr) {
+        // if oPr is not array 
+        if (oPr.length === undefined){
+            if (oPr === undefined || oPr === null || oPr.Tag === undefined) {
+                return;
+            }
+            oPr = [oPr];
+        }        
+
+        Asc.scope.controlPrs  = oPr;            
+        window.Asc.plugin.callCommand(function () {
+            function CalcTextPos(text_all, text_plain) {
+                text_plain = text_plain.replace(/[\r]/g, '');
+                var text_pos = new Array(text_all.length);
+                var j = 0;
+                for (var i = 0, n = text_plain.length; i < n; i++) {
+                    while (text_all[j] !== text_plain[i]) {
+                        text_pos[j] = i;
+                        j++;
+                    }
+                    text_pos[j] = i;
+                    j++;
+                }
+        
+                return text_pos;
+            }
+        
+            
+            var oPrs = Asc.scope.controlPrs;
+            var oDocument = Api.GetDocument();            
+            var oControls = oDocument.GetAllContentControls();                
+            
+            oControls = oControls.filter(function (control) {
+                for (var i = 0; i < oPrs.length; i++) {
+                    if (control.Sdt.Id === oPrs[i].InternalId) {
+                        return true;
+                    }
+                }
+                return false;
+            });
+
+            if (oControls.length === 0) {
+                return;
+            }
+
+            oControls.forEach(function (oControl, index) {            
+                debugger;
+                console.log("oControl", oControl); 
+                
+                var oPr = oPrs[index];
+                var text = oControl.GetContent().GetRange().GetText({Math:false})                
+                var text_plain  = oControl.GetContent().GetRange().GetText({Math:false, Numbering: false});
+                var text_pos = CalcTextPos(text, text_plain);
+
+                text = text.replace(/[\uFF10-\uFF19]|．|（|）/g, function (c) {
+                    if (c === '．') {
+                        return '.';
+                    }
+                    if (c === '（') {
+                        return '(';
+                    }
+                    if (c === '）') {
+                        return ')';
+                    }
+
+                    return String.fromCharCode(c.charCodeAt(0) - 0xFEE0);
+                });
+                var inlineQuesPatt = /\(?\d+[\).].*?(?=(\d+\.)|(\(\d+\))|\r|$)/gs;
+
+                var quesTextArr = text.match(inlineQuesPatt);
+                if (quesTextArr === null || quesTextArr.length <= 1) {
+                    return;
+                }
+
+                // create table 1xN 
+                var oTable = Api.CreateTable(quesTextArr.length, 1);
+                oTable.SetWidth("percent", 100);
+                var oTableStyle = oDocument.CreateStyle("CustomTableStyle", "table");
+                var oTableCellPr = oTableStyle.GetTableCellPr();
+                oTableCellPr.SetWidth("percent", 100 / quesTextArr.length);
+                oTable.SetStyle(oTableStyle);
+
+                // todo set table no border                    
+                
+                // split text                
+                var lastItem  = quesTextArr[quesTextArr.length - 1];
+                var maxPos = text_pos[text.indexOf(lastItem) + lastItem.length + 1];
+                
+                quesTextArr = quesTextArr.map(function (item) {
+                    return item.replace(/[ ]+/g, ' ');
+                });
+
+                quesTextArr.forEach(function (item, index) {
+                    
+                    var oCell = oTable.GetCell(0, index);                
+                    var oContent = oControl.GetContent().GetContent(true)
+                    // add text to table cell                    
+                    
+                    oContent.forEach(function(item, paraIndex) {                        
+                        oCell.GetContent().Push(item);                        
+                    });                             
+                    oCell.GetContent().RemoveElement(0);
+                    
+                    // var beg = text.indexOf(item);
+                    // var end = beg + item.length;
+                    // var begPos = text_pos[beg];
+                    // var endPos = text_pos[end];
+
+                    // if (begPos > 1) {
+                    //     oCell.GetContent().GetRange(0, begPos - 1).Delete();
+                    // }
+
+                    // if (endPos < maxPos) {
+                    //     oCell.GetContent().GetRange(endPos, maxPos).Delete();
+                    // }
+                });                
+
+                oControl.GetContent().RemoveAllElements();
+                oControl.GetContent().Push(oTable);       
+                oControl.GetContent().RemoveElement(0);
+                
+                // loop table
+                for (var row = 0; row < oTable.GetRowsCount(); row++) {
+                    for (var col =0; col < oTable.GetRow(row).GetCellsCount(); col++) {
+                        var oCell = oTable.GetCell(row, col);
+
+                        var item = quesTextArr[col];
+                        var beg = text.indexOf(item);
+                        var end = beg + item.length;
+                        var begPos = text_pos[beg];
+                        var endPos = text_pos[end];
+
+                        if (endPos < maxPos) {
+                            oCell.GetContent().GetRange(endPos, maxPos).Delete();
+                        }                        
+
+                        if (begPos > 1) {
+                            oCell.GetContent().GetRange(0, begPos - 1).Delete();
+                        }
+
+                        var range = oCell.GetContent().GetRange();
+                        range.Select()
+                        var oResult = Api.asc_AddContentControl(1, {"Tag": oPr.Tag});
+                        Api.asc_RemoveSelection();
+                    }
+                }
+
+                // remove root content control
+                Api.asc_RemoveContentControlWrapper(oPr.InternalId);                            
+            });
+        }, false, true, undefined);              
+    }
+
+    function toTableColumn(window) {
+        window.Asc.plugin.executeMethod("GetCurrentContentControlPr", [], processTableColumn, false, false, undefined);
+    }
+
 })(window, undefined);
 
