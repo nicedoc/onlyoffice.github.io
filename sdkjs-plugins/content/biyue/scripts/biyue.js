@@ -396,13 +396,6 @@
 
     }
 
-    function mmToPx(mm) {
-      // 1 英寸 = 25.4 毫米
-      // 1 英寸 = 96 像素（常见的屏幕分辨率）
-      // 因此，1 毫米 = (96 / 25.4) 像素
-      const pixelsPerMillimeter = 96 / 25.4;
-      return Math.floor(mm * pixelsPerMillimeter);
-    }
 
     function mmToPx(mm) {
         // 1 英寸 = 25.4 毫米
@@ -580,6 +573,10 @@
             toTableColumn(window);
         }
 
+        document.getElementById("getQuestionPositions").onclick = function () {
+          getQuestionPositions(window);
+        }
+
     });
 
     // 在editor面板的插件按钮被点击
@@ -666,62 +663,6 @@
             }
         };
     }
-    function getSelection() {
-      // [类型]: 1为block的 2的为inline
-      // window.Asc.plugin.executeMethod ("AddContentControl", [1]);
-
-      //   window.Asc.plugin.callCommand(function () {
-      //   var oDocument = Api.GetDocument();
-      //   var pos = oDocument.Document.CurPos.ContentPos;
-      //   var oElement = oDocument.GetElement(pos)
-      //   while (oElement.GetClassType !== "paragraph") {
-      //       if (oElement.GetClassType() === "blockLvlSdt") {
-      //           oElement = oElement.GetContent();
-      //       } else if (oElement.GetClassType() === "documentContent") {
-      //           pos =  oElement.Document.CurPos.ContentPos;
-      //           oElement = oElement.GetElement(pos);
-      //       } else if (oElement.GetClassType() === "table") {
-      //           var colIndex = oElement.Table.CurCell.Index;
-      //           var rowIndex = oElement.Table.CurCell.Row.Index;
-      //           oElement = oElement.GetCell(rowIndex, colIndex).GetContent();
-      //       } else {
-      //           break;
-      //       }
-      //   }
-      //   var oParagraph = oElement;
-      //   console.log('GetParentContentControl:', oParagraph.GetParentContentControl() )
-      // }, false, false, undefined);
-
-      window.Asc.plugin.callCommand(function () {
-        var oDocument = Api.GetDocument();
-        var aSections = oDocument.GetSections();
-        var sClassType = aSections[0].GetClassType();
-        var oParagraph = oDocument.GetElement(0)
-        // var oRange = oDocument.GetRange(8, 11);
-        var oRange = oDocument.GetRangeBySelect()
-        // Api.asc_AddContentControl(1);
-        // Api.asc_RemoveSelection();
-        // oRange.SetBold(true);
-        var hasContentControl = oRange.Paragraphs[0].GetParentContentControl()
-        var type = 1
-        if (hasContentControl) {
-          // sdt.Pr.Tag 存储题目相关信息
-          type = 2
-        }
-        console.log('oRange::', oRange.Paragraphs[0].GetParentContentControl())
-        console.log("aSections::",oDocument.GetRangeBySelect(), oDocument.GetRange())
-        let allText = oDocument.GetRange().Text
-        let selectText = oRange.Text
-        console.log('-------:', allText.indexOf(selectText))
-        return { type }
-      }, false, false, function (obj) {
-        if (obj && obj.type === 2) {
-          window.Asc.plugin.executeMethod ("AddContentControl", [2]);
-        } else {
-          window.Asc.plugin.executeMethod ("AddContentControl", [1]);
-        }
-    });
-    }
 
     function showAllContent() {
       Asc.scope.styleEnable = !Asc.scope.styleEnable;
@@ -788,15 +729,6 @@
           }
       });
     }
-
-    function showAllContent() {
-        Asc.scope.styleEnable = !Asc.scope.styleEnable;
-        window.Asc.plugin.callCommand(function () {
-          const styleEnable = Asc.scope.styleEnable;
-          // 设置控件的高亮颜色
-          Api.asc_SetGlobalContentControlShowHighlight(styleEnable, 255, 204, 204);
-        }, false, false, undefined);
-      }
 
       // 获取当前控件的tag
     function getTag(window) {
@@ -1034,6 +966,7 @@
             }
             oPr = [oPr];
         }
+        debugger
 
         Asc.scope.controlPrs  = oPr;
         window.Asc.plugin.callCommand(function () {
@@ -1181,6 +1114,64 @@
 
     function toTableColumn(window) {
         window.Asc.plugin.executeMethod("GetCurrentContentControlPr", [], processTableColumn, false, false, undefined);
+    }
+
+    function getQuestionPositions(window) {
+      window.Asc.plugin.executeMethod("GetAllContentControls", [], function (controls) {
+        Asc.scope.controls = controls;
+        window.Asc.plugin.callCommand(function () {
+          let controls = Asc.scope.controls
+          let rect_arr = []
+          const isPageCoord = true;
+          controls.forEach(element => {
+            let rect = Api.asc_GetContentControlBoundingRect(element.InternalId, isPageCoord)
+            let obj = element
+            obj.rect = rect
+            rect_arr.push(obj)
+          });
+          return rect_arr;
+      }, false, false, function(controls){
+        let positions = []
+        let questionItem = ''
+        let i = 1
+        controls.forEach(element => {
+          let rect = element.rect || {}
+          let rect_format = {}
+          rect_format.page = rect.Page ? rect.Page + 1 : 1;
+          rect_format.x = mmToPx(rect.X0)
+          rect_format.y = mmToPx(rect.Y0)
+          rect_format.w = mmToPx(rect.X1 - rect.X0)
+          rect_format.h = mmToPx(rect.Y1 - rect.Y0)
+          element.rect_format = rect_format
+          let tagObj = JSON.parse(element.Tag);
+          if (tagObj && (tagObj.regionType === 'question' || tagObj.regionType === 'write')) {
+            if (tagObj.regionType === 'question') {
+              if (questionItem) {
+                positions.push(questionItem)
+              }
+              questionItem = {
+                ques_no: tagObj.ques_no,
+                ques_type: tagObj.mode,
+                score: tagObj.score || 0,
+                content: '', // 需要是题目的html
+                mark_ask_region: [], // mark_ask_region 最后要传出去的类型需要是对象数组
+                title_region: []
+              }
+              questionItem.title_region.push(rect_format)
+            } else if (questionItem) {
+              questionItem.mark_ask_region.push(rect_format)
+            }
+            if (controls.length === i && questionItem) {
+              positions.push(questionItem)
+              questionItem = ''
+            }
+            // positions.push(element)
+          }
+          i++
+        })
+        console.log('allPositions', positions)
+      });
+    });
     }
 
 })(window, undefined);
