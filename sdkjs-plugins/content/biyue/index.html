@@ -22,7 +22,8 @@
      <link rel="stylesheet" href="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.css"></link>
      <script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.js"></script>
      <script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins-ui.js"></script>
-     <script src="vendor/jQuery-2.2.2-min/jquery-v2.2.2-min.js"></script>
+     <script src="vendor/jQuery-2.2.2-min/jquery-v2.2.2-min.js"></script>     
+     <script src="scripts/node_modules/jsonpath-plus/dist/index-browser-umd.cjs"></script>
      
      <style>
          html, body {
@@ -61,6 +62,7 @@
         <div id="showMultiPagePos" class="btn-text-default">获取空间在多个页面位置 </div>
         <div id="insertDrawingObject" class="btn-text-default">插入绘图对象</div>
         <div id="toTableColumn" class="btn-text-default">一行多题处理</div>
+        <div id="jsonPathSplitQuestionBtn" class="btn-text-default">JSONPath切题</div>
      
         </div>
         
@@ -84,6 +86,7 @@
             </table>
         </div>
     </div>
-    <script src="scripts/biyue.js"></script>
+    <script type="module" src="scripts/dep.js"></script>
+    <script type="module" src="scripts/biyue.js"></script>
  </body>
  </html>
