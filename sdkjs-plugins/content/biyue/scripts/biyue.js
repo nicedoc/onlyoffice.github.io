@@ -236,7 +236,7 @@ import { getNumChar, newSplit } from "./dep.js";
             var ranges = Asc.scope.ranges;
 
             let MakeRange = function(beg, end) {
-                if (typeof beg === 'number' && typeof end === 'number')
+                if (typeof beg === 'number')
                     return Api.GetDocument().GetRange().GetRange(beg, end); 
                 return Api.asc_MakeRangeByPath(e.beg, e.end);
             }            
