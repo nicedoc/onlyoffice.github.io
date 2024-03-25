@@ -901,7 +901,7 @@ import { getNumChar, newSplit } from "./dep.js";
         // set tag
         setBatchTag(window, [{"InternalId": prevControl.InternalId, "tag": prevTag}, {"InternalId": curControl.InternalId, "tag": curTag}]);
     };
-    SettingDialog = function() {
+    let SettingDialog = function() {
       // 题目设置信息窗口
       let location  = window.location;
       let start = location.pathname.lastIndexOf('/') + 1;
