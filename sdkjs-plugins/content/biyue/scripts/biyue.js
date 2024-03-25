@@ -235,15 +235,19 @@ import { getNumChar, newSplit } from "./dep.js";
         window.Asc.plugin.callCommand(function () {
             var ranges = Asc.scope.ranges;
 
-            
+            let MakeRange = function(beg, end) {
+                if (typeof beg === 'number' && typeof end === 'number')
+                    return Api.GetDocument().GetRange().GetRange(beg, end); 
+                return Api.asc_MakeRangeByPath(e.beg, e.end);
+            }            
 
             var results = [];
             // reverse order loop to keep the order
             for (var i = ranges.length - 1; i >= 0; i--) {
                 // set selection
                 var e = ranges[i];
-                console.log('createContentControl:', e);                
-                var range = Api.asc_MakeRangeByPath(e.beg, e.end)                
+                console.log('createContentControl:', e);                    
+                var range = MakeRange(e.beg, e.end);
                 range.Select()
                 var oResult = Api.asc_AddContentControl(e.controlType || 1, {"Tag": e.info ? JSON.stringify(e.info) : ''});
                 Api.asc_RemoveSelection();
