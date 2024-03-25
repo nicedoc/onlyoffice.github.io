@@ -1,4 +1,7 @@
+import { getNumChar, newSplit } from "./dep.js";
+
 (function (window, undefined) {
+
     var styleEnable = false;
     let settingsWindow = null
 	  let activeQuesItem = '';
@@ -39,6 +42,7 @@
         //quesTextArr = quesTextArr.map(text => text.replace(/[\n]/g, ''));
 
         //text_all = text_all.replace(/[\n]/g, '')
+        debugger
         var ranges = new Array();
         let info = {}
         structTextArr.map(item => {
@@ -210,7 +214,7 @@
         document.getElementById("h-value").innerHTML = mmToPx(rect.Y1 - rect.Y0);
     };
 
-    setCurrentContentControlLock = function (lock) {
+    let setCurrentContentControlLock = function (lock) {
         // 直接设置Lock以后，lock都不能操作了，锁定了不能通过插件操作？
 
         Asc.scope.lock = lock;
@@ -246,18 +250,25 @@
         }
     };
 
-    createContentControl = function (ranges) {
+    let createContentControl = function (ranges) {
         Asc.scope.ranges = ranges;
         window.isPostProcessTableColumn = true;
         window.Asc.plugin.callCommand(function () {
             var ranges = Asc.scope.ranges;
 
+            let MakeRange = function(beg, end) {
+                if (typeof beg === 'number')
+                    return Api.GetDocument().GetRange().GetRange(beg, end);
+                return Api.asc_MakeRangeByPath(e.beg, e.end);
+            }
+
             var results = [];
-            for (var i = 0; i < ranges.length; i++) {
+            // reverse order loop to keep the order
+            for (var i = ranges.length - 1; i >= 0; i--) {
                 // set selection
                 var e = ranges[i];
                 console.log('createContentControl:', e);
-                var range = Api.GetDocument().GetRange().GetRange(e.beg, e.end)
+                var range = MakeRange(e.beg, e.end);
                 range.Select()
                 var oResult = Api.asc_AddContentControl(e.controlType || 1, {"Tag": e.info ? JSON.stringify(e.info) : ''});
                 Api.asc_RemoveSelection();
@@ -273,7 +284,7 @@
         }, false, false, undefined);
     }
 
-    insertDrawingObject = function () {
+    let insertDrawingObject = function () {
         console.log("insertDrawingObject")
         window.Asc.plugin.callCommand(function () {
             var oDocument = Api.GetDocument();
@@ -309,7 +320,7 @@
         }, false, true, undefined);
     }
 
-    showMultiPagePos = function (window, onGetPos) {
+    let showMultiPagePos = function (window, onGetPos) {
         window.Asc.plugin.executeMethod("GetCurrentContentControl");
         window.Asc.plugin.onMethodReturn = function (returnValue) {
             if (window.Asc.plugin.info.methodName == "GetCurrentContentControl") {
@@ -329,7 +340,7 @@
 
 
 
-    SetContentProp = function(id, key, value) {
+    let SetContentProp = function(id, key, value) {
         window.Asc.plugin.executeMethod ("GetCurrentContentControlPr", [], function (obj) {
             window.Asc.plugin.currentContentControl = obj;
             var controlTag = obj ? obj.Tag : "";
@@ -346,7 +357,7 @@
     }
 
 
-    toggleControlStyle = function() {
+    let toggleControlStyle = function() {
         if (styleEnable) {
             styleEnable = false;
         } else {
@@ -432,8 +443,8 @@
                 // var text = Api.asc_GetSelectedText();
                 // Api.asc_RemoveSelection();
                 var oDocument = Api.GetDocument();
-                var text_all = oDocument.GetRange().GetText({Math: false}) || "";
-                var text_plain = oDocument.GetRange().GetText({Math:false, Numbering: false});
+                var text_all = oDocument.GetRange().GetText({Math: false, TableCellSeparator: "\u24D2", TableRowSeparator:"\u24E1"}) || "";
+                var text_plain = oDocument.GetRange().GetText({Math:false, Numbering: false, TableCellSeparator:"\u24D2", TableRowSeparator:"\u24E1"});
 
                 return {text_all, text_plain};
             }, false, false, function (result) {
@@ -575,6 +586,25 @@
 
         document.getElementById("getQuestionPositions").onclick = function () {
           getQuestionPositions(window);
+        }
+
+        document.getElementById("jsonPathSplitQuestionBtn").onclick = function () {
+            // get all text
+            window.Asc.plugin.callCommand(function () {
+
+                // Api.asc_EditSelectAll();
+                // var text = Api.asc_GetSelectedText();
+                // Api.asc_RemoveSelection();
+                var oDocument = Api.GetDocument();
+                var text_all = oDocument.GetRange().GetText({Math: false, TableCellSeparator: "\u24D2", TableRowSeparator:"\u24E1"}) || "";
+                var text_json = oDocument.GetRange().ToJSON(true);
+
+                return {text_all, text_json};
+            }, false, false, function (result) {
+                var ranges = newSplit(result.text_json);
+                console.log('splitQuestion:', ranges)
+                createContentControl(ranges);
+            });
         }
 
     });
@@ -776,7 +806,7 @@
         window.prevControl = control;
     }
 
-    DismissGroup = function() {
+    let DismissGroup = function() {
         window.Asc.plugin.executeMethod("GetCurrentContentControlPr", [], function (obj) {
             if (obj === undefined || obj === null || obj.Tag === undefined || !obj.Tag.includes("group")) {
                 return;
@@ -846,7 +876,7 @@
     };
 
 
-    MakeGroup = function(prevControl, curControl) {
+    let MakeGroup = function(prevControl, curControl) {
         console.log("MakeGroup", prevControl, curControl);
         if (prevControl === undefined || curControl === undefined) {
             return;
@@ -1172,7 +1202,7 @@
         console.log('allPositions', positions)
       });
     });
-    }
+  }
 
 })(window, undefined);
 
