@@ -73,7 +73,7 @@ import { getNumChar, newSplit } from "./dep.js";
           }
 
 
-          info = { 'ques_no': no, 'regionType': 'question', 'mode': 2, padding: [0, 0, 0.5, 0]}
+          info = { 'regionType': 'question', 'mode': 2, padding: [0, 0, 0.5, 0]}
           ranges.push({ beg: text_pos[startIndex], end: text_pos[endIndex], controlType: 1, info: info, column : column });
           no++
 
@@ -754,8 +754,14 @@ import { getNumChar, newSplit } from "./dep.js";
         }, false, false, function (obj) {
           if (obj && obj.type === 2) {
             window.Asc.plugin.executeMethod ("AddContentControl", [2]);
+            let obj = { regionType:"write", color:"#ffcccc" }
+            let Tag = JSON.stringify(obj)
+            setTag(window, Tag)
           } else {
             window.Asc.plugin.executeMethod ("AddContentControl", [1]);
+            let obj = { 'regionType': 'question', 'mode': 2, padding: [0, 0, 0.5, 0]}
+            let Tag = JSON.stringify(obj)
+            setTag(window, Tag)
           }
       });
     }
@@ -1147,61 +1153,88 @@ import { getNumChar, newSplit } from "./dep.js";
     }
 
     function getQuestionPositions(window) {
-      window.Asc.plugin.executeMethod("GetAllContentControls", [], function (controls) {
-        Asc.scope.controls = controls;
-        window.Asc.plugin.callCommand(function () {
-          let controls = Asc.scope.controls
-          let rect_arr = []
-          const isPageCoord = true;
-          controls.forEach(element => {
-            let rect = Api.asc_GetContentControlBoundingRect(element.InternalId, isPageCoord)
-            let obj = element
-            obj.rect = rect
-            rect_arr.push(obj)
-          });
-          return rect_arr;
-      }, false, false, function(controls){
+      window.Asc.plugin.callCommand(function () {
+        var oDocument = Api.GetDocument();
+        let controls = oDocument.GetAllContentControls();
         let positions = []
-        let questionItem = ''
-        let i = 1
+        let inline_rect_map = {}
+        const isPageCoord = true;
+        let ques_no = 1
+
+        let mmToPx = function(mm) {
+          // 1 英寸 = 25.4 毫米
+          // 1 英寸 = 96 像素（常见的屏幕分辨率）
+          // 因此，1 毫米 = (96 / 25.4) 像素
+          const pixelsPerMillimeter = 96 / 25.4;
+          return Math.floor(mm * pixelsPerMillimeter);
+        }
+
         controls.forEach(element => {
-          let rect = element.rect || {}
-          let rect_format = {}
-          rect_format.page = rect.Page ? rect.Page + 1 : 1;
-          rect_format.x = mmToPx(rect.X0)
-          rect_format.y = mmToPx(rect.Y0)
-          rect_format.w = mmToPx(rect.X1 - rect.X0)
-          rect_format.h = mmToPx(rect.Y1 - rect.Y0)
-          element.rect_format = rect_format
-          let tagObj = JSON.parse(element.Tag);
-          if (tagObj && (tagObj.regionType === 'question' || tagObj.regionType === 'write')) {
-            if (tagObj.regionType === 'question') {
-              if (questionItem) {
-                positions.push(questionItem)
+          console.log(element.GetClassType())
+          let tagObj = JSON.parse(element.Sdt.Pr.Tag);
+
+          if (element.GetClassType() === 'inlineLvlSdt' && tagObj && tagObj.regionType === 'write') {
+            let parentContentControl = element.GetParentContentControl()
+            if (parentContentControl) {
+              let controlId = parentContentControl.Sdt.GetId() || ''
+              if (!inline_rect_map[controlId] && controlId !== '') {
+                inline_rect_map[controlId] = []
               }
-              questionItem = {
-                ques_no: tagObj.ques_no,
-                ques_type: tagObj.mode,
-                score: tagObj.score || 0,
-                content: '', // 需要是题目的html
-                mark_ask_region: [], // mark_ask_region 最后要传出去的类型需要是对象数组
-                title_region: []
-              }
-              questionItem.title_region.push(rect_format)
-            } else if (questionItem) {
-              questionItem.mark_ask_region.push(rect_format)
+              let rect = Api.asc_GetContentControlBoundingRect(element.Sdt.Id, isPageCoord)
+              let rect_format = {}
+
+              rect_format.page = rect.Page ? rect.Page + 1 : 1;
+              rect_format.x = mmToPx(rect.X0)
+              rect_format.y = mmToPx(rect.Y0)
+              rect_format.w = mmToPx(rect.X1 - rect.X0)
+              rect_format.h = mmToPx(rect.Y1 - rect.Y0)
+
+              inline_rect_map[controlId].push(rect_format)
             }
-            if (controls.length === i && questionItem) {
-              positions.push(questionItem)
-              questionItem = ''
+          } else if (element.GetClassType() === 'blockLvlSdt' && tagObj && tagObj.regionType === 'question') {
+            let rect = Api.asc_GetContentControlBoundingRect(element.Sdt.Id, isPageCoord)
+            let questionItem = {}
+            let rect_format = {}
+            let controlId = element.Sdt.GetId() || ''
+
+            rect_format.page = rect.Page ? rect.Page + 1 : 1;
+            rect_format.x = mmToPx(rect.X0)
+            rect_format.y = mmToPx(rect.Y0)
+            rect_format.w = mmToPx(rect.X1 - rect.X0)
+            rect_format.h = mmToPx(rect.Y1 - rect.Y0)
+
+            questionItem = {
+              control_id: controlId,
+              ques_no: ques_no,
+              ques_type: tagObj.mode,
+              score: tagObj.score || 0,
+              content: '', // 需要是题目的html
+              mark_ask_region: {},
+              title_region: []
             }
-            // positions.push(element)
+
+            questionItem.title_region.push(rect_format)
+            positions.push(questionItem)
+            ques_no++
           }
-          i++
+        });
+
+        let arrayToObject = function(arr) {
+          let obj = {};
+          arr.forEach((item, index) => {
+              obj[index + 1] = item;
+          });
+          return obj;
+        }
+
+        positions = positions.map(function(item) {
+          item.mark_ask_region = arrayToObject(inline_rect_map[item.control_id] || [])
+          return item
         })
-        console.log('allPositions', positions)
+        return positions
+      }, false, false, function(positions) {
+        console.log('positions:', positions)
       });
-    });
   }
 
 })(window, undefined);
