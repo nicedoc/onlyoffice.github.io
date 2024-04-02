@@ -528,8 +528,57 @@ let newSplit = function (text) {
     return ranges;
 }
 
+// define the function to convert the range to html
+// window: the window object of the plugin
+// range: the range object
+// callback: the callback function to get the result
+let rangeToHtml = function (window, range, callback) {
+    Asc.scope.range = range;
+    window.Asc.plugin.callCommand(function () {    
+        var range = Asc.scope.range;
+        // 如果range空，则获取当前选中的range
+        var orange = range ? Api.asc_MakeRangeByPath(range.beg, range.end) : Api.GetDocument().GetRangeBySelect();
+
+        orange.Select();
+
+        let text_data = {
+            data:     "",
+            // 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
+            pushData: function (format, value) {
+                this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : "";
+            }
+        };
+
+        Api.asc_CheckCopy(text_data, 2);
+        return { methodType:"rangeToHtml", range: range, html: text_data.data};        
+    },false, false, callback);
+}
+
+let insertHtml = function(window, pos, html, callback) {
+    Asc.scope.insertPos = pos;
+    Asc.scope.insertHtml = html;    
+    if (html == null || html == undefined || html == "") {
+        callback();
+        return;
+    }
+
+    window.Asc.plugin.callCommand(function () {                
+        console.log("insertHtml:", Asc.scope.insertHtml);
+        
+        var html = Asc.scope.insertHtml;
+        Api.GetContentFromHtml(html, function(content) {
+            console.log("content:", content);
+            var arrContents = []
+            for (var nElm = 0; nElm < content.Elements.length; nElm++) {
+                var oElement = content.Elements[nElm];
+                arrContents.push(oElement.Element);
+            }
+            Api.GetDocument().InsertContent(arrContents);
+        });
+    }, false, false, callback);
+}
 
 const _getNumChar = getNumChar;
-export { _getNumChar as getNumChar, newSplit };
+export { _getNumChar as getNumChar, newSplit, rangeToHtml, insertHtml };
 
 

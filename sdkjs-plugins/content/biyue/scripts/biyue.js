@@ -1,4 +1,4 @@
-import { getNumChar, newSplit } from "./dep.js";
+import { getNumChar, newSplit, rangeToHtml, insertHtml } from "./dep.js";
 
 (function (window, undefined) {   
     
@@ -585,6 +585,34 @@ import { getNumChar, newSplit } from "./dep.js";
             });
         }
 
+        document.getElementById("selectionToHtml").onclick = function () {
+            rangeToHtml(window, undefined, function (html) {
+                console.log(html);
+            });            
+        }
+
+        document.getElementById("insertAsHtml").onclick = function () {
+            
+            var html = `<p
+            style="margin-top:0pt;margin-bottom:10pt;border:none;border-left:none;border-top:none;border-right:none;border-bottom:none;mso-border-between:none">
+            <span style="font-family:'Arial';font-size:11pt;color:#000000;mso-style-textfill-fill-color:#000000">Hello word</span>
+         </p>
+         <table>
+         <tr>
+            <td>1</td>
+            <td>2</td>
+            </tr>
+            <tr>
+            <td>3</td>
+            <td>4</td>
+            </tr>
+            </table>
+        `;
+            
+            insertHtml(window, undefined, html, function (res) {
+                console.log(res);
+            });
+        }
     });
 
     // 在editor面板的插件按钮被点击
