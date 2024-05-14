@@ -1,5 +1,7 @@
 // Description: This script is used to get the number character based on the number format.
 
+import { JSONPath } from '../vendor/jsonpath-plus/dist/index-browser-esm.js';
+
 function IntToChineseCounting(nValue) {
     var sResult = '';
     var arrChinese = [
@@ -315,7 +317,7 @@ function calc_relation(pathArrayA, pathArrayB) {
 let newSplit = function (text) {
     var k = JSON.parse(text);
     // 删除不需要的属性
-    JSONPath.JSONPath({
+    JSONPath({
         path: '$..[pPr,rPr,tblPr,tcPr]^', json: k, callback: function (node) {
 
             // check node whether has pPr property
@@ -339,7 +341,7 @@ let newSplit = function (text) {
     });
 
     // 删除图片
-    JSONPath.JSONPath({
+    JSONPath({
         path: '$..content[?(@.type=="paraDrawing")]', json: k, resultType: "value", callback: function (node) {
             delete node.graphic;
             delete node.effectExtent;
@@ -366,7 +368,7 @@ let newSplit = function (text) {
     }
 
     // 合并属性相同的run
-    JSONPath.JSONPath({
+    JSONPath({
         path: '$..content[?(@.type=="paragraph")]', json: k, resultType: "value", callback: function (node) {
             if (!node.content) {
                 return;
@@ -394,6 +396,7 @@ let newSplit = function (text) {
                 if (!node.pPr || !node.pPr.numPr) {
                     return;
                 }
+
 
                 var ilvl = node.pPr.numPr.ilvl;
                 var numId = node.pPr.numPr.numId;
@@ -434,13 +437,15 @@ let newSplit = function (text) {
                     }].concat(node.content);
                 }
             };
-            genNum(node);
+            if (k.numbering !== undefined) {
+                genNum(node);
+            }
 
         }
     });
 
     // 替换所有全角字符
-    JSONPath.JSONPath({
+    JSONPath({
         path: '$..content[?(@.type == "run")].content[?(@.length)]', json: k, resultType: "all", callback: function (res) {
             var text = res.value.replace(/[\uFF10-\uFF19]|．|（|）/g, function (c) {
                 if (c === '．') {
@@ -463,7 +468,7 @@ let newSplit = function (text) {
     // 获取结构区域    
     // $..content[?(typeof(@) == "string"  && @.match('^\\d+\\.'))] 
     const structPatt = "$..content[?(typeof(@) == 'string'  && @.match('[一二三四五六七八九十]+、'))]";
-    JSONPath.JSONPath({
+    JSONPath({
         path: structPatt, json: k, resultType: "path", callback: function (res) {
             ranges.push({
                 beg: res,
@@ -479,7 +484,7 @@ let newSplit = function (text) {
     // $..content[?(typeof(@) == "string"  && @.match('^\\d+\\.'))] 
     var startIndex = ranges.length;
     const quesPatt = `$..content[?(typeof(@) == 'string' && @.match('^[0-9]+\.[^0-9]'))]`;
-    JSONPath.JSONPath({
+    JSONPath({
         path: quesPatt, json: k, resultType: "path", callback: function (res) {
             ranges.push({
                 beg: res,
