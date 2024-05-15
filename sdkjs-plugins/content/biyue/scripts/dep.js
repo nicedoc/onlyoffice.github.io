@@ -1,5 +1,4 @@
 // Description: This script is used to get the number character based on the number format.
-
 import { JSONPath } from '../vendor/jsonpath-plus/dist/index-browser-esm.js';
 
 function IntToChineseCounting(nValue) {
@@ -314,6 +313,23 @@ function calc_relation(pathArrayA, pathArrayB) {
 }
 
 
+/*
+    整体流程
+    1. 删除不需要的属性
+    2. 删除图片
+    3. 合并属性相同的run
+    4. 生成编号
+    5. 替换全角字符
+    6. 获取结构区域
+    7. 获取题目区域        
+
+    答题区域的处理：
+    答题区域的标记有两种，一种是( )，一种是(_)
+    答题区域不通过jsonpath获取，而是通过正则表达式获取。原因有二：
+    1）因为题目切割以后，答题区域的jsonpath 指针发生了变化
+    2）答题区域可能分散在多个run中，需要合并，合并以后再通过正则表达式定位
+    综合起来再切题完成以后，在contentcontrol里面用正则表达式定位答题区域更简单
+*/
 let newSplit = function (text) {
     var k = JSON.parse(text);
     // 删除不需要的属性
@@ -494,6 +510,39 @@ let newSplit = function (text) {
             })
         }
     });
+
+    let marker_log = function(value, begin, end) {                
+        var marker = value.substr(0, begin)+ '%c' + value.substr(begin, end - begin) + '%c' + value.substr(end);
+        console.log(marker, 'border: 1px solid red; padding: 2px', '');
+    };
+
+    // // 获取答题区
+    // // $..content[?(typeof(@) == 'string' && @.match('\\( |_'))]    
+    // const ansPatt = "$..content[?(typeof(@) == 'string' && @.match('\\\\( |_') )]";
+    // JSONPath({
+    //     path: ansPatt, json: k, resultType: "all", callback: function (res) {
+    //         //console.log('write:', res)
+
+    //         var rangePatt = /(([\(]|[\（])(\s|\&nbsp\;)*([\）]|[\)]))|(___*)/gs
+    //         let m;
+    //         while ((m = rangePatt.exec(res.value)) !== null) {           
+    //             marker_log(res.value, m.index, m.index + m[0].length);
+    //             var beg = res.path + "[" + m.index + "]";
+    //             var end = res.path + "[" + (m.index + m[0].length) + "]";                
+    //             ranges.push({
+    //                 beg: beg,
+    //                 end: end,
+    //                 info: { 'regionType': 'answer', 'mode': 3, column: 1, padding: [0, 0, 0, 0] },
+    //                 controlType: 2,
+    //                 major_pos: major_pos(res.path)
+    //             })
+    //         }           
+            
+    //     }
+    // });    
+
+    // 获取解答
+
 
     ranges.sort(function (a, b) {
         return a.major_pos - b.major_pos;

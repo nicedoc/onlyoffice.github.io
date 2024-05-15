@@ -1,7 +1,6 @@
 import { getNumChar, newSplit, rangeToHtml, insertHtml } from "./dep.js";
 
 (function (window, undefined) {   
-    
     var styleEnable = false;
 
     let splitQuestion = function (text_all, text_pos) {
@@ -94,6 +93,114 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml } from "./dep.js";
         });
         console.log('ranges:', ranges)
         return ranges;
+    }
+
+    // onlyoffice插件的api，执行command在callback里面继续执行command会失败
+    // 用一个task stask来执行command
+    let setupPostTask = function(window, task) {
+        window.postTask = window.postTask || [];
+        window.postTask.push(task);
+    }
+
+    let execPostTask = function(window, param) {
+        while (window.postTask && window.postTask.length > 0) {
+            var task = window.postTask.pop();
+            var imm = task(param);
+            if (imm === false) {
+                break;
+            }
+        }
+    }
+
+    let checkAnswerRegion = function() {
+        console.log("start checkAnswerRegion");
+        window.Asc.plugin.callCommand(function () {
+            // 在console中打印字符串，range指定的部分会被高亮显示
+            let marker_log = function(str, ranges) {             
+                let styledString = '';
+                let currentIndex = 0;
+                const styles = [];
+            
+                ranges.forEach(([start, end], index) => {
+                    // 添加高亮前的部分
+                    if (start > currentIndex) {
+                        styledString += '%c' + str.substring(currentIndex, start);
+                        styles.push('');
+                    }
+                    // 添加高亮部分
+                    styledString += '%c' + str.substring(start, end);
+                    styles.push('border: 1px solid red; padding: 2px');
+                    currentIndex = end;
+                });
+            
+                // 添加剩余的部分
+                if (currentIndex < str.length) {
+                    styledString += '%c' + str.substring(currentIndex);
+                    styles.push('');
+                }
+            
+                console.log(styledString, ...styles);                                          
+            };
+            
+            debugger;
+
+            var oDocument = Api.GetDocument();
+            var controls = oDocument.GetAllContentControls();
+            
+            for (var i = 0; i < controls.length; i++) {                
+                var control = controls[i];                
+                var obj = ''
+                if (control && control.GetTag()) {
+                    obj = control.GetTag() || ''
+                    if (obj) {
+                        try {
+                            obj = JSON.parse(obj)
+                        } catch (e) {
+                            console.error('JSON解析失败', e)
+                        }
+                    }
+                }
+                if (obj.regionType === 'question') {
+                    var inlineSdts = control.GetAllContentControls().filter(e => e.GetTag() == JSON.stringify({ 'regionType': 'write', 'mode': 3}));
+                    if (inlineSdts.length > 0) {
+                        console.log("已有inline sdt， 删除以后再执行", inlineSdts);
+                        continue
+                    }
+
+                    var text = control.GetRange().GetText();
+                    var rangePatt = /(([\(]|[\（])(\s|\&nbsp\;)*([\）]|[\)]))|(___*)/gs
+                    var match;
+                    var ranges = [];
+                    var regionTexts = [];
+                    while ((match = rangePatt.exec(text)) !== null) {
+                        ranges.push([match.index, match.index + match[0].length]);
+                        regionTexts.push(match[0]);
+                    }
+                    if (ranges.length > 0) {    
+                        marker_log(text, ranges);
+                    }
+                    var textSet = new Set();
+                    regionTexts.forEach(e => textSet.add(e));
+
+                    //debugger;
+                    
+                    textSet.forEach(e => {
+                        var apiRanges = control.Search(e, false);           
+                        //debugger;
+                        
+                        // search 有bug少返回一个字符            
+                                     
+                        apiRanges.reverse().forEach(apiRange => {                            
+                            apiRange.Select();
+                            var tag = JSON.stringify({ 'regionType': 'write', 'mode': 3});
+                            Api.asc_AddContentControl(2, {"Tag": tag});
+                            Api.asc_RemoveSelection();
+                        });
+                    });                    
+                }
+            }
+        }, false, false, undefined);  
+        return false;
     }
 
     // 插件初始化    
@@ -213,25 +320,35 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml } from "./dep.js";
         
         var tags = Asc.scope.ranges.filter(e => e.info !== undefined && e.column !== undefined && e.column > 1 ).map(e => JSON.stringify(e.info));
         if (tags.length === 0) {
-            return;
+            return true;
         }
 
-        window.Asc.plugin.executeMethod("GetAllContentControls", [], function (controls) {
+        setupPostTask(window, function(controls ) {
+            console.log("callback postProcessTableColumn", controls);
             processTableColumn(controls.filter(e => tags.includes(e.Tag)));
-        });
+        } );
+        
+        window.Asc.plugin.callCommand(function () {
+            debugger;
+            var controls = Api.asc_GetAllContentControls();
+            return controls;
+        }, false, false, undefined);        
+        return false;
     }
 
     window.Asc.plugin.onCommandCallback = function(result) {
         console.log("onCommandCallback", result);
-        if (window.isPostProcessTableColumn == true) {
-            window.isPostProcessTableColumn = false;
-            postProcessTableColumn(result);            
-        }
+
+        // if (window.isPostProcessTableColumn == true) {
+        //     window.isPostProcessTableColumn = false;
+        //     postProcessTableColumn(result);            
+        // }
+        execPostTask(window, result);        
     };
 
     let createContentControl = function (ranges) {
         Asc.scope.ranges = ranges;
-        window.isPostProcessTableColumn = true;
+        setupPostTask(window, postProcessTableColumn);
         window.Asc.plugin.callCommand(function () {
             var ranges = Asc.scope.ranges;
 
@@ -239,14 +356,16 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml } from "./dep.js";
                 if (typeof beg === 'number')
                     return Api.GetDocument().GetRange().GetRange(beg, end); 
                 return Api.asc_MakeRangeByPath(e.beg, e.end);
-            }            
+            }   
+            
+            console.log('createContentControl count=', ranges.length);                    
 
             var results = [];
             // reverse order loop to keep the order
             for (var i = ranges.length - 1; i >= 0; i--) {
                 // set selection
                 var e = ranges[i];
-                console.log('createContentControl:', e);                    
+                //console.log('createContentControl:', e);                    
                 var range = MakeRange(e.beg, e.end);
                 range.Select()
                 var oResult = Api.asc_AddContentControl(e.controlType || 1, {"Tag": e.info ? JSON.stringify(e.info) : ''});
@@ -454,6 +573,10 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml } from "./dep.js";
 
         };
 
+        document.getElementById("checkAnswerRegionBtn").onclick = function () {
+            checkAnswerRegion();
+        }
+
         document.getElementById("toggleStyleBtn").onclick = function() {
             toggleControlStyle();
         }
@@ -568,6 +691,7 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml } from "./dep.js";
 
         document.getElementById("jsonPathSplitQuestionBtn").onclick = function () {
             // get all text
+            setupPostTask(window, checkAnswerRegion);
             window.Asc.plugin.callCommand(function () {
                 
                 // Api.asc_EditSelectAll();
@@ -579,7 +703,7 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml } from "./dep.js";
                 
                 return {text_all, text_json};
             }, false, false, function (result) {
-                var ranges = newSplit(result.text_json);
+                var ranges = newSplit(result.text_json);                
                 console.log('splitQuestion:', ranges)
                 createContentControl(ranges);
             });
@@ -960,7 +1084,8 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml } from "./dep.js";
                 return text_pos;
             }
         
-            
+            debugger
+
             var oPrs = Asc.scope.controlPrs;
             var oDocument = Api.GetDocument();            
             var oControls = oDocument.GetAllContentControls();                
@@ -976,7 +1101,7 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml } from "./dep.js";
 
             if (oControls.length === 0) {
                 return;
-            }
+            }            
 
             oControls.forEach(function (oControl, index) {            
                 debugger;
@@ -1007,8 +1132,53 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml } from "./dep.js";
                     return;
                 }
 
+                // 在第几行
+                var quesLineNoArr = quesTextArr.map(function (item) {
+                    return text.substr(0, text.indexOf(item)).split('\n').length - 1;
+                });
+                // 共几行
+                var quesLineCountArr = []
+                var totalLines = text.split('\n').length - 1;
+                for (var i = 0; i < quesLineNoArr.length; i++) {
+                    var found = false
+                    for (var j = i + 1; j < quesLineNoArr.length; j++) {
+                        if (quesLineNoArr[j] > quesLineNoArr[i]) {
+                            quesLineCountArr.push(quesLineNoArr[j] - quesLineNoArr[i]);
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        quesLineCountArr.push(totalLines - quesLineNoArr[i]);
+                    }
+                }
+
+                var rows = 0;
+                var cols = 0;
+                var max_cols = 1;
+                var quesTablePos = []
+                quesLineNoArr.forEach(function (item, index) {
+                    if (index === 0) {
+                        rows = 1;
+                        cols = 1;
+                        quesTablePos.push({row: 0, col: 0, spaceLines: quesLineCountArr[index]});                       
+                    } else {
+                        if (item === quesLineNoArr[index - 1]) {
+                            cols++;
+                            if (cols > max_cols) {
+                                max_cols = cols;
+                            }
+                        } else {
+                            rows++;
+                            cols=1;                            
+                        }
+                        quesTablePos.push({row: rows - 1, col: cols - 1, spaceLines: quesLineCountArr[index]});                        
+                    }
+                })
+
+
                 // create table 1xN 
-                var oTable = Api.CreateTable(quesTextArr.length, 1);
+                var oTable = Api.CreateTable(max_cols, rows);
                 oTable.SetWidth("percent", 100);
                 var oTableStyle = oDocument.CreateStyle("CustomTableStyle", "table");
                 var oTableCellPr = oTableStyle.GetTableCellPr();
@@ -1019,15 +1189,15 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml } from "./dep.js";
                 
                 // split text                
                 var lastItem  = quesTextArr[quesTextArr.length - 1];
-                var maxPos = text_pos[text.indexOf(lastItem) + lastItem.length + 1];
+                var maxPos = text_pos[text.length - 1]; 
                 
                 quesTextArr = quesTextArr.map(function (item) {
                     return item.replace(/[ ]+/g, ' ');
                 });
 
                 quesTextArr.forEach(function (item, index) {
-                    
-                    var oCell = oTable.GetCell(0, index);                
+                    var tablePos = quesTablePos[index];
+                    var oCell = oTable.GetCell(tablePos.row, tablePos.col);                
                     var oContent = oControl.GetContent().GetContent(true)
                     // add text to table cell                    
                     
@@ -1054,31 +1224,31 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml } from "./dep.js";
                 oControl.GetContent().Push(oTable);       
                 oControl.GetContent().RemoveElement(0);
                 
-                // loop table
-                for (var row = 0; row < oTable.GetRowsCount(); row++) {
-                    for (var col =0; col < oTable.GetRow(row).GetCellsCount(); col++) {
-                        var oCell = oTable.GetCell(row, col);
+                // loop table                
+                for (var i=0; i < quesTablePos.length; i++) {
+                    var row = quesTablePos[i].row;
+                    var col = quesTablePos[i].col;
+                    var oCell = oTable.GetCell(row, col);
 
-                        var item = quesTextArr[col];
-                        var beg = text.indexOf(item);
-                        var end = beg + item.length;
-                        var begPos = text_pos[beg];
-                        var endPos = text_pos[end];
+                    var item = quesTextArr[i];
+                    var beg = text.indexOf(item);
+                    var end = beg + item.length;
+                    var begPos = text_pos[beg];
+                    var endPos = text_pos[end];
 
-                        if (endPos < maxPos) {
-                            oCell.GetContent().GetRange(endPos, maxPos).Delete();
-                        }                        
+                    if (endPos < maxPos) {
+                        oCell.GetContent().GetRange(endPos, maxPos).Delete();
+                    }                        
 
-                        if (begPos > 1) {
-                            oCell.GetContent().GetRange(0, begPos - 1).Delete();
-                        }
-
-                        var range = oCell.GetContent().GetRange();
-                        range.Select()
-                        var oResult = Api.asc_AddContentControl(1, {"Tag": oPr.Tag});
-                        Api.asc_RemoveSelection();
+                    if (begPos > 1) {
+                        oCell.GetContent().GetRange(0, begPos - 1).Delete();
                     }
-                }
+
+                    var range = oCell.GetContent().GetRange();
+                    range.Select()
+                    var oResult = Api.asc_AddContentControl(1, {"Tag": oPr.Tag});
+                    Api.asc_RemoveSelection();
+                }                
 
                 // remove root content control
                 Api.asc_RemoveContentControlWrapper(oPr.InternalId);                            
