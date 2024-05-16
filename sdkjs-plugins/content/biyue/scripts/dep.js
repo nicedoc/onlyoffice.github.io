@@ -1,4 +1,5 @@
 // Description: This script is used to get the number character based on the number format.
+import { JSONPath } from '../vendor/jsonpath-plus/dist/index-browser-esm.js';
 
 function IntToChineseCounting(nValue) {
     var sResult = '';
@@ -312,10 +313,27 @@ function calc_relation(pathArrayA, pathArrayB) {
 }
 
 
+/*
+    整体流程
+    1. 删除不需要的属性
+    2. 删除图片
+    3. 合并属性相同的run
+    4. 生成编号
+    5. 替换全角字符
+    6. 获取结构区域
+    7. 获取题目区域        
+
+    答题区域的处理：
+    答题区域的标记有两种，一种是( )，一种是(_)
+    答题区域不通过jsonpath获取，而是通过正则表达式获取。原因有二：
+    1）因为题目切割以后，答题区域的jsonpath 指针发生了变化
+    2）答题区域可能分散在多个run中，需要合并，合并以后再通过正则表达式定位
+    综合起来再切题完成以后，在contentcontrol里面用正则表达式定位答题区域更简单
+*/
 let newSplit = function (text) {
     var k = JSON.parse(text);
     // 删除不需要的属性
-    JSONPath.JSONPath({
+    JSONPath({
         path: '$..[pPr,rPr,tblPr,tcPr]^', json: k, callback: function (node) {
 
             // check node whether has pPr property
@@ -339,7 +357,7 @@ let newSplit = function (text) {
     });
 
     // 删除图片
-    JSONPath.JSONPath({
+    JSONPath({
         path: '$..content[?(@.type=="paraDrawing")]', json: k, resultType: "value", callback: function (node) {
             delete node.graphic;
             delete node.effectExtent;
@@ -366,7 +384,7 @@ let newSplit = function (text) {
     }
 
     // 合并属性相同的run
-    JSONPath.JSONPath({
+    JSONPath({
         path: '$..content[?(@.type=="paragraph")]', json: k, resultType: "value", callback: function (node) {
             if (!node.content) {
                 return;
@@ -394,6 +412,7 @@ let newSplit = function (text) {
                 if (!node.pPr || !node.pPr.numPr) {
                     return;
                 }
+
 
                 var ilvl = node.pPr.numPr.ilvl;
                 var numId = node.pPr.numPr.numId;
@@ -434,13 +453,15 @@ let newSplit = function (text) {
                     }].concat(node.content);
                 }
             };
-            genNum(node);
+            if (k.numbering !== undefined) {
+                genNum(node);
+            }
 
         }
     });
 
     // 替换所有全角字符
-    JSONPath.JSONPath({
+    JSONPath({
         path: '$..content[?(@.type == "run")].content[?(@.length)]', json: k, resultType: "all", callback: function (res) {
             var text = res.value.replace(/[\uFF10-\uFF19]|．|（|）/g, function (c) {
                 if (c === '．') {
@@ -463,7 +484,7 @@ let newSplit = function (text) {
     // 获取结构区域    
     // $..content[?(typeof(@) == "string"  && @.match('^\\d+\\.'))] 
     const structPatt = "$..content[?(typeof(@) == 'string'  && @.match('[一二三四五六七八九十]+、'))]";
-    JSONPath.JSONPath({
+    JSONPath({
         path: structPatt, json: k, resultType: "path", callback: function (res) {
             ranges.push({
                 beg: res,
@@ -479,7 +500,7 @@ let newSplit = function (text) {
     // $..content[?(typeof(@) == "string"  && @.match('^\\d+\\.'))] 
     var startIndex = ranges.length;
     const quesPatt = `$..content[?(typeof(@) == 'string' && @.match('^[0-9]+\.[^0-9]'))]`;
-    JSONPath.JSONPath({
+    JSONPath({
         path: quesPatt, json: k, resultType: "path", callback: function (res) {
             ranges.push({
                 beg: res,
@@ -489,6 +510,39 @@ let newSplit = function (text) {
             })
         }
     });
+
+    let marker_log = function(value, begin, end) {                
+        var marker = value.substr(0, begin)+ '%c' + value.substr(begin, end - begin) + '%c' + value.substr(end);
+        console.log(marker, 'border: 1px solid red; padding: 2px', '');
+    };
+
+    // // 获取答题区
+    // // $..content[?(typeof(@) == 'string' && @.match('\\( |_'))]    
+    // const ansPatt = "$..content[?(typeof(@) == 'string' && @.match('\\\\( |_') )]";
+    // JSONPath({
+    //     path: ansPatt, json: k, resultType: "all", callback: function (res) {
+    //         //console.log('write:', res)
+
+    //         var rangePatt = /(([\(]|[\（])(\s|\&nbsp\;)*([\）]|[\)]))|(___*)/gs
+    //         let m;
+    //         while ((m = rangePatt.exec(res.value)) !== null) {           
+    //             marker_log(res.value, m.index, m.index + m[0].length);
+    //             var beg = res.path + "[" + m.index + "]";
+    //             var end = res.path + "[" + (m.index + m[0].length) + "]";                
+    //             ranges.push({
+    //                 beg: beg,
+    //                 end: end,
+    //                 info: { 'regionType': 'answer', 'mode': 3, column: 1, padding: [0, 0, 0, 0] },
+    //                 controlType: 2,
+    //                 major_pos: major_pos(res.path)
+    //             })
+    //         }           
+            
+    //     }
+    // });    
+
+    // 获取解答
+
 
     ranges.sort(function (a, b) {
         return a.major_pos - b.major_pos;
@@ -528,8 +582,57 @@ let newSplit = function (text) {
     return ranges;
 }
 
+// define the function to convert the range to html
+// window: the window object of the plugin
+// range: the range object
+// callback: the callback function to get the result
+let rangeToHtml = function (window, range, callback) {
+    Asc.scope.range = range;
+    window.Asc.plugin.callCommand(function () {    
+        var range = Asc.scope.range;
+        // 如果range空，则获取当前选中的range
+        var orange = range ? Api.asc_MakeRangeByPath(range.beg, range.end) : Api.GetDocument().GetRangeBySelect();
+
+        orange.Select();
+
+        let text_data = {
+            data:     "",
+            // 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
+            pushData: function (format, value) {
+                this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : "";
+            }
+        };
+
+        Api.asc_CheckCopy(text_data, 2);
+        return { methodType:"rangeToHtml", range: range, html: text_data.data};        
+    },false, false, callback);
+}
+
+let insertHtml = function(window, pos, html, callback) {
+    Asc.scope.insertPos = pos;
+    Asc.scope.insertHtml = html;    
+    if (html == null || html == undefined || html == "") {
+        callback();
+        return;
+    }
+
+    window.Asc.plugin.callCommand(function () {                
+        console.log("insertHtml:", Asc.scope.insertHtml);
+        
+        var html = Asc.scope.insertHtml;
+        Api.GetContentFromHtml(html, function(content) {
+            console.log("content:", content);
+            var arrContents = []
+            for (var nElm = 0; nElm < content.Elements.length; nElm++) {
+                var oElement = content.Elements[nElm];
+                arrContents.push(oElement.Element);
+            }
+            Api.GetDocument().InsertContent(arrContents);
+        });
+    }, false, false, callback);
+}
 
 const _getNumChar = getNumChar;
-export { _getNumChar as getNumChar, newSplit };
+export { _getNumChar as getNumChar, newSplit, rangeToHtml, insertHtml };
 
 
