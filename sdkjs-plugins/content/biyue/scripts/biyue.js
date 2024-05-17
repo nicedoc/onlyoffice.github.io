@@ -604,6 +604,11 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
 
 
     $(document).ready(function () {
+        // 获取文档描述信息
+        document.getElementById("getDocInfo").onclick = function () {
+            GetDocInfo();
+        }
+
         // 切题
         document.getElementById("splitQuestionBtn").onclick = function () {
             // get all text
@@ -1387,7 +1392,14 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
 
     }
 
-    
+    function GetDocInfo() {
+        window.Asc.plugin.callCommand(function () {
+            return Api.DocInfo;
+        }
+        , false, false, function (docInfo) {
+            console.log("docInfo", docInfo);
+        });
+    }
 
 })(window, undefined);
 
