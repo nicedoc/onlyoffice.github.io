@@ -516,34 +516,8 @@ let newSplit = function (text) {
         console.log(marker, 'border: 1px solid red; padding: 2px', '');
     };
 
-    // // 获取答题区
-    // // $..content[?(typeof(@) == 'string' && @.match('\\( |_'))]    
-    // const ansPatt = "$..content[?(typeof(@) == 'string' && @.match('\\\\( |_') )]";
-    // JSONPath({
-    //     path: ansPatt, json: k, resultType: "all", callback: function (res) {
-    //         //console.log('write:', res)
-
-    //         var rangePatt = /(([\(]|[\（])(\s|\&nbsp\;)*([\）]|[\)]))|(___*)/gs
-    //         let m;
-    //         while ((m = rangePatt.exec(res.value)) !== null) {           
-    //             marker_log(res.value, m.index, m.index + m[0].length);
-    //             var beg = res.path + "[" + m.index + "]";
-    //             var end = res.path + "[" + (m.index + m[0].length) + "]";                
-    //             ranges.push({
-    //                 beg: beg,
-    //                 end: end,
-    //                 info: { 'regionType': 'answer', 'mode': 3, column: 1, padding: [0, 0, 0, 0] },
-    //                 controlType: 2,
-    //                 major_pos: major_pos(res.path)
-    //             })
-    //         }           
-            
-    //     }
-    // });    
 
     // 获取解答
-
-
     ranges.sort(function (a, b) {
         return a.major_pos - b.major_pos;
     });
@@ -576,6 +550,23 @@ let newSplit = function (text) {
            range.end = `$['content'][-2]['content'][-1]['content'][-1]`;
         }
     }
+
+    // // 获取子题     
+    // var startIndex = ranges.length;
+    // const subQuesPatt = "$..content[?(typeof(@) == 'string' && @.match('^[\\u0028][0-9]+[\\u0029]'))]";
+    // JSONPath({
+    //     path: subQuesPatt, json: k, resultType: "value", callback: function (res) {
+    //         console.log('subQuesPatt:', res)
+    //         //  ranges.push({
+    //         //      beg: res,
+    //         //      info: { 'regionType': 'question', 'mode': 2, column: 1, padding: [0, 0, 0.5, 0] },
+    //         //      controlType: 1,
+    //         //      major_pos: major_pos(res)
+    //         //  })
+    //     }
+    // });
+
+   
 
     //console.log('k:', k)   
     //console.log('ranges', ranges)
@@ -632,7 +623,21 @@ let insertHtml = function(window, pos, html, callback) {
     }, false, false, callback);
 }
 
+let normalizeDoc = function(text) {    
+    var k = JSON.parse(text);    
+    // 1.将所有带有下划线的空白字符替换成_
+    JSONPath({
+        path: '$..content[?(@.type == "run")].content[?(@.length)]', json: k, resultType: "all", callback: function (res) {
+            
+        }
+    });
+    // 2.将所有自动编号替换成字符
+
+
+}
+
 const _getNumChar = getNumChar;
-export { _getNumChar as getNumChar, newSplit, rangeToHtml, insertHtml };
+
+export { _getNumChar as getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc };
 
 
