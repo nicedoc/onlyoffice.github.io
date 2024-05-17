@@ -3,6 +3,12 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
 (function (window, undefined) {   
     var styleEnable = false;
 
+    function NewDefaultCustomData() {
+        return {
+            controlDesc : {}
+        }
+    }
+
     let splitQuestion = function (text_all, text_pos) {
         var index = 1;
 
@@ -70,7 +76,7 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
           }
 
           
-          info = { 'ques_no': no, 'regionType': 'question', 'mode': 2, padding: [0, 0, 0.5, 0]}
+          info = { 'ques_no': no, 'regionType': 'question', 'mode': 2, padding: [0, 0, 0.5, 0], color: ""}
           ranges.push({ beg: text_pos[startIndex], end: text_pos[endIndex], controlType: 1, info: info, column : column });
           no++
 
@@ -189,12 +195,15 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
                     for (var i = 0; i < apiRanges.length; i++) {                                                                         
                         var endRange = undefined;
                         if (i < apiRanges.length - 1) {
+
                             var nextRange = apiRanges[i+1];
                             endRange = nextRange.GetParagraph(0).GetPrevious().GetRange();                            
                         } else {
+                            debugger;
                             var content = control.GetContent();
-                            var total = content.GetElementsCount();
-                            endRange = content.GetElement(total-1).GetRange();
+                            var endParaIndex = content.GetElementsCount() - 1;
+                            var oPara = content.GetElement(endParaIndex);                            
+                            endRange = oPara.GetRange();
                         }
 
                         var range = apiRanges[i].ExpandTo(endRange);
@@ -259,13 +268,15 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
                         }
                     }
                 }
-                if (obj.regionType === 'question') {
+                if (obj.regionType === 'question' || obj.regionType === 'sub-question') {
                     var inlineSdts = control.GetAllContentControls().filter(e => e.GetTag() == JSON.stringify({ 'regionType': 'write', 'mode': 3}));
                     if (inlineSdts.length > 0) {
                         console.log("已有inline sdt， 删除以后再执行", inlineSdts);
                         continue
                     }
+                    
 
+                    // 标记inline的答题区域
                     var text = control.GetRange().GetText();
                     var rangePatt = /(([\(]|[\（])(\s|\&nbsp\;)*([\）]|[\)]))|(___*)/gs
                     var match;
@@ -296,6 +307,33 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
                             Api.asc_RemoveSelection();
                         });
                     });                    
+
+                    // 标记空白行
+                    {
+                        debugger;
+                        var content = control.GetContent();
+                        var elements = content.GetElementsCount();
+                        for (var j = elements - 1; j >= 0; j--) {
+                            var para = content.GetElement(j);
+                            if (para.GetClassType() !== "paragraph") {
+                                break;
+                            }
+                            var text = para.GetText();
+                            if (text.trim() !== '') {                                
+                                break;
+                            }
+                        }
+
+                        if (j < elements - 1) {
+                            var range = content.GetElement(j + 1).GetRange();
+                            var endRange = content.GetElement(elements - 1).GetRange();
+                            range = range.ExpandTo(endRange);
+                            range.Select();
+                            var tag = JSON.stringify({ 'regionType': 'write', 'mode': 5});
+                            Api.asc_AddContentControl(1, {"Tag": tag});
+                            Api.asc_RemoveSelection();
+                        }
+                    }
                 }
             }
         }, false, false, undefined);  
@@ -306,26 +344,30 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
     window.Asc.plugin.init = function () {
         console.log("biyue plugin inited.");
 
-        // create style
-        
-        this.callCommand(
-            function() {
-                var oDocument = Api.GetDocument();
-                var customData = Api.asc_GetBiyueCustomDataExt(undefined);
-                if (customData === undefined || customData.length === 0)
-                    return undefined
-                return customData;
-            },
-            false, 
-            false, 
-            function (customData) {
-                console.log("customData", customData);            
-                if (customData === undefined)
-                    return;
-                window.BiyueCustomId = customData[0].ItemId;
-                window.BiyueCustomData = customData;
-            }
-        );
+        // create style        
+        if (window.BiyueCustomData === undefined) {
+            this.callCommand(
+                function() {                
+                    var oDocument = Api.GetDocument();
+                    var customData = Api.asc_GetBiyueCustomDataExt(undefined);
+                    if (customData === undefined || customData.length === 0)
+                        return undefined
+                    return customData;
+                },
+                false, 
+                false, 
+                function (customData) {
+                    console.log("customData", customData);            
+                    if (customData === undefined) {                
+                        console.log("customData inited.")
+                        window.BiyueCustomData = NewDefaultCustomData();
+                        return;
+                    }
+                    window.BiyueCustomId = customData[0].ItemId;
+                    window.BiyueCustomData = customData[0].Content;
+                }
+            );
+        }
     };
 
     function StoreCustomData(callback) {
@@ -337,10 +379,11 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
         Asc.scope.BiyueCustomId = window.BiyueCustomId;
         Asc.scope.BiyueCustomData = window.BiyueCustomData;
         window.Asc.plugin.callCommand(            
-            function() {
+            function() {               
                 var id = Asc.scope.BiyueCustomId
                 var data = Asc.scope.BiyueCustomData;
                 Api.asc_SetBiyueCustomDataExt(id, data);                
+                console.log("store custom data");
             },
             false, 
             false, 
@@ -839,11 +882,11 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
 
     // 在editor面板的插件按钮被点击
     window.Asc.plugin.button = function (id, windowID) {
-        console.log("on plugin button id=${id} ${windowID}");
-        if (id == -1) {
-            this.executeCommand("close", '');
+        console.log("on plugin button id=${id} ${windowID}", id, windowID);
+        if (id == -1) {            
             StoreCustomData(function() {
                 console.log("store custom data done");                
+                this.executeCommand("close", '');
             });            
             return;
         }
