@@ -16,8 +16,12 @@ jobs:
     - name: Check out the repo
       uses: actions/checkout@v4
 
-    - name: Log in to the registry
-      run: docker login registry.nicedoc.cn -u biyue -p ${{ secrets.NICEDOC_REGISTRY_PASSWD }}
+    - name: Log in to the Container registry
+      uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+      with:
+        registry: registry.nicedoc.cn
+        username: biyue
+        password: ${{ secrets.NICEDOC_REGISTRY_PASS }}
 
     - name: Extract metadata (tags, labels) for Docker
       id: meta
