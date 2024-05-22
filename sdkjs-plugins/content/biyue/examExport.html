@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <title>ScoreSet</title>
+    <script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.js"></script>
+    <script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins-ui.js"></script>
+    <link rel="stylesheet" href="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.css">
+    <link rel="stylesheet" href="resources/css/examExport.css">
+    <script src="vendor/jQuery-2.2.2-min/jquery-v2.2.2-min.js"></script>
+    <script src="vendor/axios.min.js"></script>
+</head>
+<body>
+	<div class="info">
+    <div style="color: #2D3330;font-weight: bold;">步骤一：询问后端是否可定稿</div>
+    <button id="btnCanConfirm">定稿</button>
+    <div style="color: #2D3330;font-weight: bold;">步骤二：生成exam_id</div>
+    <div class="label-title">标题</div>
+    <div id="examtitle"></div>
+    <div class="label-title">年段</div>
+    <div id="grades"></div>
+    <div class="label-title">纸张</div>
+    <div id="printType"></div>
+    <div class="confirm-wrapper">
+      <div id="confirm" class="btn-confirm">生成exam_id</div>
+    </div>
+    <div style="color: #2D3330;font-weight: bold;">步骤三：上传底图</div>
+    <div>
+      <input type="file" id="fileInput" accept="image/*" multiple>
+      <div id="preview"></div>
+      <button id="uploadImages">上传底图</button>
+    </div>
+	</div>
+  <script type="module" src="scripts/auth.js"></script>
+  <script type="module" src="scripts/request.js"></script>
+  <script type="module" src="scripts/api/paper.js"></script>
+  <script type="module" type="text/javascript" src="scripts/examExport.js"></script>
+</body>
+</html>
+<script>
+  // 监听消息事件
+  window.addEventListener('message', function(event) {
+    // 检查消息来源是否合法
+    if (event.origin !== window.location.origin) return;
+
+    // 处理接收到的值
+    var receivedData = event.data;
+    console.log("接收到的值:", receivedData);
+  });
+</script>

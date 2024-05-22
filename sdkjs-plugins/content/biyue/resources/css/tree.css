@@ -1,0 +1,11 @@
+#questionList {
+  margin-top: 8px;
+  select {
+    margin: 0 4px;
+  }
+  input {
+    width: 60px;
+    margin-right: 4px;
+  }
+}
+

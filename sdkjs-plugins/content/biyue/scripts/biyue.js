@@ -1,14 +1,47 @@
 import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./dep.js";
+import { getToken, setXToken } from './auth.js'
+import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStruct, savePositons, showQuestionTree, updateQuestionScore } from './business.js'
 
 (function (window, undefined) {   
     var styleEnable = false;
     let settingsWindow = null
 	  let activeQuesItem = '';
-
+    let scoreSetWindow = null
+    let exportExamWindow = null
     function NewDefaultCustomData() {
         return {
             controlDesc : {}
         }
+    }
+
+    function messageHandler(modal, message) {
+      console.log('messageHandler', modal, message)
+      switch(message.type) {
+        case "BiyueMessage":
+          console.log('收到的消息', message)
+          modal.command('initInfo', window.BiyueCustomData) // 往modal传递信息
+          break
+        case "PaperMessage":
+          modal.command('initPaper', {
+            paper_info: getPaperInfo(),
+            xtoken: getToken()
+          })
+          break
+        case 'scoreSetSuccess': // 分数设置成功
+          if (message.data.control_list) {
+            window.BiyueCustomData.control_list = message.data.control_list
+            updateQuestionScore()
+          }
+          window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
+          break
+        case 'exportExamSuccess': // 生成exam_id成功
+          window.BiyueCustomData.exam_id = message.data.exam_id
+          window.BiyueCustomData.exam_no = message.data.exam_no
+          // modal.close()
+          break
+        default:
+          break
+      }
     }
 
     let splitQuestion = function (text_all, text_pos) {
@@ -47,7 +80,7 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
         //quesTextArr = quesTextArr.map(text => text.replace(/[\n]/g, ''));
 
         //text_all = text_all.replace(/[\n]/g, '')
-        debugger
+        // debugger
         var ranges = new Array();
         let info = {}
         structTextArr.map(item => {
@@ -68,7 +101,7 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
           var column = 1;
           var isInlineArr = item.match(isInlinePatt) || []
           if (isInlineArr.length >= 1) {
-            debugger
+            // debugger
 
             var r = isInlineArr[0].match(inlineQuesPatt);
             if (r !== undefined && r !== null) {
@@ -201,7 +234,7 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
                             var nextRange = apiRanges[i+1];
                             endRange = nextRange.GetParagraph(0).GetPrevious().GetRange();                            
                         } else {
-                            debugger;
+                            // debugger;
                             var content = control.GetContent();
                             var endParaIndex = content.GetElementsCount() - 1;
                             var oPara = content.GetElement(endParaIndex);                            
@@ -312,7 +345,7 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
 
                     // 标记空白行
                     {
-                        debugger;
+                        // debugger;
                         var content = control.GetContent();
                         var elements = content.GetElementsCount();
                         for (var j = elements - 1; j >= 0; j--) {
@@ -359,7 +392,10 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
                 false, 
                 false, 
                 function (customData) {
-                    console.log("customData", customData);            
+                    console.log("customData", customData);
+                    setTimeout(() => {
+                      GetDocInfo()
+                    }, 1000)
                     if (customData === undefined) {                
                         console.log("customData inited.")
                         window.BiyueCustomData = NewDefaultCustomData();
@@ -675,7 +711,9 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
         }
 
         // 切题
-        document.getElementById("splitQuestionBtn").onclick = function () {
+        var btnSplit1 = document.getElementById("splitQuestionBtn")
+        if (btnSplit1) {
+          btnSplit1.onclick = function () {
             // get all text
             window.Asc.plugin.callCommand(function () {
 
@@ -695,9 +733,11 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
                 setupPostTask(window, function() { processTableColumn(undefined) });                
                 createContentControl(ranges);
             });
+          }
         }
-
-        document.getElementById("clearControl").onclick = function() {
+        var btnClear = document.getElementById("clearControl")
+        if (btnClear) {
+          btnClear.onclick = function() {
             window.Asc.plugin.executeMethod("GetAllContentControls");
             window.Asc.plugin.onMethodReturn = function (controls) {
                 if (window.Asc.plugin.info.methodName == "GetAllContentControls") {
@@ -722,36 +762,48 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
 
         document.getElementById("toggleStyleBtn").onclick = function() {
             toggleControlStyle();
+          }
         }
-
         // Todo 考虑其他实现方法
         // 锁定控件操作
-        document.getElementById("unlockBtn").onclick = function () {
+        var btnUnlock = document.getElementById("unlockBtn")
+        if (btnUnlock) {
+          btnUnlock.onclick = function () {
             /* Asc.c_oAscSdtLockType.Unlocked */
             setCurrentContentControlLock(3);
-        };
-
-        document.getElementById("lockBtn").onclick = function () {
+          };
+        }
+        var btnLock = document.getElementById("lockBtn")
+        if (btnLock) {
+          btnLock.onclick = function () {
             // 1 Asc.c_oAscSdtLockType.SdtContentLocked
             setCurrentContentControlLock(1);
-        };
-
-        document.getElementById("showPosition").onclick = function () {
+          };
+        }
+        var btnShowPos = document.getElementById("showPosBtn")
+        if (btnShowPos) {
+          btnShowPos.onclick = function () {
             console.log("showPosition on button clicked");
             showPosition(window, onGetPos);
+          }
         }
-
-        document.getElementById("getSelectionBtn").onclick = function () {
-            console.log("getSelectionBtn on button clicked");
+        var btnGetSelection = document.getElementById("getSelectionBtn")
+        if (btnGetSelection) {
+          btnGetSelection.onclick = function () {
+            console.log("getSelection on button clicked");
             getSelection();
+          }
         }
-
-        document.getElementById("showAllContentBtn").onclick = function () {
-            console.log("showAllContent on button clicked");
-            showAllContent();
+        var btnShowContent = document.getElementById("showContentBtn")
+        if (btnShowContent) {
+          btnShowContent.onclick = function () {
+            console.log("showContent on button clicked");
+            showContent();
+          }
         }
-
-        document.getElementById("showScoreContentBtn").onclick = function () {
+        var btnShowScoreContent = document.getElementById("showScoreContentBtn")
+        if (btnShowScoreContent) {
+          btnShowScoreContent.onclick = function () {
             console.log("showScoreContent on button clicked");
             var fun = function() {
               var controls = Api.GetDocument().GetAllContentControls();
@@ -813,30 +865,40 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
               }
             }
             window.Asc.plugin.callCommand(fun, false, true, undefined)
+          }
         }
-
-        document.getElementById("insertDrawingObject").onclick = function () {
+        var btnInsertDrawingObject = document.getElementById("insertDrawingObjectBtn")
+        if (btnInsertDrawingObject) {
+          btnInsertDrawingObject.onclick = function () {
             insertDrawingObject();
+          }
         }
-
-        document.getElementById("showMultiPagePos").onclick = function () {
+        var btnShowMultiPagePos = document.getElementById("showMultiPagePosBtn")
+        if (btnShowMultiPagePos) {
+          btnShowMultiPagePos.onclick = function () {
             showMultiPagePos(window, onGetPos);
+          }
         }
-
-
-        document.getElementById("toTableColumn").onclick = function () {
+        var btnToTableColumn = document.getElementById("toTableColumnBtn")
+        if (btnToTableColumn) {
+          btnToTableColumn.onclick = function () {
             toTableColumn(window);
+          }
         }
-
-        document.getElementById("getQuestionPositions").onclick = function () {
-          getQuestionPositions(window);
+        var btnGetQuestionPositions = document.getElementById("getQuestionPositionsBtn")
+        if (btnGetQuestionPositions) {
+          btnGetQuestionPositions.onclick = function () {
+            getQuestionPositions(window);
+          }
         }
-
-        document.getElementById("jsonPathSplitQuestionBtn").onclick = function () {
-            // get all text
+        var btnSplitJsonPath = document.getElementById("jsonPathSplitQuestionBtn")
+        if (btnSplitJsonPath) {
+          btnSplitJsonPath.onclick = function () {
+            // get all text 执行顺序为先进后出，下面的先执行
+            setupPostTask(window, updateCustomControls)
             setupPostTask(window, checkAnswerRegion);
             setupPostTask(window, function() { processTableColumn(undefined) });
-            setupPostTask(window, checkSubQuestion);            
+            setupPostTask(window, checkSubQuestion);
             window.Asc.plugin.callCommand(function () {
 
                 // Api.asc_EditSelectAll();
@@ -852,6 +914,7 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
                 console.log('splitQuestion:', ranges)
                 createContentControl(ranges);
             });
+          }
         }
 
         document.getElementById("normalizeDoc").onclick = function () {
@@ -871,6 +934,12 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
                 execModify(ranges);
             });
         }
+        addBtnClickEvent('scoreSet', showScoreSetDialog)
+        addBtnClickEvent('clearStruct', clearStruct)
+        addBtnClickEvent('getStruct', getStruct)
+        addBtnClickEvent('examImport', importExam)
+        addBtnClickEvent('savePositons', savePositons)
+        addBtnClickEvent('showTree', showQuestionTree)
 
         document.getElementById("selectionToHtml").onclick = function () {
             rangeToHtml(window, undefined, function (html) {
@@ -900,12 +969,59 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
                 console.log(res);
             });
         }
+        var selectElement = document.getElementById("pageType");
+        if (selectElement) {
+          var pageTypeOptions = [
+            {
+              value: 'exam_exercise',
+              label: '练习卷'
+            },
+            {
+              value: 'exam_week',
+              label: '测验卷' // 周考卷
+            },
+            {
+              value: 'teacher',
+              label: '老师卷'
+            },
+            {
+              value: 'answerSheet',
+              label: '答题卡'
+            }
+          ]
+          pageTypeOptions.forEach(e => {
+            var option = document.createElement("option");
+            if (e) {
+              option.text = e.label || '';
+              option.value = e.value || '';
+              selectElement.add(option);
+            }
+          })
+          selectElement.addEventListener('change', function() {
+            window.BiyueCustomData.page_type = selectElement.value;
+          });
+        }
     });
+
+    function addBtnClickEvent(btnName, func) {
+      var btn = document.getElementById(btnName)
+      if (!btn) {
+        return
+      }
+      btn.onclick = func
+    }
 
     // 在editor面板的插件按钮被点击
     window.Asc.plugin.button = function (id, windowID) {
-        console.log("on plugin button id=${id} ${windowID}", id, windowID);
-        if (id == -1) {            
+        console.log(`on plugin button id=${id} ${windowID}`);
+        if (windowID) {
+          if (id === -1) {
+            window.Asc.plugin.executeMethod('CloseWindow', [windowID])
+          }
+          return
+        }
+        if (id == -1) {
+            console.log('StoreCustomData', window.BiyueCustomData)
             StoreCustomData(function() {
                 console.log("store custom data done");                
                 this.executeCommand("close", '');
@@ -1019,6 +1135,18 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
           // Api.asc_AddContentControl(1);
           // Api.asc_RemoveSelection();
           // oRange.SetBold(true);
+          if (!oRange) {
+            console.log("no range")
+            return
+          }
+          if (!oRange.Paragraphs) {
+            console.log("no paragraph")
+            return
+          }
+          if (oRange.Paragraphs.length === 0) {
+            console.log("no paragraph")
+            return
+          }
           var hasContentControl = oRange.Paragraphs[0].GetParentContentControl()
           var type = 1
           if (hasContentControl) {
@@ -1283,7 +1411,7 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
             }
             oPr = [oPr];
         }
-        debugger
+        // debugger
 
         Asc.scope.controlPrs  = oPr;
         window.Asc.plugin.callCommand(function () {
@@ -1598,12 +1726,80 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
 
     function GetDocInfo() {
         window.Asc.plugin.callCommand(function () {
-            return Api.DocInfo;
+          return Api.DocInfo;
         }
         , false, false, function (docInfo) {
-            console.log("docInfo", docInfo);
+          if (docInfo) {
+            let url = docInfo.CallbackUrl
+            const regex = /[?&]([^=#]+)=([^&#]*)/g
+            const params = {}
+            let match
+            while ((match = regex.exec(url))) {
+              params[decodeURIComponent(match[1])] = decodeURIComponent(match[2])
+            }
+            console.log('params', params)
+            setXToken(params.xtoken)
+            window.BiyueCustomData.xtoken = params.xtoken
+            window.BiyueCustomData.paper_uuid = params.id
+            if (!window.BiyueCustomData) {
+              window.BiyueCustomData.page_type = 'exam_exercise'
+            }
+            initPaperInfo()
+            return params
+          }
         });
     }
 
+    function showScoreSetDialog() {
+      // 分数设置信息窗口
+      let location  = window.location;
+      let start = location.pathname.lastIndexOf('/') + 1;
+      let file = location.pathname.substring(start);
+
+      let variation = {
+        url : location.href.replace(file, 'scoreSet.html'),
+        description : window.Asc.plugin.tr('分数设置'),
+        isVisual : true,
+				isModal : true,
+				isViewer : true,
+        buttons: {},
+        EditorsSupport : ["word"],
+        size : [ 592, 400 ]
+      };
+      window.Asc.temp = window.BiyueCustomData.control_list
+      if (!scoreSetWindow) {
+        scoreSetWindow = new window.Asc.PluginWindow();
+        scoreSetWindow.attachEvent("onWindowMessage", function(message) {
+          messageHandler(scoreSetWindow, message)
+        });
+      }
+      scoreSetWindow.show(variation);
+    }
+
+    function importExam() {
+      // 生成试卷窗口
+      let location  = window.location;
+      let start = location.pathname.lastIndexOf('/') + 1;
+      let file = location.pathname.substring(start);
+
+      let variation = {
+        url : location.href.replace(file, 'examExport.html'),
+        description : window.Asc.plugin.tr('生成试卷'),
+        isVisual : true,
+				isModal : true,
+				isViewer : true,
+        buttons : [],
+        EditorsSupport : ["word"],
+        size : [ 592, 400 ]
+      };
+
+      if (!exportExamWindow) {
+        exportExamWindow = new window.Asc.PluginWindow();
+        exportExamWindow.attachEvent("onWindowMessage", function(message) {
+          messageHandler(exportExamWindow, message)
+        });
+      }
+      exportExamWindow.show(variation);
+    }
 })(window, undefined);
 

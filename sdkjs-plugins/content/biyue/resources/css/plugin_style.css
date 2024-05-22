@@ -551,3 +551,11 @@ input[type="text"] {
 .display-none {
     display: none;
 }
+
+.tree-ques {
+  padding-left: 12px;
+}
+
+.tree-score-noset {
+  color: #f00;
+}
