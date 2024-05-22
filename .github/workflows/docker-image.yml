@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: registry.nicedoc.cn
-  IMAGE_NAME: onlyoffice-biyueplugin
+  IMAGE_NAME: biyue-plugin
   
 jobs:
 
