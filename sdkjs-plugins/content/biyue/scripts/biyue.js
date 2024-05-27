@@ -1,6 +1,6 @@
 import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./dep.js";
 import { getToken, setXToken } from './auth.js'
-import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStruct, savePositons, showQuestionTree, updateQuestionScore } from './business.js'
+import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStruct, savePositons, showQuestionTree, updateQuestionScore, drawPosition } from './business.js'
 
 (function (window, undefined) {   
     var styleEnable = false;
@@ -8,6 +8,7 @@ import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStru
 	  let activeQuesItem = '';
     let scoreSetWindow = null
     let exportExamWindow = null
+    let fieldsWindow = null
     function NewDefaultCustomData() {
         return {
             controlDesc : {}
@@ -38,6 +39,31 @@ import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStru
           window.BiyueCustomData.exam_id = message.data.exam_id
           window.BiyueCustomData.exam_no = message.data.exam_no
           // modal.close()
+          break
+        case 'positionsMessage':
+          window.Asc.plugin.callCommand(function() {
+            var oDocument = Api.GetDocument();
+            return {
+              pages: oDocument.Document.Pages
+            }
+          }, false, false, function(info) {
+            modal.command('initInfo', {
+              pages: info.pages,
+              customData: window.BiyueCustomData,
+              paper_info: getPaperInfo(),
+              xtoken: getToken()
+            }) // 往modal传递信息
+          })
+          break
+        case 'cancelDialog':
+          window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
+          break
+        case 'confirmDialog':
+          window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
+          break
+        case 'drawPosition': // 绘制区域
+          drawPosition(message.data)
+          window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
           break
         default:
           break
@@ -441,18 +467,24 @@ import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStru
         let tagObj = ''
         if (activeQuesItem) {
           var controlTag = activeQuesItem ? activeQuesItem.Tag : "";
-          tagObj = JSON.parse(controlTag);
-          if (tagObj.group !== undefined && tagObj.group !== "") {
-            settings.items.push({
-              id: "onDismissGroup",
-              text: "解除分组",
-            })
-          }
-          if (tagObj.regionType == 'question') {
-            settings.items.push({
-              id: "onSettingDialog",
-              text: "设置题目信息",
-            })
+          if (controlTag != '') {
+            try {
+              tagObj = JSON.parse(controlTag);
+              if (tagObj.group !== undefined && tagObj.group !== "") {
+                settings.items.push({
+                  id: "onDismissGroup",
+                  text: "解除分组",
+                })
+              }
+              if (tagObj.regionType == 'question') {
+                settings.items.push({
+                  id: "onSettingDialog",
+                  text: "设置题目信息",
+                })
+              }  
+            } catch (error) {
+              console.log(error)
+            }
           }
         }
         return settings;
@@ -559,7 +591,6 @@ import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStru
         console.log("insertDrawingObject")
         window.Asc.plugin.callCommand(function () {
             var oDocument = Api.GetDocument();
-
             // get current paragraph
             var pos = oDocument.Document.CurPos.ContentPos;
             var oElement = oDocument.GetElement(pos)
@@ -940,6 +971,7 @@ import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStru
         addBtnClickEvent('examImport', importExam)
         addBtnClickEvent('savePositons', savePositons)
         addBtnClickEvent('showTree', showQuestionTree)
+        addBtnClickEvent('showPositionsDialog', showPositionsDialog)
 
         document.getElementById("selectionToHtml").onclick = function () {
             rangeToHtml(window, undefined, function (html) {
@@ -948,7 +980,6 @@ import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStru
         }
 
         document.getElementById("insertAsHtml").onclick = function () {
-            
             var html = `<p
             style="margin-top:0pt;margin-bottom:10pt;border:none;border-left:none;border-top:none;border-right:none;border-bottom:none;mso-border-between:none">
             <span style="font-family:'Arial';font-size:11pt;color:#000000;mso-style-textfill-fill-color:#000000">Hello word</span>
@@ -1199,6 +1230,7 @@ import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStru
                               console.log("control", control, Asc.scope.controlId)
                               if (control.Sdt.GetId() === Asc.scope.controlId) {
                                   control.SetTag(Asc.scope.tag);
+                                  break
                               }
                           }
                       }, false, false, undefined);
@@ -1385,7 +1417,7 @@ import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStru
 
 
     window.Asc.plugin.event_onClick = function (isSelectionUse) {
-        console.log("event click");
+        // console.log("event click");
         showPosition(window,
             function(data) {
                 onGetPos(data);
@@ -1750,56 +1782,41 @@ import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStru
         });
     }
 
-    function showScoreSetDialog() {
-      // 分数设置信息窗口
+    function showDialog(win, name, url, width, height) {
       let location  = window.location;
       let start = location.pathname.lastIndexOf('/') + 1;
       let file = location.pathname.substring(start);
 
       let variation = {
-        url : location.href.replace(file, 'scoreSet.html'),
-        description : window.Asc.plugin.tr('分数设置'),
-        isVisual : true,
-				isModal : true,
-				isViewer : true,
-        buttons: {},
-        EditorsSupport : ["word"],
-        size : [ 592, 400 ]
-      };
-      window.Asc.temp = window.BiyueCustomData.control_list
-      if (!scoreSetWindow) {
-        scoreSetWindow = new window.Asc.PluginWindow();
-        scoreSetWindow.attachEvent("onWindowMessage", function(message) {
-          messageHandler(scoreSetWindow, message)
-        });
-      }
-      scoreSetWindow.show(variation);
-    }
-
-    function importExam() {
-      // 生成试卷窗口
-      let location  = window.location;
-      let start = location.pathname.lastIndexOf('/') + 1;
-      let file = location.pathname.substring(start);
-
-      let variation = {
-        url : location.href.replace(file, 'examExport.html'),
-        description : window.Asc.plugin.tr('生成试卷'),
+        url : location.href.replace(file, url),
+        description : window.Asc.plugin.tr(name),
         isVisual : true,
 				isModal : true,
 				isViewer : true,
         buttons : [],
         EditorsSupport : ["word"],
-        size : [ 592, 400 ]
+        size : [width, height]
       };
-
-      if (!exportExamWindow) {
-        exportExamWindow = new window.Asc.PluginWindow();
-        exportExamWindow.attachEvent("onWindowMessage", function(message) {
-          messageHandler(exportExamWindow, message)
+      if (!win) {
+        win = new window.Asc.PluginWindow();
+        win.attachEvent("onWindowMessage", function(message) {
+          messageHandler(win, message)
         });
       }
-      exportExamWindow.show(variation);
+      win.show(variation);
+      return win
+    }
+
+    function showScoreSetDialog() {
+      showDialog(scoreSetWindow, '分数设置', 'scoreSet.html', 592, 400)
+    }
+
+    function importExam() {
+      showDialog(exportExamWindow, '生成试卷', 'examExport.html', 592, 400)
+    }
+    // 切换功能区窗口
+    function showPositionsDialog() {
+      showDialog(fieldsWindow, '功能区管理', 'examPositions.html', 592, 400)
     }
 })(window, undefined);
 

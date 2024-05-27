@@ -2,6 +2,7 @@
 import { paperOnlineInfo, structAdd, questionCreate, questionDelete, questionUpdateContent, structDelete, paperCanConfirm, structRename, paperSavePosition, examQuestionsUpdate } from './api/paper.js'
 import { JSONPath } from '../vendor/jsonpath-plus/dist/index-browser-esm.js';
 let paper_info = {} // 从后端返回的试卷信息
+const MM2EMU = 36000 // 1mm = 36000EMU
 // 根据paper_uuid获取试卷信息
 async function initPaperInfo() {
   console.log('============== initPaperInfo')
@@ -62,12 +63,23 @@ function updateCustomControls() {
         ques_no++
       } else if (tagInfo.regionType == 'write' || tagInfo.regionType == 'sub-question') {
         let parentContentControl = control.GetParentContentControl()
-        let parentQues = control_list.find(e => {
-          return e.control_id == parentContentControl.Sdt.GetId()
-        })
-        if (parentQues && parentQues.regionType == 'question') {
+        obj.parent_control_id = parentContentControl.Sdt.GetId()
+        function getParentQues(id) {
+          for (var i = 0, imax = control_list.length; i < imax; ++i) {
+            if (control_list[i].control_id == id) {
+              if (control_list[i].regionType == 'question') {
+                return control_list[i]
+              } else {
+                return getParentQues(control_list[i].parent_control_id)
+              }
+            }
+          }
+          return null
+        }
+        var parentQues = getParentQues(obj.parent_control_id)
+        if (parentQues) {
           obj.ques_uuid = parentQues.ques_uuid
-          obj.parent_control_id = parentQues.control_id
+          obj.parent_ques_control_id = parentQues.control_id
           if(tagInfo.regionType == 'write') {
             if (!parentQues.ask_controls) {
               parentQues.ask_controls = []
@@ -85,6 +97,10 @@ function updateCustomControls() {
             })
           }
         }
+      } else if (tagInfo.regionType == 'feature') {
+        console.log('control', control)
+        obj.zone_type = tagInfo.zone_type
+        obj.v = tagInfo.v
       }
       control_list.push(obj)
     })
@@ -166,7 +182,7 @@ async function getQuesUuid() {
           paper_uuid: window.BiyueCustomData.paper_uuid,
           content: encodeURIComponent(e.text), // e.text,
           blank: '',
-          ques_type: 0,
+          type: 1,
           score: 0,
           no: e.ques_no,
           struct_id: e.struct_id
@@ -283,7 +299,7 @@ function savePositons() {
 function showQuestionTree() {
   const questionList = $('#questionList');
   if (questionList) {
-    if (questionList.children() && questionList.children().length > 0) {
+    if (questionList.children() && questionList.children().length > 0 && questionList.children().length < 2) {
       questionList.toggle()
     } else {
       initTree()
@@ -293,6 +309,23 @@ function showQuestionTree() {
 
 function initTree() {
   const questionList = $('#questionList');
+  var needRefreshStruct = false
+  if (!paper_info.info) {
+    needRefreshStruct = true
+  }
+  if (!needRefreshStruct && window.BiyueCustomData.control_list && window.BiyueCustomData.control_list.length > 0) {
+    var find = window.BiyueCustomData.control_list.find(e => {
+      return (e.regionType == 'struct' && e.struct_id == 0) || (e.regionType == 'question' && !e.ques_uuid)
+    })
+    if (find) {
+      
+      needRefreshStruct = true
+    }
+  }
+  if (needRefreshStruct) {
+    questionList.append('<div style="color:#ff0000">试卷结构有异，请先更新试卷结构</div>')
+    return
+  }
   if (!window.BiyueCustomData.control_list || window.BiyueCustomData.control_list.length == 0) {
     questionList.append('<div><button id="refreshTree">刷新树</button></div>')
     $('#refreshTree').on('click', () => {
@@ -389,6 +422,7 @@ function initTree() {
 }
 
 function changeStructQuesType(struct_id, v) {
+  console.log('changeStructQuesType', struct_id, v)
   window.BiyueCustomData.control_list.forEach(control => {
     if (control.regionType == 'question' && control.struct_id == struct_id) {
       control.ques_type = v
@@ -405,6 +439,63 @@ function updateQuestionScore() {
     }
   })
 }
+
+function addDrawingObj() {
+  window.Asc.plugin.callCommand(function() {
+    var oDocument = Api.GetDocument();
+    var oFill = Api.CreateNoFill()
+    var oFill2 = Api.CreateSolidFill(Api.CreateRGBColor(125, 125, 125))
+    var oStroke = Api.CreateStroke(3600, oFill2);
+    // 目前oStroke.Ln.Join == null, 需要拓展API才能修改Join，实现虚线效果
+    var oDrawing = Api.CreateShape("rect", 36000 * 20, 36000 * 10, oFill, oStroke);
+    var drawDocument = oDrawing.GetContent()
+    var oParagraph = Api.CreateParagraph();    
+    var oMyStyle = oDocument.CreateStyle("field style")    
+    var oTextPr = oMyStyle.GetTextPr()
+    oTextPr.SetColor(0, 0, 0, false)
+    oTextPr.SetFontSize(32)
+    var oParaPr = oMyStyle.GetParaPr()
+    oParaPr.SetJc("center")
+    oParagraph.SetStyle(oMyStyle)
+    oParagraph.AddText('再练')
+    drawDocument.AddElement(0,oParagraph)
+    oDrawing.SetVerticalTextAlign("center")
+    oDocument.AddDrawingToPage(oDrawing, 0, 1070821, 963295);
+  }, false, true, undefined)
+}
+
+// 测试在文档尾部加入表格，显示打分区
+function testAddTable() {
+  window.Asc.plugin.callCommand(function() {
+    var oDocument = Api.GetDocument();
+    var oTableStyle = oDocument.CreateStyle("CustomTableStyle", "table");
+    var num = 3
+    var oTable = Api.CreateTable(num + 2, 1);
+    oTable.SetWidth("percent", 20);
+    var oTableStylePr = oTableStyle.GetConditionalTableStyle("wholeTable");
+    oTable.SetTableLook(true, true, true, true, true, true);
+    oTableStylePr.GetTableRowPr().SetHeight("atLeast", 500);
+    var oTableCellPr = oTableStyle.GetTableCellPr();
+    oTableCellPr.SetVerticalAlign("center");
+    //oTable.SetHAlign("center") // 整个表格相对于段落的水平居中对齐
+    oTable.SetStyle(oTableStyle);
+    var oMyStyle = oDocument.CreateStyle("My style with center")
+    var oParaPr = oMyStyle.GetParaPr()
+    oParaPr.SetJc("center") // 设置段落内容对齐方式。
+    for (var i = 0; i < num + 2; ++i) {
+      var oCellPara = oTable.GetCell(0, i).GetContent().GetElement(0)
+      if (i == num + 1) {
+        oCellPara.AddText('0.5')
+      } else {
+        oCellPara.AddText(i + '')
+      }
+      oCellPara.SetStyle(oMyStyle)
+    }
+    
+    oDocument.Push(oTable);
+  }, false, true, undefined)
+}
+
 // 添加分数框
 function addScoreField() {
   Asc.scope.control_list = window.BiyueCustomData.control_list
@@ -431,7 +522,6 @@ function addScoreField() {
           oTable.SetWrappingStyle(false);
           for (var i = 0; i <= num; i++) {
             oTable.GetCell(0, i).GetContent().GetElement(0).AddText(i== num ? '0.5' : (i + ''))
-            oTable.GetCell(0, i).SetVerticalAlign("center")
             oTable.GetCell(0, i).SetWidth('twips', 283)
           }
           
@@ -458,12 +548,6 @@ function addScoreField() {
               Left: 0,
               Right: 0,
               Top: 0
-            },
-            CellMargins: {
-              Bottom: 0,
-              Left: 1,
-              Right: 1,
-              Top: 0
             }
           }
           // Api.tblApply(Props)
@@ -489,6 +573,119 @@ function selectQues(treeInfo, index) {
   }, false, false, undefined)
 }
 
+function drawPosition(data) {
+  console.log('drawPosition', data)
+  // 绘制区域，需要判断原本是否有这个区域，如果有，修改位置，如果没有，添加
+  Asc.scope.pos = data
+  Asc.scope.MM2EMU = MM2EMU
+  var find = window.BiyueCustomData.control_list.find(e => {
+    return e.regionType == 'feature' && e.zone_type == data.zone_type && e.v == data.v
+  })
+  if (find) { // 原本已经有
+    Asc.scope.control_id = find.control_id
+  } else {
+    Asc.scope.control_id = null
+  }
+  // testAddTable()
+  window.Asc.plugin.callCommand(function () {
+    var posdata = Asc.scope.pos
+    var MM2EMU = Asc.scope.MM2EMU
+    var control_id = Asc.scope.control_id
+    console.log('posdata', posdata, MM2EMU)
+    var oDocument = Api.GetDocument();
+    if (control_id) {
+      var tag = JSON.stringify({
+        regionType: 'feature',
+        zone_type: posdata.zone_type,
+        mode: 6,
+        v: posdata.v
+      })
+      var oControls = oDocument.GetAllContentControls();
+      console.log('control_id', control_id)
+        for (var i = 0; i < oControls.length; i++) {
+            var oControl = oControls[i];
+            if (oControl.Sdt.GetId() === control_id) {
+              var oDrawing = oControl.Sdt.LogicDocument.DrawingObjects
+              console.log('oDrawing', oDrawing)
+              console.log('oControl', oDrawing.drawingObjects)
+              var paradrawing = oDrawing.drawingObjects[0]
+              console.log('paradrawing', paradrawing)
+              paradrawing.setExtent(20, 10)
+              console.log('Asc.c_oAscRelativeFromH', Asc.c_oAscRelativeFromH)
+              // paradrawing.Set_PositionH(nRelativeFrom, false, 50, false)
+              // paradrawing.Set_PositionV(nRelativeFrom, false, 80, false)
+              // console.log('CShape', paradrawing.GraphicObj)
+              // console.log('setExtX', paradrawing.GraphicObj.spPr.xfrm.setExtX)
+              // paradrawing.GraphicObj.spPr.xfrm.setExtX(50)
+              // paradrawing.GraphicObj.spPr.xfrm.setExtY(80)
+              // this.Drawing.GraphicObj.spPr.xfrm.setExtX(fWidth);
+                // this.Drawing.GraphicObj.spPr.xfrm.setExtY(fHeight)
+              break;
+            }
+        }
+      var controls = oDocument.GetContentControlsByTag(tag)
+      console.log('control', controls)
+      return {
+        add: false
+      }
+    } else {
+      var oFill = Api.CreateNoFill()
+      var oFill2 = Api.CreateSolidFill(Api.CreateRGBColor(125, 125, 125))
+      var oStroke = Api.CreateStroke(3600, oFill2);
+      // 目前oStroke.Ln.Join == null, 需要拓展API才能修改Join，实现虚线效果
+      var oDrawing = Api.CreateShape("rect", MM2EMU * posdata.w, MM2EMU * posdata.h, oFill, oStroke);
+      var drawDocument = oDrawing.GetContent()
+      var oParagraph = Api.CreateParagraph();
+      var oMyStyle = oDocument.CreateStyle("field style")
+      var oTextPr = oMyStyle.GetTextPr()
+      oTextPr.SetColor(0, 0, 0, false)
+      oTextPr.SetFontSize(24)
+      var oParaPr = oMyStyle.GetParaPr()
+      oParaPr.SetJc("center")
+      oParagraph.SetStyle(oMyStyle)
+      var text = ''
+      if (posdata.zone_type == 15) {
+        text = '再练'
+      } else if (posdata.zone_type == 16) {
+        text = '完成'
+      }
+      oParagraph.AddText(text)
+      drawDocument.AddElement(0,oParagraph)
+      oDrawing.SetVerticalTextAlign("center")
+      debugger
+      oDrawing.SetVerPosition('page', 914400)
+      oDrawing.SetSize(914400, 914400)
+
+      oDocument.AddDrawingToPage(oDrawing, 0, MM2EMU * posdata.x, MM2EMU * posdata.y);
+      var range = drawDocument.GetRange()
+      range.Select()
+      var tag = {
+        regionType: 'feature',
+        zone_type: posdata.zone_type,
+        mode: 6,
+        v: posdata.v
+      }
+      var oResult = Api.asc_AddContentControl(range.controlType || 1, {"Tag": JSON.stringify(tag)});
+      Api.asc_RemoveSelection();
+      return {
+        add: true,
+        control: {
+          control_id: oResult.InternalId,
+          regionType: 'feature',
+          v: posdata.v,
+          zone_type: posdata.zone_type
+        }
+      }
+    }
+    
+  }, false, true, function(res) {
+    console.log(res)
+    if (res && res.add) {
+      window.BiyueCustomData.control_list.push(res)
+    }
+  })
+}
+
 export {
   getPaperInfo,
   initPaperInfo,
@@ -497,5 +694,7 @@ export {
   getStruct,
   savePositons,
   showQuestionTree,
-  updateQuestionScore
+  updateQuestionScore,
+  testAddTable,
+  drawPosition
 }
