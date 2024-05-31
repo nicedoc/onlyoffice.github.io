@@ -1,6 +1,7 @@
 import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./dep.js";
 import { getToken, setXToken } from './auth.js'
-import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStruct, savePositons, showQuestionTree, updateQuestionScore, drawPosition } from './business.js'
+import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStruct, savePositons, showQuestionTree, updateQuestionScore, drawPosition, addQuesScore, addScoreField, delScoreField, changeScoreField, 
+  addImage, addMarkField, handleContentControlChange } from './business.js'
 
 (function (window, undefined) {   
     var styleEnable = false;
@@ -937,7 +938,7 @@ import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStru
                 // Api.asc_RemoveSelection();
                 var oDocument = Api.GetDocument();
                 var text_all = oDocument.GetRange().GetText({Math: false, TableCellSeparator: "\u24D2", TableRowSeparator:"\u24E1"}) || "";
-                var text_json = oDocument.GetRange().ToJSON(true);
+                var text_json = oDocument.ToJSON(true);
 
                 return {text_all, text_json};
             }, false, false, function (result) {
@@ -972,6 +973,37 @@ import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStru
         addBtnClickEvent('savePositons', savePositons)
         addBtnClickEvent('showTree', showQuestionTree)
         addBtnClickEvent('showPositionsDialog', showPositionsDialog)
+        addBtnClickEvent('add-1-1', function() {
+          addScoreField(5, 1, 1)
+        })
+        addBtnClickEvent('add-1-2', function() {
+          addScoreField(10, 1, 2)
+        })
+        addBtnClickEvent('add-2-1', function() {
+          addScoreField(25, 2, 1)
+        })
+        addBtnClickEvent('add-2-2', function() {
+          addScoreField(25, 2, 2)
+        })
+        addBtnClickEvent('delete', delScoreField)
+        addBtnClickEvent('change-score', function() {
+          changeScoreField(1, null, null)
+        })
+        addBtnClickEvent('change-mode', function() {
+          changeScoreField(null, 1, null)
+        })
+        addBtnClickEvent('change-layout', function() {
+          changeScoreField(null, null, 1)
+        })
+        addBtnClickEvent('add-image', function() {
+          addImage()
+        })
+
+        addBtnClickEvent('get-field', function() {
+          addMarkField()
+        })
+
+
 
         document.getElementById("selectionToHtml").onclick = function () {
             rangeToHtml(window, undefined, function (html) {
@@ -1247,9 +1279,24 @@ import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStru
 
     window.prevControl = undefined;
 
+    
+
     window.Asc.plugin.event_onBlurContentControl = function (control) {
         //console.log("onBlurControl", control);
         window.prevControl = control;
+    }
+
+    window.Asc.plugin.event_onUndo = function(e) {
+      console.log('undo', e)
+    }
+
+    window.Asc.plugin.event_onChangeCommentData = function(e) {
+      console.log('redo', e)
+    }
+
+    window.Asc.plugin.event_onChangeContentControl = function (res) {
+      console.log('OnChangeContentControl', res)
+      handleContentControlChange(res)
     }
 
     let DismissGroup = function() {

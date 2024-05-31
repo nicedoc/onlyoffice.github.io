@@ -45,6 +45,15 @@
             width: 70%
         }
 
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+        }
+        .btn-sub {
+            padding: 4px 12px;
+            border: 1px solid #bbb;
+        }
+
      </style>
  </head>
  <body id="body" style="left:0px; top:0px; margin:0px; padding:0px;">        
@@ -102,6 +111,19 @@
         <div id="showTree" class="btn-text-default">显示树形结构</div>
         <div id="questionList"></div>
         <div id="showPositionsDialog" class="btn-text-default">功能区管理</div>
+        <div class="row">
+            <div id="add-1-1" class="btn-sub">增普通顶部</div>
+            <div id="add-1-2" class="btn-sub">增普通嵌入</div>
+            <div id="add-2-1" class="btn-sub">增大分值顶部</div>
+            <div id="add-2-2" class="btn-sub">增大分值嵌入</div>
+            <div id="delete" class="btn-sub">删除</div>
+            <div id="change-score" class="btn-sub">切换分数</div>
+            <div id="change-mode" class="btn-sub">切换模式</div>
+            <div id="change-layout" class="btn-sub">切换布局</div>
+            <div id="add-image" class="btn-sub">添加图片</div>
+            <div id="get-field" class="btn-sub">获取选区</div>
+        </div>
+
         </div>
     </div>
     <script type="module" src="scripts/auth.js"></script>
