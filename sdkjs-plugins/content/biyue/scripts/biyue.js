@@ -1,4 +1,5 @@
 import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./dep.js";
+import { toXml } from "./convert.js";
 
 (function (window, undefined) {   
     var styleEnable = false;
@@ -856,6 +857,12 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
             });            
         }
 
+        document.getElementById("selectionToXml").onclick = function () {
+            toXml(window, undefined, function (xml) {
+                console.log(xml);
+            });
+        }
+
         document.getElementById("insertAsHtml").onclick = function () {
             
             var html = `<p
@@ -877,6 +884,8 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
             insertHtml(window, undefined, html, function (res) {
                 console.log(res);
             });
+
+            
         }
     });
 
@@ -1443,6 +1452,8 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
             console.log("docInfo", docInfo);
         });
     }
+
+    window.insertHtml = insertHtml;
 
 })(window, undefined);
 
