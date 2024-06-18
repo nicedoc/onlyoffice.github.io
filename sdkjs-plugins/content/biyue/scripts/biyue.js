@@ -2,6 +2,7 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
 import { getToken, setXToken } from './auth.js'
 import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStruct, savePositons, showQuestionTree, updateQuestionScore, drawPosition, addQuesScore, addScoreField, delScoreField, changeScoreField, 
   addImage, addMarkField, handleContentControlChange } from './business.js'
+import { toXml } from "./convert.js";
 
 (function (window, undefined) {   
     var styleEnable = false;
@@ -1011,6 +1012,12 @@ import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStru
             });            
         }
 
+        document.getElementById("selectionToXml").onclick = function () {
+            toXml(window, undefined, function (xml) {
+                console.log(xml);
+            });
+        }
+
         document.getElementById("insertAsHtml").onclick = function () {
             var html = `<p
             style="margin-top:0pt;margin-bottom:10pt;border:none;border-left:none;border-top:none;border-right:none;border-bottom:none;mso-border-between:none">
@@ -1031,6 +1038,8 @@ import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStru
             insertHtml(window, undefined, html, function (res) {
                 console.log(res);
             });
+
+            
         }
         var selectElement = document.getElementById("pageType");
         if (selectElement) {
@@ -1865,5 +1874,7 @@ import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStru
     function showPositionsDialog() {
       showDialog(fieldsWindow, '功能区管理', 'examPositions.html', 592, 400)
     }
+    window.insertHtml = insertHtml;
+
 })(window, undefined);
 

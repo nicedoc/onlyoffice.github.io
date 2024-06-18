@@ -19,10 +19,11 @@
     
      <meta charset="UTF-8">
      <title>Biyue</title>
-     <link rel="stylesheet" href="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.css"></link>
+     <link rel="stylesheet" href="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.css"></link>     
      <script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.js"></script>
      <script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins-ui.js"></script>
-     <script src="vendor/jQuery-2.2.2-min/jquery-v2.2.2-min.js"></script>
+     <script src="vendor/jszip-3.7.1/jszip.min.js"></script>  
+     <script src="vendor/jQuery-2.2.2-min/jquery-v2.2.2-min.js"></script>     
      <script type="module" src="vendor/jsonpath-plus/dist/index-browser-esm.js"></script>
      <script src="vendor/axios.min.js"></script>
      <link rel="stylesheet" href="resources/css/tree.css">
@@ -56,28 +57,31 @@
 
      </style>
  </head>
- <body id="body" style="left:0px; top:0px; margin:0px; padding:0px;">        
-     <div id="iframe_parent" style="width:100%; height:100%;margin:0;padding:0;overflow-y: auto;">
-        <div class="button_wrapper">
-          <div id="getDocInfo" class="btn-text-default">获取文档信息</div>
-          <div id="splitQuestionBtn" class="btn-text-default">切题</div>
-          <div id="clearControl" class="btn-text-default">删除所有控件 </div>
-          <div id="markAnswerRegionBtn" class="btn-text-default">标记答题区</div>
-          <div id="checkAnswerRegionBtn" class="btn-text-default">识别答题区</div>
-          <div id="toggleStyleBtn" class="btn-text-default">切换答题样式</div>
-          <div id="lockBtn" class="btn-text-default">锁定</div>
-          <div id="unlockBtn" class="btn-text-default">解锁</div>
-          <div id="showPosition" class="btn-text-default">显示渲染位置</div>
-          <div id="getSelectionBtn" class="btn-text-default">切出选中范围</div>
-          <div id="showAllContentBtn" class="btn-text-default">常亮切题区域</div>
-          <div id="showScoreContentBtn" class="btn-text-default">显示分数框</div>
-          <div id="showMultiPagePos" class="btn-text-default">获取空间在多个页面位置 </div>
-          <div id="insertDrawingObjectBtn" class="btn-text-default">插入绘图对象</div>
-          <div id="toTableColumn" class="btn-text-default">一行多题处理</div>
-          <div id="normalizeDoc" class="btn-text-default">规范化文档</div>
-          <div id="jsonPathSplitQuestionBtn" class="btn-text-default">JSONPath切题</div>
-          <div id="selectionToHtml" class="btn-text-default">将Selection输出为html</div>
-          <div id="insertAsHtml" class="btn-text-default">将文本以html格式插入当前位置</div>
+ <body id="body" style="left:0px; top:0px; margin:0px; padding:0px;">
+     <div id="iframe_parent" style="width:100%; height:100%;margin:0;padding:0">
+        <div class="button_wrapper">            
+        <div id="getDocInfo" class="btn-text-default">获取文档信息</div>
+        <div id="splitQuestionBtn" class="btn-text-default">切题</div>        
+        <div id="clearControl" class="btn-text-default">删除所有控件 </div>
+        <div id="markAnswerRegionBtn" class="btn-text-default">标记答题区</div>
+        <div id="checkAnswerRegionBtn" class="btn-text-default">识别答题区</div>
+        <div id="toggleStyleBtn" class="btn-text-default">切换答题样式</div>
+        <div id="lockBtn" class="btn-text-default">锁定</div>
+        <div id="unlockBtn" class="btn-text-default">解锁</div>
+        <div id="showPosition" class="btn-text-default">显示渲染位置</div>
+        <div id="getSelectionBtn" class="btn-text-default">切出选中范围</div>
+        <div id="showAllContentBtn" class="btn-text-default">常亮切题区域</div>
+        <div id="showScoreContentBtn" class="btn-text-default">显示分数框</div>
+        <div id="showMultiPagePos" class="btn-text-default">获取空间在多个页面位置 </div>
+        <div id="insertDrawingObject" class="btn-text-default">插入绘图对象</div>
+        <div id="toTableColumn" class="btn-text-default">一行多题处理</div>
+        <div id="normalizeDoc" class="btn-text-default">规范化文档</div>
+        <div id="jsonPathSplitQuestionBtn" class="btn-text-default">JSONPath切题</div>
+        <div id="selectionToHtml" class="btn-text-default">将Selection输出为html</div>
+        <div id="selectionToXml" class="btn-text-default">将Selection输出为xml</div>
+        <div id="insertAsHtml" class="btn-text-default">将文本以html格式插入当前位置</div>
+        
+     
         </div>
         <div id="controlPostion">
             <table align="center" border="1" width="100px">
