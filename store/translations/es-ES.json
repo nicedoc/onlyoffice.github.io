@@ -34,7 +34,10 @@
 	"Japanese": "Japonés",
 	"Dutch": "Neerlandés",
 	"Portuguese": "Portugal",
+	"Brazilian": "Brasileño",
 	"Russian": "Ruso",
+	"Sinhala": "Cingalés",
+	"Ukrainian": "Ucraniano",
 	"Chinese": "Chino",
 	"Update All": "Actualizar Todo",
 	"Categories": "Categorías",
@@ -56,5 +59,6 @@
 	"Network problem." : "Problema de red.",
 	"Problem with loading some resources" : "Problema al cargar algunos recursos",
 	"Click to rate" : "Haga clic para calificar",
-	"No disscussion page for this plugin." : "No hay página de discusión para este complemento."
+	"No disscussion page for this plugin." : "No hay página de discusión para este complemento.",
+	"Problem with plugin installation." : "Problema con la instalación del plugin."
 }
