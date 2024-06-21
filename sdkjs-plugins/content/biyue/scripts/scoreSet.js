@@ -13,7 +13,102 @@ import { questionBatchEditScore } from './api/paper.js'
     window.Asc.plugin.sendToPlugin("onWindowMessage", {type: 'BiyueMessage'});
   }
 
+  function test() {
+    const list = [{
+      type: "struct",
+      text: "题组一",
+      children: [{
+          id: 1,
+          type: "question",
+          text: "题目1",
+          children: [{
+              id: 2,
+              type: "subquestion",
+              text: "(1)",
+              children: [{
+                  id: 3,
+                  type: "subquestion",
+                  text: "<1>"
+              }]
+          }, {
+              id: 4,
+              type: "subquestion",
+              text: "(2)"
+          }]
+      }, {
+          id: 5,
+          type: "question",
+          text: "题目2"
+      }]
+  }, {
+      id: 6,
+      type: "struct",
+      text: "题组二",
+      children: [{
+          id: 7,
+          type: "question",
+          text: "题目3"
+      }, {
+          id: 8,
+          type: "question",
+          text: "题目4"
+      }]
+  }];
+	
+  const tree = document.getElementById('tree');
+  buildTree(list, tree);
+  tree.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    const id = e.dataTransfer.getData('text/plain');
+    const draggedElement = document.getElementById(id);
+    if (draggedElement) {
+        e.target.appendChild(draggedElement);
+    }
+});
+
+tree.addEventListener('drop', (e) => {
+	console.log('drop')
+    e.preventDefault();
+});
+window.addEventListener('drop', e => {
+  console.log('window drop', e)
+})
+  }
+
+  function buildTree(data, parent) {
+    const ul = document.createElement('ul');
+    data.forEach(item => {
+        const li = document.createElement('li');
+        li.textContent = item.text;
+        li.draggable = true;
+		li.id = item.id + ''
+        li.addEventListener('dragstart', (e) => {
+          console.log('dragstart')
+            e.dataTransfer.setData('text/plain', e.target.id);
+        });
+        li.addEventListener('click', e => {
+          console.log('click')
+        })
+        li.addEventListener('dragover', e => {
+          console.log('1 dragover')
+          e.preventDefault()
+          return false
+        })
+        li.addEventListener('drop', e => {
+          console.log(' 1 drop')
+          e.preventDefault()
+        })
+        if (item.children) {
+            buildTree(item.children, li);
+        }
+        ul.appendChild(li);
+    });
+    parent.appendChild(ul);
+}
+
   function init() {
+    test()
+    return
     var headerEl = document.getElementById('scoreSetHeader');
     if (headerEl) {
       var content = '当前试卷总';
@@ -210,6 +305,10 @@ window.Asc.plugin.attachEvent("initInfo", function(message) {
   var sum = 0
   setXToken(message.xtoken)
   source_data = message
+  if (!message || !message.control_list) {
+    test()
+    return
+  }
   message.control_list.forEach((e, index) => {
     if (e.regionType == 'struct') {
       treeInfo.push({

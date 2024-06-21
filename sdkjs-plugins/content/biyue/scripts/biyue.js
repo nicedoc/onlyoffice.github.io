@@ -1,8 +1,12 @@
 import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./dep.js";
 import { getToken, setXToken } from './auth.js'
-import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStruct, savePositons, showQuestionTree, updateQuestionScore, drawPosition, addQuesScore, addScoreField, delScoreField, changeScoreField, 
-  addImage, addMarkField, handleContentControlChange } from './business.js'
 import { toXml } from "./convert.js";
+import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStruct, savePositons, showQuestionTree, updateQuestionScore, drawPositions, addQuesScore, addScoreField, handleScoreField, handleIdentifyBox, showIdentifyIndex, removeAllIdentify, showWriteIdentifyIndex,
+  addImage, addMarkField, handleContentControlChange, deletePositions } from './business.js'
+import { showQuesData, initListener } from './panelQuestionDetial.js'
+import { initFeature } from './panelFeature.js'
+import { handleHeader } from "./featureManager.js";
+import Tree from "../components/Tree.js";
 
 (function (window, undefined) {   
     var styleEnable = false;
@@ -11,6 +15,9 @@ import { toXml } from "./convert.js";
     let scoreSetWindow = null
     let exportExamWindow = null
     let fieldsWindow = null
+    let timeout_controlchange = null
+    let contextMenu_options = null
+    let quesTree = null
     function NewDefaultCustomData() {
         return {
             controlDesc : {}
@@ -64,9 +71,13 @@ import { toXml } from "./convert.js";
           window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
           break
         case 'drawPosition': // 绘制区域
-          drawPosition(message.data)
+          drawPositions(message.data)
           window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
           break
+        case 'deletePosition': // 删除区域
+          deletePositions(message.data)
+          window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
+          break  
         default:
           break
       }
@@ -458,69 +469,192 @@ import { toXml } from "./convert.js";
     }
 
     function getContextMenuItems() {
-        let settings = {
-            guid: window.Asc.plugin.guid,
-            items : [{
-              id: "onMakeGroup",
-              text: "设置分组",
-          }]
-        }
-
-        let tagObj = ''
-        if (activeQuesItem) {
-          var controlTag = activeQuesItem ? activeQuesItem.Tag : "";
-          if (controlTag != '') {
-            try {
-              tagObj = JSON.parse(controlTag);
-              if (tagObj.group !== undefined && tagObj.group !== "") {
-                settings.items.push({
-                  id: "onDismissGroup",
-                  text: "解除分组",
-                })
+      console.log('getContextMenuItems', activeQuesItem)
+      console.log('contextMenu_options', contextMenu_options)
+      var splitType = {
+        separator: true,
+        //icons: "resources/light/icon.png",
+        icons: "resources/%theme-type%(light|dark)/%state%(normal)icon%scale%(100|200).%extension%(png)",
+        id: 'updateControlType',
+        text: '划分类型',
+        items: [{
+          icons: "resources/%theme-type%(img)/%state%(normal)x%scale%(50).%extension%(png)",
+          id: 'updateControlType_examtitle',
+          text: '设置为 - 试卷标题'
+        }, {
+          id: 'updateControlType_struct',
+          text: '设置为 - 题组结构'
+        }, {
+          id: 'updateControlType_question',
+          text: '设置为 - 题目'
+        }, {
+          id: 'updateControlType_write',
+          text: '设置为 - 小问'
+        }, {
+          id: 'updateControlType_sub-question',
+          text: '设置为 - 小题'
+        }]
+      }
+      let settings = {
+        guid: window.Asc.plugin.guid,
+        items: [splitType]
+      }
+      settings.items.push({
+        id: 'sectionColumn',
+        text: '分栏',
+        items: [{
+          id: 'setSectionColumn_1',
+          text: '1列'
+        }, {
+          id: 'setSectionColumn_2',
+          text: '2列'
+        }]
+      })
+      if (contextMenu_options) {
+        if (contextMenu_options.type == 'Selection') {
+          var questypes = [{ value: '1', label: '单选' },
+          { value: '2', label: '填空' },
+          { value: '3', label: '作答' },
+          { value: '4', label: '判断' },
+          { value: '5', label: '多选' },
+          { value: '6', label: '文本' },
+          { value: '7', label: '单选组合' },
+          { value: '8', label: '作文' }]
+          var itemsQuesType = questypes.map(e => {
+            return {
+              id: `batchChangeQuesType_${e.value}`,
+              text: e.label 
+            }
+          })
+          var itemsProportion = []
+          for (var i = 1; i <= 8; ++i) {
+            itemsProportion.push({
+              id: `batchChangeProportion_${i}`,
+              text: `${i}/8`
+            })
+          }
+          settings.items.push({
+            id: 'batchCmd',
+            text: '批量操作',
+            items: [{
+              id: 'batchChangeQuesType',
+              text: '修改题型',
+              items: itemsQuesType
+            }, {
+              id: 'batchChangeScore',
+              text: '修改分数'
+            }, {
+              id: 'batchChangeProportion',
+              text: '修改占比',
+              items: itemsProportion
+            }, {
+              id: 'batchChangeInteraction',
+              text: '修改互动模式',
+              items: [{
+                id: 'batchChangeInteraction_simple',
+                text: '简单互动'
+              }, {
+                id: 'batchChangeInteraction_accurate',
+                text: '精准互动'
+              }]
+            }]
+          })
+        } else if (contextMenu_options.type == 'Target') {
+          settings.items.push({
+            id: 'identify',
+            text: '识别框',
+            items: [{
+              id: 'handleIdentifyBox_1',
+              text: '添加'
+            }, {
+              id: 'handleIdentifyBox_0',
+              text: '删除'
+            }]
+          })
+          let tagObj = ''
+          if (activeQuesItem) {
+            var controlTag = activeQuesItem ? activeQuesItem.Tag : "";
+            if (controlTag != '') {
+              try {
+                tagObj = JSON.parse(controlTag);
+                if (tagObj.group !== undefined && tagObj.group !== "") {
+                  settings.items.push({
+                    id: "onDismissGroup",
+                    text: "解除分组",
+                  })
+                }
+                if (tagObj.regionType == 'question') {
+                  settings.items.push({
+                    id: "onSettingDialog",
+                    text: "设置题目信息",
+                  })
+                }  
+              } catch (error) {
+                console.log(error)
               }
-              if (tagObj.regionType == 'question') {
-                settings.items.push({
-                  id: "onSettingDialog",
-                  text: "设置题目信息",
-                })
-              }  
-            } catch (error) {
-              console.log(error)
             }
           }
         }
-        return settings;
+      }
+      return settings;
     }
 
     window.Asc.plugin.attachEvent('onContextMenuShow', function (options) {
         console.log(options);
         //     if (!options) return;
-
+        contextMenu_options = options
         if (options.type === 'Selection' || options.type === 'Target') {
             this.executeMethod('AddContextMenuItem', [getContextMenuItems()]);
         }
     });
+    // window.Asc.plugin.attachContextMenuClickEvent('onMakeGroup', function() {
+    //     console.log("onMakeGroup");
+    //     if (window.prevControl === undefined) {
+    //         return;
+    //     }
+    //     MakeGroup(window.prevControl, window.currControl);
+    // });
 
-    window.Asc.plugin.attachContextMenuClickEvent('onDismissGroup', function() {
-        console.log("onDismissGroup");
-        DismissGroup();
-    });
-
-    window.Asc.plugin.attachContextMenuClickEvent('onSettingDialog', function() {
-      console.log("onSettingDialog");
-      SettingDialog()
-    });
-
-
-
-    window.Asc.plugin.attachContextMenuClickEvent('onMakeGroup', function() {
-        console.log("onMakeGroup");
-        if (window.prevControl === undefined) {
-            return;
+    window.Asc.plugin.event_onContextMenuClick = function (id)
+    {
+      console.log('event_onContextMenuClick', id)
+      var strs = id.split('_');
+      if (strs && strs.length > 0) {
+        var funcName = strs[0];
+        switch(funcName) {
+          case 'updateControlType':
+            updateControlType(strs[1])
+            break
+          case 'batchChangeQuesType':
+            batchChangeQuesType(strs[1])
+            break
+          case 'batchChangeProportion':
+            batchChangeProportion(strs[1])
+            break
+          case 'batchChangeInteraction':
+            batchChangeInteraction(strs[1])
+            break
+          case 'handleIdentifyBox':
+            handleIdentifyBox(strs[1] * 1)
+            break
+          case 'onDismissGroup':
+            onDismissGroup()
+            break
+          case 'onSettingDialog':
+            onSettingDialog()
+            break
+          case 'onMakeGroup':
+            onMakeGroup()
+            break
+          case 'setSectionColumn': // 分栏
+            var columnCount = strs[1] * 1
+            setSectionColumn(columnCount)
+            break
+          default:
+            break
         }
-        MakeGroup(window.prevControl, window.currControl);
-    });
-
+      }
+    };
     function onGetPos(rect) {
         if (rect === undefined) {
             return;
@@ -739,10 +873,13 @@ import { toXml } from "./convert.js";
 
     $(document).ready(function () {
         // 获取文档描述信息
-        document.getElementById("getDocInfo").onclick = function () {
+        let btnGetDocInfo = document.getElementById("getDocInfo")
+        if (btnGetDocInfo) {
+          btnGetDocInfo.onclick = function () {
             GetDocInfo();
+          }
         }
-
+        addBtnClickEvent('reSplitQuestionBtn', reSplitQustion)
         // 切题
         var btnSplit1 = document.getElementById("splitQuestionBtn")
         if (btnSplit1) {
@@ -788,15 +925,20 @@ import { toXml } from "./convert.js";
             };
 
         };
-
-        document.getElementById("checkAnswerRegionBtn").onclick = function () {
+        var btnCheckAnswerRegionBtn = document.getElementById("checkAnswerRegionBtn")
+        if (btnCheckAnswerRegionBtn) {
+          btnCheckAnswerRegionBtn.onclick = function () {
             checkAnswerRegion();
-        }
-
-        document.getElementById("toggleStyleBtn").onclick = function() {
-            toggleControlStyle();
           }
         }
+        var btnToggleStyleBtn = document.getElementById("toggleStyleBtn")
+        if (btnToggleStyleBtn) {
+          btnToggleStyleBtn.onclick = function() {
+              toggleControlStyle();
+            }
+          }
+        }
+        
         // Todo 考虑其他实现方法
         // 锁定控件操作
         var btnUnlock = document.getElementById("unlockBtn")
@@ -949,8 +1091,9 @@ import { toXml } from "./convert.js";
             });
           }
         }
-
-        document.getElementById("normalizeDoc").onclick = function () {
+        var btnNormalizeDoc = document.getElementById("normalizeDoc")
+        if (btnNormalizeDoc) {
+          btnNormalizeDoc.onclick = function () {
             window.Asc.plugin.callCommand(function () {
                 
                 // Api.asc_EditSelectAll();
@@ -962,54 +1105,102 @@ import { toXml } from "./convert.js";
                 
                 return {text_all, text_json};
             }, false, false, function (result) {
-                var ranges = normalizeDoc(result.text_json);                
+                var ranges = normalizeDoc(result.text_json);
                 console.log('normal:', ranges)
                 execModify(ranges);
             });
+          }
         }
+        window.tab_select = 'tabList'
+        $('#' + window.tab_select).addClass('selected')
+        $('.tabitem').on('click', changeTab)
+        document.addEventListener('clickSingleQues', function(event) {
+          changeTabPanel('tabQues')
+        })
+        initListener()
+        changeTabPanel('tabList')
+        
         addBtnClickEvent('scoreSet', showScoreSetDialog)
         addBtnClickEvent('clearStruct', clearStruct)
         addBtnClickEvent('getStruct', getStruct)
         addBtnClickEvent('examImport', importExam)
         addBtnClickEvent('savePositons', savePositons)
-        addBtnClickEvent('showTree', showQuestionTree)
+        addBtnClickEvent('showTree', addImage)
         addBtnClickEvent('showPositionsDialog', showPositionsDialog)
-        addBtnClickEvent('add-1-1', function() {
-          addScoreField(5, 1, 1)
+        addBtnClickEvent('add-score', function() {
+          // addScoreField(5, 1, 1, 0)
+          var list = []
+          for (var i = 1; i < 2; ++i) {
+            list.push({
+              ques_no: i,
+              score: 20,
+              mode: 1,
+              layout: 1
+            })
+          }
+          handleScoreField(list)
         })
-        addBtnClickEvent('add-1-2', function() {
-          addScoreField(10, 1, 2)
-        })
-        addBtnClickEvent('add-2-1', function() {
-          addScoreField(25, 2, 1)
-        })
-        addBtnClickEvent('add-2-2', function() {
-          addScoreField(25, 2, 2)
-        })
-        addBtnClickEvent('delete', delScoreField)
-        addBtnClickEvent('change-score', function() {
-          changeScoreField(1, null, null)
+        addBtnClickEvent('delete', function() {
+          var list = []
+          for (var i = 1; i < 40; ++i) {
+            list.push({
+              ques_no: i,
+              score: null
+            })
+          }
+          handleScoreField(list)
         })
         addBtnClickEvent('change-mode', function() {
-          changeScoreField(null, 1, null)
+          var list = []
+          for (var i = 1; i < 40; ++i) {
+            list.push({
+              ques_no: i,
+              score: 20,
+              mode: 2,
+              layout: 1
+            })
+          }
+          handleScoreField(list)
         })
         addBtnClickEvent('change-layout', function() {
-          changeScoreField(null, null, 1)
+          var list = []
+          for (var i = 1; i < 40; ++i) {
+            list.push({
+              ques_no: i,
+              score: 12,
+              mode: 1,
+              layout: 2
+            })
+          }
+          handleScoreField(list)
         })
-        addBtnClickEvent('add-image', function() {
-          addImage()
+        addBtnClickEvent('identify_index_show', function() {
+          showIdentifyIndex(true)
+        })
+        addBtnClickEvent('identify_index_hide', function() {
+          showIdentifyIndex(false)
+        })
+        addBtnClickEvent('identify_delete', function() {
+          removeAllIdentify()
+        })
+        addBtnClickEvent('showWriteIdentifyIndex', function() {
+          showWriteIdentifyIndex(true)
+        })
+        addBtnClickEvent('hideWriteIdentifyIndex', function() {
+          showWriteIdentifyIndex(false)
         })
 
-        addBtnClickEvent('get-field', function() {
-          addMarkField()
+        addBtnClickEvent('questree', function() {
+          onTreeTest()
         })
 
-
-
-        document.getElementById("selectionToHtml").onclick = function () {
+        var btnSelectionToHtml = document.getElementById("selectionToHtml")
+        if (btnSelectionToHtml) {
+          btnSelectionToHtml.onclick = function () {
             rangeToHtml(window, undefined, function (html) {
                 console.log(html);
             });            
+          }
         }
 
         document.getElementById("selectionToXml").onclick = function () {
@@ -1018,7 +1209,9 @@ import { toXml } from "./convert.js";
             });
         }
 
-        document.getElementById("insertAsHtml").onclick = function () {
+        var btnInsertAsHtml = document.getElementById("insertAsHtml")
+        if (btnInsertAsHtml) {
+          btnInsertAsHtml.onclick = function () {
             var html = `<p
             style="margin-top:0pt;margin-bottom:10pt;border:none;border-left:none;border-top:none;border-right:none;border-bottom:none;mso-border-between:none">
             <span style="font-family:'Arial';font-size:11pt;color:#000000;mso-style-textfill-fill-color:#000000">Hello word</span>
@@ -1038,8 +1231,7 @@ import { toXml } from "./convert.js";
             insertHtml(window, undefined, html, function (res) {
                 console.log(res);
             });
-
-            
+          }
         }
         var selectElement = document.getElementById("pageType");
         if (selectElement) {
@@ -1105,8 +1297,15 @@ import { toXml } from "./convert.js";
     function showPosition(window, onGetPos) {
         window.Asc.plugin.executeMethod("GetCurrentContentControlPr", [], function (returnValue) {
             console.log("control", returnValue);
+            if (returnValue && returnValue.Tag) {
+              var tag = JSON.parse(returnValue.Tag)
+              var event = new CustomEvent('clickSingleQues', {detail: {
+                control_id: returnValue.InternalId,
+                regionType: tag.regionType
+              }})
+              document.dispatchEvent(event)
+            }
             activeQuesItem = ''
-
             if (returnValue) {
                 activeQuesItem = returnValue || ''
                 Asc.scope.controlId = returnValue.InternalId;
@@ -1219,6 +1418,7 @@ import { toXml } from "./convert.js";
             console.log("no paragraph")
             return
           }
+          debugger
           var hasContentControl = oRange.Paragraphs[0].GetParentContentControl()
           var type = 1
           if (hasContentControl) {
@@ -1232,6 +1432,7 @@ import { toXml } from "./convert.js";
           console.log('-------:', allText.indexOf(selectText))
           return { type }
         }, false, false, function (obj) {
+          debugger
           if (obj && obj.type === 2) {
             window.Asc.plugin.executeMethod ("AddContentControl", [2]);
             let obj = { regionType:"write", color:"#ffcccc" }
@@ -1304,8 +1505,7 @@ import { toXml } from "./convert.js";
     }
 
     window.Asc.plugin.event_onChangeContentControl = function (res) {
-      console.log('OnChangeContentControl', res)
-      handleContentControlChange(res)
+      // onContentControlChange(res)
     }
 
     let DismissGroup = function() {
@@ -1453,23 +1653,27 @@ import { toXml } from "./convert.js";
     }
 
 
-    window.Asc.plugin.event_onFocusContentControl = function (control) {
-        window.Asc.plugin.callCommand(
-            function() {
-                return AscCommon.global_keyboardEvent.CtrlKey;
-            },
-            false,
-            true,
-            function(ctrlKey) {
-                if (true ===  ctrlKey && prevControl !== undefined && control !== undefined && control.InternalId != prevControl.InternalId) {
-                    window.currControl = control;
-                } else {
-                    window.prevControl = undefined;
-                    window.currControl = undefined;
-                }
-            }
-        );
-    }
+    // window.Asc.plugin.event_onFocusContentControl = function (control) {
+    //   setupPostTask(window,         function(ctrlKey) {
+    //       if (true ===  ctrlKey && prevControl !== undefined && control !== undefined && control.InternalId != prevControl.InternalId) {
+    //           window.currControl = control;
+    //       } else {
+    //           window.prevControl = undefined;
+    //           window.currControl = undefined;
+    //       }
+    //   });
+
+    //   console.log("setup post task for focus content c");
+
+    //   window.Asc.plugin.callCommand(
+    //         function() {
+    //             return AscCommon.global_keyboardEvent.CtrlKey;
+    //         },
+    //         false,
+    //         true,
+    //         undefined        
+    //     );
+    // }
 
 
     window.Asc.plugin.event_onClick = function (isSelectionUse) {
@@ -1661,7 +1865,7 @@ import { toXml } from "./convert.js";
 
                 quesTextArr.forEach(function (item, index) {
                     var tablePos = quesTablePos[index];
-                    var oCell = oTable.GetCell(tablePos.row, tablePos.col);                
+                    var oCell = oTable.GetCell(tablePos.row, tablePos.col);
                     var oContent = oControl.GetContent().GetContent(true)
                     // add text to table cell
 
@@ -1817,6 +2021,7 @@ import { toXml } from "./convert.js";
           return Api.DocInfo;
         }
         , false, false, function (docInfo) {
+          console.log('docInfo', docInfo)
           if (docInfo) {
             let url = docInfo.CallbackUrl
             const regex = /[?&]([^=#]+)=([^&#]*)/g
@@ -1832,7 +2037,9 @@ import { toXml } from "./convert.js";
             if (!window.BiyueCustomData) {
               window.BiyueCustomData.page_type = 'exam_exercise'
             }
-            initPaperInfo()
+            initPaperInfo().then((res2) => {
+              setExamTitle(docInfo.Title)
+            })
             return params
           }
         });
@@ -1876,5 +2083,405 @@ import { toXml } from "./convert.js";
     }
     window.insertHtml = insertHtml;
 
+
+    function onContentControlChange(res) {
+      clearTimeout(timeout_controlchange)
+      timeout_controlchange = setTimeout(() => {
+        handleContentControlChange(res)
+      }, 500)
+    }
+
+    function updateControlType(typeName) {
+      Asc.scope.typename = typeName
+      window.Asc.plugin.callCommand(function() {
+        var typeName = Asc.scope.typename
+        var oDocument = Api.GetDocument()
+        var oRange = oDocument.GetRangeBySelect()
+        if (!oRange) {
+          console.log('no range')
+          return
+        }
+        if (!oRange.Paragraphs) {
+          console.log("no paragraph")
+          return
+        }
+        if (oRange.Paragraphs.length === 0) {
+          console.log("no paragraph")
+          return
+        }
+        function GetPosData(Pos) {
+          var data = {}
+          for (var i = Pos.length - 1; i >= 0; --i) {
+            if (Pos[i].Class.GetType) {
+              var type = Pos[i].Class.GetType()
+              if (type == 1) {
+                data.index_paragraph = i
+                return data
+              } else if (type == 39) {
+                data.index_run = i
+              }
+            }
+          }
+          return data
+        }
+        var StartData = GetPosData(oRange.StartPos)
+        var EndData = GetPosData(oRange.EndPos)
+        var inParagraphStart = false
+        var inParagraphEnd = false
+        if (StartData.index_paragraph >= 0 && StartData.index_run >= 0) {
+          if (oRange.StartPos[StartData.index_paragraph].Position == 0 && oRange.StartPos[StartData.index_run].Position == 0) {
+            inParagraphStart = true
+          }
+        }
+        if (EndData.index_paragraph >= 0 && EndData.index_run >= 0) {
+          if (oRange.EndPos[EndData.index_paragraph].Position >= oRange.EndPos[EndData.index_paragraph].Class.Content.length - 1 &&
+            oRange.EndPos[EndData.index_run].Position >= oRange.EndPos[EndData.index_run].Class.Content.length - 1) {
+            inParagraphEnd = true
+          }
+        }
+        if (typeName == 'struct' || typeName == 'question') {
+          if (!inParagraphStart || !inParagraphEnd) {
+            return {
+              code: 0,
+              message: "请选中整个段落再设置"
+            }
+          }
+        }
+        var type = 1
+        var Tag = null
+        if (typeName == 'examtitle') {
+          type = 0
+          oRange.SetBold(true)
+          return {
+            code: 1,
+            type: type,
+            typeName: typeName,
+            text: oRange.GetText()
+          }
+        } else {
+          if (typeName == 'struct') {
+            Tag = {"regionType":"struct","mode":1,"column":1}
+          } else if (typeName == 'question') {
+            Tag = { 'regionType': 'question', 'mode': 2, padding: [0, 0, 0.5, 0]}
+          } else if (typeName == 'write') {
+            if (inParagraphStart && inParagraphEnd) {
+              type = 1
+              Tag = { regionType:"write", 'mode': 5 }
+            } else {
+              type = 2
+              Tag = { regionType:"write", 'mode': 3 }
+            }
+          } else if (typeName == 'sub-question') {
+            Tag = { regionType:"sub-question", 'mode': 3 }
+          }
+          var controlsInRange = []
+          var parentControls = []
+          oRange.Paragraphs.forEach(paragraph => {
+            var controls = paragraph.GetAllContentControls()
+            if (controls) {
+              controls.forEach(controlItem => {
+                if (controlItem.Sdt.Selection && controlItem.Sdt.Selection.Use) {
+                  var tag1 = JSON.parse(controlItem.GetTag())
+                  if (tag1 && tag1.regionType == typeName) {
+                    controlsInRange.push(controlItem)
+                  }
+                }
+              })
+            }
+            var pControl = paragraph.GetParentContentControl()
+            if (pControl) {
+              var tag2 = JSON.parse(pControl.GetTag())
+              if (tag2 && tag2.regionType == typeName) {
+                if (controlsInRange.findIndex(e => {
+                  return e.Sdt.GetId() == pControl.Sdt.GetId()
+                }) == -1) {
+                  controlsInRange.push(pControl)
+                }
+              }
+            }
+          })
+          
+
+          console.log('controlsInRange', controlsInRange)
+          if (controlsInRange.length > 0) {
+            if (confirm("该区域已存在相同类型区域，是否要删除覆盖?") == true) {
+              controlsInRange.forEach(controlItem => {
+                Api.asc_RemoveContentControlWrapper(controlItem.Sdt.GetId());
+              })
+              oRange.Select()
+            } else {
+              return {
+                code: 2
+              }
+            }
+          }
+        }
+        return {
+          code: 1,
+          type: type,
+          Tag: Tag
+        }
+      }, false, true, function (res) {
+        console.log('updateControlType result:', res)
+        handleSetType(res)
+      })
+    }
+
+    function handleSetType(res) {
+      if (!res) {
+        return
+      }
+      if (res.code == 0) {
+        alert(res.message)
+        return
+      }
+      if (res.code == 1) {
+        if (res.typeName == 'examtitle' && res.text) {
+          setExamTitle(res.text)
+        } else if (res.type && res.Tag) {
+          // window.Asc.plugin.callCommand(function() {
+          //   var oDocument = Api.GetDocument();
+          //   var oRange = oDocument.GetRangeBySelect()
+          //   console.log('handleSetType', oRange)
+          // }, false, false, undefined)
+          window.Asc.plugin.executeMethod ("AddContentControl", [res.type]);
+          let Tag = JSON.stringify(res.Tag)
+          setTag(window, Tag)
+        }
+      }
+    }
+    
+    function setExamTitle(title) {
+      var element = document.getElementById('exam_title')
+      if (!element) {
+        return
+      }
+      element.innerHTML = `《${title.replace(/.docx/g, '')}》`
+      window.BiyueCustomData.exam_title = title
+      handleHeader('update', title)
+    }
+    // 重新切题
+    function reSplitQustion() {
+      setupPostTask(window, updateCustomControls)
+      setupPostTask(window, checkAnswerRegion);
+      setupPostTask(window, function() { processTableColumn(undefined) });
+      setupPostTask(window, checkSubQuestion);
+      window.Asc.plugin.callCommand(function () {
+        var oDocument = Api.GetDocument();
+        var controls = oDocument.GetAllContentControls();
+        controls.forEach(e => {
+          Api.asc_RemoveContentControlWrapper(e.Sdt.GetId)
+        })
+        var text_all = oDocument.GetRange().GetText({Math: false, TableCellSeparator: "\u24D2", TableRowSeparator:"\u24E1"}) || "";
+        var text_json = oDocument.ToJSON(true);
+
+        return {text_all, text_json};
+      }, false, false, function(result) {
+        var ranges = newSplit(result.text_json);                
+        console.log('splitQuestion:', ranges)
+        createContentControl(ranges);
+      })
+    }
+
+    function changeTab(e) {
+      var id
+      if (e.target && e.target.id && e.target.id != '') {
+        id = e.target.id
+      } else if (e.currentTarget) {
+        id = e.currentTarget.id
+      }
+      changeTabPanel(id)
+    }
+
+    function changeTabPanel(id) {      
+      var tabs = ['tabList', 'tabQues', 'tabFeature']
+      tabs.forEach(tab => {
+        if (tab == window.tab_select && tab != id) {
+          $('#' + tab).removeClass('selected')
+        } else if (tab == id) {
+          $('#' + tab).addClass('selected')
+        }
+      })
+      window.tab_select = id
+      var targetPanel = id.replace('tab', 'panel')
+      var panels = ['panelList', 'panelQues', 'panelFeature']
+      panels.forEach(panel => {
+        if (panel == targetPanel) {
+          $('#' + panel).show()
+        } else {
+          $('#' + panel).hide()
+        }
+      })
+      if (id == 'tabFeature') {
+        initFeature()
+      } else if (id == 'tabQues') {
+        showQuesData()
+      }
+    }
+    // 批量设置题型
+    function batchChangeQuesType(type) {
+      setupPostTask(window, function(res) {
+        console.log('the result of batchChangeQuesType', res)
+        if (!res || !res.code) {
+          return
+        }
+        var control_list = window.BiyueCustomData.control_list || []
+        control_list.forEach(e => {
+          if (e.regionType == 'question' && res.list.indexOf(e.control_id) >= 0 ) {
+            e.ques_type = type
+          }
+        })
+        // 需要同步更新单题详情
+        if (window.tab_select == 'tabQues') {
+          document.dispatchEvent(new CustomEvent('updateQuesData', { detail: {
+            list: res.list,
+            field: 'ques_type',
+            value: type
+          }}))
+        }
+      })
+      window.Asc.plugin.callCommand(function() {
+        var oDocument = Api.GetDocument();
+        var control_list = oDocument.GetAllContentControls()
+        var ques_id_list = []
+        control_list.forEach(e => {
+          if (e.Sdt && e.Sdt.Content && e.Sdt.Content.Selection && e.Sdt.Content.Selection.Use) {
+            var tag = JSON.parse(e.GetTag())
+            if (tag && tag.regionType == 'question') {
+              ques_id_list.push(e.Sdt.GetId())
+            }
+          }
+        })
+        return {
+          code: 1,
+          list: ques_id_list
+        }
+      }, false, false, undefined)
+    }
+    // 批量设置占比
+    function batchChangeProportion(type) {
+      // todo..
+    }
+    // 批量设置互动
+    function batchChangeInteraction(type) {
+
+    }
+    // 分栏
+    function setSectionColumn(num) {
+      Asc.scope.column_num = num
+      window.Asc.plugin.callCommand(function() {
+        var column_num = Asc.scope.column_num
+        var oDocument = Api.GetDocument();
+        var Document = oDocument.Document
+        var nContentPos = Document.CurPos.ContentPos; // 当前光标位置
+        var oElement = Document.Content[nContentPos];
+        var sections = oDocument.GetSections()
+        var Pages = Document.Pages
+        if (oElement.GetType() == 1) { // 是段落
+          var pagesPos = oElement.CurPos.PagesPos // 当前页数
+          // 根据页数获取
+          var page = Pages[pagesPos]
+          var beginPos = page.Pos
+          var EndPos = page.EndPos
+          var pageFirstPos = Document.GetDocumentPositionByXY(pagesPos, 0, 0)
+          if (page.Sections) {
+            var prePage = pagesPos > 0 ? Pages[pagesPos - 1] : null
+            var nextPage = pagesPos < Pages.length - 1 ? Pages[pagesPos + 1] : null
+            var firstIndex = page.Sections[0].Index
+            var lastIndex = page.Sections[page.Sections.length - 1].Index
+            var containPre = prePage && prePage.Sections && prePage.Sections[prePage.Sections.length - 1].Index == firstIndex
+            var containNext = nextPage && nextPage.Sections && nextPage.Sections[0].Index == lastIndex
+            var section1 = null
+            if (containPre) { // 页面起始的section包含了上一页，需要将起始位置的段落拆分，插入新的section
+              var beginEl = Document.Content[beginPos]
+              Document.MoveCursorToNearestPos(Document.Get_NearestPos(pagesPos, 0, 0))
+              Document.Add_SectionBreak(0)
+              var curSectPr = Document.GetCurrentSectionPr()
+              curSectPr.Set_Columns_EqualWidth(true);
+              curSectPr.Set_Columns_Num(column_num);
+              curSectPr.Set_Columns_Space(25.4 / 72 / 20 * 200)
+              curSectPr.Set_Columns_Sep(true)
+            }
+            if (containNext) { // 页面结束的section包含了下一页
+
+            }
+          }
+        }
+      }, false, true, undefined)
+    }
+
+    function onTreeTest() {
+      if (quesTree) {
+        return
+      }
+      quesTree = new Tree($('#treeRoot'))
+      quesTree.init([{
+        id: 1,
+        label: '题组1',
+        is_leaf: false,
+        is_folder: true,
+        expand: true,
+        children: [{
+          id: 2,
+          label: '大题1',
+          is_leaf: false,
+          expand: true,
+          children: [{
+            id: 3,
+            label: '小题1',
+            is_leaf: false,
+            expand: true,
+            children: [{
+             id: 4,
+             label: '小题1-1',
+             is_leaf: true
+            }]
+          }, {
+            id: 5,
+            label: '小题2',
+            is_leaf: true
+          }]
+        }, {
+          id: 6,
+          label: '大题2',
+          is_leaf: false,
+          expand: true,
+          children: [{
+            id: 7,
+            label: '小题3',
+            is_leaf: true
+          }, {
+            id: 8,
+            label: '小题4',
+            is_leaf: true
+          }]
+        }]
+      }, {
+        id: 9,
+        label: '题目二',
+        is_leaf: true
+      }, {
+        id: 10,
+        label: '题组3',
+        is_leaf: false,
+        expand: true,
+        is_folder: true,
+        children: [{
+          id: 11,
+          label: '大题4',
+          is_leaf: false,
+          expand: true,
+          children: [{
+            id: 12,
+            label: '小题5',
+            is_leaf: true
+          }, {
+            id: 13,
+            label: '小题6',
+            is_leaf: true
+          }]
+        }]
+      }])
+    }
 })(window, undefined);
 

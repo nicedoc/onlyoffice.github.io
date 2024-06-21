@@ -1,0 +1,37 @@
+.btn .caret {
+  transform: rotate(45deg);
+}
+
+.btn .caret {
+  width: 4px;
+  height: 4px;
+  border: solid 1px #444;
+  border: solid 1px var(--icon-normal);
+  border-bottom: none;
+  border-right: none;
+  background-image: none;
+  transition: transform .2s ease;
+  transform: rotate(-135deg) translate(1px, 1px);
+}
+
+.btn .caret {
+  margin-left: 0;
+}
+
+.caret {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-left: 2px;
+  vertical-align: middle;
+  border-top: 4px dashed;
+  border-top: 4px solid\9;
+  border-right: 4px solid transparent;
+  border-left: 4px solid transparent;
+}
+
+.btn-default:hover {
+  color: #333;
+  background-color: #d4d4d4;
+  border-color: #8c8c8c;
+}

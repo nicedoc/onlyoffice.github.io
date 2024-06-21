@@ -26,7 +26,10 @@
      <script src="vendor/jQuery-2.2.2-min/jquery-v2.2.2-min.js"></script>     
      <script type="module" src="vendor/jsonpath-plus/dist/index-browser-esm.js"></script>
      <script src="vendor/axios.min.js"></script>
+     <link rel="stylesheet" href="resources/iconfont/iconfont.css">
      <link rel="stylesheet" href="resources/css/tree.css">
+     <!-- <link rel="stylesheet" href="resources/css/app.css"> -->
+     <link rel="stylesheet" href="resources/css/appuse.css">
      <style>
          html, body {
              width: 100%;
@@ -36,6 +39,125 @@
 			display: flex;
 			justify-content: space-between;
 		}
+    .wrapper {
+      padding: 12px;
+      line-height: 24px;
+    }
+    .font-16 {
+      font-size: 16px;
+    }
+    .font-14 {
+      font-size: 14px;
+    }
+    .font-12 {
+      font-size: 12px;
+    }
+    .clicked {
+      &:hover {
+        cursor: pointer;
+      }
+    }
+    .ques-title {
+      border-top: 1px solid #bbb;
+      border-bottom: 1px solid #bbb;
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      padding: 12px;
+    }
+    .ques-list {
+      padding: 12px;
+      .quesitem {
+        padding: 4px 0;
+        &:hover {
+          cursor: pointer;
+          background-color: rgba(78, 171, 109, 0.2);
+        }
+      }
+      .tag-struct {
+        width: 10px;
+        height: 10px;
+        background-color: #089581;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 4px;
+      }
+      .tag-ques {
+        width: 9px;
+        height: 9px;
+        border: 1px solid #089581;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 4px;
+        margin-left: 16px;
+      }
+      .tag-sub-ques {
+        width: 9px;
+        height: 9px;
+        border: 1px solid #089581;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 4px;
+        margin-left: 32px;
+      }
+      .text-ques,
+      .text-ques-sub {
+        word-break:break-all;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow:ellipsis;
+        display: inline-block;
+      }
+      .text-ques {
+        max-width: 80%;
+      }
+      .text-ques-sub {
+        max-width: 70%;
+      }
+      .selected {
+        background-color: rgba(78, 171, 109, 0.4);
+      }
+    }
+    .tabs {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-around;
+      border-bottom: 1px solid #bbb;
+      .tabitem {
+        padding: 8px;
+        color: #969997;
+      }
+      .selected {
+        color: #2D3330;
+      }
+    }
+    #panelQues {
+      padding: 12px;
+      .padding-small {
+        padding-bottom: 8px;
+      }
+      .asks {
+        display: flex;
+        flex-wrap: wrap;
+        .item {
+          padding: 4px;
+          display: inline-flex;
+        }
+        .asklabel {
+          font-size: 14px;
+          margin-right: 4px;
+          line-height: 22px;
+        }
+      }
+    }
+    #panelFeature {
+      padding: 12px;
+      .padding-small {
+        padding-right: 8px;
+        padding-bottom: 8px;
+      }
+    }
+
 		.btn-text-default {
 			display: flex;
    			align-items: center;
@@ -57,31 +179,66 @@
 
      </style>
  </head>
- <body id="body" style="left:0px; top:0px; margin:0px; padding:0px;">
-     <div id="iframe_parent" style="width:100%; height:100%;margin:0;padding:0">
-        <div class="button_wrapper">            
-        <div id="getDocInfo" class="btn-text-default">获取文档信息</div>
-        <div id="splitQuestionBtn" class="btn-text-default">切题</div>        
-        <div id="clearControl" class="btn-text-default">删除所有控件 </div>
-        <div id="markAnswerRegionBtn" class="btn-text-default">标记答题区</div>
-        <div id="checkAnswerRegionBtn" class="btn-text-default">识别答题区</div>
-        <div id="toggleStyleBtn" class="btn-text-default">切换答题样式</div>
-        <div id="lockBtn" class="btn-text-default">锁定</div>
-        <div id="unlockBtn" class="btn-text-default">解锁</div>
-        <div id="showPosition" class="btn-text-default">显示渲染位置</div>
-        <div id="getSelectionBtn" class="btn-text-default">切出选中范围</div>
-        <div id="showAllContentBtn" class="btn-text-default">常亮切题区域</div>
-        <div id="showScoreContentBtn" class="btn-text-default">显示分数框</div>
-        <div id="showMultiPagePos" class="btn-text-default">获取空间在多个页面位置 </div>
-        <div id="insertDrawingObject" class="btn-text-default">插入绘图对象</div>
-        <div id="toTableColumn" class="btn-text-default">一行多题处理</div>
-        <div id="normalizeDoc" class="btn-text-default">规范化文档</div>
-        <div id="jsonPathSplitQuestionBtn" class="btn-text-default">JSONPath切题</div>
-        <div id="selectionToHtml" class="btn-text-default">将Selection输出为html</div>
-        <div id="selectionToXml" class="btn-text-default">将Selection输出为xml</div>
-        <div id="insertAsHtml" class="btn-text-default">将文本以html格式插入当前位置</div>
-        
-     
+ <body id="body" style="left:0px; top:0px; margin:0px; padding:0px;">        
+     <div id="iframe_parent" style="width:100%; height:100%;margin:0;padding:0;overflow-y: auto;">
+        <div class="tabs font-14">
+          <div class="tabitem clicked" id="tabList">题目列表</div>
+          <div class="tabitem clicked" id="tabQues">单题详情</div>
+          <div class="tabitem clicked" id="tabFeature">智批元素</div>
+        </div>
+        <div class="list" id="panelList">
+          <div class="wrapper font-14">
+            <div class="font-16">试卷信息</div>
+            <div id="school">福建省厦门市湖里区第一实验小学#1211</div>
+            <div id="exam_title"></div>
+            <div id="grade_data">人教版/初中数学/七年级上</div>
+          </div>
+          <div>树test</div>
+          <div id="treeRoot"></div>
+          <div class="ques-title font-16">
+            <div id="questree">题目列表</div>
+            <div class="clicked" id="reSplitQuestionBtn">重新切题</div>
+          </div>
+          <div class="ques-list font-12" id="ques-list">
+          </div>
+        </div>
+        <div id="panelQues">
+          <!-- <div class="label font-14">题型</div>
+          <select id="questionType"></select>
+          <div class="label font-14">占比</div>
+          <select id="proportion"></select>
+          <div class="label font-14">权重/分数</div>
+          <div class="input-box">
+            <input id="ques_weight" type="text" autocomplete="off">
+          </div>
+          <div id="askWeightBox">
+            <div class="label font-14">每空权重/分数</div>
+            <div class="asks"></div>
+          </div> -->
+        </div>
+        <div id="panelFeature"></div>
+        <div class="button_wrapper">
+          <div class="button_wrapper">            
+            <div id="getDocInfo" class="btn-text-default">获取文档信息</div>
+            <div id="splitQuestionBtn" class="btn-text-default">切题</div>        
+            <div id="clearControl" class="btn-text-default">删除所有控件 </div>
+            <div id="markAnswerRegionBtn" class="btn-text-default">标记答题区</div>
+            <div id="checkAnswerRegionBtn" class="btn-text-default">识别答题区</div>
+            <div id="toggleStyleBtn" class="btn-text-default">切换答题样式</div>
+            <div id="lockBtn" class="btn-text-default">锁定</div>
+            <div id="unlockBtn" class="btn-text-default">解锁</div>
+            <div id="showPosition" class="btn-text-default">显示渲染位置</div>
+            <div id="getSelectionBtn" class="btn-text-default">切出选中范围</div>
+            <div id="showAllContentBtn" class="btn-text-default">常亮切题区域</div>
+            <div id="showScoreContentBtn" class="btn-text-default">显示分数框</div>
+            <div id="showMultiPagePos" class="btn-text-default">获取空间在多个页面位置 </div>
+            <div id="insertDrawingObject" class="btn-text-default">插入绘图对象</div>
+            <div id="toTableColumn" class="btn-text-default">一行多题处理</div>
+            <div id="normalizeDoc" class="btn-text-default">规范化文档</div>
+            <div id="jsonPathSplitQuestionBtn" class="btn-text-default">JSONPath切题</div>
+            <div id="selectionToHtml" class="btn-text-default">将Selection输出为html</div>
+            <div id="selectionToXml" class="btn-text-default">将Selection输出为xml</div>
+            <div id="insertAsHtml" class="btn-text-default">将文本以html格式插入当前位置</div>
         </div>
         <div id="controlPostion">
             <table align="center" border="1" width="100px">
@@ -116,19 +273,21 @@
         <div id="questionList"></div>
         <div id="showPositionsDialog" class="btn-text-default">功能区管理</div>
         <div class="row">
-            <div id="add-1-1" class="btn-sub">增普通顶部</div>
-            <div id="add-1-2" class="btn-sub">增普通嵌入</div>
-            <div id="add-2-1" class="btn-sub">增大分值顶部</div>
-            <div id="add-2-2" class="btn-sub">增大分值嵌入</div>
-            <div id="delete" class="btn-sub">删除</div>
-            <div id="change-score" class="btn-sub">切换分数</div>
-            <div id="change-mode" class="btn-sub">切换模式</div>
-            <div id="change-layout" class="btn-sub">切换布局</div>
-            <div id="add-image" class="btn-sub">添加图片</div>
-            <div id="get-field" class="btn-sub">获取选区</div>
+          <span>打分区：</span>
+          <div id="add-score" class="btn-sub">普通顶部</div>
+          <div id="change-mode" class="btn-sub">切换模式</div>
+          <div id="change-layout" class="btn-sub">切换布局</div>
+          <div id="delete" class="btn-sub">删除</div>
         </div>
-
+        <div class="row">
+          <span>识别框：</span>
+          <div id="identify_index_show" class="btn-sub">显示</div>
+          <div id="identify_index_hide" class="btn-sub">隐藏</div>
+          <div id="identify_delete" class="btn-sub">全部删除</div>
+          <div id="showWriteIdentifyIndex" class="btn-sub">小问的显示</div>
+          <div id="hideWriteIdentifyIndex" class="btn-sub">小问的隐藏</div>
         </div>
+      </div>
     </div>
     <script type="module" src="scripts/auth.js"></script>
     <script type="module" src="scripts/request.js"></script>

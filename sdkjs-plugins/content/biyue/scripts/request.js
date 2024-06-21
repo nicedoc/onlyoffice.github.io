@@ -54,7 +54,7 @@ service.interceptors.response.use(
       return response.data
     } else if (tokenFailStatusCodes.indexOf(code) !== -1) {
       // 表示token为失效状态，需要重新登录 todo..
-      alert(response.data.message)
+      //alert(response.data.message)
       return Promise.reject(null)
     } else if (response.config.transmitError !== true && !response.config.isEditorImage) {
       // 返回null表示不需要catch之后处理
