@@ -2,9 +2,9 @@ name: Demo Docker Image CI
 
 on:
   push:
-    branches: [ "biyue_demo1" ]
+    branches: [ "bonlyoffice" ]
   pull_request:
-    branches: [ "biyue_demo1" ]
+    branches: [ "bonlyoffice" ]
 
 env:
   REGISTRY: registry.nicedoc.cn
