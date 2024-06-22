@@ -155,3 +155,7 @@
 .leaf-padding {
   padding-inline-start: 12px;
 }
+
+#treeRoot {
+  position: relative;
+}

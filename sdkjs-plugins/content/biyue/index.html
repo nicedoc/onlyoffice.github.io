@@ -67,6 +67,19 @@
     }
     .ques-list {
       padding: 12px;
+      position: relative;
+      .text {
+        word-break:break-all;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow:ellipsis;
+        display: inline-block;
+        max-width: 70%;
+        vertical-align: middle;
+      }
+      .selected {
+        background-color: rgba(8, 150, 129, 0.2) !important;
+      }
       .quesitem {
         padding: 4px 0;
         &:hover {
@@ -85,7 +98,7 @@
       .tag-ques {
         width: 9px;
         height: 9px;
-        border: 1px solid #089581;
+        border: 1px solid rgb(8, 150, 129);
         border-radius: 50%;
         display: inline-block;
         margin-right: 4px;
@@ -189,17 +202,15 @@
         <div class="list" id="panelList">
           <div class="wrapper font-14">
             <div class="font-16">试卷信息</div>
-            <div id="school">福建省厦门市湖里区第一实验小学#1211</div>
+            <div id="school">学校名称学校名称学校名称学校名称</div>
             <div id="exam_title"></div>
-            <div id="grade_data">人教版/初中数学/七年级上</div>
+            <div id="grade_data">年级信息年级信息年级信息年级信息</div>
           </div>
-          <div>树test</div>
-          <div id="treeRoot"></div>
           <div class="ques-title font-16">
-            <div id="questree">题目列表</div>
+            <div id="questree">题目列表(点击刷新)</div>
             <div class="clicked" id="reSplitQuestionBtn">重新切题</div>
           </div>
-          <div class="ques-list font-12" id="ques-list">
+          <div class="ques-list font-12" id="treeRoot">
           </div>
         </div>
         <div id="panelQues">

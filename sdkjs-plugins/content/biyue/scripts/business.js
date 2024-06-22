@@ -46,28 +46,28 @@ function updateQeusTree() {
     return
   }
   var control_list = window.BiyueCustomData.control_list || []
-  var html = ''
-  control_list.forEach(e => {
-    if (e.regionType == 'struct') {
-      html += `<div class="quesitem" id=${e.control_id} draggable="true"><div class="tag-struct"></div><span class="text-struct">${e.name}</span></div>`
-    } else if (e.regionType == 'question') {
-      html += `<div class="quesitem" id=${e.control_id} draggable="true"><div class="tag-ques"></div><span class="text-ques">${e.text}</span></div></div>`
-    } else if (e.regionType == 'sub-question') {
-      html += `<div class="quesitem" id=${e.control_id} draggable="true"><div class="tag-sub-ques"></div><span class="text-ques-sub">${e.text}</span></div></div>`
-    }
-  })
-  listElement.innerHTML = html
-  $('.quesitem').on('click', onQuesTreeClick)
-  $('.quesitem').on('dragstart', onTreeDragStart)
-  $('.quesitem').on('dragover', onDragOver)
-  $('.quesitem').on('drop', function(e) {
-    console.log('drop', e)
-    e.preventDefault();
-  })
-  listElement.addEventListener('drop', (e) => {
-    console.log('list drop', e)
-    e.preventDefault();
-  })
+  // var html = ''
+  // control_list.forEach(e => {
+  //   if (e.regionType == 'struct') {
+  //     html += `<div class="quesitem" id=${e.control_id} draggable="true"><div class="tag-struct"></div><span class="text-struct">${e.name}</span></div>`
+  //   } else if (e.regionType == 'question') {
+  //     html += `<div class="quesitem" id=${e.control_id} draggable="true"><div class="tag-ques"></div><span class="text-ques">${e.text}</span></div></div>`
+  //   } else if (e.regionType == 'sub-question') {
+  //     html += `<div class="quesitem" id=${e.control_id} draggable="true"><div class="tag-sub-ques"></div><span class="text-ques-sub">${e.text}</span></div></div>`
+  //   }
+  // })
+  // listElement.innerHTML = html
+  // $('.quesitem').on('click', onQuesTreeClick)
+  // $('.quesitem').on('dragstart', onTreeDragStart)
+  // $('.quesitem').on('dragover', onDragOver)
+  // $('.quesitem').on('drop', function(e) {
+  //   console.log('drop', e)
+  //   e.preventDefault();
+  // })
+  // listElement.addEventListener('drop', (e) => {
+  //   console.log('list drop', e)
+  //   e.preventDefault();
+  // })
 }
 
 function onTreeDragStart(e) {

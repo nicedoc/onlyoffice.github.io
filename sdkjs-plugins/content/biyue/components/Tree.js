@@ -13,6 +13,8 @@ class Tree {
   constructor(rootElement) {
     this.list = []
     this.rootElement = rootElement
+    this.dragging = false
+    this.select_id_list = []
   }
 
   init(list) {
@@ -25,7 +27,21 @@ class Tree {
     this.rootElement.on('drop', e => {
       this.onDrop(e)
     })
-    console.log('list', list)
+    this.rootElement.mouseout((e) => {
+      this.dragging = false
+    })
+    this.rootElement.on('dragleave', e => {
+      // console.log('dragleave', e)
+    })
+    this.rootElement.on('dragend', e => {
+      console.log('dragend', e)
+      this.updateOverClass()
+    })
+  }
+
+  addCallBack(clickCB, dropCB) {
+    this.callback_item_click = clickCB
+    this.callback_drop = dropCB
   }
 
   buildTree(data, parent) {
@@ -38,15 +54,8 @@ class Tree {
   }
 
   refreshList(list) {
-    this.list = list
-  }
-
-  update() {
-
-  }
-
-  render() {
-
+    this.rootElement.empty()
+    this.init(list)
   }
 
   updateDataById(list, id, options) {
@@ -84,6 +93,9 @@ class Tree {
   }
 
   onItemClick(e, id, item) {
+    if (this.dragging) {
+      return
+    }
     e.cancelBubble = true
     if (item.children && item.children.length > 0) {
       var inner = $(`#${id}`).find('.inner').find(`.${CLASS_EXPAND}`)
@@ -104,47 +116,45 @@ class Tree {
       }
       this.updateDataById(this.list, id, {expand: !item.expand})
     }
+    if (this.callback_item_click) {
+      this.callback_item_click(id, item, e)
+    }
   }
   // 开始拖拽
   onDragStart(e) {
-    console.log('onDragStart', e.target.id)
+    this.dragging = true
     e.originalEvent.dataTransfer.setData('dragdata', e.target.id)
+    // e.originalEvent.stopPropagation()
+    e.originalEvent.cancelBubble = true
   }
 
   onDragOver(e) {
     e.stopPropagation()
     e.originalEvent.cancelBubble = true
+    e.originalEvent.stopPropagation()
     e.originalEvent.preventDefault()
     var $trigger = $(e.target)
     
     var parentNode = $trigger.hasClass(CLASS_ITEM) ? e.target : $trigger.closest(`.${CLASS_ITEM}`)[0]
     if (parentNode) {
-      var inner = parentNode.querySelector(`.${CLASS_INNER}`)
-      var rect = inner.getBoundingClientRect()
-      // console.log('rect', rect, 'node_h', parentNode.offsetHeight, parentNode.offsetTop, e.clientY)
-      const node_h = inner.offsetHeight // 当前节点的高度
+      var rect = this.rootElement[0].getBoundingClientRect()
+      const node_h = parentNode.offsetHeight // 当前节点的高度
       const subsection = node_h / 3
-      const client_y = e.clientY - rect.top - inner.offsetTop + 1// 鼠标在当前节点的位置
-      // console.log('rect', rect, parentNode, e.clientY, e, 'inner', inner.offsetHeight, inner.offsetTop)
-      // console.log('client_y', client_y, 'subsection', subsection, 'node_h', node_h)
+
+      const client_y = e.clientY - rect.top - parentNode.offsetTop + 1// 鼠标在当前节点的位置
       let dragAction = ''
       if (client_y < subsection) {
         // 向上移动
         dragAction = 'top'
-        console.log('向上移动')
       } else if (client_y > subsection * 2) {
         // 向下移动
         dragAction = 'bottom'
-        console.log('向下移动')
       } else {
         // 向里移动
         dragAction = 'inner'
-        console.log('向里移动')
       }
       this.updateOverClass(parentNode, dragAction)
     }
-    
-    // console.log('onDragOver', e.target.id, e.target.parentNode)
   }
 
   updateOverClass(target, direction) {
@@ -181,7 +191,8 @@ class Tree {
   }
   
   onDrop(e) {
-    console.log('onDrop', e)
+    this.dragging = false
+    console.log('drop', e.target, this.drag_action)
     e.stopPropagation()
     e.originalEvent.cancelBubble = true
     e.originalEvent.preventDefault()
@@ -191,7 +202,7 @@ class Tree {
     if (parentNode) {
       var dropId = parentNode.id
       if (dragId == dropId) {
-        console.log('dragId == dropId')
+        console.log('dragId == dropId', dragId)
         return
       }
       var dragData = this.getDataById(this.list, dragId)
@@ -201,37 +212,68 @@ class Tree {
       }
       var dropData = this.getDataById(this.list, dropId)
       if (dropData) {
-        this.removeItemByPos(this.list, dragData.pos, 0) // 先移除
         var dropPos = dropData.pos
         var direction = this.drag_action.direction
         var dropParent = this.getDataByPos(this.list, dropPos.slice(0, dropPos.length - 1), 0)
-        console.log('dropParent', dropParent)
         var dragElement = document.getElementById(dragId)
-        if (direction == 'top') {
-          dropParent.children.splice(dropPos[dropPos.length - 1], 0, dragData)
-          parentNode.insertAdjacentElement('beforebegin', dragElement)
-        } else if (direction == 'bottom') {
-          dropParent.children.push(dragData)
-          parentNode.insertAdjacentElement('afterend', dragElement)
+        this.removeItemByPos(this.list, dragData.pos, 0) // 先移除
+        this.updateItemRender(null, dragData.pos.slice(0, dragData.pos.length - 1)) // 更新拖拽目标的原父亲节点渲染
+        if (direction == 'top' || direction == 'bottom') {
+          var position = dropPos[dropPos.length - 1]
+          if (!dropParent && dropPos.length == 1) {
+            if (direction == 'top') {
+              this.list.splice(position, 0, dragData)
+            } else if (direction == 'bottom') {
+              this.list.splice(position + 1, 0, dragData)
+            }
+          } else if (dropParent) {
+            if (!dropParent.children) {
+              dropParent.children = []
+            }
+            if (direction == 'top') {
+              dropParent.children.splice(position, 0, dragData)
+            } else {
+              dropParent.children.push(dragData)
+            }
+          }
+          if (direction == 'top') {
+            parentNode.before(dragElement)
+          } else {
+            parentNode.after(dragElement)
+          }
         } else if (direction == 'inner') {
-          if (!dropParent.children) {
-            dropParent.children = [dragData]
+          var children = $(parentNode).find('.tree-children')
+          if (!children || !children.length) {
+            children = document.createElement('div')
+            children.className = 'tree-children'
+            parentNode.appendChild(children)
+          } else if (children.length > 0) {
+            children = children[0]
+          }
+          children.appendChild(dragElement)
+
+          if (!dropData.children) {
+            dropData.children = [dragData]
           } else {
             dropData.children.unshift(dragData)
           }
-          parentNode.insertAdjacentElement('afterbegin', dragElement)
+          this.updateItemRender(dropData.id, dropData.pos)
         } else {
           console.log('direction is null ', direction)
         }
-        console.log('drop end', this.list)
+        this.updatePos(this.list, [])
+        this.updateItemRender(dragData.id)
       } else {
         console.log('dropData is null')
       }
-      this.updatePos(this.list, [])
     } else {
       console.log('can not find parent')
     }
     this.updateOverClass()
+    console.log('list after drop', this.list)
+    if (this.callback_drop) {
+      this.callback_drop(this.list)
+    }
   }
 
   removeItemByPos(list, pos, index) {
@@ -266,7 +308,6 @@ class Tree {
         var v = this.removeDataById(list[i].children, id)
         if (v) {
           if (list[i].children.length == 0) {
-            list[i].is_leaf = true
             list[i].children = []
           }
           return v
@@ -340,6 +381,7 @@ class Tree {
     div.addClass(CLASS_ITEM).attr('id', item.id).attr('draggable', true)
     div.append(innerDiv)
     div.html(html)
+    var textEl = div.find('.text')
     if (item.children && item.children.length > 0) {
       const children = $('<div></div>')
       children.addClass(CLASS_CHILDREN)
@@ -350,8 +392,15 @@ class Tree {
       if (!item.expand) {
         children.hide()
       }
+      
+      if (textEl) {
+        textEl.css('padding-inline-start', '0px')
+      }
     } else {
       div.find(`.${CLASS_EXPAND}`).hide()
+      if (item.pos && item.pos.length > 1 && textEl) {
+        textEl.css('padding-inline-start', '12px')
+      }
     }
     div.on('dragstart', e => {
       this.onDragStart(e)
@@ -382,12 +431,13 @@ class Tree {
     } else if (pos) {
       data = this.getDataByPos(this.list, pos, 0)
     }
-    var targetNode = $(`#${id}`)
+    var targetNode = data ? $(`#${data.id}`) : (id ? $(`#${id}`) : null)
     if (!data) {
       if (targetNode)
       targetNode.remove()
       return
     }
+    
     if (!targetNode) {
       var parent = this.getDataByPos(this.list, pos.slice(0, pos.length - 1), 0)
       if (parent) {
@@ -395,11 +445,11 @@ class Tree {
       }
       return
     }
-    var innerNode = targetNode.find(`.${CLASS_INNER}`)
+    var innerNode = targetNode.find(`.${CLASS_INNER}`).eq(0)
     if (!innerNode) {
       return
     }
-    var expandNode = innerNode.find(`.${CLASS_EXPAND}`)
+    var expandNode = innerNode.find(`.${CLASS_EXPAND}`).eq(0)
     if (data.children && data.children.length > 0) {
       expandNode.show()
       if (data.expand) {
@@ -417,10 +467,12 @@ class Tree {
           expandNode.addClass(CLASS_EXPAND_CLOSE)
         }
       }
+      targetNode.find('.text').eq(0).css('padding-inline-start', '0px')
     } else {
       expandNode.hide()
+      targetNode.find('.text').eq(0).css('padding-inline-start', data.pos && data.pos.length == 1 ? '0' : '12px')
     }
-    var folderNode = innerNode.find(`.${CLASS_FOLDER}`)
+    var folderNode = innerNode.find(`.${CLASS_FOLDER}`).eq(0)
     if (data.is_folder) {
       folderNode.show()
 
@@ -429,85 +481,18 @@ class Tree {
     }
   }
 
-  // 获取要置入的位置
-  getPosForDrop(dropId, direction) {
-    var data = this.getDataById(this.list, dropId)
-    if (!data) {
-      return null
+  setSelect(idList) {
+    if (this.select_id_list) {
+      this.select_id_list.forEach(e => {
+        $(`#${e}_inner`).removeClass('selected')
+      })
     }
-    var pos = data.pos
-    var targetPos = [].concat(pos)
-    if (direction == 'top') {
-      return targetPos
-    } else if (direction == 'bottom') {
-      targetPos[targetPos.length - 1] + 1
-    } else if (direction == 'inner') {
-      targetPos.push(0)
+    if (idList) {
+      idList.forEach(e => {
+        $(`#${e}_inner`).addClass('selected')
+      })
     }
-    return targetPos
-  }
-
-  // 在Pos插入数据
-  addDataToPos(pos, data) {
-    var pos1 = [].concat(pos)
-    var index = pos1.splice(pos.length - 1, 1)
-    data.pos = pos
-    var parentItem = this.getDataByPos(this.list, pos1, 0)
-    if (parentItem) {
-      parentItem.children.slice(index, 0, data)
-      return parentItem
-    } else {
-      return null
-    }
-  }
-
-  // 渲染插入数据
-  addRender(pos, draggedItem, targetParent) {
-    if (targetParent) {
-
-    } else {
-      if (pos[pos.length - 1] == this.list.length - 1) {
-        this.rootElement.appendChild(draggedItem)
-      } else {
-
-        this.rootElement.insertBefore(draggedItem, this.rootElement.children[pos[pos.length - 1] + 1])
-      }
-    }
-  }
-
-  addDataToId(list, id, data, direction, addNodeId) {
-    if (!list) {
-      return
-    }
-    for (var i = 0, imax = list.length; i < imax; i++) {
-      if (list[i].id == id) {
-        var originalNode = document.getElementById(addNodeId)
-        var cloneNode = originalNode.cloneNode(true)
-        var targetNode = document.getElementById(list[i].id)
-        if (direction == 'top') {
-          list.slice(i, 0, data)
-          targetNode.before(cloneNode)
-        } else if (direction == 'bottom') {
-          list.slice(i + 1, 0, data)
-          targetNode.after(cloneNode)
-        } else if (direction == 'inner') {
-          if (!list[i].children) {
-            list[i].children = [data]
-            list[i].is_leaf = false
-            targetNode.append(cloneNode)
-          } else {
-            targetNode = document.getElementById(list[i].children[0].id)
-            targetNode.before(cloneNode)
-            list[i].children.slice(0, 0, data)
-          }
-        }
-        originalNode.remove()
-        return
-      }
-      if (list[i].children) {
-        this.addDataToId(list[i].children, id, data, direction, addNodeId)
-      }
-    }
+    this.select_id_list = idList
   }
 }
 

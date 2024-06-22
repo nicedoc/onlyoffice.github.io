@@ -6,7 +6,7 @@ import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStru
 import { showQuesData, initListener } from './panelQuestionDetial.js'
 import { initFeature } from './panelFeature.js'
 import { handleHeader } from "./featureManager.js";
-import Tree from "../components/Tree.js";
+import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree.js";
 
 (function (window, undefined) {   
     var styleEnable = false;
@@ -17,7 +17,6 @@ import Tree from "../components/Tree.js";
     let fieldsWindow = null
     let timeout_controlchange = null
     let contextMenu_options = null
-    let quesTree = null
     function NewDefaultCustomData() {
         return {
             controlDesc : {}
@@ -1115,6 +1114,10 @@ import Tree from "../components/Tree.js";
         $('#' + window.tab_select).addClass('selected')
         $('.tabitem').on('click', changeTab)
         document.addEventListener('clickSingleQues', function(event) {
+          console.log('clickSingleQues', event)
+          if (event && event.detail) {
+            updateTreeRenderWhenClick(event.detail)
+          }
           changeTabPanel('tabQues')
         })
         initListener()
@@ -1191,7 +1194,7 @@ import Tree from "../components/Tree.js";
         })
 
         addBtnClickEvent('questree', function() {
-          onTreeTest()
+          refreshExamTree()
         })
 
         var btnSelectionToHtml = document.getElementById("selectionToHtml")
@@ -2039,6 +2042,7 @@ import Tree from "../components/Tree.js";
             }
             initPaperInfo().then((res2) => {
               setExamTitle(docInfo.Title)
+              initTree()
             })
             return params
           }
@@ -2408,80 +2412,6 @@ import Tree from "../components/Tree.js";
           }
         }
       }, false, true, undefined)
-    }
-
-    function onTreeTest() {
-      if (quesTree) {
-        return
-      }
-      quesTree = new Tree($('#treeRoot'))
-      quesTree.init([{
-        id: 1,
-        label: '题组1',
-        is_leaf: false,
-        is_folder: true,
-        expand: true,
-        children: [{
-          id: 2,
-          label: '大题1',
-          is_leaf: false,
-          expand: true,
-          children: [{
-            id: 3,
-            label: '小题1',
-            is_leaf: false,
-            expand: true,
-            children: [{
-             id: 4,
-             label: '小题1-1',
-             is_leaf: true
-            }]
-          }, {
-            id: 5,
-            label: '小题2',
-            is_leaf: true
-          }]
-        }, {
-          id: 6,
-          label: '大题2',
-          is_leaf: false,
-          expand: true,
-          children: [{
-            id: 7,
-            label: '小题3',
-            is_leaf: true
-          }, {
-            id: 8,
-            label: '小题4',
-            is_leaf: true
-          }]
-        }]
-      }, {
-        id: 9,
-        label: '题目二',
-        is_leaf: true
-      }, {
-        id: 10,
-        label: '题组3',
-        is_leaf: false,
-        expand: true,
-        is_folder: true,
-        children: [{
-          id: 11,
-          label: '大题4',
-          is_leaf: false,
-          expand: true,
-          children: [{
-            id: 12,
-            label: '小题5',
-            is_leaf: true
-          }, {
-            id: 13,
-            label: '小题6',
-            is_leaf: true
-          }]
-        }]
-      }])
     }
 })(window, undefined);
 
