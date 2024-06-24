@@ -636,6 +636,11 @@ let normalizeDoc = function(text) {
 
 }
 
+// {
+//     ApiParagraph.prototype.Search=function(sText,isMatchCase){if(isMatchCase===undefined)isMatchCase=false;var oDocument=private_GetLogicDocument();var oProps=new AscCommon.CSearchSettings;oProps.SetText(sText);oProps.SetMatchCase(!!isMatchCase);oDocument.Search(oProps);var SearchResults=this.Paragraph.SearchResults;var arrApiRanges=[];for(var FoundId in SearchResults){var StartSearchContentPos=SearchResults[FoundId].StartPos;
+//         var EndSearchContentPos=SearchResults[FoundId].EndPos;var StartChar=this.Paragraph.ConvertParaContentPosToRangePos(StartSearchContentPos);var EndChar=this.Paragraph.ConvertParaContentPosToRangePos(EndSearchContentPos);arrApiRanges.push(this.GetRange(StartChar,EndChar))}return arrApiRanges};ApiParagraph.prototype.WrapInMailMergeField=function(){var oDocument=private_GetLogicDocument();var fieldName=this.GetText();var oField=new ParaField(AscWord.fieldtype_MERGEFIELD,[fieldName],[]);var leftQuote=new ParaRun;
+// }
+
 const _getNumChar = getNumChar;
 
 export { _getNumChar as getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc };

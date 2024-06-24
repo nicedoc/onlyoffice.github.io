@@ -50,4 +50,12 @@ function toXml(window, controlId, callback) {
     });
 }
 
-export { toXml };
+
+function downloadAs(window, format, callback) {
+    window.Asc.plugin.executeMethod("GetFileToDownload", [format], function (data) {
+        console.log(data);
+        const url = data;
+        callback(url);
+    });
+}
+export { toXml, downloadAs };

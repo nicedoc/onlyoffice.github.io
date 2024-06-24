@@ -1,6 +1,6 @@
 import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./dep.js";
 import { getToken, setXToken } from './auth.js'
-import { toXml } from "./convert.js";
+import { toXml, downloadAs } from "./convert.js";
 import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStruct, savePositons, showQuestionTree, updateQuestionScore, drawPositions, addQuesScore, addScoreField, handleScoreField, handleIdentifyBox, showIdentifyIndex, removeAllIdentify, showWriteIdentifyIndex,
   addImage, addMarkField, handleContentControlChange, deletePositions } from './business.js'
 import { showQuesData, initListener } from './panelQuestionDetial.js'
@@ -17,6 +17,7 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
     let fieldsWindow = null
     let timeout_controlchange = null
     let contextMenu_options = null
+
     function NewDefaultCustomData() {
         return {
             controlDesc : {}
@@ -142,6 +143,7 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
             // debugger
 
             var r = isInlineArr[0].match(inlineQuesPatt);
+            var r = isInlineArr[0].match(inlineQuesPatt);  
             if (r !== undefined && r !== null) {
               column = r.length;
               console.log('column:', column , " of ques", no)
@@ -264,7 +266,6 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                 var subQuesPatt = /(?<=^|\r|\n|\t)(\(|\（)\d+(\)|\）)/gs;
                 var apiRanges = RangeMatch(control.GetRange(), subQuesPatt);                
                 if (apiRanges.length > 1) {
-                    //debugger;
                     for (var i = 0; i < apiRanges.length; i++) {                                                                         
                         var endRange = undefined;
                         if (i < apiRanges.length - 1) {
@@ -323,8 +324,6 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                 console.log(styledString, ...styles);                                          
             };
             
-            //debugger;
-
             var oDocument = Api.GetDocument();
             var controls = oDocument.GetAllContentControls();
             
@@ -365,11 +364,9 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                     var textSet = new Set();
                     regionTexts.forEach(e => textSet.add(e));
 
-                    //debugger;
-                    
+                                       
                     textSet.forEach(e => {
                         var apiRanges = control.Search(e, false);           
-                        //debugger;
                         
                         // search 有bug少返回一个字符            
                                      
@@ -579,6 +576,7 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                 if (tagObj.group !== undefined && tagObj.group !== "") {
                   settings.items.push({
                     id: "onDismissGroup",
+                    icons: "resources/%theme-type%(light|dark)/%state%(normal)icon%scale%(100|200).%extension%(png)",
                     text: "解除分组",
                   })
                 }
@@ -944,19 +942,20 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
         if (btnUnlock) {
           btnUnlock.onclick = function () {
             /* Asc.c_oAscSdtLockType.Unlocked */
-            setCurrentContentControlLock(3);
-          };
+            // setCurrentContentControlLock(3);
+            SettingDialog();
+        };
+
+        document.getElementById("windowTest").onclick = function () {
+            SettingDialog();
         }
-        var btnLock = document.getElementById("lockBtn")
-        if (btnLock) {
-          btnLock.onclick = function () {
-            // 1 Asc.c_oAscSdtLockType.SdtContentLocked
-            setCurrentContentControlLock(1);
-          };
-        }
-        var btnShowPos = document.getElementById("showPosBtn")
-        if (btnShowPos) {
-          btnShowPos.onclick = function () {
+
+        document.getElementById("lockBtn").onclick = function () {
+            // 1 Asc.c_oAscSdtLockType.SdtContentLocked 
+            // setCurrentContentControlLock(1);
+        };
+
+        document.getElementById("showPosition").onclick = function () {
             console.log("showPosition on button clicked");
             showPosition(window, onGetPos);
           }
@@ -1212,29 +1211,78 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
             });
         }
 
-        var btnInsertAsHtml = document.getElementById("insertAsHtml")
-        if (btnInsertAsHtml) {
-          btnInsertAsHtml.onclick = function () {
+        document.getElementById("downloadAsPdf").onclick = function () {
+            downloadAs(window, "JPG", function (pdf) {
+                console.log(pdf);
+            } );
+        }
+
+
+        document.getElementById("insertAsHtml").onclick = function () {
+            
             var html = `<p
-            style="margin-top:0pt;margin-bottom:10pt;border:none;border-left:none;border-top:none;border-right:none;border-bottom:none;mso-border-between:none">
-            <span style="font-family:'Arial';font-size:11pt;color:#000000;mso-style-textfill-fill-color:#000000">Hello word</span>
-         </p>
-         <table>
-         <tr>
-            <td>1</td>
-            <td>2</td>
-            </tr>
-            <tr>
-            <td>3</td>
-            <td>4</td>
-            </tr>
-            </table>
+            style="text-align:justify;mso-pagination:none;margin-top:0pt;margin-bottom:0pt;border:none;border-left:none;border-top:none;border-right:none;border-bottom:none;mso-border-between:none">
+            <span
+                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">2</span><span
+                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">．</span><span
+                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">方程</span><span
+                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000"><img
+                    style="max-width:100%;" width="78" height="24"
+                    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEsAAAAVCAYAAAAOyhNtAAAAAXNSR0IArs4c6QAAA2RJREFUWEftmFmoTWEUx383maOUOWTIkHke8kaGzMXDJQ9ESVFkSClDIYqkjKXIkCFClChEImSOB5R59mCWDPn+t7Vrt9v7nL2/c7p5OOvl1tlr+v7fWv+1vltGSVIjUJZas6RICawMRZAPrG7AY+BzBp+FqLYFvgGvEpxUAXoB94GvhQTysc0F1lDgFNASeOrj3MNmFTAe6Aj8ibHfAPwFJgG9geceMbxNksDS71eAew6oqd7esxs2BV4CE4H9EfPaQAPgCSBQH7iL3Jk9hL9FElgj3c2dADobYP4R8lsOBuYaQF+AzYB+6wT8TjA/6NpwPvAsv3svjQ7AXmB0mBKSwNoNtAf6eoVKb7QcmAy0BuoBH4H+wGWgH3A1xpXaT4fZkz5MJs3qwA2jglZWyRUOksBS+10AZmYK46esGKqmAKy6rtI+WftH20wDQFy6CWjk8nvrFzKn1Wp39kFAnyhfx4FVDfgJzLKkwp5rAFUBtYukvlVDUrukOcsUYEcILNmIuPcBC0MO2jigLgEPAU3F88CiNAEy6ASUsB04kgYsTSJVltA9FwqkxMQtmoxqlTnAOiPbxRkSiqrGgXUU0MUML8BvVlNd/BmrXFHAsTRgDQQuAj2Bm5GIAZ+sB344rtllrSCu8ZU4sHSzPWyn8vErn2rrONE0VdWERR12GNgKnHacNSYtWA0NgHLgQEw08YSqa0DCLrQF6J7jhNsiIz8OLBG7Fk998xFNS60ZcaKVKNq+0x2AWsDnmYGm4CGgnS3lFTSTRPDa2FU9S2Oiqeq+W7nGJTMWaJbjhALiWuh7FCzxkZJbAKz1QQqYANRMsNUedzby7TbQNUF/TQBuElgqRQEyLuJAHLLSWlScokFQqETBEpE/cmvDCLc+nPR0Lq7VghsnAio65bXT1Qkpi+hX2GvievCCSQJriS19jQ20LjbOddPLbAAMcxWi5VWkryeIrwSrQxPgjbWepqMO+9rXaYF2qTlLcTQZ3rtkZxjxfQDuAEPs91uODAWkpoYI01e0kKrd1ALiGT1j9FeVPdvXaRHsRrnhchxoEX5/5npIq4KmAdpiBd67UAXVsoTUqsWU4EabAy+K6bgYvnKBpdG70e072mjvFiNYCh9q6V8WN4V65ark+39W5Wbzn0crgZXhgv4BrLmrFj5l76cAAAAASUVORK5CYII=" /></span><span
+                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">的根是</span>
+        </p>
+        <p
+            style="margin-left:0.7500000000000001pt;text-indent:21.000000000000004pt;text-align:justify;margin-top:0pt;margin-bottom:0pt;border:none;mso-border-left-alt:none;mso-border-top-alt:none;mso-border-right-alt:none;mso-border-bottom-alt:none;mso-border-between:none">
+            <span
+                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">A．</span><span
+                style="font-family:'Times New Roman';font-size:12pt;color:#000000;mso-style-textfill-fill-color:#000000"><img
+                    style="max-width:100%;" width="39" height="22"
+                    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAATCAYAAAD4f6+NAAAAAXNSR0IArs4c6QAAAbVJREFUSEvt1U+IjVEYx/HPxMpEjGEKycKUKIWVjJqNWLAiVjbGwkIZkoWixMJsNM0spjQWoixEYSGUmEZJDWVho/zZWIwiKxvkPDput9u879twu+7Cqbd3cZ7O8z2/5/c8p0ObrY424/EfKFekC3Mx3VihViu0AFexK4PcwD58/w3WaqARPMMrnMRubMf9fwEUl9+Y1JnKyVfjNQ7iUhnQCqzFC3xEyNyPB/jaxK5ch4dYg89FQAtxGCdwB8eynOuxFZNNAopL38IYxuvPLPLQQA68m+iP4C2+NcD04HwJ4JWsQGPIBowmxbfkjb24XuWhlXiPoxguSLoUZ0uArqVSPyrZD7DHeIm+KqAleUacSvPiXMGhi3CoJOE9PK8o8WmcSV+tUkUlu4DNSaEv2JGUmFM/K3KS5QgVilYoe7MCaBD7k183zaTQPPRiVf4HzMUcvA1Df2nomMx70gWf4l3y0WJM5HkUBv+16hWK6Xkbl3EA4aMwc0i/cwZTz5avG28wH08QJT+OaJzaaizZMnyo249DPuHHbLMXxHem7o2WjzesNnvKgJqU98+PafVbVknadkA/AeQkRBQQcNzEAAAAAElFTkSuQmCC" /></span><span
+                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000"><img
+                    style="max-width:100%;" width="5" height="5"
+                    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAAXNSR0IArs4c6QAAAGdJREFUGFcdyrEOgjAYhdHvthQI+HBGSXxbnVzYYOIJNCZOQIzQpr+JZz4ax868HE4CQcoZTfeL7VtiXiKHNuCD0HA9/efr/aWuHFvMaLidrS4LHs+VeY2UlUd9f7TgHSkZbVOwfCI/Nh0pJL5d0XgAAAAASUVORK5CYII=" /></span><span
+                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            </span><span
+                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">B．</span><span
+                style="font-family:'Times New Roman';font-size:12pt;color:#000000;mso-style-textfill-fill-color:#000000"><img
+                    style="max-width:100%;" width="38" height="22"
+                    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACMAAAATCAYAAAAao7T0AAAAAXNSR0IArs4c6QAAAUtJREFUSEvt1b8rhVEcx/HXzWYiIaQsBspilNFGGawSJUmMFhYpxH9g8Xuw+VEmZVBWAyWrkmKQwWCgPKeep3Td+3Svbtcd7lme4Tnn+32fz/f7/ZyMClqZCmJRhUETXvH5szLlVqYD85hBc/R9+U+YCQxipBJgghDj2C4Upg1dEf0tnlGLAVzgvQTTN4r9QmDqMIs5XGES5+jFEM7KCZPkGsNunHwBd9mdH0/EegrcUXSJ0xz/C1YmOduCJyxiNU/CRqykwJzkUbJomPrYB9YQlMm1wp7pFJjLuNTZW4qG2UBfHKUfNfjKitqKwxSYLez8tUxhajrRjp6oeR+xFzfvcBR0qQTNG0JMYTMCDQb4kM/0QsJjHMReEBzyHjfxaH+UACZ4THDgboSeWsZ1Ejf7OQjSh8ZNVgPecpSoBFy/Q5T7bUq9RBUmnzzfhJM+FF1eCbQAAAAASUVORK5CYII=" /></span><span
+                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            </span><span
+                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">C</span>
+        </p>
+        <p
+            style="margin-left:0.7500000000000001pt;text-indent:21.000000000000004pt;text-align:justify;margin-top:0pt;margin-bottom:0pt;border:none;border-left:none;border-top:none;border-right:none;border-bottom:none;mso-border-between:none">
+            <span
+                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">．</span><span
+                style="font-family:'Times New Roman';font-size:12pt;color:#000000;mso-style-textfill-fill-color:#000000"><img
+                    style="max-width:100%;" width="43" height="27"
+                    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAYCAYAAACIhL/AAAAAAXNSR0IArs4c6QAAAc5JREFUWEft1U+IjVEYx/HPyGYi0sRiRmpihbIaGyshUpqamo2NBSthYSGZsVKMhUlSiI2tmFBG/jTNgoVsJBuRheRPSrORlXgfnamr65733ubV3KZ76ta9neec53t+z+95bpc2X11tzqcDONcKdRQsUXAxTmAfluI8ztSemW8FA24ZXuEIBrAZz2ch5xMwcg/idoLZhBc4iEs5wJB9LT7gO+L3hvTKn3M1feZ85HyLXnxqBBg+CA8cwkWMFJJPYgu2Yvo/AUbeG5jAtWY8eBgX0qFzeI/PJXA9OJqJuYtn/9iP6gTc+rS3Ew/LPLgOb1KH/dVVGYCVuJLZv4r7mf1teIwpxPc/q1GTrCi66huO42yTZV2OvZnYp3hZctcpjNZyNQIcww58we506SJszCRZjTsZgNO4VQIY1jqA6Og6BbvRnz4BMoPLKXgXfhRwQ6lZmhQ1GxbTIcZM+DImRlTtCU6mZqkD3IMw8nXsxxq8wwPEXgzUmxUCrkoVCpBH6MOxYljfy3VxzKCPNQHRmeHFX+mFMQZi3FS1lqS59zVVrO7eVv5JogRVA5Y+dEEBDhc+HC+MvB2vS59eUUArClaUsrVrOoCt6VUf3fYK/gaZEUcZosoyrQAAAABJRU5ErkJggg==" /></span><span
+                style="font-family:'Times New Roman';font-size:12pt;color:#000000;mso-style-textfill-fill-color:#000000">，</span><span
+                style="font-family:'Times New Roman';font-size:12pt;color:#000000;mso-style-textfill-fill-color:#000000"><img
+                    style="max-width:100%;" width="55" height="27"
+                    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADQAAAAYCAYAAAC1Ft6mAAAAAXNSR0IArs4c6QAAAiBJREFUWEft1kuoTWEUB/DfjYlIyWNAkSh5FCUmIpI8SmSgjAwYCYmSdyJ5lEKKgYkBykBSlEcyMCAlAzLwCMkzYmCixF71pW07r307nXvu7Xx16pyzHt/6r/Vf/7279LHT1cfw6ABq94l2JtSDE+qPHViNQTiGg8V6etOEAsxgPMZGzMBMPMiD6i2Aos5luJyKn4pHWIdT9QDFaMfhLX4gfk9OnfnVg5TLXx31PcdIvK8FKLgZvFyPk9iZjfUaZmEe7rQBoKjxIi7hTKM7tAEnUuBRvMGHBsFMx4oavsczqnxqMFfRLZgSYCYlw0LcqEe5sI/Hs6Qq/ylJnWLmYFMNn814VbBfSAteLWwPzuWM83ELtxHf/55qojAkU5Kv2IbDJbs5MaPm3Box0eEvBfvijOLDasQ8xJOCfT928e/bTjVAh7AAH7Ekl2gMhiIuqHaWZoa9Newr8aJkkyq5x1qsRShexQkNwNj0mZLR5htOp4BFuJ9J5fJMOqfhHrY3oahGU4TShmxHDaG+waC72J3EoSKg6OyVDNBZrMFovMR1hC326imGp2QTGq2mCX4jElsi1U2Mwtbs4Xq1mLtIudD1dzmnoFfs0u/cfyHfs7GvCYWWSTEwPXc+J/ZUjC37ptAPBxCq87NMNa3yLQMofLfgfFKp2LnYs7Y6ZQAdwSq8TnsUL4bf2wpNUcPbrbju1FNmQt3J3/KYDqCWt7zkhX8Atq9RGWAGAzcAAAAASUVORK5CYII=" /></span><span
+                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">&nbsp;</span><span
+                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000"><img
+                    style="max-width:100%;" width="5" height="5"
+                    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAAXNSR0IArs4c6QAAAGdJREFUGFcdyrEOgjAYhdHvthQI+HBGSXxbnVzYYOIJNCZOQIzQpr+JZz4ax868HE4CQcoZTfeL7VtiXiKHNuCD0HA9/efr/aWuHFvMaLidrS4LHs+VeY2UlUd9f7TgHSkZbVOwfCI/Nh0pJL5d0XgAAAAASUVORK5CYII=" /></span><span
+                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">&nbsp;
+            </span><span
+                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">D．</span><span
+                style="font-family:'Times New Roman';font-size:12pt;color:#000000;mso-style-textfill-fill-color:#000000"><img
+                    style="max-width:100%;" width="43" height="27"
+                    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAYCAYAAACIhL/AAAAAAXNSR0IArs4c6QAAAc5JREFUWEft1U+IjVEYx/HPyGYi0sRiRmpihbIaGyshUpqamo2NBSthYSGZsVKMhUlSiI2tmFBG/jTNgoVsJBuRheRPSrORlXgfnamr65733ubV3KZ76ta9neec53t+z+95bpc2X11tzqcDONcKdRQsUXAxTmAfluI8ztSemW8FA24ZXuEIBrAZz2ch5xMwcg/idoLZhBc4iEs5wJB9LT7gO+L3hvTKn3M1feZ85HyLXnxqBBg+CA8cwkWMFJJPYgu2Yvo/AUbeG5jAtWY8eBgX0qFzeI/PJXA9OJqJuYtn/9iP6gTc+rS3Ew/LPLgOb1KH/dVVGYCVuJLZv4r7mf1teIwpxPc/q1GTrCi66huO42yTZV2OvZnYp3hZctcpjNZyNQIcww58we506SJszCRZjTsZgNO4VQIY1jqA6Og6BbvRnz4BMoPLKXgXfhRwQ6lZmhQ1GxbTIcZM+DImRlTtCU6mZqkD3IMw8nXsxxq8wwPEXgzUmxUCrkoVCpBH6MOxYljfy3VxzKCPNQHRmeHFX+mFMQZi3FS1lqS59zVVrO7eVv5JogRVA5Y+dEEBDhc+HC+MvB2vS59eUUArClaUsrVrOoCt6VUf3fYK/gaZEUcZosoyrQAAAABJRU5ErkJggg==" /></span><span
+                style="font-family:'Times New Roman';font-size:12pt;color:#000000;mso-style-textfill-fill-color:#000000">，</span><span
+                style="font-family:'Times New Roman';font-size:12pt;color:#000000;mso-style-textfill-fill-color:#000000"><img
+                    style="max-width:100%;" width="54" height="27"
+                    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADMAAAAYCAYAAABXysXfAAAAAXNSR0IArs4c6QAAAdhJREFUWEft1s2rTVEYBvDfLQaKiImPUEwMyMfQiAwMuBhJjExRSkYGPos/wMfMTTFQyr3XR5gx8FGSYmBCKZIYkJhIWG+trdPpnt3e2+Duezq7Tp1617ve53mfdz1rDemjb6iPuBiQaauaA2UmUZlo/hYcxTHc6cQy1ZTZhWHsxjbcnMpkAvsKvKpKZjqW4z2+YxpW4SV+TeKIFaUD2+sqZObgFA7gIg7iFjZgK263gMwyvKlCpsC6D+eTpFdxLnfiUzp0fyqQmZsUPVyy7h4eVNin15LaZJbibdrtOE7ULDwfF0pyLmO0K74fh0pynmBPjtcmMxtfs/2drEkmcovCE6U+xvOuwFqsLKnzGXebkjmDTfiRRmJjR5E4U2vwCD97FF+EGyXAzuJSzQZ1Lq+kzAzEwiUJzDp8SP9H0kisTp3cjgARv3C49Yhu/v4PUE1TQ8Fw1p241uueiUtoPNlyzPReLMA7PMwqLc7nKOz5GXbkeFNQTfKiiUfyK+ApTqdJGSs26n4BLMyKFPF5yZ6/dCkwE9exuaK7NQHdKKfJcyacJ+w1Lq5WfXXJxCh+S5fofYQFf2wTmzpkgsgVvMCsPLtteBH862cdMm0SYUIsAzJtlaivlPkLiHpTGentI8AAAAAASUVORK5CYII=" /></span><span
+                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">&nbsp;</span>
+        </p>
         `;
             
             insertHtml(window, undefined, html, function (res) {
                 console.log(res);
             });
-          }
         }
         var selectElement = document.getElementById("pageType");
         if (selectElement) {
@@ -1280,21 +1328,22 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
 
     // 在editor面板的插件按钮被点击
     window.Asc.plugin.button = function (id, windowID) {
-        console.log(`on plugin button id=${id} ${windowID}`);
+        console.log("on plugin button id=${id} ${windowID}", id, windowID);
         if (windowID) {
-          if (id === -1) {
-            window.Asc.plugin.executeMethod('CloseWindow', [windowID])
-          }
-          return
+            if (id == -1) {
+                window.Asc.plugin.executeMethod("CloseWindow", [windowID]);
+            }
+            return;                
         }
-        if (id == -1) {
-            console.log('StoreCustomData', window.BiyueCustomData)
+
+
+        if (id == -1) {            
             StoreCustomData(function() {
                 console.log("store custom data done");                
                 this.executeCommand("close", '');
             });            
             return;
-        }
+        } 
     };
 
     function showPosition(window, onGetPos) {
@@ -1646,16 +1695,18 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
             itemObj.mode = form.mode || 0
             Tag = JSON.stringify(itemObj)
           }
-
-          settingsWindow.close();
-          settingsWindow = null
-          setTag(window, Tag)
-        })
+        });
       }
-      settingsWindow.show(variation);
     }
+    function testMessageHandler(modal, message) {
+        switch (message.type) {
+            case "BiyueMessage":
+                console.log("event onBiyueMessage:", message);
+                settingsWindow.command('onParams', window.BiyueCustomData)
+                break;
 
-
+        }
+    }
     // window.Asc.plugin.event_onFocusContentControl = function (control) {
     //   setupPostTask(window,         function(ctrlKey) {
     //       if (true ===  ctrlKey && prevControl !== undefined && control !== undefined && control.InternalId != prevControl.InternalId) {
@@ -1790,7 +1841,7 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                     return;
                 }                
 
-                //debugger;
+
                 var lines  = text.match(/\n/g);
                 if (lines == null || lines.length <= 1) {
                     return;
@@ -1853,7 +1904,7 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                 oTable.SetWidth("percent", 100);
                 var oTableStyle = oDocument.CreateStyle("CustomTableStyle", "table");
                 var oTableCellPr = oTableStyle.GetTableCellPr();
-                oTableCellPr.SetWidth("percent", 100 / quesTextArr.length);
+                oTableCellPr.SetWidth("percent", 100 / max_cols);
                 oTable.SetStyle(oTableStyle);
 
                 // todo set table no border

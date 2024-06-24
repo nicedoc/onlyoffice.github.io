@@ -16,7 +16,7 @@
  *
  */
 
-const version = '1.0.6';                                             // version of store (will change it when update something in store)
+const version = '1.0.8';                                             // version of store (will change it when update something in store)
 let start = Date.now();
 const isLocal = ( (window.AscDesktopEditor !== undefined) && (window.location.protocol.indexOf('file') !== -1) ); // desktop detecting
 let isPluginLoading = false;                                         // flag plugins loading
@@ -68,7 +68,10 @@ const languages = [                                                  // list of 
 	['ja-JA', 'ja', 'Japanese'],
 	['nl-NL', 'nl', 'Dutch'],
 	['pt-PT', 'pt', 'Portuguese'],
+	['pt-BR', 'pt', 'Brazilian'],
 	['ru-RU', 'ru', 'Russian'],
+	['si-SI', 'si', 'Sinhala'],
+	['uk-UA', 'uk', 'Ukrainian'],
 	['zh-ZH', 'zh', 'Chinese']
 ];
 const messages = {
@@ -96,6 +99,24 @@ switch (shortLang) {
 		break;
 	case 'cs':
 		translate["Loading"] = "Načítání"
+		break;
+	case 'it':
+		translate["Loading"] = "Caricamento"
+		break;
+	case 'ja':
+		translate["Loading"] = "積み込み"
+		break;
+	case 'pt':
+		translate["Loading"] = "Carregamento"
+		break;
+	case 'si':
+		translate["Loading"] = "පැටවීම"
+		break;
+	case 'uk':
+		translate["Loading"] = "Вантаження"
+		break;
+	case 'zh':
+		translate["Loading"] = "装载量"
 		break;
 }
 
@@ -387,7 +408,7 @@ function fetchAllPlugins(bFirstRender, bshowMarketplace) {
 				getAllPluginsData(bFirstRender, bshowMarketplace);
 		},
 		function(err) {
-			createError( new Error( getTranslated( 'Problem with loading markeplace config.' ) ) );
+			createError( new Error('Problem with loading markeplace config.') );
 			isPluginLoading = false;
 			showMarketplace();
 		}
@@ -563,7 +584,8 @@ function getAllPluginsData(bFirstRender, bshowMarketplace) {
 						arr.forEach(function(full) {
 							let short = full.split('-')[0];
 							for (let i = 0; i < languages.length; i++) {
-								if (languages[i][0] == short || languages[i][1] == short) {
+								// detect only full language (because we can make mistake with some langs. for instance: "pt-PT" and "pt-BR")
+								if (languages[i][0] == full /*|| languages[i][1] == short*/) {
 									supportedLangs.push( getTranslated( languages[i][2] ) );
 								}
 							}
@@ -637,7 +659,7 @@ function getDiscussion(config) {
 			if (!discussionCount)
 				showRating();
 		}, function(err) {
-			createError('Problem with loading rating', true);
+			createError( new Error('Problem with loading rating'), true);
 			discussionCount--;
 			if (!discussionCount)
 				showRating();
@@ -809,8 +831,8 @@ function createPluginDiv(plugin, bInstalled) {
 	}
 	
 	let variation = plugin.variations[0];
-	let name = (bTranslate && plugin.nameLocale && plugin.nameLocale[shortLang]) ? plugin.nameLocale[shortLang] : plugin.name;
-	let description = (bTranslate && variation.descriptionLocale && variation.descriptionLocale[shortLang]) ? variation.descriptionLocale[shortLang] : variation.description;
+	let name = ( bTranslate && plugin.nameLocale && ( plugin.nameLocale[lang] || plugin.nameLocale[shortLang] ) ) ? ( plugin.nameLocale[lang] || plugin.nameLocale[shortLang] ) : plugin.name;
+	let description = ( bTranslate && variation.descriptionLocale && ( variation.descriptionLocale[lang] || variation.descriptionLocale[shortLang] ) ) ? ( variation.descriptionLocale[lang] || variation.descriptionLocale[shortLang] ) : variation.description;
 	let bg = variation.store && variation.store.background ? variation.store.background[themeType] : defaultBG;
 	let additional = bNotAvailable ? 'disabled title="' + getTranslated(messages.versionWarning) + '"'  : '';
 	let template = '<div class="div_image" style="background: ' + bg + '">' +
@@ -1217,7 +1239,8 @@ function createError(err, bDontShow) {
 	background.className = 'asc-plugin-loader';
 	let span = document.createElement('span');
 	span.className = 'error_caption';
-	span.innerHTML = err.message || getTranslated('Problem with loading some resources');
+	let message = err.message || 'Problem with loading some resources';
+	span.innerHTML = getTranslated(message);
 	background.appendChild(span);
 	divErr.appendChild(background);
 	divErr.classList.remove('hidden');
@@ -1339,7 +1362,7 @@ function getTranslation() {
 							onTranslate();
 						},
 						function(err) {
-							createError( new Error( getTranslated( 'Cannot load translation for current language.' ) ) );
+							createError( new Error('Cannot load translation for current language.') );
 							isTranslationLoading = false;
 							showMarketplace();
 						}
@@ -1350,7 +1373,7 @@ function getTranslation() {
 				}	
 			},
 			function(err) {
-				createError( new Error( getTranslated( 'Cannot load translations list file.' ) ) );
+				createError( new Error('Cannot load translations list file.') );
 				isTranslationLoading = false;
 				showMarketplace();
 			}
@@ -1606,6 +1629,8 @@ function installPluginManually() {
 		if (result) {
 			// нужно обновить список установленных плагинов
 			sendMessage({ type: 'getInstalled', updateInstalled: true }, '*');
+		} else {
+			createError(new Error('Problem with plugin installation.'), false);
 		}
 	});
 };
@@ -1657,7 +1682,7 @@ function makeSearch(val) {
 		let bUpdate = false;
 		let arr = plugins.filter(function(el) {
 			let plugin = el.obj || el;
-			let name = (plugin.nameLocale && plugin.nameLocale[shortLang]) ? plugin.nameLocale[shortLang] : plugin.name;
+			let name = (plugin.nameLocale && ( plugin.nameLocale[lang] || plugin.nameLocale[shortLang] ) ) ? ( plugin.nameLocale[lang] || plugin.nameLocale[shortLang] ) : plugin.name;
 			return name.toLowerCase().includes(val);
 		});
 

@@ -6,5 +6,13 @@
 	"Run": "Ausführen",
 	"Cancel" : "Abbrechen",
 	"Macros" : "Makros",
-	"Title" : "Der Name darf nicht leer sein"
+	"Title" : "Der Name darf nicht leer sein",
+	"Copy": "Kopieren",
+	"Make autostart": "Autostart durchführen",
+	"Unmake autostart": "Autostart aufheben",
+	"Custom function": "Benutzerdefinierte Funktion",
+	"Custom functions": "Benutzerdefinierte Funktionen",
+	"Ok": "OK",
+	"Add macros": "Makros hinzufügen",
+	"Add custom function": "Benutzerdefinierte Funktion hinzufügen"
 }

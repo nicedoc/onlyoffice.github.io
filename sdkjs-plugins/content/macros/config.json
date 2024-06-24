@@ -4,11 +4,12 @@
 		"ru": "Макросы",
 		"fr": "Macros",
 		"es": "Macros",
+		"pt-BR": "Macros",
 		"de": "Makros",
 		"si": "සාර්ව"
 	},
 	"guid": "asc.{E6978D28-0441-4BD7-8346-82FAD68BCA3B}",
-	"version": "1.0.3",
+	"version": "2.0.0",
 	"group": {
 		"name": "Macros",
 		"rank": 2
@@ -21,6 +22,7 @@
 				"ru": "Автоматизируйте рутинные задачи и стандартизируйте документы с помощью макросов (работает на синтаксисе JavaScript).",
 				"fr": "Automatisez vos tâches de routine et standardisez vos documents à l’aide des macros (la syntaxe du langage JavaScript est utilisée).",
 				"es": "Automatice sus tareas rutinarias y estandarice los documentos mediante macros (se utiliza la sintaxis del lenguaje JavaScript).",
+				"pt-BR": "Automatize suas tarefas rotineiras e padronize documentos usando macros (é usada a sintaxe da linguagem JavaScript).",
 				"de": "Automatisieren Sie Routineaufgaben und standardisieren Sie Dokumente mit Makros (die JavaScript-Syntax wird verwendet).",
 				"si": "සාර්ව භාවිතයෙන් ඔබගේ දෛනික කාර්යන් ස්වයංක්‍රිය කරන්න සහ ලේඛන ප්‍රමිතියකට තබා ගන්න (ජාවාස්ක්‍රිප්ට් භාෂා පද ගැළපුම් භාවිතා වේ)."
 			},
@@ -78,8 +80,14 @@
 			"size": [800, 600],
 			"buttons": [
 				{
-					"text": "Ok",
-					"primary": true
+					"text": "Save",
+					"primary": true,
+					"textLocale": {
+						"ru": "Сохранить",
+						"fr": "Sauvegarder",
+						"es": "Guardar",
+						"de": "Speichern"
+					}
 				},
 				{
 					"text": "Cancel",
@@ -99,7 +107,8 @@
 				},
 				"screenshots" : [
 					"resources/store/screenshots/screen_1.png",
-					"resources/store/screenshots/screen_2.png"
+					"resources/store/screenshots/screen_2.png",
+					"resources/store/screenshots/screen_3.png"
 				],
 				"icons" : {
 					"light" : "resources/store/icons",
