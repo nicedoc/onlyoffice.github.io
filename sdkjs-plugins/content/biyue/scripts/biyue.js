@@ -7,8 +7,9 @@ import { showQuesData, initListener } from './panelQuestionDetial.js'
 import { initFeature } from './panelFeature.js'
 import { handleHeader } from "./featureManager.js";
 import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree.js";
+import { biyueCallCommand, dispatchCommandResult } from "./command.js";
 
-(function (window, undefined) {   
+(function (window, undefined) {
     var styleEnable = false;
     let settingsWindow = null
 	  let activeQuesItem = '';
@@ -20,7 +21,7 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
 
     function NewDefaultCustomData() {
         return {
-            controlDesc : {}
+            controlDesc: {}
         }
     }
 
@@ -123,54 +124,53 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
         var ranges = new Array();
         let info = {}
         structTextArr.map(item => {
-          // 结构 例如：一、选择题
-          var startIndex = text_all.indexOf(item);
-          var endIndex = startIndex + item.length;
-          info = { 'regionType': 'struct', 'color': '#f7ca91'}
-          ranges.push({ beg: text_pos[startIndex], end: text_pos[endIndex], controlType: 1, info: info });
+            // 结构 例如：一、选择题
+            var startIndex = text_all.indexOf(item);
+            var endIndex = startIndex + item.length;
+            info = { 'regionType': 'struct', 'mode': 1 }
+            ranges.push({ beg: text_pos[startIndex], end: text_pos[endIndex], controlType: 1, info: info });
         });
         let no = 1
         quesTextArr.map(item => {
-          // 题目 例如：1.xxx
-          var startIndex = text_all.indexOf(item);
-          var endIndex = startIndex + item.length;
+            // 题目 例如：1.xxx
+            var startIndex = text_all.indexOf(item);
+            var endIndex = startIndex + item.length;
 
 
 
-          var column = 1;
-          var isInlineArr = item.match(isInlinePatt) || []
-          if (isInlineArr.length >= 1) {
-            // debugger
+            var column = 1;
+            var isInlineArr = item.match(isInlinePatt) || []
+            if (isInlineArr.length >= 1) {
+                // debugger
 
-            var r = isInlineArr[0].match(inlineQuesPatt);
-            var r = isInlineArr[0].match(inlineQuesPatt);  
-            if (r !== undefined && r !== null) {
-              column = r.length;
-              console.log('column:', column , " of ques", no)
+                var r = isInlineArr[0].match(inlineQuesPatt);
+                if (r !== undefined && r !== null) {
+                    column = r.length;
+                    console.log('column:', column, " of ques", no)
+                }
             }
-          }
 
-          
-          info = { 'ques_no': no, 'regionType': 'question', 'mode': 2, padding: [0, 0, 0.5, 0], color: ""}
-          ranges.push({ beg: text_pos[startIndex], end: text_pos[endIndex], controlType: 1, info: info, column : column });
-          no++
 
-          // 匹配题目里下划线和括号之类的批改/作答区域
-          const processedIndexes = new Set();
-          let match;
+            info = { 'ques_no': no, 'regionType': 'question', 'mode': 2, padding: [0, 0, 0.5, 0], color: "" }
+            ranges.push({ beg: text_pos[startIndex], end: text_pos[endIndex], controlType: 1, info: info, column: column });
+            no++
 
-          info = { 'regionType': 'write', 'color': '#ffcccc'}
-          while ((match = rangePatt.exec(item)) !== null) {
-            const startPos = startIndex + match.index;
-            const endPos = startIndex + match.index + match[0].length;
+            // 匹配题目里下划线和括号之类的批改/作答区域
+            const processedIndexes = new Set();
+            let match;
 
-            if (!processedIndexes.has(startPos)) {
-              ranges.push({ beg: text_pos[startPos], end: text_pos[endPos],  controlType: 2, info: info });
-              for (let i = startPos; i < endPos; i++) {
-                processedIndexes.add(i);
-              }
+            info = { 'regionType': 'write', 'color': '#ffcccc' }
+            while ((match = rangePatt.exec(item)) !== null) {
+                const startPos = startIndex + match.index;
+                const endPos = startIndex + match.index + match[0].length;
+
+                if (!processedIndexes.has(startPos)) {
+                    ranges.push({ beg: text_pos[startPos], end: text_pos[endPos], controlType: 2, info: info });
+                    for (let i = startPos; i < endPos; i++) {
+                        processedIndexes.add(i);
+                    }
+                }
             }
-          }
         });
         console.log('ranges:', ranges)
         return ranges;
@@ -178,12 +178,12 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
 
     // onlyoffice插件的api，执行command在callback里面继续执行command会失败
     // 用一个task stask来执行command
-    let setupPostTask = function(window, task) {
+    let setupPostTask = function (window, task) {
         window.postTask = window.postTask || [];
         window.postTask.push(task);
     }
 
-    let execPostTask = function(window, param) {
+    let execPostTask = function (window, param) {
         while (window.postTask && window.postTask.length > 0) {
             var task = window.postTask.pop();
             var imm = task(param);
@@ -193,16 +193,16 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
         }
     }
 
-    let checkSubQuestion = function() {
-        console.log("处理第三级子题");
-        window.Asc.plugin.callCommand(function () {            
+    let checkSubQuestion = function () {        
+        return biyueCallCommand(window, function () {
+            console.log("checkSubQuestion start.");
             // 通用匹配函数，在range对patt进行匹配，返回一个数组，数组的每个元素是一个数组都是对应的ApiRange
-            let RangeMatch = function(range, patt) {
-                let marker_log = function(str, ranges) {             
+            let RangeMatch = function (range, patt) {
+                let marker_log = function (str, ranges) {
                     let styledString = '';
                     let currentIndex = 0;
                     const styles = [];
-                
+
                     ranges.forEach(([start, end], index) => {
                         // 添加高亮前的部分
                         if (start > currentIndex) {
@@ -214,14 +214,14 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                         styles.push('border: 1px solid red; padding: 2px');
                         currentIndex = end;
                     });
-                
+
                     // 添加剩余的部分
                     if (currentIndex < str.length) {
                         styledString += '%c' + str.substring(currentIndex);
                         styles.push('');
                     }
-                
-                    console.log(styledString, ...styles);                                          
+
+                    console.log(styledString, ...styles);
                 };
 
                 function CalcTextPos(text_all, text_plain) {
@@ -235,14 +235,14 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                         }
                         text_pos[j] = i;
                         j++;
-                    }            
+                    }
                     return text_pos;
                 }
 
                 // 用正则表达式实现
                 // 自定义位置
-                var text = range.GetText({Math:false });
-                var text_plain = range.GetText({Math:false, Numbering: false});
+                var text = range.GetText({ Math: false });
+                var text_plain = range.GetText({ Math: false, Numbering: false });
                 var text_pos = CalcTextPos(text, text_plain);
 
                 var match;
@@ -258,51 +258,53 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                     marker_log(text, ranges);
                 }
                 return matchRanges;
-            }            
+            }
 
             var oDocument = Api.GetDocument();
             var controls = oDocument.GetAllContentControls();
-            controls.forEach(control => {            
+            controls.forEach(control => {
                 var subQuesPatt = /(?<=^|\r|\n|\t)(\(|\（)\d+(\)|\）)/gs;
-                var apiRanges = RangeMatch(control.GetRange(), subQuesPatt);                
+                var apiRanges = RangeMatch(control.GetRange(), subQuesPatt);
                 if (apiRanges.length > 1) {
-                    for (var i = 0; i < apiRanges.length; i++) {                                                                         
+                    //debugger;
+                    for (var i = 0; i < apiRanges.length; i++) {
                         var endRange = undefined;
                         if (i < apiRanges.length - 1) {
 
-                            var nextRange = apiRanges[i+1];
-                            endRange = nextRange.GetParagraph(0).GetPrevious().GetRange();                            
+                            var nextRange = apiRanges[i + 1];
+                            endRange = nextRange.GetParagraph(0).GetPrevious().GetRange();
                         } else {
                             // debugger;
                             var content = control.GetContent();
                             var endParaIndex = content.GetElementsCount() - 1;
-                            var oPara = content.GetElement(endParaIndex);                            
+                            var oPara = content.GetElement(endParaIndex);
                             endRange = oPara.GetRange();
                         }
 
                         var range = apiRanges[i].ExpandTo(endRange);
                         range.Select();
                         if (range !== undefined) {
-                            var tag = JSON.stringify({ 'regionType': 'sub-question', 'mode': 3});
-                            Api.asc_AddContentControl(1, {"Tag": tag});
+                            var tag = JSON.stringify({ 'regionType': 'sub-question', 'mode': 3 });
+                            Api.asc_AddContentControl(1, { "Tag": tag });
                             Api.asc_RemoveSelection();
-                        }                        
+                        }
                     }
                 }
-                
+
             });
-        }, false, false, undefined);
+            console.log("checkSubQuestion done.");
+        }, false, false);
     }
 
-    let checkAnswerRegion = function() {
-        console.log("处理答题区域");
-        window.Asc.plugin.callCommand(function () {
+    let checkAnswerRegion = function () {
+        
+        return biyueCallCommand(window, function () {
             // 在console中打印字符串，range指定的部分会被高亮显示
-            let marker_log = function(str, ranges) {             
+            let marker_log = function (str, ranges) {
                 let styledString = '';
                 let currentIndex = 0;
                 const styles = [];
-            
+
                 ranges.forEach(([start, end], index) => {
                     // 添加高亮前的部分
                     if (start > currentIndex) {
@@ -314,21 +316,23 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                     styles.push('border: 1px solid red; padding: 2px');
                     currentIndex = end;
                 });
-            
+
                 // 添加剩余的部分
                 if (currentIndex < str.length) {
                     styledString += '%c' + str.substring(currentIndex);
                     styles.push('');
                 }
-            
-                console.log(styledString, ...styles);                                          
+
+                console.log(styledString, ...styles);
             };
-            
+
+            //debugger;
+
             var oDocument = Api.GetDocument();
             var controls = oDocument.GetAllContentControls();
-            
-            for (var i = 0; i < controls.length; i++) {                
-                var control = controls[i];                
+
+            for (var i = 0; i < controls.length; i++) {
+                var control = controls[i];
                 var obj = ''
                 if (control && control.GetTag()) {
                     obj = control.GetTag() || ''
@@ -341,12 +345,12 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                     }
                 }
                 if (obj.regionType === 'question' || obj.regionType === 'sub-question') {
-                    var inlineSdts = control.GetAllContentControls().filter(e => e.GetTag() == JSON.stringify({ 'regionType': 'write', 'mode': 3}));
+                    var inlineSdts = control.GetAllContentControls().filter(e => e.GetTag() == JSON.stringify({ 'regionType': 'write', 'mode': 3 }));
                     if (inlineSdts.length > 0) {
                         console.log("已有inline sdt， 删除以后再执行", inlineSdts);
                         continue
                     }
-                    
+
 
                     // 标记inline的答题区域
                     var text = control.GetRange().GetText();
@@ -358,25 +362,27 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                         ranges.push([match.index, match.index + match[0].length]);
                         regionTexts.push(match[0]);
                     }
-                    if (ranges.length > 0) {    
+                    if (ranges.length > 0) {
                         marker_log(text, ranges);
                     }
                     var textSet = new Set();
                     regionTexts.forEach(e => textSet.add(e));
 
-                                       
+                    //debugger;
+
                     textSet.forEach(e => {
-                        var apiRanges = control.Search(e, false);           
-                        
+                        var apiRanges = control.Search(e, false);
+                        //debugger;
+
                         // search 有bug少返回一个字符            
-                                     
-                        apiRanges.reverse().forEach(apiRange => {                            
+
+                        apiRanges.reverse().forEach(apiRange => {
                             apiRange.Select();
-                            var tag = JSON.stringify({ 'regionType': 'write', 'mode': 3});
-                            Api.asc_AddContentControl(2, {"Tag": tag});
+                            var tag = JSON.stringify({ 'regionType': 'write', 'mode': 3 });
+                            Api.asc_AddContentControl(2, { "Tag": tag });
                             Api.asc_RemoveSelection();
                         });
-                    });                    
+                    });
 
                     // 标记空白行
                     {
@@ -389,7 +395,7 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                                 break;
                             }
                             var text = para.GetText();
-                            if (text.trim() !== '') {                                
+                            if (text.trim() !== '') {
                                 break;
                             }
                         }
@@ -399,15 +405,14 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                             var endRange = content.GetElement(elements - 1).GetRange();
                             range = range.ExpandTo(endRange);
                             range.Select();
-                            var tag = JSON.stringify({ 'regionType': 'write', 'mode': 5});
-                            Api.asc_AddContentControl(1, {"Tag": tag});
+                            var tag = JSON.stringify({ 'regionType': 'write', 'mode': 5 });
+                            Api.asc_AddContentControl(1, { "Tag": tag });
                             Api.asc_RemoveSelection();
                         }
                     }
                 }
             }
-        }, false, false, undefined);  
-        return false;
+        }, false, false);
     }
 
     // 插件初始化    
@@ -417,21 +422,21 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
         // create style        
         if (window.BiyueCustomData === undefined) {
             this.callCommand(
-                function() {                
+                function () {
                     var oDocument = Api.GetDocument();
                     var customData = Api.asc_GetBiyueCustomDataExt(undefined);
                     if (customData === undefined || customData.length === 0)
                         return undefined
                     return customData;
                 },
-                false, 
-                false, 
+                false,
+                false,
                 function (customData) {
                     console.log("customData", customData);
                     setTimeout(() => {
-                      GetDocInfo()
+                        GetDocInfo()
                     }, 1000)
-                    if (customData === undefined) {                
+                    if (customData === undefined) {
                         console.log("customData inited.")
                         window.BiyueCustomData = NewDefaultCustomData();
                         return;
@@ -451,11 +456,11 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
 
         Asc.scope.BiyueCustomId = window.BiyueCustomId;
         Asc.scope.BiyueCustomData = window.BiyueCustomData;
-        window.Asc.plugin.callCommand(            
-            function() {               
+        window.Asc.plugin.callCommand(
+            function () {
                 var id = Asc.scope.BiyueCustomId
                 var data = Asc.scope.BiyueCustomData;
-                Api.asc_SetBiyueCustomDataExt(id, data);                
+                Api.asc_SetBiyueCustomDataExt(id, data);
                 console.log("store custom data");
             },
             false,
@@ -599,7 +604,7 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
     window.Asc.plugin.attachEvent('onContextMenuShow', function (options) {
         console.log(options);
         //     if (!options) return;
-        contextMenu_options = options
+		contextMenu_options = options
         if (options.type === 'Selection' || options.type === 'Target') {
             this.executeMethod('AddContextMenuItem', [getContextMenuItems()]);
         }
@@ -678,25 +683,24 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
         }, false, false, undefined);
     };
 
-    window.Asc.plugin.onCommandCallback = function(result) {
-        console.log("onCommandCallback", result);
-           
-        execPostTask(window, result);        
+    window.Asc.plugin.onCommandCallback = function (result) {
+        //console.log("onCommandCallback", result);
+        dispatchCommandResult(window, result);
     };
 
     let createContentControl = function (ranges) {
         Asc.scope.ranges = ranges;
-        
-        window.Asc.plugin.callCommand(function () {
+
+        return biyueCallCommand(window, function () {
             var ranges = Asc.scope.ranges;
 
-            let MakeRange = function(beg, end) {
+            let MakeRange = function (beg, end) {
                 if (typeof beg === 'number')
                     return Api.GetDocument().GetRange().GetRange(beg, end);
                 return Api.asc_MakeRangeByPath(e.beg, e.end);
-            }   
-            
-            console.log('createContentControl count=', ranges.length);                    
+            }
+
+            console.log('createContentControl count=', ranges.length);
 
             var results = [];
             // reverse order loop to keep the order
@@ -706,9 +710,9 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                 //console.log('createContentControl:', e);                    
                 var range = MakeRange(e.beg, e.end);
                 range.Select()
-                var oResult = Api.asc_AddContentControl(e.controlType || 1, {"Tag": e.info ? JSON.stringify(e.info) : ''});
+                var oResult = Api.asc_AddContentControl(e.controlType || 1, { "Tag": e.info ? JSON.stringify(e.info) : '' });
                 Api.asc_RemoveSelection();
-                if (e.column !== undefined &&  e.column > 1) {
+                if (e.column !== undefined && e.column > 1) {
                     results.push({
                         "InternalId": oResult.InternalId,
                         "Tag": oResult.Tag,
@@ -716,8 +720,11 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                     })
                 }
             }
+
+            console.log('command createContentControl done');
+            
             return results;
-        }, false, false, undefined);
+        }, false, false);
     }
 
     let insertDrawingObject = function () {
@@ -731,7 +738,7 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                 if (oElement.GetClassType() === "blockLvlSdt") {
                     oElement = oElement.GetContent();
                 } else if (oElement.GetClassType() === "documentContent") {
-                    pos =  oElement.Document.CurPos.ContentPos;
+                    pos = oElement.Document.CurPos.ContentPos;
                     oElement = oElement.GetElement(pos);
                 } else if (oElement.GetClassType() === "table") {
                     var colIndex = oElement.Table.CurCell.Index;
@@ -775,8 +782,8 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
 
 
 
-    let SetContentProp = function(id, key, value) {
-        window.Asc.plugin.executeMethod ("GetCurrentContentControlPr", [], function (obj) {
+    let SetContentProp = function (id, key, value) {
+        window.Asc.plugin.executeMethod("GetCurrentContentControlPr", [], function (obj) {
             window.Asc.plugin.currentContentControl = obj;
             var controlTag = obj ? obj.Tag : "";
 
@@ -792,7 +799,7 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
     }
 
 
-    let toggleControlStyle = function() {
+    let toggleControlStyle = function () {
         if (styleEnable) {
             styleEnable = false;
         } else {
@@ -811,33 +818,33 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
             Api.asc_SetGlobalContentControlShowHighlight(styleEnable, 204, 255, 255);
         }, false, true, undefined);
 
-            // const applyBorder = function(para, border, order) {
-            //     console.log("border", order, order % 2);
-            //     var width = border ? 8 : 0;
-            //     if (order % 2 === 1) {
-            //         para.SetTopBorder("single", width, 0, 255, 111, 61);
-            //         para.SetBottomBorder("single", width, 0, 255, 111, 61);
-            //         para.SetLeftBorder("single", width, 0, 255, 111, 61);
-            //         para.SetRightBorder("single", width, 0, 255, 111, 61);
-            //     } else {
-            //         para.SetTopBorder("single", width, 0, 0, 61, 111);
-            //         para.SetBottomBorder("single", width, 0, 0, 61, 111);
-            //         para.SetLeftBorder("single", width, 0, 0, 61, 111);
-            //         para.SetRightBorder("single", width, 0, 0, 61, 111);
-            //     }
-            // };
+        // const applyBorder = function(para, border, order) {
+        //     console.log("border", order, order % 2);
+        //     var width = border ? 8 : 0;
+        //     if (order % 2 === 1) {
+        //         para.SetTopBorder("single", width, 0, 255, 111, 61);
+        //         para.SetBottomBorder("single", width, 0, 255, 111, 61);
+        //         para.SetLeftBorder("single", width, 0, 255, 111, 61);
+        //         para.SetRightBorder("single", width, 0, 255, 111, 61);
+        //     } else {
+        //         para.SetTopBorder("single", width, 0, 0, 61, 111);
+        //         para.SetBottomBorder("single", width, 0, 0, 61, 111);
+        //         para.SetLeftBorder("single", width, 0, 0, 61, 111);
+        //         para.SetRightBorder("single", width, 0, 0, 61, 111);
+        //     }
+        // };
 
 
-            // var oDocument = Api.GetDocument();
-            // var controls = oDocument.GetAllContentControls();
+        // var oDocument = Api.GetDocument();
+        // var controls = oDocument.GetAllContentControls();
 
-            // for (var i = 0; i < controls.length; i++) {
-            //     var e = controls[i];
-            //     var paras = e.GetAllParagraphs();
-            //     for (var j=0; j < paras.length; j++)  {
-            //         applyBorder(paras[j], styleEnable, i);
-            //     }
-            // }
+        // for (var i = 0; i < controls.length; i++) {
+        //     var e = controls[i];
+        //     var paras = e.GetAllParagraphs();
+        //     for (var j=0; j < paras.length; j++)  {
+        //         applyBorder(paras[j], styleEnable, i);
+        //     }
+        // }
 
 
     }
@@ -866,7 +873,7 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
 
         return text_pos;
     }
-
+	
 
     $(document).ready(function () {
         // 获取文档描述信息
@@ -876,239 +883,62 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
             GetDocInfo();
           }
         }
-        addBtnClickEvent('reSplitQuestionBtn', reSplitQustion)
         // 切题
-        var btnSplit1 = document.getElementById("splitQuestionBtn")
-        if (btnSplit1) {
-          btnSplit1.onclick = function () {
-            // get all text
-            window.Asc.plugin.callCommand(function () {
-
-                // Api.asc_EditSelectAll();
-                // var text = Api.asc_GetSelectedText();
-                // Api.asc_RemoveSelection();
-                var oDocument = Api.GetDocument();
-                var text_all = oDocument.GetRange().GetText({Math: false, TableCellSeparator: "\u24D2", TableRowSeparator:"\u24E1"}) || "";
-                var text_plain = oDocument.GetRange().GetText({Math:false, Numbering: false, TableCellSeparator:"\u24D2", TableRowSeparator:"\u24E1"});
-
-                return {text_all, text_plain};
-            }, false, false, function (result) {
-                // split with token
-                console.log('splitQuestion:', result)
-                var text_pos = CalcTextPos(result.text_all, result.text_plain);
-                var ranges = splitQuestion(result.text_all, text_pos);
-                setupPostTask(window, function() { processTableColumn(undefined) });                
-                createContentControl(ranges);
-            });
-          }
-        }
-        var btnClear = document.getElementById("clearControl")
-        if (btnClear) {
-          btnClear.onclick = function() {
-            window.Asc.plugin.executeMethod("GetAllContentControls");
-            window.Asc.plugin.onMethodReturn = function (controls) {
-                if (window.Asc.plugin.info.methodName == "GetAllContentControls") {
-                    Asc.scope.controls = controls;
-                    window.Asc.plugin.callCommand(function () {
-                        var controls = Asc.scope.controls;
-
-                        for (var i = 0; i < controls.length; i++) {
-                            // set selection
-                            var e = controls[i];
-                            Api.asc_RemoveContentControlWrapper(e.InternalId);
-                        }
-                    }, false, false, undefined);
-                }
-            };
-
-        };
-        var btnCheckAnswerRegionBtn = document.getElementById("checkAnswerRegionBtn")
-        if (btnCheckAnswerRegionBtn) {
-          btnCheckAnswerRegionBtn.onclick = function () {
-            checkAnswerRegion();
-          }
-        }
-        var btnToggleStyleBtn = document.getElementById("toggleStyleBtn")
-        if (btnToggleStyleBtn) {
-          btnToggleStyleBtn.onclick = function() {
-              toggleControlStyle();
-            }
-          }
-        }
-        
+		addBtnClickEvent('splitQuestionBtn', splitQuestion)
+		addBtnClickEvent('clearControl', clearAllControls)
+		addBtnClickEvent('checkAnswerRegionBtn', checkAnswerRegion)
+		addBtnClickEvent('toggleStyleBtn', toggleControlStyle)
         // Todo 考虑其他实现方法
         // 锁定控件操作
-        var btnUnlock = document.getElementById("unlockBtn")
-        if (btnUnlock) {
-          btnUnlock.onclick = function () {
-            /* Asc.c_oAscSdtLockType.Unlocked */
-            // setCurrentContentControlLock(3);
-            SettingDialog();
-        };
-
-        document.getElementById("windowTest").onclick = function () {
-            SettingDialog();
-        }
-
-        document.getElementById("lockBtn").onclick = function () {
-            // 1 Asc.c_oAscSdtLockType.SdtContentLocked 
-            // setCurrentContentControlLock(1);
-        };
-
-        document.getElementById("showPosition").onclick = function () {
-            console.log("showPosition on button clicked");
+		addBtnClickEvent('unlockBtn', function() {
+			/* Asc.c_oAscSdtLockType.Unlocked */
+			setCurrentContentControlLock(3);
+		})
+		addBtnClickEvent('lockBtn', function() {
+			/* Asc.c_oAscSdtLockType.Unlocked */
+			setCurrentContentControlLock(3);
+		})
+		addBtnClickEvent('showPosBtn', function() {
+			console.log("showPosition on button clicked");
             showPosition(window, onGetPos);
-          }
-        }
-        var btnGetSelection = document.getElementById("getSelectionBtn")
-        if (btnGetSelection) {
-          btnGetSelection.onclick = function () {
-            console.log("getSelection on button clicked");
-            getSelection();
-          }
-        }
-        var btnShowContent = document.getElementById("showContentBtn")
-        if (btnShowContent) {
-          btnShowContent.onclick = function () {
-            console.log("showContent on button clicked");
-            showContent();
-          }
-        }
-        var btnShowScoreContent = document.getElementById("showScoreContentBtn")
-        if (btnShowScoreContent) {
-          btnShowScoreContent.onclick = function () {
-            console.log("showScoreContent on button clicked");
-            var fun = function() {
-              var controls = Api.GetDocument().GetAllContentControls();
-                for (var i = 0; i < controls.length; i++) {
-                  var control = controls[i];
-                  var obj = ''
-                  if (control && control.GetTag()) {
-                    obj = control.GetTag() || ''
-                    if (obj) {
-                      try {
-                        obj = JSON.parse(obj)
-                      } catch (e) {
-                        console.error('JSON解析失败', e)
-                      }
-                    }
-                  }
-                  if (obj && obj.regionType == 'question' && obj.mode == 3) {
-                    var oDocument = Api.GetDocument();
-                    var oTableStyle = oDocument.CreateStyle("CustomTableStyle", "table");
-                    let num = obj.score > 0 ? parseInt(obj.score)+1 : 1
-                    var oTable = Api.CreateTable(num, 1);
-                    // oTable.SetWidth("percent", 100);
-                    oTable.SetStyle(oTableStyle);
-                    oTable.SetWrappingStyle(false);
+		})
+		addBtnClickEvent('getSelectionBtn', function() {
+			console.log("getSelection on button clicked");
+			getSelection();
+		})
+		addBtnClickEvent('showContentBtn', function() {
+			console.log("showContent on button clicked");
+			showContent();
+		})
+		addBtnClickEvent('showScoreContentBtn', showScoreContent)
+        addBtnClickEvent('insertDrawingObjectBtn', insertDrawingObject)
+		addBtnClickEvent('showMultiPagePosBtn', function() {
+			showMultiPagePos(window, onGetPos);
+		})
+		addBtnClickEvent('toTableColumnBtn', function() {
+			toTableColumn(window);
+		})
+		addBtnClickEvent('getQuestionPositionsBtn', function() {
+			getQuestionPositions(window);
+		})
+		addBtnClickEvent('jsonPathSplitQuestionBtn', onJsonPathSplit)
+		addBtnClickEvent('normalizeDoc', onNormalizeDoc)
+		addBtnClickEvent('selectionToHtml', function () {
+			rangeToHtml(window, undefined, function (html) {
+                console.log(html);
+            }); 
+		})
+		addBtnClickEvent('selectionToXml', function () {
+			toXml(window, undefined, function (xml) {
+				console.log(xml);
+			});
+		})
+		addBtnClickEvent('insertAsHtml', onInsertAsHtml)
 
-                    for (var i = 0; i < num; i++) {
-                      oTable.GetCell(0, i).GetContent().GetElement(0).AddText(i + '')
-                      oTable.GetCell(0, i).SetWidth('twips', 283)
-                    }
-                    // oDocument.Push(oTable) // 添加到文档的底部
 
-                    // 表格-高级设置 相关参数
-                    var Props = {
-                      CellSelect: true,
-                      Locked: false,
-                      PositionV: {
-                        Align: 1,
-                        RelativeFrom: 2,
-                        UseAlign:true,
-                        Value: 0
-                      },
-                      PositionH: {
-                        Align: 4,
-                        RelativeFrom: 0,
-                        UseAlign:true,
-                        Value: 0
-                      },
-                      TableDefaultMargins: {
-                        Bottom: 0,
-                        Left: 0,
-                        Right: 0,
-                        Top: 0
-                      }
-                    }
-                    // Api.tblApply(Props)
-                    oTable.Table.Set_Props(Props);
-                    control.AddElement(oTable, 0) // 添加到控件的0的开始位置
-                  }
-              }
-            }
-            window.Asc.plugin.callCommand(fun, false, true, undefined)
-          }
-        }
-        var btnInsertDrawingObject = document.getElementById("insertDrawingObjectBtn")
-        if (btnInsertDrawingObject) {
-          btnInsertDrawingObject.onclick = function () {
-            insertDrawingObject();
-          }
-        }
-        var btnShowMultiPagePos = document.getElementById("showMultiPagePosBtn")
-        if (btnShowMultiPagePos) {
-          btnShowMultiPagePos.onclick = function () {
-            showMultiPagePos(window, onGetPos);
-          }
-        }
-        var btnToTableColumn = document.getElementById("toTableColumnBtn")
-        if (btnToTableColumn) {
-          btnToTableColumn.onclick = function () {
-            toTableColumn(window);
-          }
-        }
-        var btnGetQuestionPositions = document.getElementById("getQuestionPositionsBtn")
-        if (btnGetQuestionPositions) {
-          btnGetQuestionPositions.onclick = function () {
-            getQuestionPositions(window);
-          }
-        }
-        var btnSplitJsonPath = document.getElementById("jsonPathSplitQuestionBtn")
-        if (btnSplitJsonPath) {
-          btnSplitJsonPath.onclick = function () {
-            // get all text 执行顺序为先进后出，下面的先执行
-            setupPostTask(window, updateCustomControls)
-            setupPostTask(window, checkAnswerRegion);
-            setupPostTask(window, function() { processTableColumn(undefined) });
-            setupPostTask(window, checkSubQuestion);
-            window.Asc.plugin.callCommand(function () {
-
-                // Api.asc_EditSelectAll();
-                // var text = Api.asc_GetSelectedText();
-                // Api.asc_RemoveSelection();
-                var oDocument = Api.GetDocument();
-                var text_all = oDocument.GetRange().GetText({Math: false, TableCellSeparator: "\u24D2", TableRowSeparator:"\u24E1"}) || "";
-                var text_json = oDocument.ToJSON(true);
-
-                return {text_all, text_json};
-            }, false, false, function (result) {
-                var ranges = newSplit(result.text_json);                
-                console.log('splitQuestion:', ranges)
-                createContentControl(ranges);
-            });
-          }
-        }
-        var btnNormalizeDoc = document.getElementById("normalizeDoc")
-        if (btnNormalizeDoc) {
-          btnNormalizeDoc.onclick = function () {
-            window.Asc.plugin.callCommand(function () {
-                
-                // Api.asc_EditSelectAll();
-                // var text = Api.asc_GetSelectedText();
-                // Api.asc_RemoveSelection();
-                var oDocument = Api.GetDocument();
-                var text_all = oDocument.GetRange().GetText({Math: false, TableCellSeparator: "\u24D2", TableRowSeparator:"\u24E1"}) || "";            
-                var text_json = oDocument.GetRange().ToJSON(true);
-                
-                return {text_all, text_json};
-            }, false, false, function (result) {
-                var ranges = normalizeDoc(result.text_json);
-                console.log('normal:', ranges)
-                execModify(ranges);
-            });
-          }
-        }
+		// 上面为测试按钮
+		// 下面为新增的页面按钮
+		addBtnClickEvent('reSplitQuestionBtn', reSplitQustion)
         window.tab_select = 'tabList'
         $('#' + window.tab_select).addClass('selected')
         $('.tabitem').on('click', changeTab)
@@ -1117,205 +947,13 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
           if (event && event.detail) {
             updateTreeRenderWhenClick(event.detail)
           }
-          changeTabPanel('tabQues')
+          // changeTabPanel('tabQues')
         })
         initListener()
         changeTabPanel('tabList')
-        
-        addBtnClickEvent('scoreSet', showScoreSetDialog)
-        addBtnClickEvent('clearStruct', clearStruct)
-        addBtnClickEvent('getStruct', getStruct)
-        addBtnClickEvent('examImport', importExam)
-        addBtnClickEvent('savePositons', savePositons)
-        addBtnClickEvent('showTree', addImage)
-        addBtnClickEvent('showPositionsDialog', showPositionsDialog)
-        addBtnClickEvent('add-score', function() {
-          // addScoreField(5, 1, 1, 0)
-          var list = []
-          for (var i = 1; i < 2; ++i) {
-            list.push({
-              ques_no: i,
-              score: 20,
-              mode: 1,
-              layout: 1
-            })
-          }
-          handleScoreField(list)
-        })
-        addBtnClickEvent('delete', function() {
-          var list = []
-          for (var i = 1; i < 40; ++i) {
-            list.push({
-              ques_no: i,
-              score: null
-            })
-          }
-          handleScoreField(list)
-        })
-        addBtnClickEvent('change-mode', function() {
-          var list = []
-          for (var i = 1; i < 40; ++i) {
-            list.push({
-              ques_no: i,
-              score: 20,
-              mode: 2,
-              layout: 1
-            })
-          }
-          handleScoreField(list)
-        })
-        addBtnClickEvent('change-layout', function() {
-          var list = []
-          for (var i = 1; i < 40; ++i) {
-            list.push({
-              ques_no: i,
-              score: 12,
-              mode: 1,
-              layout: 2
-            })
-          }
-          handleScoreField(list)
-        })
-        addBtnClickEvent('identify_index_show', function() {
-          showIdentifyIndex(true)
-        })
-        addBtnClickEvent('identify_index_hide', function() {
-          showIdentifyIndex(false)
-        })
-        addBtnClickEvent('identify_delete', function() {
-          removeAllIdentify()
-        })
-        addBtnClickEvent('showWriteIdentifyIndex', function() {
-          showWriteIdentifyIndex(true)
-        })
-        addBtnClickEvent('hideWriteIdentifyIndex', function() {
-          showWriteIdentifyIndex(false)
-        })
-
         addBtnClickEvent('questree', function() {
           refreshExamTree()
         })
-
-        var btnSelectionToHtml = document.getElementById("selectionToHtml")
-        if (btnSelectionToHtml) {
-          btnSelectionToHtml.onclick = function () {
-            rangeToHtml(window, undefined, function (html) {
-                console.log(html);
-            });            
-          }
-        }
-
-        document.getElementById("selectionToXml").onclick = function () {
-            toXml(window, undefined, function (xml) {
-                console.log(xml);
-            });
-        }
-
-        document.getElementById("downloadAsPdf").onclick = function () {
-            downloadAs(window, "JPG", function (pdf) {
-                console.log(pdf);
-            } );
-        }
-
-
-        document.getElementById("insertAsHtml").onclick = function () {
-            
-            var html = `<p
-            style="text-align:justify;mso-pagination:none;margin-top:0pt;margin-bottom:0pt;border:none;border-left:none;border-top:none;border-right:none;border-bottom:none;mso-border-between:none">
-            <span
-                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">2</span><span
-                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">．</span><span
-                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">方程</span><span
-                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000"><img
-                    style="max-width:100%;" width="78" height="24"
-                    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEsAAAAVCAYAAAAOyhNtAAAAAXNSR0IArs4c6QAAA2RJREFUWEftmFmoTWEUx383maOUOWTIkHke8kaGzMXDJQ9ESVFkSClDIYqkjKXIkCFClChEImSOB5R59mCWDPn+t7Vrt9v7nL2/c7p5OOvl1tlr+v7fWv+1vltGSVIjUJZas6RICawMRZAPrG7AY+BzBp+FqLYFvgGvEpxUAXoB94GvhQTysc0F1lDgFNASeOrj3MNmFTAe6Aj8ibHfAPwFJgG9geceMbxNksDS71eAew6oqd7esxs2BV4CE4H9EfPaQAPgCSBQH7iL3Jk9hL9FElgj3c2dADobYP4R8lsOBuYaQF+AzYB+6wT8TjA/6NpwPvAsv3svjQ7AXmB0mBKSwNoNtAf6eoVKb7QcmAy0BuoBH4H+wGWgH3A1xpXaT4fZkz5MJs3qwA2jglZWyRUOksBS+10AZmYK46esGKqmAKy6rtI+WftH20wDQFy6CWjk8nvrFzKn1Wp39kFAnyhfx4FVDfgJzLKkwp5rAFUBtYukvlVDUrukOcsUYEcILNmIuPcBC0MO2jigLgEPAU3F88CiNAEy6ASUsB04kgYsTSJVltA9FwqkxMQtmoxqlTnAOiPbxRkSiqrGgXUU0MUML8BvVlNd/BmrXFHAsTRgDQQuAj2Bm5GIAZ+sB344rtllrSCu8ZU4sHSzPWyn8vErn2rrONE0VdWERR12GNgKnHacNSYtWA0NgHLgQEw08YSqa0DCLrQF6J7jhNsiIz8OLBG7Fk998xFNS60ZcaKVKNq+0x2AWsDnmYGm4CGgnS3lFTSTRPDa2FU9S2Oiqeq+W7nGJTMWaJbjhALiWuh7FCzxkZJbAKz1QQqYANRMsNUedzby7TbQNUF/TQBuElgqRQEyLuJAHLLSWlScokFQqETBEpE/cmvDCLc+nPR0Lq7VghsnAio65bXT1Qkpi+hX2GvievCCSQJriS19jQ20LjbOddPLbAAMcxWi5VWkryeIrwSrQxPgjbWepqMO+9rXaYF2qTlLcTQZ3rtkZxjxfQDuAEPs91uODAWkpoYI01e0kKrd1ALiGT1j9FeVPdvXaRHsRrnhchxoEX5/5npIq4KmAdpiBd67UAXVsoTUqsWU4EabAy+K6bgYvnKBpdG70e072mjvFiNYCh9q6V8WN4V65ark+39W5Wbzn0crgZXhgv4BrLmrFj5l76cAAAAASUVORK5CYII=" /></span><span
-                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">的根是</span>
-        </p>
-        <p
-            style="margin-left:0.7500000000000001pt;text-indent:21.000000000000004pt;text-align:justify;margin-top:0pt;margin-bottom:0pt;border:none;mso-border-left-alt:none;mso-border-top-alt:none;mso-border-right-alt:none;mso-border-bottom-alt:none;mso-border-between:none">
-            <span
-                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">A．</span><span
-                style="font-family:'Times New Roman';font-size:12pt;color:#000000;mso-style-textfill-fill-color:#000000"><img
-                    style="max-width:100%;" width="39" height="22"
-                    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAATCAYAAAD4f6+NAAAAAXNSR0IArs4c6QAAAbVJREFUSEvt1U+IjVEYx/HPxMpEjGEKycKUKIWVjJqNWLAiVjbGwkIZkoWixMJsNM0spjQWoixEYSGUmEZJDWVho/zZWIwiKxvkPDput9u879twu+7Cqbd3cZ7O8z2/5/c8p0ObrY424/EfKFekC3Mx3VihViu0AFexK4PcwD58/w3WaqARPMMrnMRubMf9fwEUl9+Y1JnKyVfjNQ7iUhnQCqzFC3xEyNyPB/jaxK5ch4dYg89FQAtxGCdwB8eynOuxFZNNAopL38IYxuvPLPLQQA68m+iP4C2+NcD04HwJ4JWsQGPIBowmxbfkjb24XuWhlXiPoxguSLoUZ0uArqVSPyrZD7DHeIm+KqAleUacSvPiXMGhi3CoJOE9PK8o8WmcSV+tUkUlu4DNSaEv2JGUmFM/K3KS5QgVilYoe7MCaBD7k183zaTQPPRiVf4HzMUcvA1Df2nomMx70gWf4l3y0WJM5HkUBv+16hWK6Xkbl3EA4aMwc0i/cwZTz5avG28wH08QJT+OaJzaaizZMnyo249DPuHHbLMXxHem7o2WjzesNnvKgJqU98+PafVbVknadkA/AeQkRBQQcNzEAAAAAElFTkSuQmCC" /></span><span
-                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000"><img
-                    style="max-width:100%;" width="5" height="5"
-                    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAAXNSR0IArs4c6QAAAGdJREFUGFcdyrEOgjAYhdHvthQI+HBGSXxbnVzYYOIJNCZOQIzQpr+JZz4ax868HE4CQcoZTfeL7VtiXiKHNuCD0HA9/efr/aWuHFvMaLidrS4LHs+VeY2UlUd9f7TgHSkZbVOwfCI/Nh0pJL5d0XgAAAAASUVORK5CYII=" /></span><span
-                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            </span><span
-                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">B．</span><span
-                style="font-family:'Times New Roman';font-size:12pt;color:#000000;mso-style-textfill-fill-color:#000000"><img
-                    style="max-width:100%;" width="38" height="22"
-                    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACMAAAATCAYAAAAao7T0AAAAAXNSR0IArs4c6QAAAUtJREFUSEvt1b8rhVEcx/HXzWYiIaQsBspilNFGGawSJUmMFhYpxH9g8Xuw+VEmZVBWAyWrkmKQwWCgPKeep3Td+3Svbtcd7lme4Tnn+32fz/f7/ZyMClqZCmJRhUETXvH5szLlVqYD85hBc/R9+U+YCQxipBJgghDj2C4Upg1dEf0tnlGLAVzgvQTTN4r9QmDqMIs5XGES5+jFEM7KCZPkGsNunHwBd9mdH0/EegrcUXSJ0xz/C1YmOduCJyxiNU/CRqykwJzkUbJomPrYB9YQlMm1wp7pFJjLuNTZW4qG2UBfHKUfNfjKitqKwxSYLez8tUxhajrRjp6oeR+xFzfvcBR0qQTNG0JMYTMCDQb4kM/0QsJjHMReEBzyHjfxaH+UACZ4THDgboSeWsZ1Ejf7OQjSh8ZNVgPecpSoBFy/Q5T7bUq9RBUmnzzfhJM+FF1eCbQAAAAASUVORK5CYII=" /></span><span
-                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            </span><span
-                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">C</span>
-        </p>
-        <p
-            style="margin-left:0.7500000000000001pt;text-indent:21.000000000000004pt;text-align:justify;margin-top:0pt;margin-bottom:0pt;border:none;border-left:none;border-top:none;border-right:none;border-bottom:none;mso-border-between:none">
-            <span
-                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">．</span><span
-                style="font-family:'Times New Roman';font-size:12pt;color:#000000;mso-style-textfill-fill-color:#000000"><img
-                    style="max-width:100%;" width="43" height="27"
-                    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAYCAYAAACIhL/AAAAAAXNSR0IArs4c6QAAAc5JREFUWEft1U+IjVEYx/HPyGYi0sRiRmpihbIaGyshUpqamo2NBSthYSGZsVKMhUlSiI2tmFBG/jTNgoVsJBuRheRPSrORlXgfnamr65733ubV3KZ76ta9neec53t+z+95bpc2X11tzqcDONcKdRQsUXAxTmAfluI8ztSemW8FA24ZXuEIBrAZz2ch5xMwcg/idoLZhBc4iEs5wJB9LT7gO+L3hvTKn3M1feZ85HyLXnxqBBg+CA8cwkWMFJJPYgu2Yvo/AUbeG5jAtWY8eBgX0qFzeI/PJXA9OJqJuYtn/9iP6gTc+rS3Ew/LPLgOb1KH/dVVGYCVuJLZv4r7mf1teIwpxPc/q1GTrCi66huO42yTZV2OvZnYp3hZctcpjNZyNQIcww58we506SJszCRZjTsZgNO4VQIY1jqA6Og6BbvRnz4BMoPLKXgXfhRwQ6lZmhQ1GxbTIcZM+DImRlTtCU6mZqkD3IMw8nXsxxq8wwPEXgzUmxUCrkoVCpBH6MOxYljfy3VxzKCPNQHRmeHFX+mFMQZi3FS1lqS59zVVrO7eVv5JogRVA5Y+dEEBDhc+HC+MvB2vS59eUUArClaUsrVrOoCt6VUf3fYK/gaZEUcZosoyrQAAAABJRU5ErkJggg==" /></span><span
-                style="font-family:'Times New Roman';font-size:12pt;color:#000000;mso-style-textfill-fill-color:#000000">，</span><span
-                style="font-family:'Times New Roman';font-size:12pt;color:#000000;mso-style-textfill-fill-color:#000000"><img
-                    style="max-width:100%;" width="55" height="27"
-                    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADQAAAAYCAYAAAC1Ft6mAAAAAXNSR0IArs4c6QAAAiBJREFUWEft1kuoTWEUB/DfjYlIyWNAkSh5FCUmIpI8SmSgjAwYCYmSdyJ5lEKKgYkBykBSlEcyMCAlAzLwCMkzYmCixF71pW07r307nXvu7Xx16pyzHt/6r/Vf/7279LHT1cfw6ABq94l2JtSDE+qPHViNQTiGg8V6etOEAsxgPMZGzMBMPMiD6i2Aos5luJyKn4pHWIdT9QDFaMfhLX4gfk9OnfnVg5TLXx31PcdIvK8FKLgZvFyPk9iZjfUaZmEe7rQBoKjxIi7hTKM7tAEnUuBRvMGHBsFMx4oavsczqnxqMFfRLZgSYCYlw0LcqEe5sI/Hs6Qq/ylJnWLmYFMNn814VbBfSAteLWwPzuWM83ELtxHf/55qojAkU5Kv2IbDJbs5MaPm3Box0eEvBfvijOLDasQ8xJOCfT928e/bTjVAh7AAH7Ekl2gMhiIuqHaWZoa9Newr8aJkkyq5x1qsRShexQkNwNj0mZLR5htOp4BFuJ9J5fJMOqfhHrY3oahGU4TShmxHDaG+waC72J3EoSKg6OyVDNBZrMFovMR1hC326imGp2QTGq2mCX4jElsi1U2Mwtbs4Xq1mLtIudD1dzmnoFfs0u/cfyHfs7GvCYWWSTEwPXc+J/ZUjC37ptAPBxCq87NMNa3yLQMofLfgfFKp2LnYs7Y6ZQAdwSq8TnsUL4bf2wpNUcPbrbju1FNmQt3J3/KYDqCWt7zkhX8Atq9RGWAGAzcAAAAASUVORK5CYII=" /></span><span
-                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">&nbsp;</span><span
-                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000"><img
-                    style="max-width:100%;" width="5" height="5"
-                    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAAXNSR0IArs4c6QAAAGdJREFUGFcdyrEOgjAYhdHvthQI+HBGSXxbnVzYYOIJNCZOQIzQpr+JZz4ax868HE4CQcoZTfeL7VtiXiKHNuCD0HA9/efr/aWuHFvMaLidrS4LHs+VeY2UlUd9f7TgHSkZbVOwfCI/Nh0pJL5d0XgAAAAASUVORK5CYII=" /></span><span
-                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">&nbsp;
-            </span><span
-                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">D．</span><span
-                style="font-family:'Times New Roman';font-size:12pt;color:#000000;mso-style-textfill-fill-color:#000000"><img
-                    style="max-width:100%;" width="43" height="27"
-                    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAYCAYAAACIhL/AAAAAAXNSR0IArs4c6QAAAc5JREFUWEft1U+IjVEYx/HPyGYi0sRiRmpihbIaGyshUpqamo2NBSthYSGZsVKMhUlSiI2tmFBG/jTNgoVsJBuRheRPSrORlXgfnamr65733ubV3KZ76ta9neec53t+z+95bpc2X11tzqcDONcKdRQsUXAxTmAfluI8ztSemW8FA24ZXuEIBrAZz2ch5xMwcg/idoLZhBc4iEs5wJB9LT7gO+L3hvTKn3M1feZ85HyLXnxqBBg+CA8cwkWMFJJPYgu2Yvo/AUbeG5jAtWY8eBgX0qFzeI/PJXA9OJqJuYtn/9iP6gTc+rS3Ew/LPLgOb1KH/dVVGYCVuJLZv4r7mf1teIwpxPc/q1GTrCi66huO42yTZV2OvZnYp3hZctcpjNZyNQIcww58we506SJszCRZjTsZgNO4VQIY1jqA6Og6BbvRnz4BMoPLKXgXfhRwQ6lZmhQ1GxbTIcZM+DImRlTtCU6mZqkD3IMw8nXsxxq8wwPEXgzUmxUCrkoVCpBH6MOxYljfy3VxzKCPNQHRmeHFX+mFMQZi3FS1lqS59zVVrO7eVv5JogRVA5Y+dEEBDhc+HC+MvB2vS59eUUArClaUsrVrOoCt6VUf3fYK/gaZEUcZosoyrQAAAABJRU5ErkJggg==" /></span><span
-                style="font-family:'Times New Roman';font-size:12pt;color:#000000;mso-style-textfill-fill-color:#000000">，</span><span
-                style="font-family:'Times New Roman';font-size:12pt;color:#000000;mso-style-textfill-fill-color:#000000"><img
-                    style="max-width:100%;" width="54" height="27"
-                    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADMAAAAYCAYAAABXysXfAAAAAXNSR0IArs4c6QAAAdhJREFUWEft1s2rTVEYBvDfLQaKiImPUEwMyMfQiAwMuBhJjExRSkYGPos/wMfMTTFQyr3XR5gx8FGSYmBCKZIYkJhIWG+trdPpnt3e2+Duezq7Tp1617ve53mfdz1rDemjb6iPuBiQaauaA2UmUZlo/hYcxTHc6cQy1ZTZhWHsxjbcnMpkAvsKvKpKZjqW4z2+YxpW4SV+TeKIFaUD2+sqZObgFA7gIg7iFjZgK263gMwyvKlCpsC6D+eTpFdxLnfiUzp0fyqQmZsUPVyy7h4eVNin15LaZJbibdrtOE7ULDwfF0pyLmO0K74fh0pynmBPjtcmMxtfs/2drEkmcovCE6U+xvOuwFqsLKnzGXebkjmDTfiRRmJjR5E4U2vwCD97FF+EGyXAzuJSzQZ1Lq+kzAzEwiUJzDp8SP9H0kisTp3cjgARv3C49Yhu/v4PUE1TQ8Fw1p241uueiUtoPNlyzPReLMA7PMwqLc7nKOz5GXbkeFNQTfKiiUfyK+ApTqdJGSs26n4BLMyKFPF5yZ6/dCkwE9exuaK7NQHdKKfJcyacJ+w1Lq5WfXXJxCh+S5fofYQFf2wTmzpkgsgVvMCsPLtteBH862cdMm0SYUIsAzJtlaivlPkLiHpTGentI8AAAAAASUVORK5CYII=" /></span><span
-                style="font-family:'Times New Roman';font-size:10.5pt;color:#000000;mso-style-textfill-fill-color:#000000">&nbsp;</span>
-        </p>
-        `;
-            
-            insertHtml(window, undefined, html, function (res) {
-                console.log(res);
-            });
-        }
-        var selectElement = document.getElementById("pageType");
-        if (selectElement) {
-          var pageTypeOptions = [
-            {
-              value: 'exam_exercise',
-              label: '练习卷'
-            },
-            {
-              value: 'exam_week',
-              label: '测验卷' // 周考卷
-            },
-            {
-              value: 'teacher',
-              label: '老师卷'
-            },
-            {
-              value: 'answerSheet',
-              label: '答题卡'
-            }
-          ]
-          pageTypeOptions.forEach(e => {
-            var option = document.createElement("option");
-            if (e) {
-              option.text = e.label || '';
-              option.value = e.value || '';
-              selectElement.add(option);
-            }
-          })
-          selectElement.addEventListener('change', function() {
-            window.BiyueCustomData.page_type = selectElement.value;
-          });
-        }
     });
 
     function addBtnClickEvent(btnName, func) {
@@ -1326,24 +964,196 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
       btn.onclick = func
     }
 
+	// 正则表达式切题
+	function splitQuestion() {
+		biyueCallCommand(window, function () {
+
+			// Api.asc_EditSelectAll();
+			// var text = Api.asc_GetSelectedText();
+			// Api.asc_RemoveSelection();
+			var oDocument = Api.GetDocument();
+			var text_all = oDocument.GetRange().GetText({ Math: false, TableCellSeparator: "\u24D2", TableRowSeparator: "\u24E1" }) || "";
+			var text_plain = oDocument.GetRange().GetText({ Math: false, Numbering: false, TableCellSeparator: "\u24D2", TableRowSeparator: "\u24E1" });
+
+			return { text_all, text_plain };
+		}, false, false)
+		.then(function (result) {
+			// split with token
+			console.log('splitQuestion:', result)
+			var text_pos = CalcTextPos(result.text_all, result.text_plain);
+			var ranges = splitQuestion(result.text_all, text_pos);
+			createContentControl(ranges);
+		})
+		.then(() => processTableColumn(undefined) );
+	}
+	// 删除所有控制
+	function clearAllControls() {
+		window.Asc.plugin.executeMethod("GetAllContentControls");
+		window.Asc.plugin.onMethodReturn = function (controls) {
+			if (window.Asc.plugin.info.methodName == "GetAllContentControls") {
+				Asc.scope.controls = controls;
+				biyueCallCommand(window, function () {
+					var controls = Asc.scope.controls;
+
+					for (var i = 0; i < controls.length; i++) {
+						// set selection
+						var e = controls[i];
+						Api.asc_RemoveContentControlWrapper(e.InternalId);
+					}
+				}, false, false)
+				.then(() => console.log("删除所有控件完成"));
+			}
+		};
+	}
+	// 显示分数框
+	function showScoreContent() {
+		console.log("showScoreContent on button clicked");
+		var fun = function () {
+			var controls = Api.GetDocument().GetAllContentControls();
+			for (var i = 0; i < controls.length; i++) {
+				var control = controls[i];
+				var obj = ''
+				if (control && control.GetTag()) {
+					obj = control.GetTag() || ''
+					if (obj) {
+						try {
+							obj = JSON.parse(obj)
+						} catch (e) {
+							console.error('JSON解析失败', e)
+						}
+					}
+				}
+				if (obj && obj.ques_no <= 4) {
+					var oDocument = Api.GetDocument();
+					var oTableStyle = oDocument.CreateStyle("CustomTableStyle", "table");
+					var oTable = Api.CreateTable(5, 1);
+					// oTable.SetWidth("percent", 100);
+					oTable.SetStyle(oTableStyle);
+					oTable.SetWrappingStyle(false);
+					oTable.GetCell(0, 0).GetContent().GetElement(0).AddText("1")
+					oTable.GetCell(0, 0).SetWidth('twips', 283)
+					oTable.GetCell(0, 1).GetContent().GetElement(0).AddText("2")
+					oTable.GetCell(0, 1).SetWidth('twips', 283)
+					oTable.GetCell(0, 2).GetContent().GetElement(0).AddText("3")
+					oTable.GetCell(0, 2).SetWidth('twips', 283)
+					oTable.GetCell(0, 3).GetContent().GetElement(0).AddText("4")
+					oTable.GetCell(0, 3).SetWidth('twips', 283)
+					oTable.GetCell(0, 4).GetContent().GetElement(0).AddText("5")
+					oTable.GetCell(0, 4).SetWidth('twips', 283)
+					// oDocument.Push(oTable) // 添加到文档的底部
+
+					// 表格-高级设置 相关参数
+					var Props = {
+						CellSelect: true,
+						Locked: false,
+						PositionV: {
+							Align: 1,
+							RelativeFrom: 2,
+							UseAlign: true,
+							Value: 0
+						},
+						PositionH: {
+							Align: 4,
+							RelativeFrom: 0,
+							UseAlign: true,
+							Value: 0
+						},
+						TableDefaultMargins: {
+							Bottom: 0,
+							Left: 0,
+							Right: 0,
+							Top: 0
+						}
+					}
+					// Api.tblApply(Props)
+					oTable.Table.Set_Props(Props);
+					control.AddElement(oTable, 0) // 添加到控件的0的开始位置
+				}
+			}
+		}
+		window.Asc.plugin.callCommand(fun, false, true, undefined)
+	}
+	// 根据jsonpath切题
+	function onJsonPathSplit() {
+		// get all text 执行顺序为先进后出，下面的先执行                    
+		biyueCallCommand(window, function () {
+
+			// Api.asc_EditSelectAll();
+			// var text = Api.asc_GetSelectedText();
+			// Api.asc_RemoveSelection();
+			var oDocument = Api.GetDocument();
+			var text_all = oDocument.GetRange().GetText({ Math: false, TableCellSeparator: "\u24D2", TableRowSeparator: "\u24E1" }) || "";
+			var text_json = oDocument.ToJSON(true);
+
+			return { text_all, text_json };
+		}, false, false)
+		.then((result) => {
+				var ranges = newSplit(result.text_json);
+				console.log('splitQuestion:', ranges)
+				return createContentControl(ranges);})
+		.then(() => { console.log("1.处理第三级子题"); return checkSubQuestion(); })
+		.then(() => { console.log("2.处理需要分列的题目"); return processTableColumn(undefined); })
+		.then(() => { console.log("3.处理答题区域"); return checkAnswerRegion(); }) 
+		.then(() => { console.log("4.刷新控件");  return updateCustomControls(); });
+	}
+
+	function onNormalizeDoc() {
+		window.Asc.plugin.callCommand(function () {
+                
+			// Api.asc_EditSelectAll();
+			// var text = Api.asc_GetSelectedText();
+			// Api.asc_RemoveSelection();
+			var oDocument = Api.GetDocument();
+			var text_all = oDocument.GetRange().GetText({Math: false, TableCellSeparator: "\u24D2", TableRowSeparator:"\u24E1"}) || "";            
+			var text_json = oDocument.GetRange().ToJSON(true);
+			
+			return {text_all, text_json};
+		}, false, false, function (result) {
+			var ranges = normalizeDoc(result.text_json);
+			console.log('normal:', ranges)
+			execModify(ranges);
+		});
+	}
+
+	function onInsertAsHtml() {
+		var html = `<p
+            style="margin-top:0pt;margin-bottom:10pt;border:none;border-left:none;border-top:none;border-right:none;border-bottom:none;mso-border-between:none">
+            <span style="font-family:'Arial';font-size:11pt;color:#000000;mso-style-textfill-fill-color:#000000">Hello word</span>
+         </p>
+         <table>
+         <tr>
+            <td>1</td>
+            <td>2</td>
+            </tr>
+            <tr>
+            <td>3</td>
+            <td>4</td>
+            </tr>
+            </table>
+        `;
+
+		insertHtml(window, undefined, html, function (res) {
+			console.log(res);
+		});
+	}
+
     // 在editor面板的插件按钮被点击
     window.Asc.plugin.button = function (id, windowID) {
         console.log("on plugin button id=${id} ${windowID}", id, windowID);
         if (windowID) {
-            if (id == -1) {
-                window.Asc.plugin.executeMethod("CloseWindow", [windowID]);
+            if (id === -1) {
+                window.Asc.plugin.executeMethod('CloseWindow', [windowID])
             }
-            return;                
+            return
         }
-
-
-        if (id == -1) {            
-            StoreCustomData(function() {
-                console.log("store custom data done");                
+        if (id == -1) {
+            console.log('StoreCustomData', window.BiyueCustomData)
+            StoreCustomData(function () {
+                console.log("store custom data done");
                 this.executeCommand("close", '');
-            });            
+            });
             return;
-        } 
+        }
     };
 
     function showPosition(window, onGetPos) {
@@ -1361,7 +1171,7 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
             if (returnValue) {
                 activeQuesItem = returnValue || ''
                 Asc.scope.controlId = returnValue.InternalId;
-                window.Asc.plugin.callCommand(function () {
+                biyueCallCommand(window, function () {
                     // get logic document
                     // get control
                     // get bound rect
@@ -1370,7 +1180,8 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                     const isPageCoord = true;
                     var rect = Api.asc_GetContentControlBoundingRect(Asc.scope.controlId, isPageCoord);
                     return rect;
-                }, false, false, onGetPos);
+                }, false, false)
+                .then((rect) => onGetPos(rect));
             }
         });
     };
@@ -1384,7 +1195,7 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
         window.Asc.plugin.callCommand(function () {
             var prop = Api.asc_GetContentControlProperties();
             return prop.Tag;
-        }, false, false, function(tag) {
+        }, false, false, function (tag) {
             console.log("tag=>", tag);
         });
     };
@@ -1414,12 +1225,12 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
     }
 
     function showAllContent() {
-      Asc.scope.styleEnable = !Asc.scope.styleEnable;
-      window.Asc.plugin.callCommand(function () {
-        const styleEnable = Asc.scope.styleEnable;
-        // 设置控件的高亮颜色
-        Api.asc_SetGlobalContentControlShowHighlight(styleEnable, 255, 204, 204);
-      }, false, false, undefined);
+        Asc.scope.styleEnable = !Asc.scope.styleEnable;
+        window.Asc.plugin.callCommand(function () {
+            const styleEnable = Asc.scope.styleEnable;
+            // 设置控件的高亮颜色
+            Api.asc_SetGlobalContentControlShowHighlight(styleEnable, 255, 204, 204);
+        }, false, false, undefined);
     }
 
     function getSelection() {
@@ -1449,89 +1260,83 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
         // }, false, false, undefined);
 
         window.Asc.plugin.callCommand(function () {
-          var oDocument = Api.GetDocument();
-          var aSections = oDocument.GetSections();
-          var sClassType = aSections[0].GetClassType();
-          var oParagraph = oDocument.GetElement(0)
-          // var oRange = oDocument.GetRange(8, 11);
-          var oRange = oDocument.GetRangeBySelect()
-          // Api.asc_AddContentControl(1);
-          // Api.asc_RemoveSelection();
-          // oRange.SetBold(true);
-          if (!oRange) {
-            console.log("no range")
-            return
-          }
-          if (!oRange.Paragraphs) {
-            console.log("no paragraph")
-            return
-          }
-          if (oRange.Paragraphs.length === 0) {
-            console.log("no paragraph")
-            return
-          }
-          debugger
-          var hasContentControl = oRange.Paragraphs[0].GetParentContentControl()
-          var type = 1
-          if (hasContentControl) {
-            // sdt.Pr.Tag 存储题目相关信息
-            type = 2
-          }
-          console.log('oRange::', oRange.Paragraphs[0].GetParentContentControl())
-          console.log("aSections::",oDocument.GetRangeBySelect(), oDocument.GetRange())
-          let allText = oDocument.GetRange().Text
-          let selectText = oRange.Text
-          console.log('-------:', allText.indexOf(selectText))
-          return { type }
+            var oDocument = Api.GetDocument();
+            var aSections = oDocument.GetSections();
+            var sClassType = aSections[0].GetClassType();
+            var oParagraph = oDocument.GetElement(0)
+            // var oRange = oDocument.GetRange(8, 11);
+            var oRange = oDocument.GetRangeBySelect()
+			if (!oRange) {
+				console.log("no range")
+				return
+			  }
+			  if (!oRange.Paragraphs) {
+				console.log("no paragraph")
+				return
+			  }
+			  if (oRange.Paragraphs.length === 0) {
+				console.log("no paragraph")
+				return
+			  }
+            // Api.asc_AddContentControl(1);
+            // Api.asc_RemoveSelection();
+            // oRange.SetBold(true);
+            var hasContentControl = oRange.Paragraphs[0].GetParentContentControl()
+            var type = 1
+            if (hasContentControl) {
+                // sdt.Pr.Tag 存储题目相关信息
+                type = 2
+            }
+            console.log('oRange::', oRange.Paragraphs[0].GetParentContentControl())
+            console.log("aSections::", oDocument.GetRangeBySelect(), oDocument.GetRange())
+            let allText = oDocument.GetRange().Text
+            let selectText = oRange.Text
+            console.log('-------:', allText.indexOf(selectText))
+            return { type }
         }, false, false, function (obj) {
-          debugger
-          if (obj && obj.type === 2) {
-            window.Asc.plugin.executeMethod ("AddContentControl", [2]);
-            let obj = { regionType:"write", color:"#ffcccc" }
-            let Tag = JSON.stringify(obj)
-            setTag(window, Tag)
-          } else {
-            window.Asc.plugin.executeMethod ("AddContentControl", [1]);
-            let obj = { 'regionType': 'question', 'mode': 2, padding: [0, 0, 0.5, 0]}
-            let Tag = JSON.stringify(obj)
-            setTag(window, Tag)
-          }
-      });
+            if (obj && obj.type === 2) {
+                window.Asc.plugin.executeMethod("AddContentControl", [2]);
+            } else {
+                window.Asc.plugin.executeMethod("AddContentControl", [1]);
+                let obj = { 'regionType': 'question', 'mode': 2, padding: [0, 0, 0.5, 0] }
+                let Tag = JSON.stringify(obj)
+                setTag(window, Tag)
+            }
+        });
     }
 
-      // 获取当前控件的tag
+    // 获取当前控件的tag
     function getTag(window) {
         window.Asc.plugin.callCommand(function () {
-          var prop = Api.asc_GetContentControlProperties();
-          return prop.Tag;
-        }, false, false, function(tag) {
+            var prop = Api.asc_GetContentControlProperties();
+            return prop.Tag;
+        }, false, false, function (tag) {
             console.log("tag=>", tag);
         });
     };
 
-      // 设置当前控件的tag
+    // 设置当前控件的tag
     function setTag(window, tag) {
-          Asc.scope.tag = tag;
-          window.Asc.plugin.executeMethod("GetCurrentContentControl");
-          window.Asc.plugin.onMethodReturn = function (returnValue) {
-              if (window.Asc.plugin.info.methodName == "GetCurrentContentControl") {
-                  if (returnValue) {
-                      Asc.scope.controlId = returnValue;
-                      window.Asc.plugin.callCommand(function () {
-                          var controls = Api.GetDocument().GetAllContentControls();
-                          for (var i = 0; i < controls.length; i++) {
-                              var control = controls[i];
-                              console.log("control", control, Asc.scope.controlId)
-                              if (control.Sdt.GetId() === Asc.scope.controlId) {
-                                  control.SetTag(Asc.scope.tag);
-                                  break
-                              }
-                          }
-                      }, false, false, undefined);
+        Asc.scope.tag = tag;
+        window.Asc.plugin.executeMethod("GetCurrentContentControl");
+        window.Asc.plugin.onMethodReturn = function (returnValue) {
+            if (window.Asc.plugin.info.methodName == "GetCurrentContentControl") {
+                if (returnValue) {
+                    Asc.scope.controlId = returnValue;
+                    window.Asc.plugin.callCommand(function () {
+                        var controls = Api.GetDocument().GetAllContentControls();
+                        for (var i = 0; i < controls.length; i++) {
+                            var control = controls[i];
+                            console.log("control", control, Asc.scope.controlId)
+                            if (control.Sdt.GetId() === Asc.scope.controlId) {
+                                control.SetTag(Asc.scope.tag);
+                            }
+                        }
+                    }, false, false, undefined);
 
-                  }
-              }
-          };
+                }
+            }
+        };
     }
 
 
@@ -1548,19 +1353,18 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
         window.prevControl = control;
     }
 
-    window.Asc.plugin.event_onUndo = function(e) {
-      console.log('undo', e)
-    }
+	window.Asc.plugin.event_onUndo = function(e) {
+		console.log('undo', e)
+	}
 
-    window.Asc.plugin.event_onChangeCommentData = function(e) {
-      console.log('redo', e)
-    }
+	window.Asc.plugin.event_onChangeCommentData = function(e) {
+		console.log('redo', e)
+	}
 
-    window.Asc.plugin.event_onChangeContentControl = function (res) {
-      // onContentControlChange(res)
-    }
-
-    let DismissGroup = function() {
+	window.Asc.plugin.event_onChangeContentControl = function (res) {
+		// onContentControlChange(res)
+	}
+    let DismissGroup = function () {
         window.Asc.plugin.executeMethod("GetCurrentContentControlPr", [], function (obj) {
             if (obj === undefined || obj === null || obj.Tag === undefined || !obj.Tag.includes("group")) {
                 return;
@@ -1581,7 +1385,7 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                                 var tag = JSON.parse(e.Tag);
                                 if (tag.group === tagObj.group) {
                                     tag.group = undefined;
-                                    ots.push({Id: e.InternalId, tag: JSON.stringify(tag)});
+                                    ots.push({ Id: e.InternalId, tag: JSON.stringify(tag) });
                                 }
                             }
                             catch (e) {
@@ -1604,7 +1408,7 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
 
         window.Asc.plugin.callCommand(function () {
             var objTagPairList = Asc.scope.objTagPairList;
-            let findTag = function(sdt) {
+            let findTag = function (sdt) {
                 for (var i = 0; i < objTagPairList.length; i++) {
                     var objTagPair = objTagPairList[i];
                     if (objTagPair.InternalId !== undefined && objTagPair.InternalId === sdt.Id) {
@@ -1630,13 +1434,13 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
     };
 
 
-    let MakeGroup = function(prevControl, curControl) {
+    let MakeGroup = function (prevControl, curControl) {
         console.log("MakeGroup", prevControl, curControl);
         if (prevControl === undefined || curControl === undefined) {
             return;
         }
 
-        var prevTagObj =JSON.parse(prevControl.Tag || "{}") || {};
+        var prevTagObj = JSON.parse(prevControl.Tag || "{}") || {};
         var curTagObj = JSON.parse(curControl.Tag || "{}") || {};
 
         if (prevTagObj.group === undefined) {
@@ -1653,114 +1457,106 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
         var curTag = JSON.stringify(curTagObj);
 
         // set tag
-        setBatchTag(window, [{"InternalId": prevControl.InternalId, "tag": prevTag}, {"InternalId": curControl.InternalId, "tag": curTag}]);
+        setBatchTag(window, [{ "InternalId": prevControl.InternalId, "tag": prevTag }, { "InternalId": curControl.InternalId, "tag": curTag }]);
     };
-    let SettingDialog = function() {
-      // 题目设置信息窗口
-      let location  = window.location;
-      let start = location.pathname.lastIndexOf('/') + 1;
-      let file = location.pathname.substring(start);
+    let SettingDialog = function () {
+        // 题目设置信息窗口
+        let location = window.location;
+        let start = location.pathname.lastIndexOf('/') + 1;
+        let file = location.pathname.substring(start);
 
-      let variation = {
-        url : location.href.replace(file, 'settings.html'),
-        description : window.Asc.plugin.tr('题目设置'),
-        isVisual : true,
-				isModal : true,
-				isViewer : true,
-        buttons : [
-        {
-          'text': window.Asc.plugin.tr('确定'),
-          'primary': true
-        },
-        {
-          'text': window.Asc.plugin.tr('取消'),
-          'primary': false
-        }],
-        EditorsSupport : ["word"],
-        size : [ 592, 200 ]
-      };
+        let variation = {
+            url: location.href.replace(file, 'settings.html'),
+            description: window.Asc.plugin.tr('题目设置'),
+            isVisual: true,
+            isModal: true,
+            isViewer: true,
+            buttons: [
+                {
+                    'text': window.Asc.plugin.tr('确定'),
+                    'primary': true
+                },
+                {
+                    'text': window.Asc.plugin.tr('取消'),
+                    'primary': false
+                }],
+            EditorsSupport: ["word"],
+            size: [592, 200]
+        };
 
-      if (!settingsWindow) {
-        settingsWindow = new window.Asc.PluginWindow();
-        settingsWindow.attachEvent("onBiyueMessage", function(message) {
-          settingsWindow.command('onParams', activeQuesItem)
-        });
-        settingsWindow.attachEvent("getSettingsMessage", function(params) {
-          console.log('getSettingsMessage:', params)
-          let Tag = ''
-          if (params && params.activeQuesItem && params.form) {
-            let form = params.form || {}
-            let itemObj = JSON.parse(params.activeQuesItem.Tag) || {}
-            itemObj.score = form.score || 0
-            itemObj.mode = form.mode || 0
-            Tag = JSON.stringify(itemObj)
-          }
-        });
-      }
-    }
-    function testMessageHandler(modal, message) {
-        switch (message.type) {
-            case "BiyueMessage":
-                console.log("event onBiyueMessage:", message);
-                settingsWindow.command('onParams', window.BiyueCustomData)
-                break;
+        if (!settingsWindow) {
+            settingsWindow = new window.Asc.PluginWindow();
+            settingsWindow.attachEvent("onBiyueMessage", function (message) {
+                settingsWindow.command('onParams', activeQuesItem)
+            });
+            settingsWindow.attachEvent("getSettingsMessage", function (params) {
+                console.log('getSettingsMessage:', params)
+                let Tag = ''
+                if (params && params.activeQuesItem && params.form) {
+                    let form = params.form || {}
+                    let itemObj = JSON.parse(params.activeQuesItem.Tag) || {}
+                    itemObj.score = form.score || 0
+                    itemObj.mode = form.mode || 0
+                    Tag = JSON.stringify(itemObj)
+                }
 
+                settingsWindow.close();
+                settingsWindow = null
+                setTag(window, Tag)
+            })
         }
+        settingsWindow.show(variation);
     }
-    // window.Asc.plugin.event_onFocusContentControl = function (control) {
-    //   setupPostTask(window,         function(ctrlKey) {
-    //       if (true ===  ctrlKey && prevControl !== undefined && control !== undefined && control.InternalId != prevControl.InternalId) {
-    //           window.currControl = control;
-    //       } else {
-    //           window.prevControl = undefined;
-    //           window.currControl = undefined;
-    //       }
-    //   });
 
-    //   console.log("setup post task for focus content c");
 
-    //   window.Asc.plugin.callCommand(
-    //         function() {
-    //             return AscCommon.global_keyboardEvent.CtrlKey;
-    //         },
-    //         false,
-    //         true,
-    //         undefined        
-    //     );
-    // }
+    window.Asc.plugin.event_onFocusContentControl = function (control) {
+        biyueCallCommand(window,
+            function () {
+                return AscCommon.global_keyboardEvent.CtrlKey;                
+            },
+            false,
+            true)
+        .then((ctrlKey) => {
+                if (true === ctrlKey && prevControl !== undefined && control !== undefined && control.InternalId != prevControl.InternalId) {
+                    window.currControl = control;
+                } else {
+                    window.prevControl = undefined;
+                    window.currControl = undefined;
+                }
+            });
+    }
 
 
     window.Asc.plugin.event_onClick = function (isSelectionUse) {
-        // console.log("event click");
+        console.log("event click");
         showPosition(window,
-            function(data) {
+            function (data) {
                 onGetPos(data);
-                window.Asc.plugin.callCommand(function() {
+                window.Asc.plugin.callCommand(function () {
                     Api.GetDocument().Document.Recalculate(true);
                 },
-                false,
-                true);
+                    false,
+                    true);
 
             }
         );
+
     };
 
     // 将一行多题目的控件转为表格
     // oPr InternalId ID
-    // oPr Tag 标签
-    function processTableColumn(oPr) {
-        console.log("处理需要分列的题目")
+    // oPr Tag 标签    
+    function processTableColumn(oPr) {        
         // if oPr is not array 
-        if (oPr && oPr.length === undefined){
+        if (oPr && oPr.length === undefined) {
             if (oPr === undefined || oPr === null || oPr.Tag === undefined) {
                 return;
             }
             oPr = [oPr];
         }
-        // debugger
 
-        Asc.scope.controlPrs  = oPr;
-        window.Asc.plugin.callCommand(function () {
+        Asc.scope.controlPrs = oPr;
+        return biyueCallCommand(window, function () {
             function CalcTextPos(text_all, text_plain) {
                 text_plain = text_plain.replace(/[\r]/g, '');
                 var text_pos = new Array(text_all.length);
@@ -1776,11 +1572,11 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
 
                 return text_pos;
             }
-        
+
             var oPrs = Asc.scope.controlPrs;
-            var oDocument = Api.GetDocument();            
-            var oControls = oDocument.GetAllContentControls();                
-            if (oPrs !== undefined ) {
+            var oDocument = Api.GetDocument();
+            var oControls = oDocument.GetAllContentControls();
+            if (oPrs !== undefined) {
                 oControls = oControls.filter(function (control) {
                     for (var i = 0; i < oPrs.length; i++) {
                         if (control.Sdt.Id === oPrs[i].InternalId) {
@@ -1793,11 +1589,11 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
 
             if (oControls.length === 0) {
                 return;
-            }            
+            }
 
-            oControls.forEach(function (oControl, index) {            
-                
-                
+            oControls.forEach(function (oControl, index) {
+
+
 
                 // 不能有子节点
                 if (oControl.GetAllContentControls().length > 0) {
@@ -1806,8 +1602,8 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
 
                 var oPrInternalId = oControl.Sdt.GetId();
                 var oPrTag = oControl.GetTag();
-                var text = oControl.GetRange().GetText({Math:false})                
-                var text_plain  = oControl.GetRange().GetText({Math:false, Numbering: false});
+                var text = oControl.GetRange().GetText({ Math: false })
+                var text_plain = oControl.GetRange().GetText({ Math: false, Numbering: false });
                 var text_pos = CalcTextPos(text, text_plain);
 
                 text = text.replace(/[\uFF10-\uFF19]|．|（|）/g, function (c) {
@@ -1826,10 +1622,10 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                 var isInlinePatt = [
                     /(?<=^)(\d+\..*)([ ]+\d+\..*)+/g,
                     /(?<=^)(\(\d+\).*)([ ]+\(\d+\).*)+/g
-                ];        
-                
-                var inlineQuesPatt = /\(?\d+[\).].*?(?=(\d+\.)|(\(\d+\))|\r|$)/gs;                
-                
+                ];
+
+                var inlineQuesPatt = /\(?\d+[\).].*?(?=(\d+\.)|(\(\d+\))|\r|$)/gs;
+
                 var inlineArr;
                 for (var i = 0; i < isInlinePatt.length; i++) {
                     var inlineArr = text.match(isInlinePatt[i]);
@@ -1839,14 +1635,14 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                 }
                 if (inlineArr === null || inlineArr === undefined) {
                     return;
-                }                
+                }
 
 
-                var lines  = text.match(/\n/g);
+                var lines = text.match(/\n/g);
                 if (lines == null || lines.length <= 1) {
                     return;
                 }
-                
+
                 var quesTextArr = inlineArr[0].match(inlineQuesPatt);
                 if (quesTextArr === null || quesTextArr.length <= 1) {
                     return;
@@ -1856,7 +1652,7 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                 var quesLineNoArr = quesTextArr.map(function (item) {
                     return text.substr(0, text.indexOf(item)).split('\n').length - 1;
                 });
-                console.log("oControl", oControl); 
+                console.log("oControl", oControl);
 
                 // 共几行
                 var quesLineCountArr = []
@@ -1883,7 +1679,7 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                     if (index === 0) {
                         rows = 1;
                         cols = 1;
-                        quesTablePos.push({row: 0, col: 0, spaceLines: quesLineCountArr[index]});                       
+                        quesTablePos.push({ row: 0, col: 0, spaceLines: quesLineCountArr[index] });
                     } else {
                         if (item === quesLineNoArr[index - 1]) {
                             cols++;
@@ -1892,9 +1688,9 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                             }
                         } else {
                             rows++;
-                            cols=1;                            
+                            cols = 1;
                         }
-                        quesTablePos.push({row: rows - 1, col: cols - 1, spaceLines: quesLineCountArr[index]});                        
+                        quesTablePos.push({ row: rows - 1, col: cols - 1, spaceLines: quesLineCountArr[index] });
                     }
                 })
 
@@ -1907,12 +1703,12 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                 oTableCellPr.SetWidth("percent", 100 / max_cols);
                 oTable.SetStyle(oTableStyle);
 
-                // todo set table no border
+                // todo set table no border                    
 
-                // split text
-                var lastItem  = quesTextArr[quesTextArr.length - 1];
-                var maxPos = text_pos[text.length - 1]; 
-                
+                // split text                
+                var lastItem = quesTextArr[quesTextArr.length - 1];
+                var maxPos = text_pos[text.length - 1];
+
                 quesTextArr = quesTextArr.map(function (item) {
                     return item.replace(/[ ]+/g, ' ');
                 });
@@ -1921,9 +1717,9 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                     var tablePos = quesTablePos[index];
                     var oCell = oTable.GetCell(tablePos.row, tablePos.col);
                     var oContent = oControl.GetContent().GetContent(true)
-                    // add text to table cell
+                    // add text to table cell                    
 
-                    oContent.forEach(function(item, paraIndex) {
+                    oContent.forEach(function (item, paraIndex) {
                         oCell.GetContent().Push(item);
                     });
                     oCell.GetContent().RemoveElement(0);
@@ -1945,9 +1741,9 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
                 oControl.GetContent().RemoveAllElements();
                 oControl.GetContent().Push(oTable);
                 oControl.GetContent().RemoveElement(0);
-                
+
                 // loop table                
-                for (var i=0; i < quesTablePos.length; i++) {
+                for (var i = 0; i < quesTablePos.length; i++) {
                     var row = quesTablePos[i].row;
                     var col = quesTablePos[i].col;
                     var oCell = oTable.GetCell(row, col);
@@ -1960,7 +1756,7 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
 
                     if (endPos < maxPos) {
                         oCell.GetContent().GetRange(endPos, maxPos).Delete();
-                    }                        
+                    }
 
                     if (begPos > 1) {
                         oCell.GetContent().GetRange(0, begPos - 1).Delete();
@@ -1968,14 +1764,14 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
 
                     var range = oCell.GetContent().GetRange();
                     range.Select()
-                    var oResult = Api.asc_AddContentControl(1, {"Tag": oPrTag});
+                    var oResult = Api.asc_AddContentControl(1, { "Tag": oPrTag });
                     Api.asc_RemoveSelection();
-                }                
+                }
 
                 // remove root content control
-                Api.asc_RemoveContentControlWrapper(oPrInternalId);                            
+                Api.asc_RemoveContentControlWrapper(oPrInternalId);
             });
-        }, false, true, undefined);
+        }, false, true);
     }
 
     function toTableColumn(window) {
@@ -2074,30 +1870,30 @@ import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree
         window.Asc.plugin.callCommand(function () {
           return Api.DocInfo;
         }
-        , false, false, function (docInfo) {
-          console.log('docInfo', docInfo)
-          if (docInfo) {
-            let url = docInfo.CallbackUrl
-            const regex = /[?&]([^=#]+)=([^&#]*)/g
-            const params = {}
-            let match
-            while ((match = regex.exec(url))) {
-              params[decodeURIComponent(match[1])] = decodeURIComponent(match[2])
-            }
-            console.log('params', params)
-            setXToken(params.xtoken)
-            window.BiyueCustomData.xtoken = params.xtoken
-            window.BiyueCustomData.paper_uuid = params.id
-            if (!window.BiyueCustomData) {
-              window.BiyueCustomData.page_type = 'exam_exercise'
-            }
-            initPaperInfo().then((res2) => {
-              setExamTitle(docInfo.Title)
-              initTree()
-            })
-            return params
-          }
-        });
+            , false, false, function (docInfo) {
+                console.log("docInfo", docInfo);
+				if (docInfo) {
+					let url = docInfo.CallbackUrl
+					const regex = /[?&]([^=#]+)=([^&#]*)/g
+					const params = {}
+					let match
+					while ((match = regex.exec(url))) {
+					  params[decodeURIComponent(match[1])] = decodeURIComponent(match[2])
+					}
+					console.log('params', params)
+					setXToken(params.xtoken)
+					window.BiyueCustomData.xtoken = params.xtoken
+					window.BiyueCustomData.paper_uuid = params.id
+					if (!window.BiyueCustomData) {
+					  window.BiyueCustomData.page_type = 'exam_exercise'
+					}
+					initPaperInfo().then((res2) => {
+					  setExamTitle(docInfo.Title)
+					  initTree()
+					})
+					return params
+				  }
+            });
     }
 
     function showDialog(win, name, url, width, height) {
