@@ -206,6 +206,7 @@
             <div id="exam_title"></div>
             <div id="grade_data">年级信息年级信息年级信息年级信息</div>
           </div>
+		  <div class="btn-text-default" id="getQuesType">向后端请求题型</div>
           <div class="ques-title font-16">
             <div id="questree">题目列表(点击刷新)</div>
             <div class="clicked" id="reSplitQuestionBtn">重新切题</div>
@@ -214,24 +215,12 @@
           </div>
         </div>
         <div id="panelQues">
-          <!-- <div class="label font-14">题型</div>
-          <select id="questionType"></select>
-          <div class="label font-14">占比</div>
-          <select id="proportion"></select>
-          <div class="label font-14">权重/分数</div>
-          <div class="input-box">
-            <input id="ques_weight" type="text" autocomplete="off">
-          </div>
-          <div id="askWeightBox">
-            <div class="label font-14">每空权重/分数</div>
-            <div class="asks"></div>
-          </div> -->
         </div>
         <div id="panelFeature"></div>
         <div class="button_wrapper">
           <div class="button_wrapper">            
-            <div id="getDocInfo" class="btn-text-default">获取文档信息</div>
-            <div id="splitQuestionBtn" class="btn-text-default">切题</div>        
+            <!-- <div id="getDocInfo" class="btn-text-default">获取文档信息</div> -->
+            <!-- <div id="splitQuestionBtn" class="btn-text-default">切题</div>         -->
             <div id="clearControl" class="btn-text-default">删除所有控件 </div>
             <div id="markAnswerRegionBtn" class="btn-text-default">标记答题区</div>
             <div id="checkAnswerRegionBtn" class="btn-text-default">识别答题区</div>
@@ -246,7 +235,7 @@
             <div id="insertDrawingObject" class="btn-text-default">插入绘图对象</div>
             <div id="toTableColumn" class="btn-text-default">一行多题处理</div>
             <div id="normalizeDoc" class="btn-text-default">规范化文档</div>
-            <div id="jsonPathSplitQuestionBtn" class="btn-text-default">JSONPath切题</div>
+            <!-- <div id="jsonPathSplitQuestionBtn" class="btn-text-default">JSONPath切题</div> -->
             <div id="selectionToHtml" class="btn-text-default">将Selection输出为html</div>
             <div id="selectionToXml" class="btn-text-default">将Selection输出为xml</div>
             <div id="insertAsHtml" class="btn-text-default">将文本以html格式插入当前位置</div>
@@ -269,34 +258,6 @@
                     <td>h</td><td id="h-value" class="pos-value"></td>
                 </tr>
             </table>
-        </div>
-        <div id="clearStruct" class="btn-text-default">清空试卷结构</div>
-        <div id="getStruct" class="btn-text-default">更新试卷结构</div>
-        <div id="getQuestionPositionsBtn" class="btn-text-default">获取区域位置</div>
-        <div style="text-align: center;">
-          <span style="margin-right: 4px;">试卷类型</span>
-          <select id="pageType" style="min-width: 80px;"></select>
-        </div>
-        <div id="scoreSet" class="btn-text-default">分数设置</div>
-        <div id="examImport" class="btn-text-default">使用试卷</div>
-        <div id="savePositons" class="btn-text-default">上传位置信息</div>
-        <div id="showTree" class="btn-text-default">显示树形结构</div>
-        <div id="questionList"></div>
-        <div id="showPositionsDialog" class="btn-text-default">功能区管理</div>
-        <div class="row">
-          <span>打分区：</span>
-          <div id="add-score" class="btn-sub">普通顶部</div>
-          <div id="change-mode" class="btn-sub">切换模式</div>
-          <div id="change-layout" class="btn-sub">切换布局</div>
-          <div id="delete" class="btn-sub">删除</div>
-        </div>
-        <div class="row">
-          <span>识别框：</span>
-          <div id="identify_index_show" class="btn-sub">显示</div>
-          <div id="identify_index_hide" class="btn-sub">隐藏</div>
-          <div id="identify_delete" class="btn-sub">全部删除</div>
-          <div id="showWriteIdentifyIndex" class="btn-sub">小问的显示</div>
-          <div id="hideWriteIdentifyIndex" class="btn-sub">小问的隐藏</div>
         </div>
       </div>
     </div>

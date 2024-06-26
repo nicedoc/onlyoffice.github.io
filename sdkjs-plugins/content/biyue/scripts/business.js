@@ -13,25 +13,36 @@ import {
 } from './api/paper.js'
 import { getBase64, map_base64 } from '../resources/list_base64.js'
 import { biyueCallCommand } from './command.js'
+import { initExamTree } from './ExamTree.js'
 let paper_info = {} // 从后端返回的试卷信息
 let select_ques_ids = []
 const MM2EMU = 36000 // 1mm = 36000EMU
 // 根据paper_uuid获取试卷信息
 function initPaperInfo() {
 	return new Promise((resolve, reject) => {
+		console.log('initPaperInfo ========= ', window.BiyueCustomData.paper_uuid)
 		paperOnlineInfo(window.BiyueCustomData.paper_uuid)
 			.then((res) => {
 				paper_info = res.data
-				window.BiyueCustomData.exam_title = paper_info.paper.title
+				var paper = paper_info.paper
+				if (paper) {
+					$('#school').text(
+						paper.school_id == 0 ? '内部练习册#0' : paper.school_name || ''
+					)
+					$('#exam_title').text(`《${paper.title}》`)
+					window.BiyueCustomData.exam_title = paper.title
+					$('#grade_data').text(paper.phase_full_name)
+				}
 				console.log('试卷信息')
 				console.log(paper_info)
 				updateControls().then((res) => {
-					resolve('iniPaperInfo ok updateControls ok')
+					resolve(res)
 				})
 			})
 			.catch((res) => {
+				console.log('catch', res)
 				updateControls().then((res) => {
-					resolve('iniPaperInfo ok getinfo fail updateControls ok')
+					resolve(res)
 				})
 			})
 	})
@@ -138,7 +149,7 @@ function onQuesTreeClick(e) {
 	}
 	updateQuesStyle(newlist)
 	Asc.scope.click_ids = newlist
-	window.Asc.plugin.callCommand(
+	biyueCallCommand(window, 
 		function () {
 			var ids = Asc.scope.click_ids
 			var oDocument = Api.GetDocument()
@@ -161,9 +172,7 @@ function onQuesTreeClick(e) {
 			firstRange.Select()
 		},
 		false,
-		false,
-		undefined
-	)
+		false)
 }
 // 更新题目选中样式
 function updateQuesStyle(idList) {
@@ -180,145 +189,18 @@ function updateQuesStyle(idList) {
 }
 
 function updateControls() {
-	return new Promise((resolve, reject) => {
-		Asc.scope.paper_info = paper_info
-		setupPostTask(window, function (res) {
-			console.log('control_list', res)
-			window.BiyueCustomData.control_list = res
-			updateQeusTree()
-			console.log('+++++updateControls callback ')
-			resolve()
-		})
-		window.Asc.plugin.callCommand(
-			function () {
-				console.log('+++++++++++++++++++++++')
-				let paperinfo = Asc.scope.paper_info
-				var oDocument = Api.GetDocument()
-				let controls = oDocument.GetAllContentControls() || []
-				let ques_no = 1
-				let struct_index = 0
-				var control_list = []
-				controls.forEach((control) => {
-					var rect = Api.asc_GetContentControlBoundingRect(
-						control.Sdt.GetId(),
-						true
-					)
-					let tagInfo = JSON.parse(control.GetTag())
-					var text = control.GetRange().GetText()
-					let obj = {
-						control_id: control.Sdt.GetId(),
-						regionType: tagInfo.regionType,
-						text: text,
-					}
-					if (tagInfo.regionType == 'struct') {
-						++struct_index
-						const pattern = /^[一二三四五六七八九十0-9]+.*?(?=[：:])/
-						const result = pattern.exec(text)
-						obj.name = result ? result[0] : null
-						if (
-							paperinfo.ques_struct_list &&
-							struct_index - 1 < paperinfo.ques_struct_list.length
-						) {
-							obj.struct_id =
-								paperinfo.ques_struct_list[struct_index - 1].struct_id
-						}
-					} else if (tagInfo.regionType == 'question') {
-						obj.ques_no = ques_no
-						const regex = /^([^.．、]*)/
-						const match = obj.text.match(regex)
-						obj.ques_name = match ? match[1] : ''
-						if (
-							paperinfo.info &&
-							paperinfo.info.questions &&
-							ques_no <= paperinfo.info.questions.length
-						) {
-							obj.score = paperinfo.info.questions[ques_no - 1].score
-							obj.ques_uuid = paperinfo.info.questions[ques_no - 1].uuid
-							obj.ask_controls = []
-							if (
-								paperinfo.ques_struct_list &&
-								struct_index - 1 < paperinfo.ques_struct_list.length
-							) {
-								obj.struct_id =
-									paperinfo.ques_struct_list[struct_index - 1].struct_id
-							}
-						}
-						ques_no++
-					} else if (
-						tagInfo.regionType == 'write' ||
-						tagInfo.regionType == 'sub-question'
-					) {
-						let parentContentControl = control.GetParentContentControl()
-						if (!parentContentControl) {
-							console.log('parentContentControl is null')
-						}
-						if (parentContentControl) {
-							obj.parent_control_id = parentContentControl.Sdt.GetId()
-						}
-						function getParentQues(id) {
-							for (var i = 0, imax = control_list.length; i < imax; ++i) {
-								if (control_list[i].control_id == id) {
-									if (control_list[i].regionType == 'question') {
-										return control_list[i]
-									} else {
-										return getParentQues(control_list[i].parent_control_id)
-									}
-								}
-							}
-							return null
-						}
-						var parentQues = getParentQues(obj.parent_control_id)
-						if (parentQues) {
-							obj.ques_uuid = parentQues.ques_uuid
-							obj.parent_ques_control_id = parentQues.control_id
-							if (tagInfo.regionType == 'write') {
-								if (!parentQues.ask_controls) {
-									parentQues.ask_controls = []
-								}
-								parentQues.ask_controls.push({
-									control_id: control.Sdt.GetId(),
-									v: 0,
-								})
-							} else {
-								if (!parentQues.sub_questions) {
-									parentQues.sub_questions = []
-								}
-								parentQues.sub_questions.push({
-									control_id: control.Sdt.GetId(),
-								})
-							}
-						}
-					} else if (tagInfo.regionType == 'feature') {
-						obj.zone_type = tagInfo.zone_type
-						obj.v = tagInfo.v
-					}
-					control_list.push(obj)
-				})
-				console.log(' updatecontrol           control_list', control_list)
-				return control_list
-			},
-			false,
-			false,
-			undefined
-		)
-	})
-}
-
-// 更新customData的control_list
-function updateCustomControls() {
 	Asc.scope.paper_info = paper_info
 	return biyueCallCommand(
 		window,
 		function () {
+			console.log('+++++++++++++++++++++++')
 			let paperinfo = Asc.scope.paper_info
 			var oDocument = Api.GetDocument()
 			let controls = oDocument.GetAllContentControls() || []
 			let ques_no = 1
 			let struct_index = 0
 			var control_list = []
-			console.log('===============1')
 			controls.forEach((control) => {
-				console.log('===============2', control)
 				var rect = Api.asc_GetContentControlBoundingRect(
 					control.Sdt.GetId(),
 					true
@@ -408,7 +290,123 @@ function updateCustomControls() {
 							})
 						}
 					}
-					console.log('===============3')
+				} else if (tagInfo.regionType == 'feature') {
+					obj.zone_type = tagInfo.zone_type
+					obj.v = tagInfo.v
+				}
+				control_list.push(obj)
+			})
+			console.log(' updatecontrol           control_list', control_list)
+			return control_list
+		},
+		false,
+		false
+	)
+}
+
+// 更新customData的control_list
+function updateCustomControls() {
+	Asc.scope.paper_info = paper_info
+	return biyueCallCommand(
+		window,
+		function () {
+			console.log('+++++++++++++++++++++++')
+			let paperinfo = Asc.scope.paper_info
+			var oDocument = Api.GetDocument()
+			let controls = oDocument.GetAllContentControls() || []
+			let ques_no = 1
+			let struct_index = 0
+			var control_list = []
+			controls.forEach((control) => {
+				// var rect = Api.asc_GetContentControlBoundingRect(
+				// 	control.Sdt.GetId(),
+				// 	true
+				// )
+				let tagInfo = JSON.parse(control.GetTag())
+				var text = control.GetRange().GetText()
+				let obj = {
+					control_id: control.Sdt.GetId(),
+					regionType: tagInfo.regionType,
+					text: text,
+				}
+				if (tagInfo.regionType == 'struct') {
+					++struct_index
+					const pattern = /^[一二三四五六七八九十0-9]+.*?(?=[：:])/
+					const result = pattern.exec(text)
+					obj.name = result ? result[0] : null
+					if (
+						paperinfo.ques_struct_list &&
+						struct_index - 1 < paperinfo.ques_struct_list.length
+					) {
+						obj.struct_id =
+							paperinfo.ques_struct_list[struct_index - 1].struct_id
+					}
+				} else if (tagInfo.regionType == 'question') {
+					obj.ques_no = ques_no
+					const regex = /^([^.．、]*)/
+					const match = obj.text.match(regex)
+					obj.ques_name = match ? match[1] : ''
+					if (
+						paperinfo.info &&
+						paperinfo.info.questions &&
+						ques_no <= paperinfo.info.questions.length
+					) {
+						obj.score = paperinfo.info.questions[ques_no - 1].score
+						obj.ques_uuid = paperinfo.info.questions[ques_no - 1].uuid
+						obj.ask_controls = []
+						if (
+							paperinfo.ques_struct_list &&
+							struct_index - 1 < paperinfo.ques_struct_list.length
+						) {
+							obj.struct_id =
+								paperinfo.ques_struct_list[struct_index - 1].struct_id
+						}
+					}
+					ques_no++
+				} else if (
+					tagInfo.regionType == 'write' ||
+					tagInfo.regionType == 'sub-question'
+				) {
+					let parentContentControl = control.GetParentContentControl()
+					if (!parentContentControl) {
+						console.log('parentContentControl is null')
+					}
+					if (parentContentControl) {
+						obj.parent_control_id = parentContentControl.Sdt.GetId()
+					}
+					function getParentQues(id) {
+						for (var i = 0, imax = control_list.length; i < imax; ++i) {
+							if (control_list[i].control_id == id) {
+								if (control_list[i].regionType == 'question') {
+									return control_list[i]
+								} else {
+									return getParentQues(control_list[i].parent_control_id)
+								}
+							}
+						}
+						return null
+					}
+					var parentQues = getParentQues(obj.parent_control_id)
+					if (parentQues) {
+						obj.ques_uuid = parentQues.ques_uuid
+						obj.parent_ques_control_id = parentQues.control_id
+						if (tagInfo.regionType == 'write') {
+							if (!parentQues.ask_controls) {
+								parentQues.ask_controls = []
+							}
+							parentQues.ask_controls.push({
+								control_id: control.Sdt.GetId(),
+								v: 0,
+							})
+						} else {
+							if (!parentQues.sub_questions) {
+								parentQues.sub_questions = []
+							}
+							parentQues.sub_questions.push({
+								control_id: control.Sdt.GetId(),
+							})
+						}
+					}
 				} else if (tagInfo.regionType == 'feature') {
 					obj.zone_type = tagInfo.zone_type
 					obj.v = tagInfo.v
@@ -422,7 +420,7 @@ function updateCustomControls() {
 		false
 	).then((res) => {
 		window.BiyueCustomData.control_list = res
-		updateQeusTree()
+		initExamTree()
 	})
 }
 
@@ -441,11 +439,6 @@ async function clearStruct() {
 	}
 	console.log('清除结构成功')
 	initPaperInfo()
-}
-
-let setupPostTask = function (window, task) {
-	window.postTask = window.postTask || []
-	window.postTask.push(task)
 }
 
 // 获取试卷结构
@@ -528,7 +521,7 @@ async function getQuesUuid() {
 // 保存位置信息
 function savePositons() {
 	Asc.scope.customData = window.BiyueCustomData
-	window.Asc.plugin.callCommand(
+	biyueCallCommand(window,
 		function () {
 			var oDocument = Api.GetDocument()
 			let controls = oDocument.GetAllContentControls()
@@ -563,8 +556,7 @@ function savePositons() {
 			return list
 		},
 		false,
-		false,
-		function (list) {
+		false).then (list => {
 			var customData = window.BiyueCustomData
 			var questionPositions = {}
 			customData.control_list.forEach((e) => {
@@ -633,8 +625,7 @@ function savePositons() {
 				.catch((error) => {
 					console.log(error)
 				})
-		}
-	)
+		})
 }
 
 function showQuestionTree() {
@@ -805,7 +796,7 @@ function updateQuestionScore() {
 }
 
 function addDrawingObj() {
-	window.Asc.plugin.callCommand(
+	biyueCallCommand(window,
 		function () {
 			var oDocument = Api.GetDocument()
 			var oFill = Api.CreateNoFill()
@@ -834,14 +825,12 @@ function addDrawingObj() {
 			oDocument.AddDrawingToPage(oDrawing, 0, 1070821, 963295)
 		},
 		false,
-		true,
-		undefined
-	)
+		true)
 }
 
 // 测试在文档尾部加入表格，显示打分区
 function testAddTable() {
-	window.Asc.plugin.callCommand(
+	biyueCallCommand(window,
 		function () {
 			var oDocument = Api.GetDocument()
 			var oTableStyle = oDocument.CreateStyle('CustomTableStyle', 'table')
@@ -871,14 +860,12 @@ function testAddTable() {
 			oDocument.Push(oTable)
 		},
 		false,
-		true,
-		undefined
-	)
+		true)
 }
 
 function addQuesScore(score = 10) {
 	Asc.scope.score = score
-	window.Asc.plugin.callCommand(
+	biyueCallCommand(window, 
 		function () {
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls()
@@ -924,9 +911,9 @@ function addQuesScore(score = 10) {
 			}
 		},
 		false,
-		true,
-		function (res) {}
-	)
+		true).then(res => {
+
+		})
 }
 // 添加分数框
 function addScoreField(score, mode, layout, posall) {
@@ -938,11 +925,9 @@ function addScoreField(score, mode, layout, posall) {
 		scores: getScores(score, mode),
 		posall: posall,
 	}
-	setupPostTask(window, function (r) {
-		console.log('callcack addScoreField', r)
-	})
 	console.log('setup post task for addScoreField')
-	window.Asc.plugin.callCommand(
+	biyueCallCommand(
+		window,
 		function () {
 			var control_list = Asc.scope.control_list
 			var controls = Api.GetDocument().GetAllContentControls()
@@ -1182,28 +1167,27 @@ function addScoreField(score, mode, layout, posall) {
 			return res
 		},
 		false,
-		true,
-		function (res) {
-			console.log(res)
-			if (res && res.add) {
-				for (var i = 0; i < window.BiyueCustomData.control_list.length; ++i) {
-					if (
-						window.BiyueCustomData.control_list[i].control_id == res.control_id
-					) {
-						window.BiyueCustomData.control_list[i].score = score
-						window.BiyueCustomData.control_list[i].score_options =
-							res.score_options
-						break
-					}
+		true
+	).then((res) => {
+		console.log(res)
+		if (res && res.add) {
+			for (var i = 0; i < window.BiyueCustomData.control_list.length; ++i) {
+				if (
+					window.BiyueCustomData.control_list[i].control_id == res.control_id
+				) {
+					window.BiyueCustomData.control_list[i].score = score
+					window.BiyueCustomData.control_list[i].score_options =
+						res.score_options
+					break
 				}
 			}
 		}
-	)
+	})
 }
 
 function selectQues(treeInfo, index) {
 	Asc.scope.temp_sel_index = index
-	window.Asc.plugin.callCommand(
+	biyueCallCommand(window, 
 		function () {
 			var res = Api.GetDocument().GetAllContentControls()
 			var index = Asc.scope.temp_sel_index
@@ -1212,9 +1196,7 @@ function selectQues(treeInfo, index) {
 			}
 		},
 		false,
-		false,
-		undefined
-	)
+		false)
 }
 
 function drawPosition2(data) {
@@ -1240,7 +1222,7 @@ function drawPosition2(data) {
 		Asc.scope.control_id = null
 	}
 	// testAddTable()
-	window.Asc.plugin.callCommand(
+	biyueCallCommand(window, 
 		function () {
 			var posdata = Asc.scope.pos
 			var MM2EMU = Asc.scope.MM2EMU
@@ -1324,25 +1306,20 @@ function drawPosition2(data) {
 			}
 		},
 		false,
-		true,
-		function (res) {
+		true).then((res) => {
 			if (res && res.add) {
 				window.BiyueCustomData.control_list.push(res.control)
 			}
-		}
-	)
+		})
 }
 
 function drawPositions(list) {
 	Asc.scope.positions_list = list
 	Asc.scope.pos_list = window.BiyueCustomData.pos_list
-	setupPostTask(window, function (res) {
-		console.log('drawPositions result:', res)
-		window.BiyueCustomData.pos_list = res
-	})
 	Asc.scope.MM2EMU = MM2EMU
 	Asc.scope.map_base64 = map_base64
-	window.Asc.plugin.callCommand(
+	biyueCallCommand(
+		window,
 		function () {
 			var positions_list = Asc.scope.positions_list || []
 			var pos_list = Asc.scope.pos_list || []
@@ -1448,9 +1425,11 @@ function drawPositions(list) {
 			return pos_list
 		},
 		false,
-		true,
-		undefined
-	)
+		true
+	).then((res) => {
+		console.log('drawPositions result:', res)
+		window.BiyueCustomData.pos_list = res
+	})
 }
 
 function drawPosition(data) {
@@ -1470,7 +1449,7 @@ function drawPosition(data) {
 		Asc.scope.drawing_id = null
 	}
 	// testAddTable()
-	window.Asc.plugin.callCommand(
+	biyueCallCommand(window, 
 		function () {
 			var posdata = Asc.scope.pos
 			console.log('posdata', posdata)
@@ -1538,8 +1517,7 @@ function drawPosition(data) {
 			}
 		},
 		false,
-		true,
-		function (res) {
+		true).then((res) => {
 			console.log(res)
 			if (res && res.add) {
 				if (!window.BiyueCustomData.pos_list) {
@@ -1551,8 +1529,7 @@ function drawPosition(data) {
 					v: res.v,
 				})
 			}
-		}
-	)
+		})
 }
 
 function getScores(score, mode) {
@@ -1629,30 +1606,8 @@ function handleScoreField4(options) {
 	Asc.scope.control_list = control_list
 	Asc.scope.list = list
 	Asc.scope.map_base64 = map_base64
-	setupPostTask(window, function (res) {
-		console.log('callback for handleScoreField', res)
-		if (!res) {
-			return
-		}
-		res.forEach((e) => {
-			if (e.options && e.options.control_index != undefined) {
-				control_list[e.options.control_index].score = e.options.score
-				if (e.options.score) {
-					control_list[e.options.control_index].score_options = {
-						paragraph_id: e.paragraph_id,
-						run_id: e.run_id,
-						drawing_id: e.drawing_id,
-						table_id: e.table_id,
-						mode: e.options.mode,
-						layout: e.options.layout,
-					}
-				} else {
-					control_list[e.options.control_index].score_options = null
-				}
-			}
-		})
-	})
-	window.Asc.plugin.callCommand(
+	biyueCallCommand(
+		window,
 		function () {
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls()
@@ -1867,9 +1822,30 @@ function handleScoreField4(options) {
 			return resList
 		},
 		false,
-		true,
-		undefined
-	)
+		true
+	).then((res) => {
+		console.log('callback for handleScoreField', res)
+		if (!res) {
+			return
+		}
+		res.forEach((e) => {
+			if (e.options && e.options.control_index != undefined) {
+				control_list[e.options.control_index].score = e.options.score
+				if (e.options.score) {
+					control_list[e.options.control_index].score_options = {
+						paragraph_id: e.paragraph_id,
+						run_id: e.run_id,
+						drawing_id: e.drawing_id,
+						table_id: e.table_id,
+						mode: e.options.mode,
+						layout: e.options.layout,
+					}
+				} else {
+					control_list[e.options.control_index].score_options = null
+				}
+			}
+		})
+	})
 }
 // 打分区用添加表格单元格距离实现
 function handleScoreField(options) {
@@ -1914,30 +1890,8 @@ function handleScoreField(options) {
 	}
 	Asc.scope.control_list = control_list
 	Asc.scope.list = list
-	setupPostTask(window, function (res) {
-		console.log('callback for handleScoreField', res)
-		if (!res) {
-			return
-		}
-		res.forEach((e) => {
-			if (e.options && e.options.control_index != undefined) {
-				control_list[e.options.control_index].score = e.options.score
-				if (e.options.score) {
-					control_list[e.options.control_index].score_options = {
-						paragraph_id: e.paragraph_id,
-						run_id: e.run_id,
-						drawing_id: e.drawing_id,
-						table_id: e.table_id,
-						mode: e.options.mode,
-						layout: e.options.layout,
-					}
-				} else {
-					control_list[e.options.control_index].score_options = null
-				}
-			}
-		})
-	})
-	window.Asc.plugin.callCommand(
+	biyueCallCommand(
+		window,
 		function () {
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls()
@@ -2254,9 +2208,30 @@ function handleScoreField(options) {
 			return resList
 		},
 		false,
-		true,
-		undefined
-	)
+		true
+	).then((res) => {
+		console.log('callback for handleScoreField', res)
+		if (!res) {
+			return
+		}
+		res.forEach((e) => {
+			if (e.options && e.options.control_index != undefined) {
+				control_list[e.options.control_index].score = e.options.score
+				if (e.options.score) {
+					control_list[e.options.control_index].score_options = {
+						paragraph_id: e.paragraph_id,
+						run_id: e.run_id,
+						drawing_id: e.drawing_id,
+						table_id: e.table_id,
+						mode: e.options.mode,
+						layout: e.options.layout,
+					}
+				} else {
+					control_list[e.options.control_index].score_options = null
+				}
+			}
+		})
+	})
 }
 // 打分区用添加表格单元格分割实现
 function handleScoreField2(options) {
@@ -2301,30 +2276,8 @@ function handleScoreField2(options) {
 	}
 	Asc.scope.control_list = control_list
 	Asc.scope.list = list
-	setupPostTask(window, function (res) {
-		console.log('callback for handleScoreField', res)
-		if (!res) {
-			return
-		}
-		res.forEach((e) => {
-			if (e.options && e.options.control_index != undefined) {
-				control_list[e.options.control_index].score = e.options.score
-				if (e.options.score) {
-					control_list[e.options.control_index].score_options = {
-						paragraph_id: e.paragraph_id,
-						run_id: e.run_id,
-						drawing_id: e.drawing_id,
-						table_id: e.table_id,
-						mode: e.options.mode,
-						layout: e.options.layout,
-					}
-				} else {
-					control_list[e.options.control_index].score_options = null
-				}
-			}
-		})
-	})
-	window.Asc.plugin.callCommand(
+	biyueCallCommand(
+		window,
 		function () {
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls()
@@ -2703,16 +2656,37 @@ function handleScoreField2(options) {
 			return resList
 		},
 		false,
-		true,
-		undefined
-	)
+		true
+	).then((res) => {
+		console.log('callback for handleScoreField', res)
+		if (!res) {
+			return
+		}
+		res.forEach((e) => {
+			if (e.options && e.options.control_index != undefined) {
+				control_list[e.options.control_index].score = e.options.score
+				if (e.options.score) {
+					control_list[e.options.control_index].score_options = {
+						paragraph_id: e.paragraph_id,
+						run_id: e.run_id,
+						drawing_id: e.drawing_id,
+						table_id: e.table_id,
+						mode: e.options.mode,
+						layout: e.options.layout,
+					}
+				} else {
+					control_list[e.options.control_index].score_options = null
+				}
+			}
+		})
+	})
 }
 
 function addImage() {
 	// toggleWeight()
 	// return
 	Asc.scope.map_base64 = map_base64
-	window.Asc.plugin.callCommand(
+	biyueCallCommand(window, 
 		function () {
 			var oDocument = Api.GetDocument()
 			let controls = oDocument.GetAllContentControls()
@@ -2736,15 +2710,12 @@ function addImage() {
 			}
 		},
 		false,
-		true,
-		function (res) {}
-	)
+		true)
 }
 // 添加批改区域
 function addMarkField() {
-	getPos()
-	return
-	window.Asc.plugin.callCommand(
+	// getPos()
+	biyueCallCommand(window,
 		function () {
 			var oDocument = Api.GetDocument()
 			let controls = oDocument.GetAllContentControls()
@@ -2776,18 +2747,14 @@ function addMarkField() {
 			}
 		},
 		false,
-		true,
-		function (res) {}
-	)
+		true)
 }
 // 显示小问序号
 function showAskIndex() {
 	var control_list = window.BiyueCustomData.control_list
 	Asc.scope.control_list = control_list
-	setupPostTask(window, function (res) {
-		console.log('result of showAskIndex:', res)
-	})
-	window.Asc.plugin.callCommand(
+	biyueCallCommand(
+		window,
 		function () {
 			var control_list = Asc.scope.control_list
 			var oDocument = Api.GetDocument()
@@ -2800,15 +2767,16 @@ function showAskIndex() {
 			}
 		},
 		false,
-		true,
-		undefined
-	)
+		true
+	).then((res) => {
+		console.log('result of showAskIndex:', res)
+	})
 }
 
 // 切换权重显示
 function toggleWeight() {
 	Asc.scope.control_list = window.BiyueCustomData.control_list
-	window.Asc.plugin.callCommand(
+	biyueCallCommand(window,
 		function () {
 			var control_list = Asc.scope.control_list
 			var oDocument = Api.GetDocument()
@@ -2941,16 +2909,14 @@ function toggleWeight() {
 			return control_list
 		},
 		false,
-		true,
-		function (res) {
+		true).then((res) => {
 			window.BiyueCustomData.control_list = res
-		}
-	)
+		})
 }
 
 function getPos() {
 	Asc.scope.control_list = window.BiyueCustomData.control_list
-	window.Asc.plugin.callCommand(
+	biyueCallCommand(window, 
 		function () {
 			var control_list = Asc.scope.control_list
 			console.log('control_list', control_list)
@@ -2983,9 +2949,7 @@ function getPos() {
 			}
 		},
 		false,
-		false,
-		function (res) {}
-	)
+		false)
 }
 
 function handleContentControlChange(params) {
@@ -3006,7 +2970,7 @@ function handleContentControlChange(params) {
 		}
 	}
 	Asc.scope.params = params
-	window.Asc.plugin.callCommand(
+	biyueCallCommand(window,
 		function () {
 			var controldata = Asc.scope.find_controldata
 			var params = Asc.scope.params
@@ -3028,47 +2992,13 @@ function handleContentControlChange(params) {
 			}
 		},
 		false,
-		true,
-		undefined
-	)
+		true)
 }
 // 添加或删除标识
 function handleIdentifyBox(add) {
-	setupPostTask(window, function (res) {
-		console.log('handleIdentifyBox result', res)
-		if (!res.code) {
-			return
-		}
-		var control_list = window.BiyueCustomData.control_list
-		var control = control_list.find((e) => {
-			return e.control_id == res.control_id
-		})
-		if (!control) {
-			return
-		}
-		if (add) {
-			if (!control.identify_list) {
-				control.identify_list = []
-			}
-			control.identify_list.push({
-				add_pos: res.add_pos,
-				run_id: res.run_id,
-				paragraph_id: res.paragraph_id,
-				drawing_id: res.drawing_id,
-			})
-		} else if (res.remove_ids && res.remove_ids.length > 0) {
-			for (var i = 0; i < res.remove_ids.length; ++i) {
-				var index = control.identify_list.findIndex((e) => {
-					return e.drawing_id == res.remove_ids[i]
-				})
-				if (index >= 0) {
-					control.identify_list.splice(index, 1)
-				}
-			}
-		}
-	})
 	Asc.scope.add = add
-	window.Asc.plugin.callCommand(
+	biyueCallCommand(
+		window,
 		function () {
 			var oDocument = Api.GetDocument()
 			var curPosInfo = oDocument.Document.GetContentPosition()
@@ -3192,15 +3122,46 @@ function handleIdentifyBox(add) {
 			return res
 		},
 		false,
-		true,
-		undefined
-	)
+		true
+	).then((res) => {
+		console.log('handleIdentifyBox result', res)
+		if (!res.code) {
+			return
+		}
+		var control_list = window.BiyueCustomData.control_list
+		var control = control_list.find((e) => {
+			return e.control_id == res.control_id
+		})
+		if (!control) {
+			return
+		}
+		if (add) {
+			if (!control.identify_list) {
+				control.identify_list = []
+			}
+			control.identify_list.push({
+				add_pos: res.add_pos,
+				run_id: res.run_id,
+				paragraph_id: res.paragraph_id,
+				drawing_id: res.drawing_id,
+			})
+		} else if (res.remove_ids && res.remove_ids.length > 0) {
+			for (var i = 0; i < res.remove_ids.length; ++i) {
+				var index = control.identify_list.findIndex((e) => {
+					return e.drawing_id == res.remove_ids[i]
+				})
+				if (index >= 0) {
+					control.identify_list.splice(index, 1)
+				}
+			}
+		}
+	})
 }
 
 function showIdentifyIndex(show) {
 	Asc.scope.show = show
 	Asc.scope.control_list = window.BiyueCustomData.control_list
-	window.Asc.plugin.callCommand(
+	biyueCallCommand(window,
 		function () {
 			var show = Asc.scope.show
 			var oDocument = Api.GetDocument()
@@ -3272,9 +3233,7 @@ function showIdentifyIndex(show) {
 			}
 		},
 		false,
-		true,
-		undefined
-	)
+		true)
 }
 
 function removeAllIdentify() {
@@ -3284,7 +3243,7 @@ function removeAllIdentify() {
 			control.identify_list = []
 		}
 	})
-	window.Asc.plugin.callCommand(
+	biyueCallCommand(window,
 		function () {
 			var oDocument = Api.GetDocument()
 			var drawingObjs = oDocument.GetAllDrawingObjects()
@@ -3306,26 +3265,13 @@ function removeAllIdentify() {
 			}
 		},
 		false,
-		true,
-		undefined
-	)
+		true)
 }
 
 function showWriteIdentifyIndex(show) {
 	Asc.scope.show = show
-	setupPostTask(window, function (res) {
-		console.log('showWriteIdentifyIndex result:', res)
-		if (!res) {
-			return
-		}
-		var control_list = window.BiyueCustomData.control_list
-		control_list.forEach((control) => {
-			if (control.regionType == 'write') {
-				control.identify_list = res[control.control_id] || null
-			}
-		})
-	})
-	window.Asc.plugin.callCommand(
+	biyueCallCommand(
+		window,
 		function () {
 			var show = Asc.scope.show
 			var oDocument = Api.GetDocument()
@@ -3449,29 +3395,27 @@ function showWriteIdentifyIndex(show) {
 			return list
 		},
 		false,
-		true,
-		undefined
-	)
+		true
+	).then((res) => {
+		console.log('showWriteIdentifyIndex result:', res)
+		if (!res) {
+			return
+		}
+		var control_list = window.BiyueCustomData.control_list
+		control_list.forEach((control) => {
+			if (control.regionType == 'write') {
+				control.identify_list = res[control.control_id] || null
+			}
+		})
+	})
 }
 
 function deletePositions(list) {
 	Asc.scope.pos_delete_list = list
 	var pos_list = window.BiyueCustomData.pos_list
 	Asc.scope.pos_list = pos_list
-	setupPostTask(window, function (res) {
-		console.log('deletePositions result:', res)
-		if (res) {
-			res.forEach((e) => {
-				var index = pos_list.findIndex((pos) => {
-					return pos.zone_type == e.zone_type && pos.v == e.v
-				})
-				if (index >= 0) {
-					pos_list.splice(index, 1)
-				}
-			})
-		}
-	})
-	window.Asc.plugin.callCommand(
+	biyueCallCommand(
+		window,
 		function () {
 			var delete_list = Asc.scope.pos_delete_list || []
 			var pos_list = Asc.scope.pos_list || []
@@ -3497,9 +3441,137 @@ function deletePositions(list) {
 			return delete_list
 		},
 		false,
-		true,
-		undefined
-	)
+		true
+	).then((res) => {
+		console.log('deletePositions result:', res)
+		if (res) {
+			res.forEach((e) => {
+				var index = pos_list.findIndex((pos) => {
+					return pos.zone_type == e.zone_type && pos.v == e.v
+				})
+				if (index >= 0) {
+					pos_list.splice(index, 1)
+				}
+			})
+		}
+	})
+}
+
+// 批量设置题型
+function batchChangeQuesType(type) {
+	biyueCallCommand(
+		window,
+		function () {
+			var oDocument = Api.GetDocument()
+			var control_list = oDocument.GetAllContentControls()
+			var ques_id_list = []
+			control_list.forEach((e) => {
+				if (
+					e.Sdt &&
+					e.Sdt.Content &&
+					e.Sdt.Content.Selection &&
+					e.Sdt.Content.Selection.Use
+				) {
+					var tag = JSON.parse(e.GetTag())
+					if (tag && tag.regionType == 'question') {
+						ques_id_list.push(e.Sdt.GetId())
+					}
+				}
+			})
+			return {
+				code: 1,
+				list: ques_id_list,
+			}
+		},
+		false,
+		false
+	).then((res) => {
+		console.log('the result of batchChangeQuesType', res)
+		if (!res || !res.code) {
+			return
+		}
+		var control_list = window.BiyueCustomData.control_list || []
+		control_list.forEach((e) => {
+			if (e.regionType == 'question' && res.list.indexOf(e.control_id) >= 0) {
+				e.ques_type = type
+			}
+		})
+		// 需要同步更新单题详情
+		if (window.tab_select == 'tabQues') {
+			document.dispatchEvent(
+				new CustomEvent('updateQuesData', {
+					detail: {
+						list: res.list,
+						field: 'ques_type',
+						value: type,
+					},
+				})
+			)
+		}
+	})
+}
+// 批量设置占比
+function batchChangeProportion(type) {
+	// todo..
+}
+// 批量设置互动
+function batchChangeInteraction(type) {}
+// 分栏
+function setSectionColumn(num) {
+	Asc.scope.column_num = num
+	biyueCallCommand(window,
+		function () {
+			var column_num = Asc.scope.column_num
+			var oDocument = Api.GetDocument()
+			var Document = oDocument.Document
+			var nContentPos = Document.CurPos.ContentPos // 当前光标位置
+			var oElement = Document.Content[nContentPos]
+			var sections = oDocument.GetSections()
+			var Pages = Document.Pages
+			if (oElement.GetType() == 1) {
+				// 是段落
+				var pagesPos = oElement.CurPos.PagesPos // 当前页数
+				// 根据页数获取
+				var page = Pages[pagesPos]
+				var beginPos = page.Pos
+				var EndPos = page.EndPos
+				var pageFirstPos = Document.GetDocumentPositionByXY(pagesPos, 0, 0)
+				if (page.Sections) {
+					var prePage = pagesPos > 0 ? Pages[pagesPos - 1] : null
+					var nextPage =
+						pagesPos < Pages.length - 1 ? Pages[pagesPos + 1] : null
+					var firstIndex = page.Sections[0].Index
+					var lastIndex = page.Sections[page.Sections.length - 1].Index
+					var containPre =
+						prePage &&
+						prePage.Sections &&
+						prePage.Sections[prePage.Sections.length - 1].Index == firstIndex
+					var containNext =
+						nextPage &&
+						nextPage.Sections &&
+						nextPage.Sections[0].Index == lastIndex
+					var section1 = null
+					if (containPre) {
+						// 页面起始的section包含了上一页，需要将起始位置的段落拆分，插入新的section
+						var beginEl = Document.Content[beginPos]
+						Document.MoveCursorToNearestPos(
+							Document.Get_NearestPos(pagesPos, 0, 0)
+						)
+						Document.Add_SectionBreak(0)
+						var curSectPr = Document.GetCurrentSectionPr()
+						curSectPr.Set_Columns_EqualWidth(true)
+						curSectPr.Set_Columns_Num(column_num)
+						curSectPr.Set_Columns_Space((25.4 / 72 / 20) * 200)
+						curSectPr.Set_Columns_Sep(true)
+					}
+					if (containNext) {
+						// 页面结束的section包含了下一页
+					}
+				}
+			}
+		},
+		false,
+		true)
 }
 
 export {
@@ -3513,8 +3585,8 @@ export {
 	updateQuestionScore,
 	testAddTable,
 	drawPosition,
-	addQuesScore,
 	addScoreField,
+	addQuesScore,
 	addImage,
 	addMarkField,
 	handleContentControlChange,
@@ -3525,4 +3597,8 @@ export {
 	showWriteIdentifyIndex,
 	drawPositions,
 	deletePositions,
+	setSectionColumn,
+	batchChangeInteraction,
+	batchChangeProportion,
+	batchChangeQuesType,
 }

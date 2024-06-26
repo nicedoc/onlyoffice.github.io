@@ -2,12 +2,12 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
 import { getToken, setXToken } from './auth.js'
 import { toXml, downloadAs } from "./convert.js";
 import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStruct, savePositons, showQuestionTree, updateQuestionScore, drawPositions, addQuesScore, addScoreField, handleScoreField, handleIdentifyBox, showIdentifyIndex, removeAllIdentify, showWriteIdentifyIndex,
-  addImage, addMarkField, handleContentControlChange, deletePositions } from './business.js'
+  addImage, addMarkField, handleContentControlChange, deletePositions, setSectionColumn, batchChangeInteraction, batchChangeProportion, batchChangeQuesType } from './business.js'
 import { showQuesData, initListener } from './panelQuestionDetial.js'
 import { initFeature } from './panelFeature.js'
 import { handleHeader } from "./featureManager.js";
-import { initTree, refreshExamTree, updateTreeRenderWhenClick } from "./ExamTree.js";
 import { biyueCallCommand, dispatchCommandResult } from "./command.js";
+import { initExamTree, refreshExamTree, updateTreeRenderWhenClick, updateRangeControlType, reqGetQuestType } from "./ExamTree.js";
 
 (function (window, undefined) {
     var styleEnable = false;
@@ -625,7 +625,7 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
         var funcName = strs[0];
         switch(funcName) {
           case 'updateControlType':
-            updateControlType(strs[1])
+			updateRangeControlType(strs[1])
             break
           case 'batchChangeQuesType':
             batchChangeQuesType(strs[1])
@@ -684,7 +684,7 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
     };
 
     window.Asc.plugin.onCommandCallback = function (result) {
-        //console.log("onCommandCallback", result);
+        console.log("onCommandCallback", result);
         dispatchCommandResult(window, result);
     };
 
@@ -934,6 +934,11 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
 			});
 		})
 		addBtnClickEvent('insertAsHtml', onInsertAsHtml)
+		addBtnClickEvent('downloadAsPdf', function () {
+            downloadAs(window, "JPG", function (pdf) {
+                console.log(pdf);
+            } );
+		})
 
 
 		// 上面为测试按钮
@@ -951,9 +956,8 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
         })
         initListener()
         changeTabPanel('tabList')
-        addBtnClickEvent('questree', function() {
-          refreshExamTree()
-        })
+		addBtnClickEvent('getQuesType', reqGetQuestType)
+        addBtnClickEvent('questree', refreshExamTree)
     });
 
     function addBtnClickEvent(btnName, func) {
@@ -1357,9 +1361,10 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
 		console.log('undo', e)
 	}
 
-	window.Asc.plugin.event_onChangeCommentData = function(e) {
-		console.log('redo', e)
-	}
+    window.Asc.plugin.event_onChangeContentControl = function (res) {
+		console.log('event_onChangeContentControl', res)
+    //   onContentControlChange(res)
+    }
 
 	window.Asc.plugin.event_onChangeContentControl = function (res) {
 		// onContentControlChange(res)
@@ -1590,13 +1595,9 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
             if (oControls.length === 0) {
                 return;
             }
-
-            oControls.forEach(function (oControl, index) {
-
-
-
+            oControls.forEach(function (oControl, index) {            
                 // 不能有子节点
-                if (oControl.GetAllContentControls().length > 0) {
+                if (oControl.GetAllContentControls && oControl.GetAllContentControls().length > 0) {
                     return;
                 }
 
@@ -1870,30 +1871,43 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
         window.Asc.plugin.callCommand(function () {
           return Api.DocInfo;
         }
-            , false, false, function (docInfo) {
-                console.log("docInfo", docInfo);
-				if (docInfo) {
-					let url = docInfo.CallbackUrl
-					const regex = /[?&]([^=#]+)=([^&#]*)/g
-					const params = {}
-					let match
-					while ((match = regex.exec(url))) {
-					  params[decodeURIComponent(match[1])] = decodeURIComponent(match[2])
-					}
-					console.log('params', params)
-					setXToken(params.xtoken)
-					window.BiyueCustomData.xtoken = params.xtoken
-					window.BiyueCustomData.paper_uuid = params.id
-					if (!window.BiyueCustomData) {
-					  window.BiyueCustomData.page_type = 'exam_exercise'
-					}
-					initPaperInfo().then((res2) => {
-					  setExamTitle(docInfo.Title)
-					  initTree()
+        , false, false, function (docInfo) {
+          console.log('docInfo', docInfo)
+          if (docInfo) {
+            let url = docInfo.CallbackUrl
+            const regex = /[?&]([^=#]+)=([^&#]*)/g
+            const params = {}
+            let match
+            while ((match = regex.exec(url))) {
+              params[decodeURIComponent(match[1])] = decodeURIComponent(match[2])
+            }
+            console.log('params', params)
+            setXToken(params.xtoken)
+            window.BiyueCustomData.xtoken = params.xtoken
+            window.BiyueCustomData.paper_uuid = params.id
+            initPaperInfo().then((res2) => {
+              console.log('initPaperInfo', res2)
+			  window.BiyueCustomData.control_list = res2
+              // setExamTitle(docInfo.Title)
+			  initExamTree().then(() => {
+				if (window.BiyueCustomData && window.BiyueCustomData.node_list) {
+					var find = window.BiyueCustomData.node_list.find(e => {
+						return e.regionType == 'question' || e.regionType == 'struct'
 					})
-					return params
+					// 无切题信息，进行切题
+					if (!find) {
+						reSplitQustion()
+					} else {
+						console.log('========== find node', find)
+					}
+				  } else {
+					console.log('not node list', window.BiyueCustomData)
 				  }
-            });
+			  })
+            })
+            return params
+          }
+        });
     }
 
     function showDialog(win, name, url, width, height) {
@@ -1941,166 +1955,6 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
         handleContentControlChange(res)
       }, 500)
     }
-
-    function updateControlType(typeName) {
-      Asc.scope.typename = typeName
-      window.Asc.plugin.callCommand(function() {
-        var typeName = Asc.scope.typename
-        var oDocument = Api.GetDocument()
-        var oRange = oDocument.GetRangeBySelect()
-        if (!oRange) {
-          console.log('no range')
-          return
-        }
-        if (!oRange.Paragraphs) {
-          console.log("no paragraph")
-          return
-        }
-        if (oRange.Paragraphs.length === 0) {
-          console.log("no paragraph")
-          return
-        }
-        function GetPosData(Pos) {
-          var data = {}
-          for (var i = Pos.length - 1; i >= 0; --i) {
-            if (Pos[i].Class.GetType) {
-              var type = Pos[i].Class.GetType()
-              if (type == 1) {
-                data.index_paragraph = i
-                return data
-              } else if (type == 39) {
-                data.index_run = i
-              }
-            }
-          }
-          return data
-        }
-        var StartData = GetPosData(oRange.StartPos)
-        var EndData = GetPosData(oRange.EndPos)
-        var inParagraphStart = false
-        var inParagraphEnd = false
-        if (StartData.index_paragraph >= 0 && StartData.index_run >= 0) {
-          if (oRange.StartPos[StartData.index_paragraph].Position == 0 && oRange.StartPos[StartData.index_run].Position == 0) {
-            inParagraphStart = true
-          }
-        }
-        if (EndData.index_paragraph >= 0 && EndData.index_run >= 0) {
-          if (oRange.EndPos[EndData.index_paragraph].Position >= oRange.EndPos[EndData.index_paragraph].Class.Content.length - 1 &&
-            oRange.EndPos[EndData.index_run].Position >= oRange.EndPos[EndData.index_run].Class.Content.length - 1) {
-            inParagraphEnd = true
-          }
-        }
-        if (typeName == 'struct' || typeName == 'question') {
-          if (!inParagraphStart || !inParagraphEnd) {
-            return {
-              code: 0,
-              message: "请选中整个段落再设置"
-            }
-          }
-        }
-        var type = 1
-        var Tag = null
-        if (typeName == 'examtitle') {
-          type = 0
-          oRange.SetBold(true)
-          return {
-            code: 1,
-            type: type,
-            typeName: typeName,
-            text: oRange.GetText()
-          }
-        } else {
-          if (typeName == 'struct') {
-            Tag = {"regionType":"struct","mode":1,"column":1}
-          } else if (typeName == 'question') {
-            Tag = { 'regionType': 'question', 'mode': 2, padding: [0, 0, 0.5, 0]}
-          } else if (typeName == 'write') {
-            if (inParagraphStart && inParagraphEnd) {
-              type = 1
-              Tag = { regionType:"write", 'mode': 5 }
-            } else {
-              type = 2
-              Tag = { regionType:"write", 'mode': 3 }
-            }
-          } else if (typeName == 'sub-question') {
-            Tag = { regionType:"sub-question", 'mode': 3 }
-          }
-          var controlsInRange = []
-          var parentControls = []
-          oRange.Paragraphs.forEach(paragraph => {
-            var controls = paragraph.GetAllContentControls()
-            if (controls) {
-              controls.forEach(controlItem => {
-                if (controlItem.Sdt.Selection && controlItem.Sdt.Selection.Use) {
-                  var tag1 = JSON.parse(controlItem.GetTag())
-                  if (tag1 && tag1.regionType == typeName) {
-                    controlsInRange.push(controlItem)
-                  }
-                }
-              })
-            }
-            var pControl = paragraph.GetParentContentControl()
-            if (pControl) {
-              var tag2 = JSON.parse(pControl.GetTag())
-              if (tag2 && tag2.regionType == typeName) {
-                if (controlsInRange.findIndex(e => {
-                  return e.Sdt.GetId() == pControl.Sdt.GetId()
-                }) == -1) {
-                  controlsInRange.push(pControl)
-                }
-              }
-            }
-          })
-          
-
-          console.log('controlsInRange', controlsInRange)
-          if (controlsInRange.length > 0) {
-            if (confirm("该区域已存在相同类型区域，是否要删除覆盖?") == true) {
-              controlsInRange.forEach(controlItem => {
-                Api.asc_RemoveContentControlWrapper(controlItem.Sdt.GetId());
-              })
-              oRange.Select()
-            } else {
-              return {
-                code: 2
-              }
-            }
-          }
-        }
-        return {
-          code: 1,
-          type: type,
-          Tag: Tag
-        }
-      }, false, true, function (res) {
-        console.log('updateControlType result:', res)
-        handleSetType(res)
-      })
-    }
-
-    function handleSetType(res) {
-      if (!res) {
-        return
-      }
-      if (res.code == 0) {
-        alert(res.message)
-        return
-      }
-      if (res.code == 1) {
-        if (res.typeName == 'examtitle' && res.text) {
-          setExamTitle(res.text)
-        } else if (res.type && res.Tag) {
-          // window.Asc.plugin.callCommand(function() {
-          //   var oDocument = Api.GetDocument();
-          //   var oRange = oDocument.GetRangeBySelect()
-          //   console.log('handleSetType', oRange)
-          // }, false, false, undefined)
-          window.Asc.plugin.executeMethod ("AddContentControl", [res.type]);
-          let Tag = JSON.stringify(res.Tag)
-          setTag(window, Tag)
-        }
-      }
-    }
     
     function setExamTitle(title) {
       var element = document.getElementById('exam_title')
@@ -2109,29 +1963,35 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
       }
       element.innerHTML = `《${title.replace(/.docx/g, '')}》`
       window.BiyueCustomData.exam_title = title
-      handleHeader('update', title)
+      // handleHeader('update', title)
     }
     // 重新切题
     function reSplitQustion() {
-      setupPostTask(window, updateCustomControls)
-      setupPostTask(window, checkAnswerRegion);
-      setupPostTask(window, function() { processTableColumn(undefined) });
-      setupPostTask(window, checkSubQuestion);
-      window.Asc.plugin.callCommand(function () {
-        var oDocument = Api.GetDocument();
-        var controls = oDocument.GetAllContentControls();
-        controls.forEach(e => {
-          Api.asc_RemoveContentControlWrapper(e.Sdt.GetId)
-        })
-        var text_all = oDocument.GetRange().GetText({Math: false, TableCellSeparator: "\u24D2", TableRowSeparator:"\u24E1"}) || "";
-        var text_json = oDocument.ToJSON(true);
-
-        return {text_all, text_json};
-      }, false, false, function(result) {
-        var ranges = newSplit(result.text_json);                
-        console.log('splitQuestion:', ranges)
-        createContentControl(ranges);
-      })
+		biyueCallCommand(window, function() {
+			var oDocument = Api.GetDocument();
+			var controls = oDocument.GetAllContentControls();
+			// 先删除所有control
+			console.log('删除所有control')
+			controls.forEach(e => {
+			  Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
+			})
+			var text_all = oDocument.GetRange().GetText({Math: false, TableCellSeparator: "\u24D2", TableRowSeparator:"\u24E1"}) || "";
+			var text_json = oDocument.ToJSON(true);
+	
+			return {text_all, text_json};
+		}, false, false).then(result => {
+			var ranges = newSplit(result.text_json);                
+			console.log('splitQuestion:', ranges)
+			createContentControl(ranges);
+		}).then(() => {
+			return checkSubQuestion()
+		}).then(() => {
+			return processTableColumn(undefined)
+		}).then(() => {
+			return checkAnswerRegion()
+		}).then(() => {
+			return updateCustomControls()
+		})
     }
 
     function changeTab(e) {
@@ -2169,96 +2029,6 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
         showQuesData()
       }
     }
-    // 批量设置题型
-    function batchChangeQuesType(type) {
-      setupPostTask(window, function(res) {
-        console.log('the result of batchChangeQuesType', res)
-        if (!res || !res.code) {
-          return
-        }
-        var control_list = window.BiyueCustomData.control_list || []
-        control_list.forEach(e => {
-          if (e.regionType == 'question' && res.list.indexOf(e.control_id) >= 0 ) {
-            e.ques_type = type
-          }
-        })
-        // 需要同步更新单题详情
-        if (window.tab_select == 'tabQues') {
-          document.dispatchEvent(new CustomEvent('updateQuesData', { detail: {
-            list: res.list,
-            field: 'ques_type',
-            value: type
-          }}))
-        }
-      })
-      window.Asc.plugin.callCommand(function() {
-        var oDocument = Api.GetDocument();
-        var control_list = oDocument.GetAllContentControls()
-        var ques_id_list = []
-        control_list.forEach(e => {
-          if (e.Sdt && e.Sdt.Content && e.Sdt.Content.Selection && e.Sdt.Content.Selection.Use) {
-            var tag = JSON.parse(e.GetTag())
-            if (tag && tag.regionType == 'question') {
-              ques_id_list.push(e.Sdt.GetId())
-            }
-          }
-        })
-        return {
-          code: 1,
-          list: ques_id_list
-        }
-      }, false, false, undefined)
-    }
-    // 批量设置占比
-    function batchChangeProportion(type) {
-      // todo..
-    }
-    // 批量设置互动
-    function batchChangeInteraction(type) {
-
-    }
-    // 分栏
-    function setSectionColumn(num) {
-      Asc.scope.column_num = num
-      window.Asc.plugin.callCommand(function() {
-        var column_num = Asc.scope.column_num
-        var oDocument = Api.GetDocument();
-        var Document = oDocument.Document
-        var nContentPos = Document.CurPos.ContentPos; // 当前光标位置
-        var oElement = Document.Content[nContentPos];
-        var sections = oDocument.GetSections()
-        var Pages = Document.Pages
-        if (oElement.GetType() == 1) { // 是段落
-          var pagesPos = oElement.CurPos.PagesPos // 当前页数
-          // 根据页数获取
-          var page = Pages[pagesPos]
-          var beginPos = page.Pos
-          var EndPos = page.EndPos
-          var pageFirstPos = Document.GetDocumentPositionByXY(pagesPos, 0, 0)
-          if (page.Sections) {
-            var prePage = pagesPos > 0 ? Pages[pagesPos - 1] : null
-            var nextPage = pagesPos < Pages.length - 1 ? Pages[pagesPos + 1] : null
-            var firstIndex = page.Sections[0].Index
-            var lastIndex = page.Sections[page.Sections.length - 1].Index
-            var containPre = prePage && prePage.Sections && prePage.Sections[prePage.Sections.length - 1].Index == firstIndex
-            var containNext = nextPage && nextPage.Sections && nextPage.Sections[0].Index == lastIndex
-            var section1 = null
-            if (containPre) { // 页面起始的section包含了上一页，需要将起始位置的段落拆分，插入新的section
-              var beginEl = Document.Content[beginPos]
-              Document.MoveCursorToNearestPos(Document.Get_NearestPos(pagesPos, 0, 0))
-              Document.Add_SectionBreak(0)
-              var curSectPr = Document.GetCurrentSectionPr()
-              curSectPr.Set_Columns_EqualWidth(true);
-              curSectPr.Set_Columns_Num(column_num);
-              curSectPr.Set_Columns_Space(25.4 / 72 / 20 * 200)
-              curSectPr.Set_Columns_Sep(true)
-            }
-            if (containNext) { // 页面结束的section包含了下一页
-
-            }
-          }
-        }
-      }, false, true, undefined)
-    }
+    
 })(window, undefined);
 

@@ -159,3 +159,7 @@
 #treeRoot {
   position: relative;
 }
+
+.untyped {
+  color: #aaa;
+}
