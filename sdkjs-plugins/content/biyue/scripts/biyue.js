@@ -884,7 +884,7 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
           }
         }
         // 切题
-		addBtnClickEvent('splitQuestionBtn', splitQuestion)
+		addBtnClickEvent('splitQuestionBtn', onSplitQuestion)
 		addBtnClickEvent('clearControl', clearAllControls)
 		addBtnClickEvent('checkAnswerRegionBtn', checkAnswerRegion)
 		addBtnClickEvent('toggleStyleBtn', toggleControlStyle)
@@ -965,7 +965,7 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
     }
 
 	// 正则表达式切题
-	function splitQuestion() {
+	function onSplitQuestion() {
 		biyueCallCommand(window, function () {
 
 			// Api.asc_EditSelectAll();
