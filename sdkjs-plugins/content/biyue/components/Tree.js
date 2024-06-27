@@ -40,9 +40,6 @@ class Tree {
 
 	init(list) {
 		console.log('tree init', list)
-		if (list.length > 30) {
-			debugger
-		}
 		this.updatePos(list, [])
 		this.list = list
 		this.buildTree(list, this.rootElement)
