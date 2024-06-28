@@ -5,7 +5,7 @@ import { biyueCallCommand } from './command.js'
 
 var g_exam_tree = null
 var g_horizontal_list = []
-
+var upload_control_list = []
 function initExamTree() {
 	return new Promise((resolve, reject) => {
 		console.log('[initExamTree]')
@@ -1273,6 +1273,7 @@ function reqGetQuestionType() {
 
 function reqUploadTree() {
 	Asc.scope.horlist = g_horizontal_list
+	upload_control_list = []
 	biyueCallCommand(window, function() {
 		var horlist = Asc.scope.horlist
 		var target_list = []
@@ -1324,9 +1325,12 @@ function reqUploadTree() {
 		console.log('[reqUploadTree] target_list', target_list)
 		return target_list
 	}, false, false).then( control_list => {
+		upload_control_list = control_list
 		console.log('[reqUploadTree] control_list', control_list)
-		generateTreeForUpload(control_list)
-		getXml(control_list[0].id)
+		if (control_list) {
+			getXml(control_list, control_list[0].id)
+		}
+		
 	})
 }
 
@@ -1354,8 +1358,8 @@ function getXml(controlId) {
                 }
                 // 这里可以遍历 ZIP 文件中的所有文件  
                 file.async("text").then(function(content) {  
-                    // 假设文件是文本文件，打印文件内容和相对路径  
-                    console.log(relativePath, content);  
+                    // 假设文件是文本文件，打印文件内容和相对路径
+					handleXml(controlId, content)
                 });  
             });  
         })  
@@ -1364,6 +1368,20 @@ function getXml(controlId) {
         });
         
     });
+}
+
+function handleXml(controlId, content) {
+	var index = upload_control_list.findIndex(e => {
+		return e.id == controlId
+	})
+	upload_control_list[index].content_xml = content
+	for (var i = index + 1; i < upload_control_list.length; ++i) {
+		if (upload_control_list[i].regionType) {
+			getXml(upload_control_list[i].id)
+			return
+		}
+	}
+	generateTreeForUpload(upload_control_list)
 }
 
 function generateTreeForUpload(control_list) {
