@@ -7,7 +7,7 @@ import { showQuesData, initListener } from './panelQuestionDetial.js'
 import { initFeature } from './panelFeature.js'
 import { handleHeader } from "./featureManager.js";
 import { biyueCallCommand, dispatchCommandResult } from "./command.js";
-import { initExamTree, refreshExamTree, updateTreeRenderWhenClick, updateRangeControlType, reqGetQuestType } from "./ExamTree.js";
+import { initExamTree, refreshExamTree, updateTreeRenderWhenClick, updateRangeControlType, reqGetQuestionType, reqUploadTree } from "./ExamTree.js";
 
 (function (window, undefined) {
     var styleEnable = false;
@@ -956,8 +956,9 @@ import { initExamTree, refreshExamTree, updateTreeRenderWhenClick, updateRangeCo
         })
         initListener()
         changeTabPanel('tabList')
-		addBtnClickEvent('getQuesType', reqGetQuestType)
+		addBtnClickEvent('getQuesType', reqGetQuestionType)
         addBtnClickEvent('questree', refreshExamTree)
+		addBtnClickEvent('uploadTree', reqUploadTree)
     });
 
     function addBtnClickEvent(btnName, func) {

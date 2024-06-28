@@ -16,6 +16,20 @@ function getQuesType(paper_uuid, content_list) {
 	})
 }
 
+function reqComplete(tree) {
+	return request({
+		url: '/oodoc/complete',
+		method: 'POST',
+		isJsonData: true,
+		headers: {
+			'Content-Type': 'application/json;charset=UTF-8',
+		},
+		data: {
+			tree
+		},
+	})
+}
+
 function paperOnlineInfo(paper_uuid, enter) {
 	return request({
 		url: '/paper/online/info',
@@ -283,6 +297,7 @@ function teacherExamPrintPaperSelections() {
 
 export {
 	getQuesType,
+	reqComplete,
 	paperOnlineInfo,
 	structAdd,
 	structDelete,

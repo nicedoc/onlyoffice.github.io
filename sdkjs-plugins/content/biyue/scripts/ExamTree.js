@@ -1,6 +1,6 @@
 // 主要用于管理试卷结构树
 import Tree from '../components/Tree.js'
-import { getQuesType } from '../scripts/api/paper.js'
+import { getQuesType, reqComplete } from '../scripts/api/paper.js'
 import { biyueCallCommand } from './command.js'
 
 var g_exam_tree = null
@@ -26,10 +26,15 @@ function updateTree() {
 		if (elementCount == 0) {
 			return []
 		}
+		var allControls = oDocument.GetAllContentControls()
 		var list = []
 		for (var idx = 0; idx < elementCount; ++idx) {
 			var oElement = oDocument.GetElement(idx)
 			if (!oElement) {
+				continue
+			}
+			if (!oElement.GetClassType) {
+				console.log('========= oElement cannot GetClassType', oElement)
 				continue
 			}
 			var classType = oElement.GetClassType()
@@ -66,47 +71,31 @@ function updateTree() {
 					})
 				}
 			} else if (classType == 'table') {
-				// todo..
+				var controls = []
+				oElement.Table.GetAllContentControls(controls)
+				if (controls && controls.length) {
+					controls.forEach((e) => {
+						var control = allControls.find(c => {
+							return c.Sdt.GetId() == e.Id
+						})
+						if (control) {
+							var subtag = JSON.parse(control.GetTag() || {})
+							if (
+								subtag.regionType == 'question' ||
+								subtag.regionType == 'sub-question'
+							) {
+								list.push({
+									id: control.Sdt.GetId(),
+									regionType: subtag.regionType,
+									text: control.GetRange().GetText(),
+									classType: control.GetClassType(),
+								})
+							}
+						}
+					})
+				}
 			}
 		}
-
-		// var control_list = oDocument.GetAllContentControls()
-		// var index = 0
-		// for (var i = 0, imax = control_list.length; i < imax; ++i) {
-		// 	var control = control_list[i]
-		// 	var tag = JSON.parse(control.GetTag() || {})
-		// 	if (
-		// 		tag.regionType == 'struct' ||
-		// 		tag.regionType == 'question' ||
-		// 		tag.regionType == 'sub-question'
-		// 	) {
-		// 		var oRange = control.GetRange()
-		// 		var sPos = oRange.StartPos[0].Position
-		// 		var ePos = oRange.EndPos[0].Position
-		// 		if (sPos > index) {
-		// 			for (var j = index; j < sPos; ++j) {
-		// 				var element = oDocument.GetElement(j)
-		// 				var classType = element.GetClassType()
-		// 				if (classType == 'paragraph') {
-		// 					list.push({
-		// 						id: element.Paragraph.Id,
-		// 						regionType: null,
-		// 						text: element.GetRange().GetText(),
-		// 						classType: classType,
-		// 					})
-		// 				}
-		// 			}
-		// 			index = sPos
-		// 		}
-		// 		list.push({
-		// 			id: control.Sdt.GetId(),
-		// 			regionType: tag.regionType,
-		// 			text: oRange.GetText(),
-		// 			classType: control.GetClassType(),
-		// 		})
-		// 		index = ePos
-		// 	}
-		// }
 		console.log('[handle updateTree end]')
 		return list
 	}, false, false)
@@ -782,7 +771,7 @@ function updateHorList1(ctrllist) {
 	}
 	if (i < horlist.length) {
 		// 删除题目
-		horlist.splice(i, imax - i)
+		horlist.splice(i, horlist.length - i)
 	}
 	return horlist
 }
@@ -1063,6 +1052,9 @@ function updateRangeControlType(typeName) {
 				if (!oElement) {
 					continue
 				}
+				if (!oElement.GetClassType) {
+					continue
+				}
 				var classType = oElement.GetClassType()
 				if (classType == 'paragraph') {
 					list.push({
@@ -1097,7 +1089,29 @@ function updateRangeControlType(typeName) {
 						})
 					}
 				} else if (classType == 'table') {
-					// todo..
+					var controls = []
+					oElement.Table.GetAllContentControls(controls)
+					if (controls && controls.length) {
+						controls.forEach((e) => {
+							var control = allControls.find(c => {
+								return c.Sdt.GetId() == e.Id
+							})
+							if (control) {
+								var subtag = JSON.parse(control.GetTag() || {})
+								if (
+									subtag.regionType == 'question' ||
+									subtag.regionType == 'sub-question'
+								) {
+									list.push({
+										id: control.Sdt.GetId(),
+										regionType: subtag.regionType,
+										text: control.GetRange().GetText(),
+										classType: control.GetClassType(),
+									})
+								}
+							}
+						})
+					}
 				}
 			}
 			return list
@@ -1106,7 +1120,7 @@ function updateRangeControlType(typeName) {
 		return result
 	}, false, true).then(res => {
 		console.log('updateControlType result:', res)
-		// handleSetControlType(res)
+		handleSetControlType(res)
 	})
 }
 
@@ -1121,12 +1135,45 @@ function handleSetControlType(res) {
 		return
 	}
 	var horlist = updateHorList1(res.elementList)
-	updateHorList2(horlist, res.regionType, res.InternalId, res.preElementId, res.preClassType)
+	updateHorList3(horlist, res.changeList)
 	var tree = generateTreeByList(horlist)
 	if (g_exam_tree) {
 		g_exam_tree.refreshList(tree)
 	}
 }
+
+function updateHorList3(horList, changeList) {
+	if (!horList) {
+		return
+	}
+	if (!changeList || changeList.length == 0) {
+		return
+	}
+	var change0 = changeList[0]
+	if (change0.command_type == 'add') {
+		if (change0.id_new) {
+			if (change0.regionType == 'struct') { // 设置新题组
+				// 找到这个id所在位置，更新其父节点的children
+				var index = horList.findIndex((e) => {
+					return e.id == change0.id_new
+				})
+				var data0 = horList[index]
+				if (data0.parent_id) { // 存在父节点
+					var parent = horList.find((e) => {
+						return e.id == data0.parent_id
+					})
+					if (parent) {
+						// 修改其之后的兄弟节点的父节点
+						for (var j = data0.child_pos + 1; j < parent.children.length; ++j) {
+							// todo..
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 // 划分类型后，进一步调整层次结构
 function updateHorList2(horlist, regionType, InternalId, preElementId, preClassType) {
 	if (!horlist) {
@@ -1177,7 +1224,7 @@ function updateHorList2(horlist, regionType, InternalId, preElementId, preClassT
 	}
 }
 
-function reqGetQuestType() {
+function reqGetQuestionType() {
 	Asc.scope.horlist = g_horizontal_list
 	biyueCallCommand(window, function() {
 		var horlist = Asc.scope.horlist
@@ -1209,10 +1256,10 @@ function reqGetQuestType() {
 				}
 			}
 		})
-		console.log('[reqGetQuestType] target_list', target_list)
+		console.log('[reqGetQuestionType] target_list', target_list)
 		return target_list
 	}, false, false).then( control_list => {
-		console.log('[reqGetQuestType] control_list', control_list)
+		console.log('[reqGetQuestionType] control_list', control_list)
 		if (!window.BiyueCustomData.paper_uuid || !control_list || control_list.length == 0) {
 			return
 		}
@@ -1224,11 +1271,162 @@ function reqGetQuestType() {
 	})
 }
 
+function reqUploadTree() {
+	Asc.scope.horlist = g_horizontal_list
+	biyueCallCommand(window, function() {
+		var horlist = Asc.scope.horlist
+		var target_list = []
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls()
+		horlist.forEach(e => {
+			if (e.regionType == 'struct' || e.regionType == 'question') {
+				var control = controls.find(citem => {
+					return citem.Sdt.GetId() == e.id
+				})
+				if (control) {
+					var question_name = ''
+					var oRange = control.GetRange()
+					oRange.Select()
+					var text = oRange.GetText()
+					if (e.regionType == 'struct') {
+						const pattern = /^[一二三四五六七八九十0-9]+.*?(?=[：:])/
+						const result = pattern.exec(text)
+						question_name = result ? result[0] : null
+					} else if (e.regionType) {
+						const regex = /^([^.．、]*)/
+						const match = text.match(regex)
+						question_name = match ? match[1] : ''
+					}
+					let text_data = {
+						data:     "",
+						// 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
+						pushData: function (format, value) {
+							this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : "";
+						}
+					};
+			
+					Api.asc_CheckCopy(text_data, 2);
+					var content_html = text_data.data
+					target_list.push({
+						parent_id: e.parent_id,
+						id: e.id,
+						uuid: "",
+						content_type: e.regionType,
+						content_xml: '',
+						content_html: content_html,
+						content_text: text,
+						question_type: 0,
+						question_name: question_name
+					})
+				}
+			}
+		})
+		console.log('[reqUploadTree] target_list', target_list)
+		return target_list
+	}, false, false).then( control_list => {
+		console.log('[reqUploadTree] control_list', control_list)
+		generateTreeForUpload(control_list)
+		getXml(control_list[0].id)
+	})
+}
+
+function getXml(controlId) {
+	console.log('             getXml', controlId)
+	window.Asc.plugin.executeMethod("SelectContentControl", [controlId])
+	window.Asc.plugin.executeMethod("GetSelectionToDownload", ["docx"], function (data) {
+        console.log(data);
+        // 假设这是你的 ZIP 文件的 URL  
+        const zipFileUrl = data;        
+        fetch(zipFileUrl).then(response => {  
+            if (!response.ok) {  
+            throw new Error('Failed to fetch zip file');  
+            }  
+            return response.arrayBuffer(); // 获取 ArrayBuffer 而不是 Blob，因为 JSZip 需要它  
+        })  
+        .then(arrayBuffer => {  
+            return JSZip.loadAsync(arrayBuffer); // 使用 JSZip 加载 ArrayBuffer  
+        })  
+        .then(zip => {  
+            // 现在你可以操作 zip 对象了  
+            zip.forEach(function(relativePath, file) {  
+                if (relativePath.indexOf('word/document.xml') === -1) {
+                    return;
+                }
+                // 这里可以遍历 ZIP 文件中的所有文件  
+                file.async("text").then(function(content) {  
+                    // 假设文件是文本文件，打印文件内容和相对路径  
+                    console.log(relativePath, content);  
+                });  
+            });  
+        })  
+        .catch(error => {  
+            console.error('Error:', error);  
+        });
+        
+    });
+}
+
+function generateTreeForUpload(control_list) {
+	if (!control_list) {
+		return null
+	}
+	var tree = []
+	control_list.forEach((e) => {
+		if (e.parent_id == 0) {
+			tree.push(e)
+		} else {
+			var parent = getDataById(tree, e.parent_id)
+			if (parent) {
+				if (!parent.children) {
+					parent.children = []
+				}
+				parent.children.push(e)
+			}
+		}
+	})
+	var uploadTree = {
+		id: "",
+        uuid: window.BiyueCustomData.paper_uuid,
+        question_type:0,
+        question_name:"",
+        content_type:"paper",
+        content_text:"",
+        content_xml:"",
+        content_html:"",
+		children: tree
+	}
+	console.log('               uploadTree', uploadTree)
+	reqComplete(uploadTree).then(res => {
+		console.log('reqComplete', res)
+	}).catch(res => {
+		console.log('reqComplete fail', res)
+	})
+	console.log(tree)
+}
+function getDataById(list, id) {
+	if (!list) {
+		return null
+	}
+	for (var i = 0, imax = list.length; i < imax; ++i) {
+		if (list[i].id == id) {
+			return list[i]
+		}
+		if (list[i].children) {
+			var v = getDataById(list[i].children, id)
+			if (v) {
+				return v
+			}
+		}
+	}
+	return null
+}
+
 export {
 	initExamTree,
 	refreshExamTree,
 	updateTreeRenderWhenClick,
 	handleDocUpdate,
 	updateRangeControlType,
-	reqGetQuestType
+	reqGetQuestionType,
+	reqUploadTree
 }
