@@ -257,6 +257,15 @@ class Tree {
 			}
 			var dropData = this.getDataById(this.list, dropId)
 			if (dropData) {
+				var dragElement = document.getElementById(dragId)
+				this.removeItemByPos(this.list, dragData.pos, 0) // 先移除
+				this.updateItemRender(
+					null,
+					dragData.pos.slice(0, dragData.pos.length - 1)
+				) // 更新拖拽目标的原父亲节点渲染
+				this.updatePos(this.list, [])
+				
+				dropData = this.getDataById(this.list, dropId)
 				var dropPos = dropData.pos
 				var direction = this.drag_action.direction
 				var dropParent = this.getDataByPos(
@@ -264,14 +273,11 @@ class Tree {
 					dropPos.slice(0, dropPos.length - 1),
 					0
 				)
-				var dragElement = document.getElementById(dragId)
-				this.removeItemByPos(this.list, dragData.pos, 0) // 先移除
-				this.updateItemRender(
-					null,
-					dragData.pos.slice(0, dragData.pos.length - 1)
-				) // 更新拖拽目标的原父亲节点渲染
+				// var oldDragParentData = this.getDataByPos(this.list, dragData.pos.slice(0, dragData.pos.length - 1), 0)
+				
 				if (direction == 'top' || direction == 'bottom') {
 					var position = dropPos[dropPos.length - 1]
+					console.log('position', position)
 					if (!dropParent && dropPos.length == 1) {
 						if (direction == 'top') {
 							this.list.splice(position, 0, dragData)
@@ -282,11 +288,7 @@ class Tree {
 						if (!dropParent.children) {
 							dropParent.children = []
 						}
-						if (direction == 'top') {
-							dropParent.children.splice(position, 0, dragData)
-						} else {
-							dropParent.children.push(dragData)
-						}
+						dropParent.children.splice(direction == 'top' ? position : (position + 1), 0, dragData)
 					}
 					if (direction == 'top') {
 						parentNode.before(dragElement)
@@ -313,6 +315,10 @@ class Tree {
 				} else {
 					console.log('direction is null ', direction)
 				}
+				// if (oldDragParentData) {
+				// 	this.updateItemRender(oldDragParentData.id) // 更新拖拽目标的原父亲节点渲染	
+				// }
+				
 				this.updatePos(this.list, [])
 				this.updateItemRender(dragData.id)
 			} else {

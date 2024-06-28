@@ -1152,7 +1152,7 @@ import { initExamTree, refreshExamTree, updateTreeRenderWhenClick, updateRangeCo
         }
         if (id == -1) {
             console.log('StoreCustomData', window.BiyueCustomData)
-            StoreCustomData(function () {
+            StoreCustomData(() => {
                 console.log("store custom data done");
                 this.executeCommand("close", '');
             });
@@ -1537,11 +1537,11 @@ import { initExamTree, refreshExamTree, updateTreeRenderWhenClick, updateRangeCo
         showPosition(window,
             function (data) {
                 onGetPos(data);
-                window.Asc.plugin.callCommand(function () {
+				biyueCallCommand(window, function () {
                     Api.GetDocument().Document.Recalculate(true);
                 },
                     false,
-                    true);
+                    true)
 
             }
         );

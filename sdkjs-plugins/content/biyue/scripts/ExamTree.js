@@ -29,6 +29,9 @@ function updateTree() {
 		var list = []
 		for (var idx = 0; idx < elementCount; ++idx) {
 			var oElement = oDocument.GetElement(idx)
+			if (!oElement) {
+				continue
+			}
 			var classType = oElement.GetClassType()
 			if (classType == 'paragraph') {
 				list.push({
@@ -215,6 +218,7 @@ function generateTreeByList(list) {
 				parent_id: e.parent_id,
 				child_pos: e.child_pos,
 				pos: e.pos,
+				classType: e.classType
 			})
 		} else {
 			var parent = getItemByPos(tree, e.pos.slice(0, e.pos.length - 1), 0)
@@ -229,6 +233,7 @@ function generateTreeByList(list) {
 					parent_id: e.parent_id,
 					child_pos: e.child_pos,
 					pos: e.pos,
+					classType: e.classType
 				})
 			} else {
 				console.log('parent is null')
@@ -274,7 +279,9 @@ function clickItem(id, item, e) {
 			var control = controls.find((e) => {
 				return e.Sdt.GetId() == clickData.id
 			})
-			firstRange = control.GetRange()
+			if (control) {
+				firstRange = control.GetRange()
+			}
 			// 需要多选时，用下面代码扩展
 			// var oRange = control.GetRange()
 			// firstRange = firstRange.ExpandTo(oRange)
@@ -282,126 +289,217 @@ function clickItem(id, item, e) {
 			var oParagraph = new Api.private_CreateApiParagraph(
 				AscCommon.g_oTableId.Get_ById(clickData.id)
 			)
-			firstRange = oParagraph.GetRange()
+			if (oParagraph) {
+				firstRange = oParagraph.GetRange()
+			}
 		}
-		firstRange.Select()
+		if (firstRange) {
+			firstRange.Select()
+		}
 	}, false, false)
 }
 
 function dropItem(list, dragId, dropId, direction) {
-	console.log('dropItem', list)
-	console.log('drop data: ', dragId, dropId, direction)
+	console.log('dropItem', dragId, dropId, direction)
+	console.log('tree', list)
 	window.BiyueCustomData.exam_tree = list
-	// var hlist = []
-	// updateHorizontalList(list, hlist)
-	// g_horizontal_list = hlist
-	var dragData = g_horizontal_list.find((e) => {
-		return e.id == dragId
-	})
 	Asc.scope.drag_options = {
 		dragId: dragId,
 		dropId: dropId,
 		direction: direction,
+		horList: g_horizontal_list
 	}
 	biyueCallCommand(window, function() {
 		var drag_options = Asc.scope.drag_options
+		console.log('drag_options', drag_options)
+		var horList = drag_options.horList
+		if(!horList){
+			return
+		}
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls()
-		var dragControl = controls.find((e) => {
-			return e.Sdt.GetId() == drag_options.dragId
+		var dragData = horList.find((e) => {
+			return e.id == drag_options.dragId
 		})
-		if (!dragControl) {
+		var dropData = horList.find(e => {
+			return e.id == drag_options.dropId
+		})
+		if (!dragData || !dropData) {
 			return
 		}
-		var tag = JSON.parse(dragControl.GetTag() || {})
-		console.log('tag ', tag)
-		var oDragRange = dragControl.GetRange()
-		var templist = []
-		var parentControl = dragControl.GetParentContentControl()
-		var parentTableCell = dragControl.GetParentTableCell()
-		if (parentTableCell) {
-			var cellContent = parentTableCell.GetContent()
-			for (var i = 0; i < cellContent.Cotent.length; ++i) {
-				if (cellContent.Content.Id == drag_options.dragId) {
-					templist.push(cellContent.GetElement(i))
-					cellContent.RemoveElement(i)
-					break
+		var regionType = dragData.regionType
+		function GetElementRange(id, classType) {
+			if (classType == 'blockLvlSdt') {
+				var control = controls.find((e) => {
+					return e.Sdt.GetId() == id
+				})
+				if (control) {
+					return control.GetRange()
+				}
+			} else if (classType == 'paragraph') {
+				var oParagraph = new Api.private_CreateApiParagraph(
+					AscCommon.g_oTableId.Get_ById(id)
+				)
+				if (oParagraph) {
+					return oParagraph.GetRange()
 				}
 			}
+			return null
+		}
+		var oDragRange = GetElementRange(drag_options.dragId, dragData.classType)
+		if (!oDragRange) {
 			return
 		}
-		if (tag.regionType == 'sub-question') {
-			if (parentControl) {
-				var startPos = oDragRange.StartPos[1].Position
-				var oParentDocument = parentControl.GetContent()
-				templist.push(oParentDocument.GetElement(startPos))
-				oParentDocument.RemoveElement(startPos)
-				var dropControl = controls.find((e) => {
-					return e.Sdt.GetId() == drag_options.dropId
-				})
-				var oDropRange = dropControl.GetRange()
-				var oDropParentControl = dropControl.GetParentContentControl()
-				var dropPos = oDropRange.StartPos[0].Position
-				if (oDropParentControl) {
-					dropPos = oDropRange.StartPos[1].Position
-					console.log('add element', dropPos)
-					if (drag_options.direction == 'top') {
-						console.log('AddElement', dropPos, templist[0])
-						oDropParentControl.GetContent().AddElement(dropPos, templist[0])
-						console.log(
-							'oDropParentControl',
-							oDropParentControl.GetContent().GetElementsCount()
-						)
-					} else {
-						oDropParentControl
-							.GetContent()
-							.AddElement(dropPos + 1, templist[0])
+		
+		var templist = []
+		if (regionType == 'struct') {
+			// 题组拖拽，需要将其下的所有children都挪动位置
+			if (dragData.children) {
+				for (var i = dragData.children.length - 1; i >= 0; --i) {
+					var childId = dragData.children[i]
+					var childData = horList.find(e => {
+						return e.id == childId
+					})
+					var childRange = GetElementRange(childId, childData.classType)
+					if (childRange) {
+						var startPos = childRange.StartPos[0].Position
+						templist.push(oDocument.GetElement(startPos))
+						oDocument.RemoveElement(startPos)
 					}
-				} else {
-					console.log('not oDropParentControl')
+				}
+			}
+			var startPos = oDragRange.StartPos[0].Position
+			templist.push(oDocument.GetElement(startPos))
+			oDocument.RemoveElement(startPos)
+			// 移动到相应位置
+			var dropPos
+			if (drag_options.direction == 'top') {
+				// 拖拽到上方，插入位置为第一个
+				var dropRange = GetElementRange(drag_options.dropId, dropData.classType)
+				if (dropRange) {
+					dropPos = dropRange.StartPos[0].Position
+				}
+			} else if (drag_options.direction == 'bottom') {
+				// 拖拽到下方，插入位置为children的最后一个
+				if (dropData.children && dropData.children.length) {
+					var childId = dropData.children[dropData.children.length - 1]
+					var childData = horList.find(e => {
+						return e.id == childId
+					})
+					if (childData) {
+						var childRange = GetElementRange(childId, childData.classType)
+						if (childRange) {
+							dropPos = childRange.EndPos[0].Position + 1
+						}
+					}
+				}
+			}
+			if (dropPos != undefined) {
+				templist.forEach((e) => {
+					oDocument.AddElement(dropPos, e)
+				})
+			}
+		} else {
+			// 题目位于表格的，之后再处理
+			if (!regionType || regionType == 'question') {
+				var startPos = oDragRange.StartPos[0].Position
+				templist.push(oDocument.GetElement(startPos))
+				oDocument.RemoveElement(startPos)
+
+				var dropRange = GetElementRange(drag_options.dropId, dropData.classType)
+				if (dropRange) {
+					var dropPos = dropRange.StartPos[0].Position
 					if (drag_options.direction == 'top') {
 						oDocument.AddElement(dropPos, templist[0])
 					} else {
 						oDocument.AddElement(dropPos + 1, templist[0])
 					}
+				} else {
+					console.log('dropRange is null')
 				}
-			}
-		} else if (tag.regionType == 'question') {
-			var startPos = oDragRange.StartPos[0].Position
-			console.log('startPos', startPos)
-			templist.push(oDocument.GetElement(startPos))
+			} else if (regionType == 'sub-question') {
+				var dragControl = controls.find((e) => {
+					return e.Sdt.GetId() == drag_options.dragId
+				})
+				var parentControl = dragControl.GetParentContentControl()
+				if (parentControl) {
+					var startPos = oDragRange.StartPos[1].Position
+					var oParentDocument = parentControl.GetContent()
+					templist.push(oParentDocument.GetElement(startPos))
+					oParentDocument.RemoveElement(startPos)
+					var oDropRange
+					var oDropParentControl
+					if (dropData.classType == 'blockLvlSdt') {
+						var dropControl = controls.find((e) => {
+							return e.Sdt.GetId() == drag_options.dropId
+						})
+						if (dropControl) {
+							oDropRange = dropControl.GetRange()
+							oDropParentControl = dropControl.GetParentContentControl()
+						}
+					} else if (dropData.classType == 'paragraph') {
+						var oDropParagraph = new Api.private_CreateApiParagraph(
+							AscCommon.g_oTableId.Get_ById(drag_options.dropId)
+						)
+						if (oDropParagraph) {
+							oDropRange = oDropParagraph.GetRange()
+							oDropParentControl = oDropParagraph.GetParentContentControl()
+						}
+					}
+					if (!oDropRange) {
+						return
+					}
+					var dropPos = oDropRange.StartPos[0].Position
+					if (oDropParentControl) {
+						dropPos = oDropRange.StartPos[1].Position
+						if (drag_options.direction != 'top') {
+							dropPos += 1
+						}
+						oDropParentControl.GetContent().AddElement(dropPos, templist[0])
+					} else {
+						console.log('not oDropParentControl')
+						if (drag_options.direction != 'top') {
+							dropPos += 1
+						}
+						oDocument.AddElement(dropPos, templist[0])
+					}
+				} else {
+					var parentTableCell = dragControl.GetParentTableCell()
+					if (parentTableCell) {
+						// todo..单题在表格单元里，可能需要合并拆分单元格
 
-			oDocument.RemoveElement(startPos)
-
-			var dropControl = controls.find((e) => {
-				return e.Sdt.GetId() == drag_options.dropId
-			})
-			var oDropRange = dropControl.GetRange()
-			var dropPos = oDropRange.StartPos[0].Position
-			console.log('dropPos', dropPos)
-			if (drag_options.direction == 'top') {
-				oDocument.AddElement(dropPos, templist[0])
-			} else {
-				oDocument.AddElement(dropPos + 1, templist[0])
+					}
+				}
 			}
 		}
 	}, false, false).then(res => {
-		console.log('drop success')
+		var hlist = []
+		updateHorListByTree(list, hlist)
+		g_horizontal_list = hlist
+		console.log('list after drop', g_horizontal_list)
 	})
 }
-
-function updateHorizontalList(list, hlist) {
-	if (!list) {
+// 通过tree重新构建horlist
+function updateHorListByTree(tree, hlist) {
+	if (!tree) {
 		return
 	}
-	list.forEach((e) => {
+	tree.forEach(e => {
+		var children = e.children || []
 		hlist.push({
+			child_pos: e.pos[e.pos.length - 1],
+			classType: e.classType,
 			id: e.id,
-			label: e.label,
+			parent_id: e.parent_id,
 			pos: e.pos,
+			regionType: e.regionType,
+			text: e.label,
+			children: children.map(child => {
+				return child.id
+			})
 		})
 		if (e.children) {
-			updateHorizontalList(e.children, hlist)
+			updateHorListByTree(e.children, hlist)
 		}
 	})
 }
@@ -708,18 +806,13 @@ function updateRangeControlType(typeName) {
 		var typeName = Asc.scope.typename
 		var oDocument = Api.GetDocument()
 		var oRange = oDocument.GetRangeBySelect()
-		if (!oRange) {
-			console.log('no range')
+		if (typeName == 'examtitle') {
+			oRange.SetBold(true)
 			return
 		}
-		if (!oRange.Paragraphs) {
-			console.log('no paragraph')
-			return
-		}
-		if (oRange.Paragraphs.length === 0) {
-			console.log('no paragraph')
-			return
-		}
+		var allControls = oDocument.GetAllContentControls()
+		var result = {}
+		var changeList = []
 		function GetPosData(Pos) {
 			var data = {}
 			for (var i = Pos.length - 1; i >= 0; --i) {
@@ -735,177 +828,285 @@ function updateRangeControlType(typeName) {
 			}
 			return data
 		}
-		var StartData = GetPosData(oRange.StartPos)
-		var EndData = GetPosData(oRange.EndPos)
-		var inParagraphStart = false
-		var inParagraphEnd = false
-		if (StartData.index_paragraph >= 0 && StartData.index_run >= 0) {
-			if (
-				oRange.StartPos[StartData.index_paragraph].Position == 0 &&
-				oRange.StartPos[StartData.index_run].Position == 0
-			) {
-				inParagraphStart = true
-			}
-		}
-		if (EndData.index_paragraph >= 0 && EndData.index_run >= 0) {
-			if (
-				oRange.EndPos[EndData.index_paragraph].Position >=
-					oRange.EndPos[EndData.index_paragraph].Class.Content.length - 1 &&
-				oRange.EndPos[EndData.index_run].Position >=
-					oRange.EndPos[EndData.index_run].Class.Content.length - 1
-			) {
-				inParagraphEnd = true
-			}
-		}
-		if (typeName == 'struct' || typeName == 'question') {
-			if (!inParagraphStart || !inParagraphEnd) {
-				return {
-					code: 0,
-					message: '请选中整个段落再设置',
+
+		function getParagraphPosition(Pos) {
+			for (var i = Pos.length - 1; i >= 0; --i) {
+				if (Pos[i].Class.GetType) {
+					var type = Pos[i].Class.GetType()
+					if (type == 1) {
+						return Pos[i - 1].Position
+					}
 				}
 			}
+			return null
 		}
-		var type = 1
-		var Tag = null
-		if (typeName == 'examtitle') {
-			type = 0
-			oRange.SetBold(true)
-			return {
-				code: 1,
-				type: type,
-				typeName: typeName,
-				text: oRange.GetText(),
+
+		function  getRangeData(range) {
+			var StartData = GetPosData(range.StartPos)
+			var EndData = GetPosData(range.EndPos)
+			var inParagraphStart = false
+			var inParagraphEnd = false
+			if (StartData.index_paragraph >= 0 && StartData.index_run >= 0) {
+				if (
+					range.StartPos[StartData.index_paragraph].Position == 0 &&
+					range.StartPos[StartData.index_run].Position == 0
+				) {
+					inParagraphStart = true
+				}
 			}
-		} else {
+			if (EndData.index_paragraph >= 0 && EndData.index_run >= 0) {
+				if (
+					range.EndPos[EndData.index_paragraph].Position >=
+					range.EndPos[EndData.index_paragraph].Class.Content.length - 1 &&
+					range.EndPos[EndData.index_run].Position >=
+					range.EndPos[EndData.index_run].Class.Content.length - 1
+				) {
+					inParagraphEnd = true
+				}
+			}
+			return [inParagraphStart, inParagraphEnd]
+		}
+
+		function getNewTag(inParagraphStart, inParagraphEnd) {
+			var Tag = {}
 			if (typeName == 'struct') {
 				Tag = { regionType: 'struct', mode: 1, column: 1 }
 			} else if (typeName == 'question') {
 				Tag = { regionType: 'question', mode: 2, padding: [0, 0, 0.5, 0] }
 			} else if (typeName == 'write') {
 				if (inParagraphStart && inParagraphEnd) {
-					type = 1
 					Tag = { regionType: 'write', mode: 5 }
 				} else {
-					type = 2
 					Tag = { regionType: 'write', mode: 3 }
 				}
 			} else if (typeName == 'sub-question') {
 				Tag = { regionType: 'sub-question', mode: 3 }
 			}
-			var controlsInRange = []
-			oRange.Paragraphs.forEach((paragraph) => {
-				var controls = paragraph.GetAllContentControls()
-				if (controls) {
-					controls.forEach((controlItem) => {
-						if (controlItem.Sdt.Selection && controlItem.Sdt.Selection.Use) {
-							var tag1 = JSON.parse(controlItem.GetTag())
-							if (tag1 && tag1.regionType == typeName) {
-								controlsInRange.push(controlItem)
+			return JSON.stringify(Tag)
+		}
+		if (!oRange) {
+			var currentContentControl = oDocument.Document.GetContentControl()
+			if (!currentContentControl) {
+				return {
+					code: 0,
+					message: '请先选中一个范围',
+				}
+			}
+			var oControl = allControls.find(e => {
+				return e.Sdt.GetId() == currentContentControl.Id
+			})
+			if (oControl) {
+				var tag = JSON.parse(oControl.GetTag() || {})
+				oRange = oControl.GetRange()
+				var changeResult = {
+					id_old: oControl.Sdt.GetId(),
+					text: oRange ? oRange.GetText() : '',
+					regionType: typeName
+				}
+				if (tag.regionType != typeName) {
+					var rangeData = getRangeData(oRange)
+					oControl.SetTag(getNewTag(rangeData[0], rangeData[1]));
+					changeResult.command_type = 'change_type'
+				}
+				changeList.push(changeResult)
+			}
+		} else {
+			if (!oRange.Paragraphs || oRange.Paragraphs.length === 0) {
+				return {
+					code: 0,
+					message: '选中范围内无段落',
+				}
+			}
+			var controlsInRange = allControls.filter(e => {
+				return e.Sdt.Content.Selection && e.Sdt.Content.Selection.Use
+			})
+
+			function checkPosSame(pos1, pos2) {
+				if (pos1 && pos2 && pos1.length == pos2.length) {
+					for (var nPos = 0; nPos < pos1.length; nPos++) {
+						if (pos1[nPos].Class !== pos2[nPos].Class || pos1[nPos].Position !== pos2[nPos].Position) {
+							return false;
+						}
+					}
+					return true
+				}
+				return false
+			}
+			console.log('controlsInRange', controlsInRange)
+			var rangeData = getRangeData(oRange)
+			var rangeStartParagraphPosition = getParagraphPosition(oRange.StartPos)
+			var rangeEndParagraphPosition = getParagraphPosition(oRange.EndPos)
+			function addControlToRange(range, tag, forceType) {
+				console.log('addControlToRange', range, tag)
+				oDocument.RemoveSelection()
+				range.Select()
+				var rangeData = getRangeData(range)
+				console.log('rangeData', rangeData)
+				var type = forceType ? forceType : (rangeData[0] && rangeData[1] ? 1 : 2)
+				var oResult = Api.asc_AddContentControl(type, {
+					Tag: tag,
+				})
+				console.log('oResult', oResult)
+				return {
+					id: oResult.InternalId,
+					regionType: JSON.parse(tag || {}).regionType,
+					text: range.GetText()
+				}
+			}
+			var needAdd = true
+			var removeIdList = []
+			if (controlsInRange.length > 0) {
+				for (var i = 0; i < controlsInRange.length; ++i) {
+					var oControl = controlsInRange[i]
+					if (!oControl) {
+						continue
+					}
+					var controlRange = oControl.GetRange()
+					console.log('controlRange', controlRange)
+					var controlTag = JSON.parse(oControl.GetTag()) 
+					if (checkPosSame(controlRange.StartPos, oRange.StartPos) && checkPosSame(controlRange.EndPos, oRange.EndPos)) {
+						// 完全重叠
+						console.log('完全重叠')
+						var tag = JSON.parse(oControl.GetTag() || {})
+						var changeObject = {
+							id_old: oControl.Sdt.GetId(),
+							text: oRange ? oRange.GetText() : '',
+							regionType: typeName
+						}
+						if (tag.regionType != typeName) {
+							oControl.SetTag(getNewTag(rangeData[0], rangeData[1]));
+							changeObject.command_type = 'change_type'
+						}
+						changeList.push(changeObject)
+						needAdd = false
+						break
+					} else {
+						if (typeName == 'struct' || typeName == 'question' || (typeName == 'sub-question' && controlTag.regionType == 'sub-question')) {
+							var oControlContent = oControl.GetContent()
+							var elementCount = oControlContent.GetElementsCount()
+							var changeobj = {
+								id_old: oControl.Sdt.GetId(),
+								command_type: 'remove'
+							}
+							if (rangeEndParagraphPosition < elementCount - 1) {
+								var oElement = oControlContent.GetElement(rangeEndParagraphPosition + 1)
+								oElement.Select()
+								var range1 = oDocument.GetRangeBySelect()
+								var backRange = Api.CreateRange(oControl, range1.StartPos, controlRange.EndPos)
+								var backData = addControlToRange(backRange, oControl.GetTag())
+								if (!changeobj.new_controls) {
+									changeobj.new_controls = [backData]
+								} else {
+									changeobj.new_controls.push(backData)
+								}
+							} 
+							if (rangeStartParagraphPosition > 0) {
+								var oElement = oControlContent.GetElement(rangeStartParagraphPosition - 1)
+								oElement.Select()
+								var range1 = oDocument.GetRangeBySelect()
+								var frontRange = Api.CreateRange(oControl, controlRange.StartPos, range1.EndPos)
+								var frontData = addControlToRange(frontRange, oControl.GetTag())
+								if (!changeobj.new_controls) {
+									changeobj.new_controls = [frontData]
+								} else {
+									changeobj.new_controls.push(frontData)
+								}
+							}
+							changeList.push(changeobj)
+							removeIdList.push(oControl.Sdt.GetId())
+							needAdd = true
+						} else if (typeName == 'write') {
+							needAdd = true
+							if (controlTag.regionType == 'write') {
+								var changeobj = {
+									id_old: oControl.Sdt.GetId(),
+									command_type: 'remove'
+								}
+								changeList.push(changeobj)
+								removeIdList.push(oControl.Sdt.GetId())
 							}
 						}
-					})
-				}
-				var pControl = paragraph.GetParentContentControl()
-				if (pControl) {
-					var tag2 = JSON.parse(pControl.GetTag())
-					if (tag2 && tag2.regionType == typeName) {
-						if (
-							controlsInRange.findIndex((e) => {
-								return e.Sdt.GetId() == pControl.Sdt.GetId()
-							}) == -1
-						) {
-							controlsInRange.push(pControl)
-						}
 					}
 				}
-			})
-			var oResult = Api.asc_AddContentControl(type, {
-				Tag: JSON.stringify(Tag),
-			})
-			console.log('oResult', oResult)
-			console.log('oRange', oRange)
-			var contentPos = oRange.StartPos[0].Position
-			var result = {
-				code: 1,
-				type: type,
-				InternalId: oResult.InternalId,
-				regionType: type,
-				text: oRange.GetText(),
-				tag: Tag,
 			}
-			if (contentPos > 0) {
-				var preElement = oDocument.GetElement(contentPos - 1)
-				result.preClassType = preElement.GetClassType()
-				result.preElementId = oDocument.Document.Content[contentPos - 1].Id
-				result.operateType = 'add'
-			}
-
-			function getElementList() {
-				var elementCount = oDocument.GetElementsCount()
-				if (elementCount == 0) {
-					return []
-				}
-				var list = []
-				for (var idx = 0; idx < elementCount; ++idx) {
-					var oElement = oDocument.GetElement(idx)
-					var classType = oElement.GetClassType()
-					if (classType == 'paragraph') {
-						list.push({
-							id: oElement.Paragraph.Id,
-							regionType: null,
-							text: oElement.GetRange().GetText(),
-							classType: classType,
-						})
-					} else if (classType == 'blockLvlSdt') {
-						var tag = JSON.parse(oElement.GetTag() || {})
-						list.push({
-							id: oElement.Sdt.GetId(),
-							regionType: tag.regionType,
-							text: oElement.GetRange().GetText(),
-							classType: classType,
-						})
-						var controls = oElement.GetAllContentControls()
-						if (controls) {
-							controls.forEach((e) => {
-								var subtag = JSON.parse(e.GetTag() || {})
-								if (
-									subtag.regionType == 'question' ||
-									subtag.regionType == 'sub-question'
-								) {
-									list.push({
-										id: e.Sdt.GetId(),
-										regionType: subtag.regionType,
-										text: e.GetRange().GetText(),
-										classType: e.GetClassType(),
-									})
-								}
-							})
-						}
-					} else if (classType == 'table') {
-						// todo..
+			if (needAdd) {
+				var useType = rangeData[0] && rangeData[1] ? 1 : 2
+				if (useType == 2) {
+					if (typeName != 'write') {
+						useType = 1
 					}
 				}
-				return list
+				var addData = addControlToRange(oRange, getNewTag(rangeData[0], rangeData[1]), useType)
+				changeList.push({
+					id_new: addData.id,
+					command_type: 'add',
+					regionType: typeName,
+					text: oRange ? oRange.GetText() : '',
+				})
 			}
-			result.elementList = getElementList()
-			return result
-			//   console.log('controlsInRange', controlsInRange)
-			//   if (controlsInRange.length > 0) {
-			//     if (confirm("该区域已存在相同类型区域，是否要删除覆盖?") == true) {
-			//       controlsInRange.forEach(controlItem => {
-			//         Api.asc_RemoveContentControlWrapper(controlItem.Sdt.GetId());
-			//       })
-			//       oRange.Select()
-			//     } else {
-			//       return {
-			//         code: 2
-			//       }
-			//     }
-			//   }
+			if (removeIdList.length > 0) {
+				removeIdList.forEach(id => {
+					Api.asc_RemoveContentControlWrapper(id);
+				})
+			}
 		}
+		result.code = 1
+		result.changeList = changeList
+		function getElementList() {
+			var elementCount = oDocument.GetElementsCount()
+			if (elementCount == 0) {
+				return []
+			}
+			var list = []
+			for (var idx = 0; idx < elementCount; ++idx) {
+				var oElement = oDocument.GetElement(idx)
+				if (!oElement) {
+					continue
+				}
+				var classType = oElement.GetClassType()
+				if (classType == 'paragraph') {
+					list.push({
+						id: oElement.Paragraph.Id,
+						regionType: null,
+						text: oElement.GetRange().GetText(),
+						classType: classType,
+					})
+				} else if (classType == 'blockLvlSdt') {
+					var tag = JSON.parse(oElement.GetTag() || {})
+					list.push({
+						id: oElement.Sdt.GetId(),
+						regionType: tag.regionType,
+						text: oElement.GetRange().GetText(),
+						classType: classType,
+					})
+					var controls = oElement.GetAllContentControls()
+					if (controls) {
+						controls.forEach((e) => {
+							var subtag = JSON.parse(e.GetTag() || {})
+							if (
+								subtag.regionType == 'question' ||
+								subtag.regionType == 'sub-question'
+							) {
+								list.push({
+									id: e.Sdt.GetId(),
+									regionType: subtag.regionType,
+									text: e.GetRange().GetText(),
+									classType: e.GetClassType(),
+								})
+							}
+						})
+					}
+				} else if (classType == 'table') {
+					// todo..
+				}
+			}
+			return list
+		}
+		result.elementList = getElementList()
+		return result
 	}, false, true).then(res => {
 		console.log('updateControlType result:', res)
-		handleSetControlType(res)
+		// handleSetControlType(res)
 	})
 }
 
@@ -914,6 +1115,9 @@ function handleSetControlType(res) {
 		return
 	}
 	if (res.code != 1) {
+		if (res.message) {
+			alert(res.message)
+		}
 		return
 	}
 	var horlist = updateHorList1(res.elementList)
