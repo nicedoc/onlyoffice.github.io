@@ -1274,6 +1274,7 @@ function reqGetQuestionType() {
 function reqUploadTree() {
 	Asc.scope.horlist = g_horizontal_list
 	upload_control_list = []
+	console.log('[reqUploadTree start]', Date.now())
 	biyueCallCommand(window, function() {
 		var horlist = Asc.scope.horlist
 		var target_list = []
@@ -1385,11 +1386,9 @@ function handleXml(controlId, content) {
 		return
 	}
 	upload_control_list[index].content_xml = content
-	for (var i = index + 1; i < upload_control_list.length; ++i) {
-		if (upload_control_list[i].regionType) {
-			getXml(upload_control_list[i].id)
-			return
-		}
+	if (index + 1 < upload_control_list.length) {
+		getXml(upload_control_list[index+1].id)
+		return
 	}
 	generateTreeForUpload(upload_control_list)
 }
@@ -1430,8 +1429,10 @@ function generateTreeForUpload(control_list) {
 	console.log('               uploadTree', uploadTree)
 	reqComplete(uploadTree).then(res => {
 		console.log('reqComplete', res)
+		console.log('[reqUploadTree end]', Date.now())
 	}).catch(res => {
 		console.log('reqComplete fail', res)
+		console.log('[reqUploadTree end]', Date.now())
 	})
 	console.log(tree)
 }
