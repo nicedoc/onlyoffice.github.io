@@ -16,7 +16,7 @@ function getQuesType(paper_uuid, content_list) {
 	})
 }
 
-function reqComplete(tree) {
+function reqComplete(tree, version) {
 	return request({
 		url: '/oodoc/complete',
 		method: 'POST',
@@ -25,7 +25,8 @@ function reqComplete(tree) {
 			'Content-Type': 'application/json;charset=UTF-8',
 		},
 		data: {
-			tree
+			tree,
+			version
 		},
 	})
 }

@@ -1423,7 +1423,8 @@ function generateTreeForUpload(control_list) {
 		children: tree
 	}
 	console.log('               uploadTree', uploadTree)
-	reqComplete(uploadTree).then(res => {
+	var version = getTimeString()
+	reqComplete(uploadTree, version).then(res => {
 		console.log('reqComplete', res)
 		console.log('[reqUploadTree end]', Date.now())
 	}).catch(res => {
@@ -1431,6 +1432,18 @@ function generateTreeForUpload(control_list) {
 		console.log('[reqUploadTree end]', Date.now())
 	})
 	console.log(tree)
+}
+
+function getTimeString() {
+	var date = new Date()
+	var year = date.getFullYear()
+	var month = date.getMonth() + 1
+	var day = date.getDate()
+	var hour = date.getHours()
+	var minute = date.getMinutes()
+	var second = date.getSeconds()
+	var micsecond = date.getMilliseconds()
+	return year + '-' + month + '-' + day + ' ' + hour + ':' + minute + ':' + second + ' ' + micsecond
 }
 function getDataById(list, id) {
 	if (!list) {
