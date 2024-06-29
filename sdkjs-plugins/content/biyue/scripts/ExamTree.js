@@ -257,33 +257,17 @@ function clickItem(id, item, e) {
 	if (g_exam_tree) {
 		g_exam_tree.setSelect([id])
 	}
-	Asc.scope.click_item = item
+	Asc.scope.click_id = id
 	biyueCallCommand(window, function() {
-		var clickData = Asc.scope.click_item
+		var click_id = Asc.scope.click_id
 		var oDocument = Api.GetDocument()
 		oDocument.RemoveSelection()
-		var firstRange = null
-		if (clickData.regionType) {
-			var controls = oDocument.GetAllContentControls()
-			var control = controls.find((e) => {
-				return e.Sdt.GetId() == clickData.id
-			})
-			if (control) {
-				firstRange = control.GetRange()
+		var clickElement = Api.LookupObject(click_id)
+		if (clickElement && clickElement.GetRange) {
+			var oRange = clickElement.GetRange()
+			if (oRange) {
+				oRange.Select()
 			}
-			// 需要多选时，用下面代码扩展
-			// var oRange = control.GetRange()
-			// firstRange = firstRange.ExpandTo(oRange)
-		} else {
-			var oParagraph = new Api.private_CreateApiParagraph(
-				AscCommon.g_oTableId.Get_ById(clickData.id)
-			)
-			if (oParagraph) {
-				firstRange = oParagraph.GetRange()
-			}
-		}
-		if (firstRange) {
-			firstRange.Select()
 		}
 	}, false, false)
 }
@@ -1281,7 +1265,7 @@ function reqUploadTree() {
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls()
 		horlist.forEach(e => {
-			if (e.regionType == 'struct' || e.regionType == 'question') {
+			if (e.regionType == 'struct' || e.regionType == 'question' || e.regionType == 'sub-question') {
 				var control = controls.find(citem => {
 					return citem.Sdt.GetId() == e.id
 				})
