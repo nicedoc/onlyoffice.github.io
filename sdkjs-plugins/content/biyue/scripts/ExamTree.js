@@ -1323,12 +1323,10 @@ function reqUploadTree() {
 				}
 			}
 		})
-		console.log('[reqUploadTree] target_list', target_list)
 		return target_list
 	}, false, false).then( control_list => {
 		if (control_list) {
 			upload_control_list = control_list
-			console.log('[reqUploadTree] control_list', control_list)
 			if (control_list && control_list.length) {
 				getXml(control_list[0].id)
 			}
@@ -1339,10 +1337,8 @@ function reqUploadTree() {
 }
 
 function getXml(controlId) {
-	console.log('             getXml', controlId)
 	window.Asc.plugin.executeMethod("SelectContentControl", [controlId])
 	window.Asc.plugin.executeMethod("GetSelectionToDownload", ["docx"], function (data) {
-        console.log(data);
         // 假设这是你的 ZIP 文件的 URL  
         const zipFileUrl = data;        
         fetch(zipFileUrl).then(response => {  
