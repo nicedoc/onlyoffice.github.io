@@ -1325,11 +1325,14 @@ function reqUploadTree() {
 		console.log('[reqUploadTree] target_list', target_list)
 		return target_list
 	}, false, false).then( control_list => {
-		upload_control_list = control_list
-		console.log('[reqUploadTree] control_list', control_list)
 		if (control_list) {
-			getXml(control_list, control_list[0].id)
+			upload_control_list = control_list
+			console.log('[reqUploadTree] control_list', control_list)
+			if (control_list && control_list.length) {
+				getXml(control_list[0].id)
+			}
 		}
+		
 		
 	})
 }
@@ -1364,16 +1367,23 @@ function getXml(controlId) {
             });  
         })  
         .catch(error => {  
-            console.error('Error:', error);  
+            console.error('Error:', error);
+			handleXmlError()
         });
         
     });
 }
 
 function handleXml(controlId, content) {
+	if (!upload_control_list) {
+		return
+	}
 	var index = upload_control_list.findIndex(e => {
 		return e.id == controlId
 	})
+	if (index == -1) {
+		return
+	}
 	upload_control_list[index].content_xml = content
 	for (var i = index + 1; i < upload_control_list.length; ++i) {
 		if (upload_control_list[i].regionType) {
@@ -1381,6 +1391,10 @@ function handleXml(controlId, content) {
 			return
 		}
 	}
+	generateTreeForUpload(upload_control_list)
+}
+
+function handleXmlError() {
 	generateTreeForUpload(upload_control_list)
 }
 
