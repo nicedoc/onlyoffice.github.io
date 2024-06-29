@@ -1293,11 +1293,16 @@ function reqUploadTree() {
 			
 					Api.asc_CheckCopy(text_data, 2);
 					var content_html = text_data.data
+					var content_type = e.regionType
+					if (e.regionType == 'sub-question') {
+						content_type = 'question'
+					}
 					target_list.push({
 						parent_id: e.parent_id,
 						id: e.id,
 						uuid: "",
-						content_type: e.regionType,
+						regionType: e.regionType,
+						content_type: content_type,
 						content_xml: '',
 						content_html: content_html,
 						content_text: text,
