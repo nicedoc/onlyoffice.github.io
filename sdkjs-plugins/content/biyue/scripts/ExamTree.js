@@ -9,17 +9,20 @@ var upload_control_list = []
 function initExamTree() {
 	return new Promise((resolve, reject) => {
 		console.log('[initExamTree]')
-		updateTree().then((res) => {
-			console.log('updateTree result', res)
-			buildTree(res)
-			resolve(true)
-		}).catch((err) => {
-			reject(err)
+		getDocList().then(res => {
+			var hlist = generateListByDoc(res)
+			g_horizontal_list = hlist
+			console.log(' after generateListByDoc', [].concat(hlist))
+			var treeInfo = genetateTreeByHList(hlist)
+			console.log('******************   hlist', hlist)
+			console.log('******************   treeInfo', treeInfo)
+			renderTree(treeInfo)
+			resolve()
 		})
 	})
 }
-
-function updateTree() {
+// 获取文档列表
+function getDocList() {
 	return biyueCallCommand(window, function() {
 		var oDocument = Api.GetDocument()
 		var elementCount = oDocument.GetElementsCount()
@@ -31,10 +34,6 @@ function updateTree() {
 		for (var idx = 0; idx < elementCount; ++idx) {
 			var oElement = oDocument.GetElement(idx)
 			if (!oElement) {
-				continue
-			}
-			if (!oElement.GetClassType) {
-				console.log('========= oElement cannot GetClassType', oElement)
 				continue
 			}
 			var classType = oElement.GetClassType()
@@ -96,101 +95,68 @@ function updateTree() {
 				}
 			}
 		}
-		console.log('[handle updateTree end]')
 		return list
 	}, false, false)
 }
-
-function addChild(list, parentId, childId) {
-	var parent = list.find((e) => {
-		return e.id == parentId
-	})
-	if (!parent) {
-		return
-	}
-	if (!parent.children) {
-		parent.children = []
-	}
-	parent.children.push(childId)
-}
-
-function generateTree(list) {
-	if (!list) {
-		return
-	}
-	list.forEach((e, index) => {
-		var pre = index > 0 ? list[index - 1] : null
-		if (!pre) {
-			e.parent_id = 0
-			e.pos = [0]
-			e.child_pos = 0
-		} else {
-			if (e.regionType == 'struct') {
-				e.parent_id = 0
-				e.pos = [pre.pos[0] + 1]
-				e.child_pos = pre.pos[0] + 1
-			} else if (e.regionType == 'question') {
-				if (pre.regionType == 'question' || !pre.regionType) {
-					e.parent_id = pre.parent_id
-					e.pos = getNextBrotherPos(pre.pos)
-					e.child_pos = pre.child_pos + 1
-					e.children = []
-					addChild(list, pre.parent_id, e.id)
-				} else if (pre.regionType == 'struct') {
-					e.parent_id = pre.id
-					e.pos = [].concat(pre.pos).concat([0])
-					e.child_pos = 0
-					addChild(list, pre.id, e.id)
-				} else if (pre.regionType == 'sub-question') {
-					if (pre.parent_id) {
-						var subparent = list.find((item) => {
-							return item.id == pre.parent_id
-						})
-						if (subparent.regionType == 'struct') {
-							e.parent_id = subparent.id
-							e.pos = getNextBrotherPos(pre.pos)
-							e.child_pos = pre.child_pos + 1
-							addChild(list, subparent.id, e.id)
-						} else if (subparent.regionType == 'question') {
-							e.parent_id = subparent.parent_id
-							e.pos = getNextBrotherPos(subparent.pos)
-							e.child_pos = subparent.child_pos + 1
-							addChild(list, subparent.parent_id, e.id)
-						}
-					} else {
-						e.parent_id = pre.parent_id
-						e.pos = getNextBrotherPos(pre.pos)
-						e.child_pos = pre.child_pos + 1
-						addChild(list, pre.parent_id, e.id)
-					}
+// 根据文档列表生成list
+function generateListByDoc(docList) {
+	var hlist = []
+	var struct_index
+	var question_index
+	docList.forEach((e, index) => {
+		var parent_id = 0
+		if (e.regionType == 'struct') {
+			parent_id = 0
+		} else if (e.regionType == 'question') {
+			parent_id = struct_index != undefined ? docList[struct_index].id : 0
+		} else if (e.regionType == 'sub-question') {
+			parent_id = question_index != undefined ? docList[question_index].id : (struct_index != undefined ? docList[struct_index].id : 0)
+		} else if (!e.regionType) {
+			if (index > 0) {
+				if (hlist[index - 1].regionType) {
+					parent_id = hlist[hlist.length - 1].id
+				} else {
+					parent_id = hlist[hlist.length - 1].parent_id
 				}
-			} else if (e.regionType == 'sub-question') {
-				if (pre.regionType == 'sub-question' || !pre.regionType) {
-					e.parent_id = pre.parent_id
-					e.pos = getNextBrotherPos(pre.pos)
-					e.child_pos = pre.child_pos + 1
-					addChild(list, pre.parent_id, e.id)
-				} else if (pre.regionType == 'question' || pre.regionType == 'struct') {
-					e.parent_id = pre.id
-					e.pos = [].concat(pre.pos).concat([0])
-					e.child_pos = 0
-					addChild(list, pre.id, e.id)
-				}
-			} else {
-				e.parent_id = pre.parent_id
-				e.pos = getNextBrotherPos(pre.pos)
-				e.child_pos = pre.child_pos + 1
 			}
 		}
+		var child_pos = 0
+		if (parent_id) {
+			var parent = hlist.find(p => {
+				return p.id == parent_id
+			})
+			if (parent) {
+				child_pos = parent.children.length
+				parent.children.push(e.id)
+			}
+		} else {
+			for (var j = hlist.length - 1; j >= 0; --j) {
+				if (hlist[j].parent_id == 0) {
+					child_pos = hlist[j].child_pos + 1
+					break
+				}
+			}
+		}
+		var obj = {
+			id: e.id,
+			regionType: e.regionType,
+			text: e.text,
+			classType: e.classType,
+			parent_id: parent_id,
+			children: [],
+			child_pos: child_pos
+		}
+		hlist.push(obj)
+		if (e.regionType == 'struct') {
+			struct_index = index
+		} else if (e.regionType == 'question') {
+			question_index = index
+		}
 	})
-	g_horizontal_list = list
-	window.BiyueCustomData.node_list = list
-	console.log('g_horizontal_list', list)
-	var newTree = generateTreeByList(list)
-	return newTree
+	return hlist
 }
-
-function generateTreeByList(list) {
+// 根据list生成渲染需要的tree
+function genetateTreeByHList(list) {
 	if (!list) {
 		return null
 	}
@@ -205,12 +171,10 @@ function generateTreeByList(list) {
 				children: [],
 				regionType: e.regionType,
 				parent_id: e.parent_id,
-				child_pos: e.child_pos,
-				pos: e.pos,
 				classType: e.classType
 			})
 		} else {
-			var parent = getItemByPos(tree, e.pos.slice(0, e.pos.length - 1), 0)
+			var parent = getDataById(tree, e.parent_id)
 			if (parent && parent.children) {
 				parent.children.push({
 					id: e.id,
@@ -220,37 +184,38 @@ function generateTreeByList(list) {
 					children: [],
 					regionType: e.regionType,
 					parent_id: e.parent_id,
-					child_pos: e.child_pos,
-					pos: e.pos,
 					classType: e.classType
 				})
-			} else {
-				console.log('parent is null')
-				debugger
 			}
 		}
 	})
 	return tree
 }
 
-function getItemByPos(tree, pos, index) {
-	if (!tree) {
-		return
+function renderTree(tree) {
+	if (!g_exam_tree) {
+		g_exam_tree = new Tree($('#treeRoot'))
+		g_exam_tree.addCallBack(clickItem, dropItem)
 	}
-	if (index == pos.length - 1) {
-		return tree[pos[index]]
-	} else {
-		return getItemByPos(tree[pos[index]].children, pos, index + 1)
-	}
+	g_exam_tree.refreshList(tree)
 }
 
-function buildTree(list) {
-	console.log('buildTree]')
-	var tree = generateTree(list)
-	g_exam_tree = tree
-	g_exam_tree = new Tree($('#treeRoot'))
-	g_exam_tree.addCallBack(clickItem, dropItem)
-	g_exam_tree.init(tree)
+function getDataById(list, id) {
+	if (!list) {
+		return null
+	}
+	for (var i = 0, imax = list.length; i < imax; ++i) {
+		if (list[i].id == id) {
+			return list[i]
+		}
+		if (list[i].children) {
+			var v = getDataById(list[i].children, id)
+			if (v) {
+				return v
+			}
+		}
+	}
+	return null
 }
 
 function clickItem(id, item, e) {
@@ -302,19 +267,10 @@ function dropItem(list, dragId, dropId, direction) {
 		}
 		var regionType = dragData.regionType
 		function GetElementRange(id, classType) {
-			if (classType == 'blockLvlSdt') {
-				var control = controls.find((e) => {
-					return e.Sdt.GetId() == id
-				})
-				if (control) {
-					return control.GetRange()
-				}
-			} else if (classType == 'paragraph') {
-				var oParagraph = new Api.private_CreateApiParagraph(
-					AscCommon.g_oTableId.Get_ById(id)
-				)
-				if (oParagraph) {
-					return oParagraph.GetRange()
+			var oElement = Api.LookupObject(id)
+			if (oElement) {
+				if (oElement.GetRange) {
+					return oElement.GetRange()
 				}
 			}
 			return null
@@ -403,17 +359,13 @@ function dropItem(list, dragId, dropId, direction) {
 					var oDropRange
 					var oDropParentControl
 					if (dropData.classType == 'blockLvlSdt') {
-						var dropControl = controls.find((e) => {
-							return e.Sdt.GetId() == drag_options.dropId
-						})
+						var dropControl = Api.LookupObject(drag_options.dropId)
 						if (dropControl) {
 							oDropRange = dropControl.GetRange()
 							oDropParentControl = dropControl.GetParentContentControl()
 						}
 					} else if (dropData.classType == 'paragraph') {
-						var oDropParagraph = new Api.private_CreateApiParagraph(
-							AscCommon.g_oTableId.Get_ById(drag_options.dropId)
-						)
+						var oDropParagraph = Api.LookupObject(drag_options.dropId)
 						if (oDropParagraph) {
 							oDropRange = oDropParagraph.GetRange()
 							oDropParentControl = oDropParagraph.GetParentContentControl()
@@ -460,13 +412,12 @@ function updateHorListByTree(tree, hlist) {
 	tree.forEach(e => {
 		var children = e.children || []
 		hlist.push({
-			child_pos: e.pos[e.pos.length - 1],
-			classType: e.classType,
 			id: e.id,
-			parent_id: e.parent_id,
-			pos: e.pos,
 			regionType: e.regionType,
 			text: e.label,
+			parent_id: e.parent_id,
+			child_pos: e.pos[e.pos.length - 1],
+			classType: e.classType,
 			children: children.map(child => {
 				return child.id
 			})
@@ -481,298 +432,28 @@ function refreshExamTree() {
 	handleDocUpdate()
 }
 
+
 function updateTreeRenderWhenClick(data) {
+	console.log('data', data)
 	if (g_exam_tree) {
 		g_exam_tree.setSelect([data.control_id])
 	}
 }
-// 根据pos, 生成其之后的兄弟pos
-function getNextBrotherPos(pos) {
-	if (pos || pos.length == 0) {
-		var lastPosition = pos[pos.length - 1]
-		var parentpos = pos.slice(0, pos.length - 1)
-		parentpos.push(lastPosition + 1)
-		return parentpos
-	} else {
-		return [0]
-	}
-}
-// 在parent下的指定位置addPos插入一个child, 要相应的改变其之后的child的pos
-function moveAfterPosWhenAdd(list, parentId, addPos, addId) {
-	if (!list) {
-		return
-	}
-	if (!parentId) {
-		for (var i = 0; i < list.length; ++i) {
-			if (list[i].parentId == 0) {
-				if (list[i].child_pos >= addPos) {
-					list[i].child_pos += 1
-				}
-			}
-		}
-		return
-	}
-	var parent = list.find((e) => {
-		return e.id == parentId
-	})
-	if (!parent) {
-		return
-	}
-	if (!parent.children) {
-		parent.children = []
-	}
-	parent.children.splice(addPos, 0, addId)
-	for (var i = addPos + 1; i < parent.children.length; ++i) {
-		var child = list.find((e) => {
-			return e.id == parent.children[i]
-		})
-		if (child) {
-			child.child_pos += 1
-		}
-	}
-}
-
-function moveAfterPosWhenRemove(list, removeId) {
-	if (!list) {
-		return
-	}
-	var remove = list.find((e) => {
-		return e.id == removeId
-	})
-	if (!remove) {
-		return
-	}
-	var childCount = 0
-	if (remove.children && remove.children.length > 0) {
-		childCount = remove.children.length
-	}
-	// 修改其父节点下的children的相对位置
-	for (var i = 0; i < list.length; ++i) {
-		if (list[i].parent_id == remove.parent_id) {
-			if (list[i].child_pos > remove.child_pos) {
-				list[i].child_pos += childCount - 1
-			}
-		}
-	}
-	// 修改其子节点的相对位置
-	for (var i = 0; i < childCount; ++i) {
-		var child = list.find((e) => {
-			return e.id == remove.children[i]
-		})
-		if (child) {
-			child.parent_id = remove.parent_id
-			child.child_pos += remove.child_pos
-		}
-	}
-}
-
-function moveNodeAndChildrenToPos(list, index, newindex) {
-	if (!list) {
-		return
-	}
-	var node = list[index]
-	if (!node) {
-		return
-	}
-	var childCount = (node.children || []).length
-	if (newindex == 0) {
-		// 受影响的范围, 需要重新调整childpos
-		for (var i = newindex; i < index; ++i) {
-			if (list[i].parent_id == 0) {
-				list[i].child_pos += 1
-			}
-		}
-		// 调整原本之后的兄弟节点的child_pos, 并将其从children移除
-		if (node.parent_id) {
-			var parentIndex = list.findIndex((e) => {
-				return node.parent_id == e.id
-			})
-			var parent = list[parentIndex]
-			if (parent.children) {
-				for (var k = node.child_pos + 1; k < parent.children.length; ++k) {
-					var child = list.find((e) => {
-						return e.id == parent.children[k]
-					})
-					if (child) {
-						child.child_pos -= 1
-					}
-				}
-				parent.children.splice(node.child_pos, 1)
-			}
-		}
-		node.parent_id = 0
-		node.child_pos = 0
-		var temp = list.splice(index, childCount + 1)
-		list.splice(newindex, 0, ...temp)
-	} else {
-		if (node.parent_id) {
-			var parentIndex = list.findIndex((e) => {
-				return node.parent_id == e.id
-			})
-			var parent = list[parentIndex]
-			if (parentIndex < newindex) {
-				// 父节点未改变, 只是child_pos改变
-				var newChildPos = node.child_pos
-				for (var i = newindex; i < index; ++i) {
-					if (list[i].parent_id == parent.id) {
-						if (i == newindex) {
-							newChildPos = list[i].child_pos
-						}
-						list[i].child_pos += 1
-					}
-				}
-				parent.children.splice(node.child_pos, 1)
-				node.child_pos = 1
-				parent.children.splice(0, 0, node.id)
-				parent.children.splice(newChildPos, 0, node.id)
-				var temp = list.splice(index, childCount + 1)
-				list.splice(newindex, 0, ...temp)
-			} else {
-				// 父节点改变
-				// 将其从原有的父节点中移除
-				parent.children.splice(node.child_pos, 1)
-				// 更新children的child_pos
-				for (var i = node.child_pos; i < parent.children.length; ++i) {
-					var child = list.find((e) => {
-						return e.id == parent.children[i]
-					})
-					if (child) {
-						child.child_pos = i
-					}
-				}
-				// 将其添加到新的父节点中
-				var newPre = list[newindex - 1]
-				var newParent = list.find((e) => {
-					return e.id == newPre.parent_id
-				})
-				for (var i = newPre.child_pos + 1; i < newParent.children.length; ++i) {
-					var child = list.find((e) => {
-						return e.id == newParent.children[i]
-					})
-					if (child) {
-						child.child_pos = i + 1
-					}
-				}
-				try {
-					newParent.children(newPre.child_pos + 1, 0, node.id)
-				} catch (error) {
-					debugger
-				}
-
-				node.parent_id = newParent.id
-				node.child_pos = newPre.child_pos + 1
-				var temp = list.splice(index, childCount + 1)
-				list.splice(newindex, 0, ...temp)
-			}
-		}
-	}
-}
-
-function updateHorList1(ctrllist) {
-	var horlist = g_horizontal_list
-	var changeList = []
-	var i = 0
-	var imax = ctrllist.length
-	for (; i < imax; ++i) {
-		if (i < horlist.length) {
-			if (ctrllist[i].id == horlist[i].id) {
-				if (ctrllist[i].text != horlist[i].text) {
-					horlist[i].text = ctrllist[i].text
-					if (horlist[i].regionType) {
-						changeList.push(horlist[i].id)
-					}
-				}
-			} else {
-				var iold = horlist.findIndex((e) => {
-					return e.id == ctrllist[i].id
-				})
-				if (iold >= 0) {
-					// 之前就已存在
-					var index2 = ctrllist.findIndex((e) => {
-						return e.id == horlist[i].id
-					})
-					if (index2 == -1) {
-						// 未找到, 需要删除
-						moveAfterPosWhenRemove(horlist, horlist[i].id)
-						horlist.splice(i, 1)
-						--i
-					} else {
-						// 有找到, 属于位置移动
-						// 将节点及其子节点都挪到对应位置
-						moveNodeAndChildrenToPos(horlist, iold, i)
-					}
-				} else {
-					// 新加入, 需要插入
-					if (i > 0) {
-						var pre = horlist[i - 1]
-						horlist.splice(
-							i,
-							0,
-							Object.assign({}, ctrllist[i], {
-								parent_id: pre.parent_id,
-								pos: getNextBrotherPos(pre.pos),
-								child_pos: pre.child_pos + 1,
-							})
-						)
-						moveAfterPosWhenAdd(
-							horlist,
-							pre.parent_id,
-							pre.child_pos + 1,
-							ctrllist[i].id
-						)
-					} else {
-						horlist.splice(
-							i,
-							0,
-							Object.assign({}, ctrllist[i], {
-								parent_id: 0,
-								pos: [0],
-								child_pos: 0,
-							})
-						)
-						moveAfterPosWhenAdd(horlist, 0, 0, ctrllist[i].id)
-					}
-				}
-			}
-		} else {
-			var lastdata = horlist[horlist.length - 1]
-			if (lastdata.parent_id) {
-				var parent = horlist.find((e) => {
-					return e.id == lastdata.parent_id
-				})
-				parent.children.push(ctrllist[i].id)
-			}
-			horlist.splice(
-				i,
-				0,
-				Object.assign({}, ctrllist[i], {
-					parent_id: lastdata.parent_id,
-					pos: getNextBrotherPos(lastdata.pos),
-					child_pos: lastdata.child_pos + 1,
-				})
-			)
-		}
-	}
-	if (i < horlist.length) {
-		// 删除题目
-		horlist.splice(i, horlist.length - i)
-	}
-	return horlist
-}
 
 function handleDocUpdate() {
-	console.log('handleDocUpdate')
-	updateTree().then((ctrllist) => {
-		console.log('handleDocUpdate', ctrllist)
-		var horlist = updateHorList1(ctrllist)
-		console.log('after handleDocUpdate', horlist)
-		var tree = generateTreeByList(horlist)
-		if (g_exam_tree) {
-			g_exam_tree.refreshList(tree)
-		}
+	console.log('===== handleDocUpdate getDocList')
+	getDocList().then(res => {
+		console.log(' handleDocUpdate 1', res)
+		updateHListBYDoc(res)
+		console.log(' handleDocUpdate 2', [].concat(g_horizontal_list))
+		rebuildRelation(g_horizontal_list)
+		console.log('======= after rebuildRelation ', [].concat(g_horizontal_list))
+		var treeInfo = genetateTreeByHList(g_horizontal_list)
+		console.log('============= treeInfo', treeInfo)
+		renderTree(treeInfo)
 	})
 }
-// 更新选中range控件的类型
+// 划分类型
 function updateRangeControlType(typeName) {
 	Asc.scope.typename = typeName
 	biyueCallCommand(window, function() {
@@ -780,7 +461,14 @@ function updateRangeControlType(typeName) {
 		var oDocument = Api.GetDocument()
 		var oRange = oDocument.GetRangeBySelect()
 		if (typeName == 'examtitle') {
-			oRange.SetBold(true)
+			if (oRange) {
+				oRange.SetBold(true)
+			} else {
+				return {
+					code: 0,
+					message: '请先选中一个范围'
+				}
+			}
 			return
 		}
 		var allControls = oDocument.GetAllContentControls()
@@ -788,14 +476,16 @@ function updateRangeControlType(typeName) {
 		var changeList = []
 		function GetPosData(Pos) {
 			var data = {}
-			for (var i = Pos.length - 1; i >= 0; --i) {
-				if (Pos[i].Class.GetType) {
-					var type = Pos[i].Class.GetType()
-					if (type == 1) {
-						data.index_paragraph = i
-						return data
-					} else if (type == 39) {
-						data.index_run = i
+			if (Pos) {
+				for (var i = Pos.length - 1; i >= 0; --i) {
+					if (Pos[i].Class.GetType) {
+						var type = Pos[i].Class.GetType()
+						if (type == 1) {
+							data.index_paragraph = i
+							return data
+						} else if (type == 39) {
+							data.index_run = i
+						}
 					}
 				}
 			}
@@ -803,11 +493,13 @@ function updateRangeControlType(typeName) {
 		}
 
 		function getParagraphPosition(Pos) {
-			for (var i = Pos.length - 1; i >= 0; --i) {
-				if (Pos[i].Class.GetType) {
-					var type = Pos[i].Class.GetType()
-					if (type == 1) {
-						return Pos[i - 1].Position
+			if (Pos) {
+				for (var i = Pos.length - 1; i >= 0; --i) {
+					if (Pos[i].Class.GetType) {
+						var type = Pos[i].Class.GetType()
+						if (type == 1) {
+							return Pos[i - 1].Position
+						}
 					}
 				}
 			}
@@ -819,7 +511,7 @@ function updateRangeControlType(typeName) {
 			var EndData = GetPosData(range.EndPos)
 			var inParagraphStart = false
 			var inParagraphEnd = false
-			if (StartData.index_paragraph >= 0 && StartData.index_run >= 0) {
+			if (StartData && StartData.index_paragraph >= 0 && StartData.index_run >= 0) {
 				if (
 					range.StartPos[StartData.index_paragraph].Position == 0 &&
 					range.StartPos[StartData.index_run].Position == 0
@@ -827,7 +519,7 @@ function updateRangeControlType(typeName) {
 					inParagraphStart = true
 				}
 			}
-			if (EndData.index_paragraph >= 0 && EndData.index_run >= 0) {
+			if (EndData && EndData.index_paragraph >= 0 && EndData.index_run >= 0) {
 				if (
 					range.EndPos[EndData.index_paragraph].Position >=
 					range.EndPos[EndData.index_paragraph].Class.Content.length - 1 &&
@@ -874,12 +566,15 @@ function updateRangeControlType(typeName) {
 				var changeResult = {
 					id_old: oControl.Sdt.GetId(),
 					text: oRange ? oRange.GetText() : '',
-					regionType: typeName
+					regionType: typeName,
+					type_old: tag.regionType
 				}
 				if (tag.regionType != typeName) {
 					var rangeData = getRangeData(oRange)
 					oControl.SetTag(getNewTag(rangeData[0], rangeData[1]));
 					changeResult.command_type = 'change_type'
+				} else {
+					changeResult.command_type = 'keep'
 				}
 				changeList.push(changeResult)
 			}
@@ -891,7 +586,11 @@ function updateRangeControlType(typeName) {
 				}
 			}
 			var controlsInRange = allControls.filter(e => {
-				return e.Sdt.Content.Selection && e.Sdt.Content.Selection.Use
+				if (e.GetClassType() == 'blockLvlSdt') {
+					return e.Sdt.Content.Selection && e.Sdt.Content.Selection.Use
+				} else if (e.GetClassType() == 'inlineLvlSdt') {
+					return e.Sdt.Selection && e.Sdt.Selection.Use
+				}
 			})
 
 			function checkPosSame(pos1, pos2) {
@@ -906,10 +605,20 @@ function updateRangeControlType(typeName) {
 				return false
 			}
 			console.log('controlsInRange', controlsInRange)
+			if (controlsInRange) {
+				controlsInRange.forEach((e, index) => {
+					var orange = e.GetRange()
+					console.log(' ', index, e.GetTag(), orange.GetText())
+				})
+			}
 			var rangeData = getRangeData(oRange)
 			var rangeStartParagraphPosition = getParagraphPosition(oRange.StartPos)
 			var rangeEndParagraphPosition = getParagraphPosition(oRange.EndPos)
 			function addControlToRange(range, tag, forceType) {
+				if (!range) {
+					console.log('addControlToRange range is null')
+					return null
+				}
 				console.log('addControlToRange', range, tag)
 				oDocument.RemoveSelection()
 				range.Select()
@@ -920,10 +629,14 @@ function updateRangeControlType(typeName) {
 					Tag: tag,
 				})
 				console.log('oResult', oResult)
-				return {
-					id: oResult.InternalId,
-					regionType: JSON.parse(tag || {}).regionType,
-					text: range.GetText()
+				if(oResult) {
+					return {
+						id: oResult.InternalId,
+						regionType: JSON.parse(tag || {}).regionType,
+						text: range.GetText()
+					}
+				} else {
+					return null
 				}
 			}
 			var needAdd = true
@@ -954,48 +667,63 @@ function updateRangeControlType(typeName) {
 						needAdd = false
 						break
 					} else {
-						if (typeName == 'struct' || typeName == 'question' || (typeName == 'sub-question' && controlTag.regionType == 'sub-question')) {
+						if ( (oControl.GetClassType() == 'blockLvlSdt') && (typeName == 'struct' || typeName == 'question' || (typeName == 'sub-question' && controlTag.regionType == 'sub-question'))) {
 							var oControlContent = oControl.GetContent()
 							var elementCount = oControlContent.GetElementsCount()
-							var changeobj = {
+							changeList.push({
 								id_old: oControl.Sdt.GetId(),
 								command_type: 'remove'
-							}
+							})
 							if (rangeEndParagraphPosition < elementCount - 1) {
 								var oElement = oControlContent.GetElement(rangeEndParagraphPosition + 1)
-								oElement.Select()
-								var range1 = oDocument.GetRangeBySelect()
-								var backRange = Api.CreateRange(oControl, range1.StartPos, controlRange.EndPos)
-								var backData = addControlToRange(backRange, oControl.GetTag())
-								if (!changeobj.new_controls) {
-									changeobj.new_controls = [backData]
+								if (oElement) {
+									oElement.Select()
+									var range1 = oDocument.GetRangeBySelect()
+									var backRange = Api.CreateRange(oControl, range1.StartPos, controlRange.EndPos)
+									var backData = addControlToRange(backRange, oControl.GetTag())
+									if (backData) {
+										changeList.push({
+											id_new: backData.id,
+											command_type: 'add',
+											regionType: backData.regionType,
+											text: backData.text
+										})
+									}
 								} else {
-									changeobj.new_controls.push(backData)
+									console.warn('rangeend cannot find element', rangeEndParagraphPosition + 1)
 								}
 							} 
 							if (rangeStartParagraphPosition > 0) {
 								var oElement = oControlContent.GetElement(rangeStartParagraphPosition - 1)
-								oElement.Select()
-								var range1 = oDocument.GetRangeBySelect()
-								var frontRange = Api.CreateRange(oControl, controlRange.StartPos, range1.EndPos)
-								var frontData = addControlToRange(frontRange, oControl.GetTag())
-								if (!changeobj.new_controls) {
-									changeobj.new_controls = [frontData]
+								if (oElement) {
+									oElement.Select()
+									var range1 = oDocument.GetRangeBySelect()
+									var frontRange = Api.CreateRange(oControl, controlRange.StartPos, range1.EndPos)
+									var frontData = addControlToRange(frontRange, oControl.GetTag())
+									if (frontData) {
+										changeList.push({
+											id_new: frontData.id,
+											command_type: 'add',
+											regionType: frontData.regionType,
+											text: frontData.text
+										})
+									}
 								} else {
-									changeobj.new_controls.push(frontData)
+									console.warn('rangestart cannot find element', rangeStartParagraphPosition - 1, 'elementCount', elementCount)
+									console.log('oControlContent', oControl)
+									console.log('oRange', oRange)
+									console.log('controlRange', controlRange)
 								}
 							}
-							changeList.push(changeobj)
 							removeIdList.push(oControl.Sdt.GetId())
 							needAdd = true
 						} else if (typeName == 'write') {
 							needAdd = true
 							if (controlTag.regionType == 'write') {
-								var changeobj = {
+								changeList.push({
 									id_old: oControl.Sdt.GetId(),
 									command_type: 'remove'
-								}
-								changeList.push(changeobj)
+								})
 								removeIdList.push(oControl.Sdt.GetId())
 							}
 						}
@@ -1010,12 +738,14 @@ function updateRangeControlType(typeName) {
 					}
 				}
 				var addData = addControlToRange(oRange, getNewTag(rangeData[0], rangeData[1]), useType)
-				changeList.push({
-					id_new: addData.id,
-					command_type: 'add',
-					regionType: typeName,
-					text: oRange ? oRange.GetText() : '',
-				})
+				if (addData) {
+					changeList.push({
+						id_new: addData.id,
+						command_type: 'add',
+						regionType: typeName,
+						text: oRange ? oRange.GetText() : '',
+					})
+				}
 			}
 			if (removeIdList.length > 0) {
 				removeIdList.forEach(id => {
@@ -1023,190 +753,245 @@ function updateRangeControlType(typeName) {
 				})
 			}
 		}
-		result.code = 1
 		result.changeList = changeList
-		function getElementList() {
-			var elementCount = oDocument.GetElementsCount()
-			if (elementCount == 0) {
-				return []
-			}
-			var list = []
-			for (var idx = 0; idx < elementCount; ++idx) {
-				var oElement = oDocument.GetElement(idx)
-				if (!oElement) {
-					continue
-				}
-				if (!oElement.GetClassType) {
-					continue
-				}
-				var classType = oElement.GetClassType()
-				if (classType == 'paragraph') {
-					list.push({
-						id: oElement.Paragraph.Id,
-						regionType: null,
-						text: oElement.GetRange().GetText(),
-						classType: classType,
-					})
-				} else if (classType == 'blockLvlSdt') {
-					var tag = JSON.parse(oElement.GetTag() || {})
-					list.push({
-						id: oElement.Sdt.GetId(),
-						regionType: tag.regionType,
-						text: oElement.GetRange().GetText(),
-						classType: classType,
-					})
-					var controls = oElement.GetAllContentControls()
-					if (controls) {
-						controls.forEach((e) => {
-							var subtag = JSON.parse(e.GetTag() || {})
-							if (
-								subtag.regionType == 'question' ||
-								subtag.regionType == 'sub-question'
-							) {
-								list.push({
-									id: e.Sdt.GetId(),
-									regionType: subtag.regionType,
-									text: e.GetRange().GetText(),
-									classType: e.GetClassType(),
-								})
-							}
-						})
-					}
-				} else if (classType == 'table') {
-					var controls = []
-					oElement.Table.GetAllContentControls(controls)
-					if (controls && controls.length) {
-						controls.forEach((e) => {
-							var control = allControls.find(c => {
-								return c.Sdt.GetId() == e.Id
-							})
-							if (control) {
-								var subtag = JSON.parse(control.GetTag() || {})
-								if (
-									subtag.regionType == 'question' ||
-									subtag.regionType == 'sub-question'
-								) {
-									list.push({
-										id: control.Sdt.GetId(),
-										regionType: subtag.regionType,
-										text: control.GetRange().GetText(),
-										classType: control.GetClassType(),
-									})
-								}
-							}
-						})
-					}
-				}
-			}
-			return list
-		}
-		result.elementList = getElementList()
+		result.code = 1
 		return result
 	}, false, true).then(res => {
 		console.log('updateControlType result:', res)
-		handleSetControlType(res)
+		if (res) {
+			if (res.code == 1) {
+				getDocList().then(res2 => {
+					if (res2) {
+						updateHListBYDoc(res2)
+						updatePosBySetType(res)
+					}
+				})	
+			} else if (res.message) {
+				alert(res.message)
+			}
+		}
 	})
 }
-
-function handleSetControlType(res) {
-	if (!res) {
-		return
-	}
-	if (res.code != 1) {
-		if (res.message) {
-			alert(res.message)
+// 文档更新后，更新horlist，先不关注父子关系
+function updateHListBYDoc(docList) {
+	var hlist = g_horizontal_list
+	console.log('updateHListBYDoc begin ', [].concat(hlist))
+	var i = 0
+	var imax = docList.length
+	for (; i < imax; ++i) {
+		var item = docList[i]
+		if (item.id == hlist[i].id) {
+			// id相同，更新text
+			hlist[i].text = item.text
+			hlist[i].regionType = item.regionType
+		} else {
+			var index1 = hlist.findIndex(e => {
+				return e.id == item.id
+			})
+			var index2 = docList.findIndex(e => {
+				return e.id == hlist[i].id
+			})
+			if (index1 >= 0) { // 之前已在hlist中
+				if (index2 == -1) {
+					// 删除
+					if (hlist[i].children) {
+						hlist[i].children.forEach(childId => {
+							setNodeParentId(hlist, childId, 0)
+						})
+					}
+					hlist.splice(i, 1)
+					--i
+				} else {
+					// 位置改变
+					var swapElement = hlist.splice(index1, 1)
+					swapElement[0].text = item.text
+					swapElement[0].regionType = item.regionType
+					// 父节点ID，暂时不考虑
+					hlist.splice(i, 0, ...swapElement)
+				}
+			} else { // 之前不在hlist中，需要插入
+				var parent_id = 0
+				if (i > 0) {
+					parent_id = hlist[i - 1].parent_id
+					if (hlist[i - 1].regionType == 'struct') {
+						if (item.regionType != 'struct') {
+							parent_id = hlist[i - 1].id
+						}
+					}
+				}
+				hlist.splice(i, 0, {
+					id: item.id,
+					regionType: item.regionType,
+					text: item.text,
+					classType: item.classType,
+					parent_id: parent_id,
+					children: [],
+					child_pos: 0
+				})
+			}
 		}
-		return
 	}
-	var horlist = updateHorList1(res.elementList)
-	updateHorList3(horlist, res.changeList)
-	var tree = generateTreeByList(horlist)
-	if (g_exam_tree) {
-		g_exam_tree.refreshList(tree)
+	if (i < hlist.length) {
+		hlist.splice(i, hlist.length - i)
 	}
+	console.log('updateHListBYDoc end ', [].concat(hlist))
 }
 
-function updateHorList3(horList, changeList) {
-	if (!horList) {
-		return
-	}
+function updatePosBySetType(changeData) {
+	console.log('updatePosBySetType', changeData)
+	console.log('updatePosBySetType', g_horizontal_list)
+	var changeList = changeData.changeList
 	if (!changeList || changeList.length == 0) {
 		return
 	}
-	var change0 = changeList[0]
-	if (change0.command_type == 'add') {
-		if (change0.id_new) {
-			if (change0.regionType == 'struct') { // 设置新题组
-				// 找到这个id所在位置，更新其父节点的children
-				var index = horList.findIndex((e) => {
-					return e.id == change0.id_new
-				})
-				var data0 = horList[index]
-				if (data0.parent_id) { // 存在父节点
-					var parent = horList.find((e) => {
-						return e.id == data0.parent_id
-					})
-					if (parent) {
-						// 修改其之后的兄弟节点的父节点
-						for (var j = data0.child_pos + 1; j < parent.children.length; ++j) {
-							// todo..
+	var hlist = g_horizontal_list
+	changeList.forEach(cdata => {
+		if (cdata.command_type == 'change_type' || cdata.command_type == 'keep') {
+			var targetIndex = hlist.findIndex(e => {
+				return e.id == cdata.id_old
+			})
+			if (targetIndex == -1) {
+				return
+			}
+			var targetData = hlist[targetIndex]
+			if (!targetData) {
+				return
+			}
+			if (cdata.type_old == 'struct') {
+				if (cdata.regionType == 'question') { // 原本是题组，改为题目
+					if (targetData.children) {
+						targetData.children.forEach(childId => {
+							setNodeParentId(hlist, childId, 0)
+						})
+					}
+					targetData.parent_id = 0
+				} else if (cdata.regionType == 'struct') { // 依然是题组，需要把之后无主的条目归为children
+					for (var i = targetIndex + 1; i < hlist.length; ++i) {
+						if (hlist[i].regionType == 'struct') {
+							break
+						}
+						if (hlist[i].parent_id == 0) {
+							setNodeParentId(hlist, hlist[i].id, targetData.id)
+						}
+					}
+				}
+			} else if (cdata.type_old == 'question') {
+				if (cdata.regionType == 'struct') { // 原本是题目，改为题组
+					if (targetData.parent_id) {
+						var oldParent = hlist.find(e => {
+							return e.id == targetData.parent_id
+						})
+						if (oldParent && oldParent.children) {
+							for (var i = targetData.child_pos + 1; i < oldParent.children.length; ++i) {
+								setNodeParentId(hlist, oldParent.children[i], targetData.id)
+							}
+						}
+					}
+					targetData.parent_id = 0
+					for (var i = targetIndex - 1; i >= 0; --i) {
+						if (hlist[i].parent_id == 0) {
+							preStructId = hlist[i].id
+						}
+					}
+					for (var i = targetIndex + 1; i < hlist.length; ++i) {
+						if (hlist[i].regionType == 'struct') {
+							break
+						}
+						if (hlist[i].parent_id) {
+							var tpindex = hlist.findIndex(e => {
+								return e.id == hlist[i].parent_id
+							})
+							if (tpindex >= 0 && tpindex < targetIndex) {
+								hlist[i].parent_id = targetData.id
+							}
+						} else {
+							hlist[i].parent_id = targetData.id
 						}
 					}
 				}
 			}
+		} else if (cdata.command_type == 'add') {
+			var targetIndex = hlist.findIndex(e => {
+				return e.id == cdata.id_new
+			})
+			if (targetIndex == -1) {
+				return
+			}
+			var targetData = hlist[targetIndex]
+			if (cdata.regionType == 'struct') { // 新增题组
+				// 其之后的题目的父节点应该改为它
+				var preStructId = 0
+				for (var i = targetIndex - 1; i >= 0; --i) {
+					if (hlist[i].parent_id == 0) {
+						preStructId = hlist[i].id
+					}
+				}
+				var preId = targetIndex > 0 ? hlist[targetIndex - 1].id : 0
+				for (var i = targetIndex + 1; i < hlist.length; ++i) {
+					if (hlist[i].regionType == 'struct') {
+						break
+					}
+					if (hlist[i].parent_id) {
+						var tpindex = hlist.findIndex(e => {
+							return e.id == hlist[i].parent_id
+						})
+						if (tpindex >= 0 && tpindex < targetIndex) {
+							hlist[i].parent_id = targetData.id
+						}
+					} else {
+						hlist[i].parent_id = targetData.id
+					}
+				}
+				targetData.parent_id = 0
+			}
 		}
-	}
+	})
+	console.log('========= after updatePosBySetType ', [].concat(hlist))
+	rebuildRelation(hlist)
+	console.log('======= after rebuildRelation ', [].concat(hlist))
+	var treeInfo = genetateTreeByHList(hlist)
+	console.log('============= treeInfo', treeInfo)
+	renderTree(treeInfo)
 }
 
-// 划分类型后，进一步调整层次结构
-function updateHorList2(horlist, regionType, InternalId, preElementId, preClassType) {
-	if (!horlist) {
+function setNodeParentId(list, id, parent_id) {
+	if (!list) {
 		return
 	}
-	for (var i = 0; i < horlist.length; ++i) {
-		if (horlist[i].id == InternalId) {
-			var item = horlist[i]
-			if (regionType == 'struct') { // 设置为题组
-				if (item.parent_id != 0) {
-					var parent = horlist.find(e => {
-						return e.id == item.parent_id
-					})
-					if (parent && parent.children) {
-						// 修改自身的父节点
-						item.parent_id = 0
-						item.child_pos = parent.pos[0] + 1
-						item.pos = [item.child_pos]
-						// 修改其之后的兄弟节点的位置
-						for (var j = item.child_pos + 1, jmax = parent.children.length; j < jmax; ++j) {
-							var child = horlist.find(e => {
-								return e.id == parent.children[j].id
-							})
-							if (child) {
-								child.parent_id = InternalId
-								child.child_pos = jmax - j - 1
-								child.pos = [item.child_pos, child.child_pos]
-							}
-						}
-						parent.children.splice(item.child_pos, parent.children.length - item.child_pos)
-						// 修改原有父节点之后的兄弟节点的位置
-						for (var k = i + 1; k < horlist.length; ++k) {
-							if (horlist[k].parent_id == 0) {
-								horlist[k].child_pos += 1
-							}
-							horlist[k].pos[0] += 1
-						}
-					}
-				}
-
-			} else if (regionType == 'question') { // 设置为题目
-
-			} else if (regionType == 'sub-question') { // 设置为小题
-
-			}
-			return
-		}
+	var target = list.find(e => {
+		return e.id == id
+	})
+	if (target) {
+		target.parent_id = parent_id
 	}
 }
+// 在所有节点parent_id和顺序都已正确的情况下，重新生成child_pos和children
+function rebuildRelation(list) {
+	if (!list) {
+		return
+	}
+	list.forEach((e, index) => {
+		var child_pos = 0
+		if (e.parent_id) {
+			for (var i = index - 1; i >= 0; --i) {
+				if (list[i].id == e.parent_id) {
+					child_pos = list[i].children.length
+					list[i].children.push(e.id)
+				}
+			}
+		} else {
+			for (var i = index - 1; i >= 0; --i) {
+				if (list[i].parent_id == 0) {
+					child_pos = list[i].child_pos + 1
+					break
+				}
+			}
+		}
+		e.children = []
+		e.child_pos = child_pos
+	})
+}
+
 
 function reqGetQuestionType() {
 	Asc.scope.horlist = g_horizontal_list
@@ -1433,23 +1218,6 @@ function getTimeString() {
 	var second = date.getSeconds()
 	var micsecond = date.getMilliseconds()
 	return year + '-' + month + '-' + day + ' ' + hour + ':' + minute + ':' + second + ' ' + micsecond
-}
-function getDataById(list, id) {
-	if (!list) {
-		return null
-	}
-	for (var i = 0, imax = list.length; i < imax; ++i) {
-		if (list[i].id == id) {
-			return list[i]
-		}
-		if (list[i].children) {
-			var v = getDataById(list[i].children, id)
-			if (v) {
-				return v
-			}
-		}
-	}
-	return null
 }
 
 export {
