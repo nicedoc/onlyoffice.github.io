@@ -697,6 +697,7 @@ function updateRangeControlType(typeName) {
 			var removeIdList = []
 			var controlsInRange = []
 			var completeOverlapControl = null
+			var control2 = null
 			for (var i = 0, imax = allControls.length; i < imax; ++i) {
 				var e = allControls[i]
 				var isUse = false
@@ -717,7 +718,14 @@ function updateRangeControlType(typeName) {
 					completeOverlapControl = e
 					break
 				}
-				if (relation == 2 || relation == 4) {
+				if (relation == 2) {
+					if (typeName == 'sub-question') {
+						control2 = e
+					} else {
+						controlsInRange.push(e)
+					}
+				}
+				if (relation == 4) {
 					controlsInRange.push(e)
 				}
 			}
@@ -735,6 +743,8 @@ function updateRangeControlType(typeName) {
 				}
 				changeList.push(changeObject)
 				needAdd = false
+			} else if (control2) {
+				needAdd = true
 			} else if (controlsInRange.length) {
 				for (var i = 0; i < controlsInRange.length; ++i) {
 					var oControl = controlsInRange[i]
@@ -920,8 +930,12 @@ function updateHListBYDoc(docList) {
 					var preItem = i > 0 ? getItemData(hlist, hlist[i - 1].id) : null
 					var nextItem = i < hlist.length ? getItemData(hlist, hlist[i].id) : null
 					if (preItem && nextItem) {
-						var pindex = Math.max(preItem.parent_index, nextItem.parent_index)
-						parent_id = hlist[pindex].id
+						if (preItem.parent_index != undefined && nextItem.parent_index != undefined) {
+							var pindex = Math.max(preItem.parent_index, nextItem.parent_index)
+							parent_id = hlist[pindex].id
+						} else if (preItem.parent_index != undefined) {
+							parent_id = hlist[preItem.parent_index].id
+						}
 					}
 				}
 				hlist.splice(i, 0, {
