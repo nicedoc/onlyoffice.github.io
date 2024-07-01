@@ -328,7 +328,7 @@ class Tree {
 			console.log('can not find parent')
 		}
 		this.updateOverClass()
-		console.log('list after drop', this.list)
+		console.log('tree after drop', this.list)
 		if (this.callback_drop) {
 			this.callback_drop(this.list, dragId, dropId, this.drag_action.direction)
 		}

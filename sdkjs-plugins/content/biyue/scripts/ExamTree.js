@@ -266,7 +266,7 @@ function dropItem(list, dragId, dropId, direction) {
 			return
 		}
 		var regionType = dragData.regionType
-		function GetElementRange(id, classType) {
+		function GetElementRange(id) {
 			var oElement = Api.LookupObject(id)
 			if (oElement) {
 				if (oElement.GetRange) {
@@ -279,27 +279,66 @@ function dropItem(list, dragId, dropId, direction) {
 		if (!oDragRange) {
 			return
 		}
-		
-		var templist = []
-		if (regionType == 'struct') {
-			// 题组拖拽，需要将其下的所有children都挪动位置
-			if (dragData.children) {
-				for (var i = dragData.children.length - 1; i >= 0; --i) {
-					var childId = dragData.children[i]
-					var childData = horList.find(e => {
-						return e.id == childId
-					})
-					var childRange = GetElementRange(childId, childData.classType)
-					if (childRange) {
-						var startPos = childRange.StartPos[0].Position
-						templist.push(oDocument.GetElement(startPos))
-						oDocument.RemoveElement(startPos)
+		console.log('dragData', dragData)
+		console.log('dropData', dropData)
+
+		function getRemoveIds(list, id, parent_id) {
+			if (!list) {
+				return
+			}
+			var item = horList.find(e => {
+				return e.id == id
+			})
+			if (item) {
+				var needRemove = true
+				if (parent_id) {
+					var oElement = Api.LookupObject(id)
+					if (oElement && oElement.GetParentContentControl) {
+						var parentControl = oElement.GetParentContentControl()
+						if (parentControl) {
+							var pid = parentControl.Sdt.GetId()
+							var index = list.findIndex(e => {
+								return e.id == pid
+							})
+							if (index != -1) {
+								needRemove = false
+							}
+						}
 					}
 				}
+				if (needRemove) {
+					list.push({
+						index: list.length,
+						id: item.id
+					})
+				}	
+				if (item.children) {
+					item.children.forEach(childId => {
+						getRemoveIds(list, childId, id)
+					})
+				}
 			}
-			var startPos = oDragRange.StartPos[0].Position
-			templist.push(oDocument.GetElement(startPos))
-			oDocument.RemoveElement(startPos)
+		}
+
+		var templist = []
+
+		var removeIds = []
+		getRemoveIds(removeIds, drag_options.dragId)
+		removeIds = removeIds.sort((a, b) => {
+			return b.index - a.index
+		})
+		console.log('removeIds', removeIds)
+		// 题组或题目拖拽，需要将其下的所有children都挪动位置
+		if (regionType == 'struct' || regionType == 'question') {
+			removeIds.forEach(e => {
+				var itemRange = GetElementRange(e.id)
+				var startPos = itemRange.StartPos[0].Position
+				templist.push(oDocument.GetElement(startPos))
+				oDocument.RemoveElement(startPos)
+			})
+		}
+
+		if (regionType == 'struct') {
 			// 移动到相应位置
 			var dropPos
 			if (drag_options.direction == 'top') {
@@ -331,18 +370,17 @@ function dropItem(list, dragId, dropId, direction) {
 		} else {
 			// 题目位于表格的，之后再处理
 			if (!regionType || regionType == 'question') {
-				var startPos = oDragRange.StartPos[0].Position
-				templist.push(oDocument.GetElement(startPos))
-				oDocument.RemoveElement(startPos)
-
+				console.log('oDragRange', oDragRange)
 				var dropRange = GetElementRange(drag_options.dropId, dropData.classType)
+				console.log('dropRange', dropRange)
 				if (dropRange) {
 					var dropPos = dropRange.StartPos[0].Position
-					if (drag_options.direction == 'top') {
-						oDocument.AddElement(dropPos, templist[0])
-					} else {
-						oDocument.AddElement(dropPos + 1, templist[0])
+					if (drag_options.direction != 'top') {
+						dropPos = dropPos + 1
 					}
+					templist.forEach((e) => {
+						oDocument.AddElement(dropPos, e)
+					})
 				} else {
 					console.log('dropRange is null')
 				}
@@ -351,6 +389,7 @@ function dropItem(list, dragId, dropId, direction) {
 					return e.Sdt.GetId() == drag_options.dragId
 				})
 				var parentControl = dragControl.GetParentContentControl()
+				console.log('parentControl', parentControl)
 				if (parentControl) {
 					var startPos = oDragRange.StartPos[1].Position
 					var oParentDocument = parentControl.GetContent()
@@ -389,6 +428,14 @@ function dropItem(list, dragId, dropId, direction) {
 						oDocument.AddElement(dropPos, templist[0])
 					}
 				} else {
+					var dropElement = Api.LookupObject(drag_options.dropId)
+					console.log('dropElement', dropElement)
+					if (dropElement) {
+						if (dropElement.GetParentContentControl) {
+							var dropParentControl = dropElement.GetParentContentControl()
+							console.log('dropParentControl', dropParentControl)
+						}
+					}
 					var parentTableCell = dragControl.GetParentTableCell()
 					if (parentTableCell) {
 						// todo..单题在表格单元里，可能需要合并拆分单元格
@@ -772,6 +819,27 @@ function updateRangeControlType(typeName) {
 		}
 	})
 }
+
+function getItemData(list, id) {
+	if (!list) {
+		return null
+	}
+	var index = list.findIndex(e => {
+		return e.id == id
+	})
+	if (index >= 0) {
+		if (list[index].parent_id) {
+			var parentIndex = list.findIndex(e => {
+				return e.id == list[index].parent_id
+			})
+		}
+		return {
+			index: index,
+			parent_index: parentIndex
+		}
+	}
+	return null
+}
 // 文档更新后，更新horlist，先不关注父子关系
 function updateHListBYDoc(docList) {
 	var hlist = g_horizontal_list
@@ -811,12 +879,12 @@ function updateHListBYDoc(docList) {
 				}
 			} else { // 之前不在hlist中，需要插入
 				var parent_id = 0
-				if (i > 0) {
-					parent_id = hlist[i - 1].parent_id
-					if (hlist[i - 1].regionType == 'struct') {
-						if (item.regionType != 'struct') {
-							parent_id = hlist[i - 1].id
-						}
+				if (item.regionType != 'struct') {
+					var preItem = i > 0 ? getItemData(hlist, hlist[i - 1].id) : null
+					var nextItem = i < hlist.length ? getItemData(hlist, hlist[i].id) : null
+					if (preItem && nextItem) {
+						var pindex = Math.max(preItem.parent_index, nextItem.parent_index)
+						parent_id = hlist[pindex].id
 					}
 				}
 				hlist.splice(i, 0, {
