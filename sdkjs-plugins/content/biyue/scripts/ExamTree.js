@@ -65,6 +65,7 @@ function getDocList() {
 								regionType: subtag.regionType,
 								text: e.GetRange().GetText(),
 								classType: e.GetClassType(),
+								parent_control_id: oElement.Sdt.GetId()
 							})
 						}
 					})
@@ -95,6 +96,7 @@ function getDocList() {
 				}
 			}
 		}
+		console.log('[getDocList] result', list)
 		return list
 	}, false, false)
 }
@@ -632,13 +634,6 @@ function updateRangeControlType(typeName) {
 					message: '选中范围内无段落',
 				}
 			}
-			var controlsInRange = allControls.filter(e => {
-				if (e.GetClassType() == 'blockLvlSdt') {
-					return e.Sdt.Content.Selection && e.Sdt.Content.Selection.Use
-				} else if (e.GetClassType() == 'inlineLvlSdt') {
-					return e.Sdt.Selection && e.Sdt.Selection.Use
-				}
-			})
 
 			function checkPosSame(pos1, pos2) {
 				if (pos1 && pos2 && pos1.length == pos2.length) {
@@ -651,12 +646,24 @@ function updateRangeControlType(typeName) {
 				}
 				return false
 			}
-			console.log('controlsInRange', controlsInRange)
-			if (controlsInRange) {
-				controlsInRange.forEach((e, index) => {
-					var orange = e.GetRange()
-					console.log(' ', index, e.GetTag(), orange.GetText())
-				})
+			// 获取两个range的关系 重叠，一个是另一个的子集，相交
+			function getRangeRelation(range1, range2) {
+				if (checkPosSame(range1.StartPos, range2.StartPos) && checkPosSame(range1.EndPos, range2.EndPos)) {
+					return 1
+				} else {
+					var intersectRange = range1.IntersectWith(range2)
+					if (intersectRange) {
+						if (checkPosSame(range1.StartPos, intersectRange.StartPos) && checkPosSame(range1.EndPos, intersectRange.EndPos)) {
+							return 2
+						} else if (checkPosSame(range2.StartPos, intersectRange.StartPos) && checkPosSame(range2.EndPos, intersectRange.EndPos)) {
+							return 3	
+						} else {
+							return 4
+						}
+					} else {
+						return 5
+					}
+				}
 			}
 			var rangeData = getRangeData(oRange)
 			var rangeStartParagraphPosition = getParagraphPosition(oRange.StartPos)
@@ -688,94 +695,114 @@ function updateRangeControlType(typeName) {
 			}
 			var needAdd = true
 			var removeIdList = []
-			if (controlsInRange.length > 0) {
+			var controlsInRange = []
+			var completeOverlapControl = null
+			for (var i = 0, imax = allControls.length; i < imax; ++i) {
+				var e = allControls[i]
+				var isUse = false
+				if (e.GetClassType() == 'blockLvlSdt') {
+					if (e.Sdt.Content.Selection && e.Sdt.Content.Selection.Use) {
+						isUse = true
+					}
+				} else if (e.GetClassType() == 'inlineLvlSdt') {
+					if (e.Sdt.Selection && e.Sdt.Selection.Use) {
+						isUse = true
+					}
+				}
+				if (!isUse) {
+					continue
+				}
+				var relation = getRangeRelation(oRange, e.GetRange())
+				if (relation == 1) {
+					completeOverlapControl = e
+					break
+				}
+				if (relation == 2 || relation == 4) {
+					controlsInRange.push(e)
+				}
+			}
+			// 存在完全重叠的区域时，就只操作这个区域
+			if (completeOverlapControl) {
+				var tag = JSON.parse(completeOverlapControl.GetTag() || {})
+				var changeObject = {
+					id_old: completeOverlapControl.Sdt.GetId(),
+					text: oRange ? oRange.GetText() : '',
+					regionType: typeName
+				}
+				if (tag.regionType != typeName) {
+					completeOverlapControl.SetTag(getNewTag(rangeData[0], rangeData[1]));
+					changeObject.command_type = 'change_type'
+				}
+				changeList.push(changeObject)
+				needAdd = false
+			} else if (controlsInRange.length) {
 				for (var i = 0; i < controlsInRange.length; ++i) {
 					var oControl = controlsInRange[i]
-					if (!oControl) {
-						continue
-					}
 					var controlRange = oControl.GetRange()
-					console.log('controlRange', controlRange)
-					var controlTag = JSON.parse(oControl.GetTag()) 
-					if (checkPosSame(controlRange.StartPos, oRange.StartPos) && checkPosSame(controlRange.EndPos, oRange.EndPos)) {
-						// 完全重叠
-						console.log('完全重叠')
-						var tag = JSON.parse(oControl.GetTag() || {})
-						var changeObject = {
+					var controlTag = JSON.parse(oControl.GetTag())
+					if ( (oControl.GetClassType() == 'blockLvlSdt') && (typeName == 'struct' || typeName == 'question' || (typeName == 'sub-question' && controlTag.regionType == 'sub-question'))) {
+						var oControlContent = oControl.GetContent()
+						var elementCount = oControlContent.GetElementsCount()
+						changeList.push({
 							id_old: oControl.Sdt.GetId(),
-							text: oRange ? oRange.GetText() : '',
-							regionType: typeName
+							command_type: 'remove'
+						})
+						if (rangeEndParagraphPosition < elementCount - 1) {
+							var oElement = oControlContent.GetElement(rangeEndParagraphPosition + 1)
+							if (oElement) {
+								oElement.Select()
+								var range1 = oDocument.GetRangeBySelect()
+								var backRange = Api.CreateRange(oControl, range1.StartPos, controlRange.EndPos)
+								var backData = addControlToRange(backRange, oControl.GetTag())
+								if (backData) {
+									changeList.push({
+										id_new: backData.id,
+										command_type: 'add',
+										regionType: backData.regionType,
+										text: backData.text
+									})
+								}
+							} else {
+								console.warn('rangeend cannot find element', rangeEndParagraphPosition + 1)
+							}
+						} 
+						if (rangeStartParagraphPosition > 0) {
+							var oElement = oControlContent.GetElement(rangeStartParagraphPosition - 1)
+							if (oElement) {
+								oElement.Select()
+								var range1 = oDocument.GetRangeBySelect()
+								var frontRange = Api.CreateRange(oControl, controlRange.StartPos, range1.EndPos)
+								var frontData = addControlToRange(frontRange, oControl.GetTag())
+								if (frontData) {
+									changeList.push({
+										id_new: frontData.id,
+										command_type: 'add',
+										regionType: frontData.regionType,
+										text: frontData.text
+									})
+								}
+							} else {
+								console.warn('rangestart cannot find element', rangeStartParagraphPosition - 1, 'elementCount', elementCount)
+								console.log('oControlContent', oControl)
+								console.log('oRange', oRange)
+								console.log('controlRange', controlRange)
+							}
 						}
-						if (tag.regionType != typeName) {
-							oControl.SetTag(getNewTag(rangeData[0], rangeData[1]));
-							changeObject.command_type = 'change_type'
-						}
-						changeList.push(changeObject)
-						needAdd = false
-						break
-					} else {
-						if ( (oControl.GetClassType() == 'blockLvlSdt') && (typeName == 'struct' || typeName == 'question' || (typeName == 'sub-question' && controlTag.regionType == 'sub-question'))) {
-							var oControlContent = oControl.GetContent()
-							var elementCount = oControlContent.GetElementsCount()
+						removeIdList.push(oControl.Sdt.GetId())
+						needAdd = true
+					} else if (typeName == 'write') {
+						needAdd = true
+						if (controlTag.regionType == 'write') {
 							changeList.push({
 								id_old: oControl.Sdt.GetId(),
 								command_type: 'remove'
 							})
-							if (rangeEndParagraphPosition < elementCount - 1) {
-								var oElement = oControlContent.GetElement(rangeEndParagraphPosition + 1)
-								if (oElement) {
-									oElement.Select()
-									var range1 = oDocument.GetRangeBySelect()
-									var backRange = Api.CreateRange(oControl, range1.StartPos, controlRange.EndPos)
-									var backData = addControlToRange(backRange, oControl.GetTag())
-									if (backData) {
-										changeList.push({
-											id_new: backData.id,
-											command_type: 'add',
-											regionType: backData.regionType,
-											text: backData.text
-										})
-									}
-								} else {
-									console.warn('rangeend cannot find element', rangeEndParagraphPosition + 1)
-								}
-							} 
-							if (rangeStartParagraphPosition > 0) {
-								var oElement = oControlContent.GetElement(rangeStartParagraphPosition - 1)
-								if (oElement) {
-									oElement.Select()
-									var range1 = oDocument.GetRangeBySelect()
-									var frontRange = Api.CreateRange(oControl, controlRange.StartPos, range1.EndPos)
-									var frontData = addControlToRange(frontRange, oControl.GetTag())
-									if (frontData) {
-										changeList.push({
-											id_new: frontData.id,
-											command_type: 'add',
-											regionType: frontData.regionType,
-											text: frontData.text
-										})
-									}
-								} else {
-									console.warn('rangestart cannot find element', rangeStartParagraphPosition - 1, 'elementCount', elementCount)
-									console.log('oControlContent', oControl)
-									console.log('oRange', oRange)
-									console.log('controlRange', controlRange)
-								}
-							}
 							removeIdList.push(oControl.Sdt.GetId())
-							needAdd = true
-						} else if (typeName == 'write') {
-							needAdd = true
-							if (controlTag.regionType == 'write') {
-								changeList.push({
-									id_old: oControl.Sdt.GetId(),
-									command_type: 'remove'
-								})
-								removeIdList.push(oControl.Sdt.GetId())
-							}
 						}
 					}
 				}
+			} else {
+				needAdd = true
 			}
 			if (needAdd) {
 				var useType = rangeData[0] && rangeData[1] ? 1 : 2
@@ -852,6 +879,15 @@ function updateHListBYDoc(docList) {
 			// id相同，更新text
 			hlist[i].text = item.text
 			hlist[i].regionType = item.regionType
+			if (item.parent_control_id) {
+				var index1 = hlist.findIndex(e => {
+					return e.id == item.parent_control_id
+				})
+				if (index1 >= 0) {
+					// 更新离他最近的父节点
+					hlist[i].parent_id = item.parent_control_id
+				}
+			}
 		} else {
 			var index1 = hlist.findIndex(e => {
 				return e.id == item.id
@@ -863,8 +899,9 @@ function updateHListBYDoc(docList) {
 				if (index2 == -1) {
 					// 删除
 					if (hlist[i].children) {
+						var pid = hlist[i].parent_id
 						hlist[i].children.forEach(childId => {
-							setNodeParentId(hlist, childId, 0)
+							setNodeParentId(hlist, childId, pid)
 						})
 					}
 					hlist.splice(i, 1)
