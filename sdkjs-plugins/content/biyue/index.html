@@ -177,6 +177,11 @@
     		justify-content: center;
 		}
 
+		.btn-unable {
+			color: #aaa !important;
+			cursor: not-allowed;
+		}
+
         .pos-value {
             width: 70%
         }
@@ -184,10 +189,6 @@
         .row {
             display: flex;
             flex-wrap: wrap;
-        }
-        .btn-sub {
-            padding: 4px 12px;
-            border: 1px solid #bbb;
         }
 
      </style>
@@ -207,7 +208,9 @@
             <div id="grade_data">年级信息年级信息年级信息年级信息</div>
           </div>
 		  <div class="btn-text-default" style="padding: 4px;" id="getQuesType">向后端请求题型</div>
-		  <div class="btn-text-default" style="margin-top: 4px;padding: 4px;" id="uploadTree">向后端同步，全量更新</div>
+		  <div class="btn-text-default" style="margin-top: 4px;padding: 4px;" id="uploadTree">
+			向后端同步，全量更新
+		  </div>
           <div class="ques-title font-16">
             <div id="questree">题目列表(点击刷新)</div>
             <div class="clicked" id="reSplitQuestionBtn">重新切题</div>

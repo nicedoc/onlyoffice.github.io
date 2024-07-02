@@ -60,12 +60,13 @@ function getDocList() {
 							subtag.regionType == 'question' ||
 							subtag.regionType == 'sub-question'
 						) {
+							var parentCtrl = e.GetParentContentControl()
 							list.push({
 								id: e.Sdt.GetId(),
 								regionType: subtag.regionType,
 								text: e.GetRange().GetText(),
 								classType: e.GetClassType(),
-								parent_control_id: oElement.Sdt.GetId()
+								parent_control_id: parentCtrl ? parentCtrl.Sdt.GetId() : oElement.Sdt.GetId()
 							})
 						}
 					})
@@ -109,16 +110,23 @@ function generateListByDoc(docList) {
 		var parent_id = 0
 		if (e.regionType == 'struct') {
 			parent_id = 0
-		} else if (e.regionType == 'question') {
-			parent_id = struct_index != undefined ? docList[struct_index].id : 0
-		} else if (e.regionType == 'sub-question') {
-			parent_id = question_index != undefined ? docList[question_index].id : (struct_index != undefined ? docList[struct_index].id : 0)
-		} else if (!e.regionType) {
-			if (index > 0) {
-				if (hlist[index - 1].regionType) {
-					parent_id = hlist[hlist.length - 1].id
-				} else {
-					parent_id = hlist[hlist.length - 1].parent_id
+		} else {
+			if (e.parent_control_id) {
+				parent_id = e.parent_control_id
+			} else {
+				if (e.regionType == 'question') {
+					parent_id = struct_index != undefined ? docList[struct_index].id : 0
+				} else if (e.regionType == 'sub-question') {
+					parent_id = question_index != undefined ? docList[question_index].id : (struct_index != undefined ? docList[struct_index].id : 0)
+		
+				} else if (!e.regionType) {
+					if (index > 0) {
+						if (hlist[index - 1].regionType) {
+							parent_id = hlist[hlist.length - 1].id
+						} else {
+							parent_id = hlist[hlist.length - 1].parent_id
+						}
+					}
 				}
 			}
 		}
@@ -257,7 +265,6 @@ function dropItem(list, dragId, dropId, direction) {
 			return
 		}
 		var oDocument = Api.GetDocument()
-		var controls = oDocument.GetAllContentControls()
 		var dragData = horList.find((e) => {
 			return e.id == drag_options.dragId
 		})
@@ -283,7 +290,6 @@ function dropItem(list, dragId, dropId, direction) {
 		}
 		console.log('dragData', dragData)
 		console.log('dropData', dropData)
-
 		function getRemoveIds(list, id, parent_id) {
 			if (!list) {
 				return
@@ -313,36 +319,108 @@ function dropItem(list, dragId, dropId, direction) {
 						index: list.length,
 						id: item.id
 					})
-				}	
-				if (item.children) {
-					item.children.forEach(childId => {
-						getRemoveIds(list, childId, id)
-					})
+					if (item.children) {
+						item.children.forEach(childId => {
+							getRemoveIds(list, childId, id)
+						})
+					}
 				}
+			}
+		}
+
+		function getDocPos(id) {
+			var obj = Api.LookupObject(id)
+			if (!obj) {
+				return null
+			}
+			if (obj.GetClassType) {
+				var classtype = obj.GetClassType()
+				if (classtype == 'blockLvlSdt') {
+					return obj.Sdt.GetDocumentPositionFromObject()
+				} else if (classtype == 'paragraph') {
+					return obj.Paragraph.GetDocumentPositionFromObject()
+				}
+			}
+			return null
+		}
+
+		function getObjectByPos2(posArray) {
+			var objList = []
+			for (var i = 0; i < posArray.length; ++i) {
+				if (i == 0) {
+					var obj = oDocument.GetElement(posArray[i].Position)
+					objList.push(obj)
+				} else {
+					var preObj = objList[objList.length - 1]
+					if (preObj.GetClassType) {
+						var classType = preObj.GetClassType()
+						if (classType == 'blockLvlSdt') {
+							var child = preObj.GetContent().GetElement(posArray[i].Position)
+							objList.push(child)
+						} else if (classType == 'table') {
+							var child = preObj.GetRow(posArray[i].Position)
+							objList.push(child)
+						} else if (classType == 'tableRow') {
+							var child = preObj.GetCell(posArray[i].Position)
+							objList.push(child)
+						} else if (classType == 'tableCell') {
+							var child = preObj.GetContent().GetElement(posArray[i].Position)
+							objList.push(child)
+						}
+					}
+				}
+			}
+			return objList
+		}
+
+		function AddElementsToInner(templist) {
+			var oElement = Api.LookupObject(drag_options.dropId)
+			if (oElement) {
+				if (oElement.GetClassType() == 'blockLvlSdt') {
+					var elementCount = oElement.GetContent().GetElementsCount()
+					templist.forEach((e) => {
+						oElement.GetContent().AddElement(elementCount, e)
+					})	
+				}				
 			}
 		}
 
 		var templist = []
 
-		var removeIds = []
+		var removeIds = [] // 这里只计算从树的存储上看需要挪动的id
 		getRemoveIds(removeIds, drag_options.dragId)
 		removeIds = removeIds.sort((a, b) => {
 			return b.index - a.index
 		})
 		console.log('removeIds', removeIds)
 		// 题组或题目拖拽，需要将其下的所有children都挪动位置
-		if (regionType == 'struct' || regionType == 'question') {
-			removeIds.forEach(e => {
-				var itemRange = GetElementRange(e.id)
-				var startPos = itemRange.StartPos[0].Position
-				templist.push(oDocument.GetElement(startPos))
-				oDocument.RemoveElement(startPos)
-			})
+		for (var i = 0; i < removeIds.length; ++i) {
+			console.log('1 LookupObject', removeIds[i].id)
+			var oElement = Api.LookupObject(removeIds[i].id)
+			var docPos = getDocPos(removeIds[i].id)
+			if (!docPos) {
+				continue
+			}
+			if (docPos.length == 1) {
+				templist.push(oDocument.GetElement(docPos[0].Position))
+				oDocument.RemoveElement(docPos[0].Position)
+			} else {
+				if (docPos.length > 1) {
+					var objList = getObjectByPos2(docPos)
+					if (objList) {
+						var oParent = objList[objList.length - 2]
+						var posinparent = oElement.GetPosInParent()
+						var parentClassType = oParent.GetClassType()
+						if (parentClassType == 'blockLvlSdt' || parentClassType == 'tableCell') {
+							templist.push(oParent.GetContent().GetElement(posinparent))
+							oParent.GetContent().RemoveElement(posinparent)
+						}
+					}
+				}
+			}
 		}
-
+		var dropPos
 		if (regionType == 'struct') {
-			// 移动到相应位置
-			var dropPos
 			if (drag_options.direction == 'top') {
 				// 拖拽到上方，插入位置为第一个
 				var dropRange = GetElementRange(drag_options.dropId, dropData.classType)
@@ -370,78 +448,79 @@ function dropItem(list, dragId, dropId, direction) {
 				})
 			}
 		} else {
-			// 题目位于表格的，之后再处理
-			if (!regionType || regionType == 'question') {
-				console.log('oDragRange', oDragRange)
-				var dropRange = GetElementRange(drag_options.dropId, dropData.classType)
-				console.log('dropRange', dropRange)
-				if (dropRange) {
-					var dropPos = dropRange.StartPos[0].Position
-					if (drag_options.direction != 'top') {
-						dropPos = dropPos + 1
-					}
+			var docPos = getDocPos(drag_options.dropId)
+			if (!docPos) {
+				return
+			}
+			if (docPos.length == 1) { // 位于第1级结构
+				dropPos = docPos[0].Position
+				if (drag_options.direction == 'bottom') {
+					dropPos = dropPos + 1
+				}
+				if (drag_options.direction == 'top' || drag_options.direction == 'bottom') {
 					templist.forEach((e) => {
 						oDocument.AddElement(dropPos, e)
 					})
-				} else {
-					console.log('dropRange is null')
+				} else if (drag_options.direction == 'inner') {
+					AddElementsToInner(templist)
 				}
-			} else if (regionType == 'sub-question') {
-				var dragControl = controls.find((e) => {
-					return e.Sdt.GetId() == drag_options.dragId
-				})
-				var parentControl = dragControl.GetParentContentControl()
-				console.log('parentControl', parentControl)
-				if (parentControl) {
-					var startPos = oDragRange.StartPos[1].Position
-					var oParentDocument = parentControl.GetContent()
-					templist.push(oParentDocument.GetElement(startPos))
-					oParentDocument.RemoveElement(startPos)
-					var oDropRange
-					var oDropParentControl
-					if (dropData.classType == 'blockLvlSdt') {
-						var dropControl = Api.LookupObject(drag_options.dropId)
-						if (dropControl) {
-							oDropRange = dropControl.GetRange()
-							oDropParentControl = dropControl.GetParentContentControl()
+			} else {
+				var objList = getObjectByPos2(docPos)
+				if (objList) {
+					console.log('drop objList', docPos, objList)
+					var oParent = objList[objList.length - 2]
+					var classType = oParent.GetClassType()
+					if (classType == 'blockLvlSdt') {
+						if (drag_options.direction == 'inner') {
+							AddElementsToInner(templist)
+						} else {
+							dropPos = docPos[docPos.length - 1].Position
+							if (drag_options.direction == 'bottom') {
+								dropPos = dropPos + 1
+							}
+							var targetParent = oParent.GetContent()
+							templist.forEach((e) => {
+								targetParent.AddElement(dropPos, e)
+							})	
 						}
-					} else if (dropData.classType == 'paragraph') {
-						var oDropParagraph = Api.LookupObject(drag_options.dropId)
-						if (oDropParagraph) {
-							oDropRange = oDropParagraph.GetRange()
-							oDropParentControl = oDropParagraph.GetParentContentControl()
-						}
-					}
-					if (!oDropRange) {
-						return
-					}
-					var dropPos = oDropRange.StartPos[0].Position
-					if (oDropParentControl) {
-						dropPos = oDropRange.StartPos[1].Position
-						if (drag_options.direction != 'top') {
-							dropPos += 1
-						}
-						oDropParentControl.GetContent().AddElement(dropPos, templist[0])
-					} else {
-						console.log('not oDropParentControl')
-						if (drag_options.direction != 'top') {
-							dropPos += 1
-						}
-						oDocument.AddElement(dropPos, templist[0])
-					}
-				} else {
-					var dropElement = Api.LookupObject(drag_options.dropId)
-					console.log('dropElement', dropElement)
-					if (dropElement) {
-						if (dropElement.GetParentContentControl) {
-							var dropParentControl = dropElement.GetParentContentControl()
-							console.log('dropParentControl', dropParentControl)
-						}
-					}
-					var parentTableCell = dragControl.GetParentTableCell()
-					if (parentTableCell) {
-						// todo..单题在表格单元里，可能需要合并拆分单元格
+					} else if (classType == 'tableCell') {
+						var cellIndex = oParent.GetIndex()
+						var rowIndex = oParent.GetRowIndex()
+						var targetCell
+						if (drag_options.direction == 'top') {
+							targetCell = oParent.GetPrevious()
+							// 找到其之前的单元格 如果没有，则直接放到当前的单元格里
+							if (!targetCell) {
+								if (rowIndex > 0) {
+									var preRow = oParent.GetParentTable().GetRow(rowIndex - 1)
+									targetCell = preRow.GetCell(preRow.GetCellsCount() - 1)
+								}
+							}
+							if (targetCell) {
+								dropPos = targetCell.GetContent().GetElementsCount()
+							}
+						} else if (drag_options.direction == 'bottom') {
+							// 找到其之后的单元格 如果没有，则直接放到当前的单元格里
+							targetCell = oParent.GetNext()
+							if (!targetCell) {
+								if (rowIndex < oParent.GetParentTable().GetRowsCount() - 1) {
+									targetCell = oParent.GetParentTable().GetCell(rowIndex - 1, 0)
 
+								}
+							}
+							dropPos = 0
+						}
+						if (!targetCell) {
+							targetCell = oParent
+							if (drag_options.direction == 'top') {
+								dropPos = docPos[docPos.length - 1].Position
+							} else {
+								dropPos = docPos[docPos.length - 1].Position + 1
+							}
+						}
+						templist.forEach((e) => {
+							targetCell.GetContent().AddElement(dropPos, e)
+						})
 					}
 				}
 			}
@@ -677,7 +756,6 @@ function updateRangeControlType(typeName) {
 				oDocument.RemoveSelection()
 				range.Select()
 				var rangeData = getRangeData(range)
-				console.log('rangeData', rangeData)
 				var type = forceType ? forceType : (rangeData[0] && rangeData[1] ? 1 : 2)
 				var oResult = Api.asc_AddContentControl(type, {
 					Tag: tag,
@@ -817,7 +895,7 @@ function updateRangeControlType(typeName) {
 			if (needAdd) {
 				var useType = rangeData[0] && rangeData[1] ? 1 : 2
 				if (useType == 2) {
-					if (typeName != 'write') {
+					if (typeName == 'struct' || typeName == 'question') {
 						useType = 1
 					}
 				}
@@ -839,6 +917,7 @@ function updateRangeControlType(typeName) {
 		}
 		result.changeList = changeList
 		result.code = 1
+		console.log('updateControlType function end', result)
 		return result
 	}, false, true).then(res => {
 		console.log('updateControlType result:', res)
@@ -1111,8 +1190,39 @@ function rebuildRelation(list) {
 	})
 }
 
+function setBtnLoading(elementId, isLoading) {
+	var element = $(`#${elementId}`)
+	if (!element) {
+		return
+	}
+	if (isLoading) {
+		element.append('<span class="loading-spinner"></span>')
+		element.addClass('btn-unable')
+	} else {
+		element.removeClass('btn-unable')
+		var children = element.find('.loading-spinner')
+		if (children) {
+			children.remove()
+		}
+ 	}
+	
+}
+
+function isLoading(elementId) {
+	var element = $(`#${elementId}`)
+	if (!element) {
+		return
+	}
+	var loading = element.find('.loading-spinner')
+	return loading && loading.length
+}
+
 
 function reqGetQuestionType() {
+	if (isLoading('getQuesType')) {
+		return
+	}
+	setBtnLoading('getQuesType', true)
 	Asc.scope.horlist = g_horizontal_list
 	biyueCallCommand(window, function() {
 		var horlist = Asc.scope.horlist
@@ -1153,13 +1263,19 @@ function reqGetQuestionType() {
 		}
 		getQuesType(window.BiyueCustomData.paper_uuid, control_list).then(res => {
 			console.log('getQuesType success ', res)
+			setBtnLoading('getQuesType', false)
 		}).catch(res => {
 			console.log('getQuesType fail ', res)
+			setBtnLoading('getQuesType', false)
 		})
 	})
 }
 
 function reqUploadTree() {
+	if (isLoading('uploadTree')) {
+		return
+	}
+	setBtnLoading('uploadTree', true)
 	Asc.scope.horlist = g_horizontal_list
 	upload_control_list = []
 	console.log('[reqUploadTree start]', Date.now())
@@ -1288,6 +1404,7 @@ function handleXmlError() {
 
 function generateTreeForUpload(control_list) {
 	if (!control_list) {
+		setBtnLoading('uploadTree', false)
 		return null
 	}
 	var tree = []
@@ -1320,9 +1437,13 @@ function generateTreeForUpload(control_list) {
 	reqComplete(uploadTree, version).then(res => {
 		console.log('reqComplete', res)
 		console.log('[reqUploadTree end]', Date.now())
+		setBtnLoading('uploadTree', false)
+		alert('全量更新成功')
 	}).catch(res => {
 		console.log('reqComplete fail', res)
 		console.log('[reqUploadTree end]', Date.now())
+		setBtnLoading('uploadTree', false)
+		alert('全量更新失败')
 	})
 	console.log(tree)
 }

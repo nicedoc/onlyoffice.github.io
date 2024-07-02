@@ -1,5 +1,6 @@
 // 主要用于处理业务逻辑
 import {
+	reqPaperInfo,
 	paperOnlineInfo,
 	structAdd,
 	questionCreate,
@@ -20,21 +21,23 @@ const MM2EMU = 36000 // 1mm = 36000EMU
 // 根据paper_uuid获取试卷信息
 function initPaperInfo() {
 	return new Promise((resolve, reject) => {
-		console.log('initPaperInfo ========= ', window.BiyueCustomData.paper_uuid)
-		paperOnlineInfo(window.BiyueCustomData.paper_uuid)
+		reqPaperInfo(window.BiyueCustomData.paper_uuid)
 			.then((res) => {
 				paper_info = res.data
-				var paper = paper_info.paper
-				if (paper) {
+				if (!paper_info) {
+					return
+				}
+				const { paper, workbook} = res.data
+				if (workbook) {
 					$('#school').text(
-						paper.school_id == 0 ? '内部练习册#0' : paper.school_name || ''
+						`${workbook.school_id ? workbook.school_name : '内部练习册'}#${workbook.id}`
 					)
+				}
+				if (paper) {
 					$('#exam_title').text(`《${paper.title}》`)
 					window.BiyueCustomData.exam_title = paper.title
-					$('#grade_data').text(paper.phase_full_name)
+					$('#grade_data').text(`${paper.period_name}${paper.subject_name}/${paper.edition_name || ''}/${paper.phase_name || ''}`)
 				}
-				console.log('试卷信息')
-				console.log(paper_info)
 				updateControls().then((res) => {
 					resolve(res)
 				})

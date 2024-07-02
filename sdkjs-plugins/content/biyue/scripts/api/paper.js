@@ -31,6 +31,16 @@ function reqComplete(tree, version) {
 	})
 }
 
+function reqPaperInfo(paper_uuid) {
+	return request({
+		url: '/oodoc/get/info',
+		method: 'get',
+		params: {
+			paper_uuid
+		},
+	})
+}
+
 function paperOnlineInfo(paper_uuid, enter) {
 	return request({
 		url: '/paper/online/info',
@@ -299,6 +309,7 @@ function teacherExamPrintPaperSelections() {
 export {
 	getQuesType,
 	reqComplete,
+	reqPaperInfo,
 	paperOnlineInfo,
 	structAdd,
 	structDelete,

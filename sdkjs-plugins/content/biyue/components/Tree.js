@@ -438,9 +438,9 @@ class Tree {
 		}
 		html += '</span>'
 		if (!item.regionType) {
-			html += `<span class='${CLASS_TEXT} untyped'  title="${item.label}">(未分类)${item.label}</span>`
+			html += `<span class='${CLASS_TEXT} untyped'  title="[${item.id}]:${item.label}">(未分类)${item.label}</span>`
 		} else {
-			html += `<span class=${CLASS_TEXT} title="${item.label}">${item.label}</span>`
+			html += `<span class=${CLASS_TEXT} title="[${item.id}]:${item.label}">${item.label}</span>`
 		}
 		html += '</div>'
 		innerDiv.html(html)
