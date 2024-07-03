@@ -620,20 +620,6 @@ function updateRangeControlType(typeName) {
 			return data
 		}
 
-		function getParagraphPosition(Pos) {
-			if (Pos) {
-				for (var i = Pos.length - 1; i >= 0; --i) {
-					if (Pos[i].Class.GetType) {
-						var type = Pos[i].Class.GetType()
-						if (type == 1) {
-							return Pos[i - 1].Position
-						}
-					}
-				}
-			}
-			return null
-		}
-
 		function  getRangeData(range) {
 			var StartData = GetPosData(range.StartPos)
 			var EndData = GetPosData(range.EndPos)
@@ -677,6 +663,36 @@ function updateRangeControlType(typeName) {
 			}
 			return JSON.stringify(Tag)
 		}
+
+		function getObjectByPos2(posArray) {
+			var objList = []
+			for (var i = 0; i < posArray.length; ++i) {
+				if (i == 0) {
+					var obj = oDocument.GetElement(posArray[i].Position)
+					objList.push(obj)
+				} else {
+					var preObj = objList[objList.length - 1]
+					if (preObj.GetClassType) {
+						var classType = preObj.GetClassType()
+						if (classType == 'blockLvlSdt') {
+							var child = preObj.GetContent().GetElement(posArray[i].Position)
+							objList.push(child)
+						} else if (classType == 'table') {
+							var child = preObj.GetRow(posArray[i].Position)
+							objList.push(child)
+						} else if (classType == 'tableRow') {
+							var child = preObj.GetCell(posArray[i].Position)
+							objList.push(child)
+						} else if (classType == 'tableCell') {
+							var child = preObj.GetContent().GetElement(posArray[i].Position)
+							objList.push(child)
+						}
+					}
+				}
+			}
+			return objList
+		}
+
 		if (!oRange) {
 			var currentContentControl = oDocument.Document.GetContentControl()
 			if (!currentContentControl) {
@@ -689,22 +705,36 @@ function updateRangeControlType(typeName) {
 				return e.Sdt.GetId() == currentContentControl.Id
 			})
 			if (oControl) {
-				var tag = JSON.parse(oControl.GetTag() || {})
-				oRange = oControl.GetRange()
-				var changeResult = {
-					id_old: oControl.Sdt.GetId(),
-					text: oRange ? oRange.GetText() : '',
-					regionType: typeName,
-					type_old: tag.regionType
-				}
-				if (tag.regionType != typeName) {
-					var rangeData = getRangeData(oRange)
-					oControl.SetTag(getNewTag(rangeData[0], rangeData[1]));
-					changeResult.command_type = 'change_type'
+				if (typeName == 'clear' || typeName == 'clearAll') {
+					if (typeName == 'clearAll' && oControl.GetClassType() == 'blockLvlSdt') {
+						var childControls = oControl.GetAllContentControls()
+						for (var i = 0; i < childControls.length; ++i) {
+							Api.asc_RemoveContentControlWrapper(childControls[i].Sdt.GetId());
+						}
+					}
+					changeList.push({
+						id_old: currentContentControl.Id,
+						command_type: 'remove'
+					})
+					Api.asc_RemoveContentControlWrapper(currentContentControl.Id);
 				} else {
-					changeResult.command_type = 'keep'
+					var tag = JSON.parse(oControl.GetTag() || {})
+					oRange = oControl.GetRange()
+					var changeResult = {
+						id_old: oControl.Sdt.GetId(),
+						text: oRange ? oRange.GetText() : '',
+						regionType: typeName,
+						type_old: tag.regionType
+					}
+					if (tag.regionType != typeName) {
+						var rangeData = getRangeData(oRange)
+						oControl.SetTag(getNewTag(rangeData[0], rangeData[1]));
+						changeResult.command_type = 'change_type'
+					} else {
+						changeResult.command_type = 'keep'
+					}
+					changeList.push(changeResult)
 				}
-				changeList.push(changeResult)
 			}
 		} else {
 			if (!oRange.Paragraphs || oRange.Paragraphs.length === 0) {
@@ -713,7 +743,6 @@ function updateRangeControlType(typeName) {
 					message: '选中范围内无段落',
 				}
 			}
-
 			function checkPosSame(pos1, pos2) {
 				if (pos1 && pos2 && pos1.length == pos2.length) {
 					for (var nPos = 0; nPos < pos1.length; nPos++) {
@@ -745,8 +774,6 @@ function updateRangeControlType(typeName) {
 				}
 			}
 			var rangeData = getRangeData(oRange)
-			var rangeStartParagraphPosition = getParagraphPosition(oRange.StartPos)
-			var rangeEndParagraphPosition = getParagraphPosition(oRange.EndPos)
 			function addControlToRange(range, tag, forceType) {
 				if (!range) {
 					console.log('addControlToRange range is null')
@@ -771,11 +798,11 @@ function updateRangeControlType(typeName) {
 					return null
 				}
 			}
-			var needAdd = true
-			var removeIdList = []
 			var controlsInRange = []
 			var completeOverlapControl = null
-			var control2 = null
+			var parentControls = []
+			var containControls = [] // 包含的control
+			var intersectControls = [] // 交叉的control
 			for (var i = 0, imax = allControls.length; i < imax; ++i) {
 				var e = allControls[i]
 				var isUse = false
@@ -792,128 +819,160 @@ function updateRangeControlType(typeName) {
 					continue
 				}
 				var relation = getRangeRelation(oRange, e.GetRange())
+				// console.log('======= relation', relation, e.GetRange(), oRange)
 				if (relation == 1) {
 					completeOverlapControl = e
-					break
+					if (typeName != 'clear' && typeName != 'clearAll') {
+						if (typeName != 'write') {
+							break
+						} else {
+							continue
+						}
+					}
 				}
 				if (relation == 2) {
-					if (typeName == 'sub-question') {
-						control2 = e
-					} else {
-						controlsInRange.push(e)
-					}
+					parentControls.push(e)
+				} else if (relation == 3) {
+					containControls.push(e)
+				} else if (relation == 4) {
+					intersectControls.push(e)
 				}
-				if (relation == 4) {
-					controlsInRange.push(e)
-				}
+				controlsInRange.push(e)
 			}
-			// 存在完全重叠的区域时，就只操作这个区域
-			if (completeOverlapControl) {
-				var tag = JSON.parse(completeOverlapControl.GetTag() || {})
-				var changeObject = {
-					id_old: completeOverlapControl.Sdt.GetId(),
-					text: oRange ? oRange.GetText() : '',
-					regionType: typeName
+			if (typeName == 'clear') {
+				var removeId
+				if (completeOverlapControl) {
+					removeId = completeOverlapControl.Sdt.GetId()	
+				} else if (parentControls.length) {
+					removeId = parentControls[parentControls.length - 1].Sdt.GetId()
 				}
-				if (tag.regionType != typeName) {
-					completeOverlapControl.SetTag(getNewTag(rangeData[0], rangeData[1]));
-					changeObject.command_type = 'change_type'
-				}
-				changeList.push(changeObject)
-				needAdd = false
-			} else if (control2) {
-				needAdd = true
-			} else if (controlsInRange.length) {
-				for (var i = 0; i < controlsInRange.length; ++i) {
-					var oControl = controlsInRange[i]
-					var controlRange = oControl.GetRange()
-					var controlTag = JSON.parse(oControl.GetTag())
-					if ( (oControl.GetClassType() == 'blockLvlSdt') && (typeName == 'struct' || typeName == 'question' || (typeName == 'sub-question' && controlTag.regionType == 'sub-question'))) {
-						var oControlContent = oControl.GetContent()
-						var elementCount = oControlContent.GetElementsCount()
-						changeList.push({
-							id_old: oControl.Sdt.GetId(),
-							command_type: 'remove'
-						})
-						if (rangeEndParagraphPosition < elementCount - 1) {
-							var oElement = oControlContent.GetElement(rangeEndParagraphPosition + 1)
-							if (oElement) {
-								oElement.Select()
-								var range1 = oDocument.GetRangeBySelect()
-								var backRange = Api.CreateRange(oControl, range1.StartPos, controlRange.EndPos)
-								var backData = addControlToRange(backRange, oControl.GetTag())
-								if (backData) {
-									changeList.push({
-										id_new: backData.id,
-										command_type: 'add',
-										regionType: backData.regionType,
-										text: backData.text
-									})
-								}
-							} else {
-								console.warn('rangeend cannot find element', rangeEndParagraphPosition + 1)
-							}
-						} 
-						if (rangeStartParagraphPosition > 0) {
-							var oElement = oControlContent.GetElement(rangeStartParagraphPosition - 1)
-							if (oElement) {
-								oElement.Select()
-								var range1 = oDocument.GetRangeBySelect()
-								var frontRange = Api.CreateRange(oControl, controlRange.StartPos, range1.EndPos)
-								var frontData = addControlToRange(frontRange, oControl.GetTag())
-								if (frontData) {
-									changeList.push({
-										id_new: frontData.id,
-										command_type: 'add',
-										regionType: frontData.regionType,
-										text: frontData.text
-									})
-								}
-							} else {
-								console.warn('rangestart cannot find element', rangeStartParagraphPosition - 1, 'elementCount', elementCount)
-								console.log('oControlContent', oControl)
-								console.log('oRange', oRange)
-								console.log('controlRange', controlRange)
-							}
-						}
-						removeIdList.push(oControl.Sdt.GetId())
-						needAdd = true
-					} else if (typeName == 'write') {
-						needAdd = true
-						if (controlTag.regionType == 'write') {
-							changeList.push({
-								id_old: oControl.Sdt.GetId(),
-								command_type: 'remove'
-							})
-							removeIdList.push(oControl.Sdt.GetId())
-						}
-					}
-				}
-			} else {
-				needAdd = true
-			}
-			if (needAdd) {
-				var useType = rangeData[0] && rangeData[1] ? 1 : 2
-				if (useType == 2) {
-					if (typeName == 'struct' || typeName == 'question') {
-						useType = 1
-					}
-				}
-				var addData = addControlToRange(oRange, getNewTag(rangeData[0], rangeData[1]), useType)
-				if (addData) {
+				if (removeId) {
+					Api.asc_RemoveContentControlWrapper(removeId)
 					changeList.push({
-						id_new: addData.id,
-						command_type: 'add',
-						regionType: typeName,
-						text: oRange ? oRange.GetText() : '',
+						id_old: removeId,
+						command_type: 'remove'
 					})
 				}
-			}
-			if (removeIdList.length > 0) {
-				removeIdList.forEach(id => {
-					Api.asc_RemoveContentControlWrapper(id);
+			} else if (typeName == 'clearAll') {
+				var controls = containControls.concat(intersectControls)
+				if (completeOverlapControl) {
+					controls.push(completeOverlapControl)
+				}
+				controls.forEach(e => {
+					Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
+					changeList.push({
+						id_old: e.Sdt.GetId(),
+						command_type: 'remove'
+					})
 				})
+			} else if (typeName == 'write') { // write和其他类型处理方法不同
+				var needAdd = true
+				if (completeOverlapControl) {
+					var tag = JSON.parse(completeOverlapControl.GetTag() || {})
+					if (tag.regionType == 'write') {
+						needAdd = false
+					}
+				}
+				if (needAdd) {
+					var addData = addControlToRange(oRange, getNewTag(rangeData[0], rangeData[1]))
+					if (addData) {
+						changeList.push({
+							id_new: addData.id,
+							command_type: 'add',
+							regionType: typeName,
+							text: Api.LookupObject(addData.id).GetRange().GetText()
+						})
+					}
+				}
+				controlsInRange.forEach(e => {
+					var tag = JSON.parse(e.GetTag() || {})
+					if (tag.regionType == 'write') {
+						Api.asc_RemoveContentControlWrapper(e.Sdt.GetId());
+					}
+				})
+			} else {
+				// 存在完全重叠的区域时，就只操作这个区域
+				if (completeOverlapControl) {
+					var tag = JSON.parse(completeOverlapControl.GetTag() || {})
+					var changeObject = {
+						id_old: completeOverlapControl.Sdt.GetId(),
+						text: oRange ? oRange.GetText() : '',
+						regionType: typeName
+					}
+					if (tag.regionType != typeName) {
+						completeOverlapControl.SetTag(getNewTag(rangeData[0], rangeData[1]));
+						changeObject.command_type = 'change_type'
+					}
+					changeList.push(changeObject)
+					result.changeList = changeList
+					result.code = 1
+					return result
+				}
+				// 先添加control
+				else {
+					var useType = rangeData[0] && rangeData[1] ? 1 : 2
+					if (useType == 2) {
+						if (typeName == 'struct' || typeName == 'question' || typeName == 'sub-question') {
+							useType = 1
+						}
+					}
+					var addData = addControlToRange(oRange, getNewTag(rangeData[0], rangeData[1]), useType)
+					if (addData) {
+						changeList.push({
+							id_new: addData.id,
+							command_type: 'add',
+							regionType: typeName,
+							text: Api.LookupObject(addData.id).GetRange().GetText()
+						})
+					}
+					if (parentControls.length > 0) {
+						for (var i = 0; i < parentControls.length; ++i) {
+							var islast = i == parentControls.length - 1
+							var childControl = islast ? Api.LookupObject(addData.id) : parentControls[i + 1]
+							var elementCount = parentControls[i].GetContent().GetElementsCount()
+							var pos = childControl.GetPosInParent()
+							if (typeName == 'question' || typeName == 'struct') {
+								if (pos < elementCount - 1 || islast) {
+									var templist = []
+									var targetp
+									var targetpos
+									var docpos = parentControls[i].Sdt.GetDocumentPositionFromObject()
+									if (islast) {
+										targetp = oDocument
+										if (pos == 0) {
+											templist.push(parentControls[i].GetContent().GetElement(0))
+											parentControls[i].GetContent().RemoveElement(0)
+											targetpos = docpos[0].Position
+										} else {
+											for (var j = elementCount - 1; j >= pos; --j) {
+												templist.push(parentControls[i].GetContent().GetElement(j))
+												parentControls[i].GetContent().RemoveElement(j)
+											}
+											targetpos = docpos[0].Position + 1
+										}
+									} else {
+										for (var j = elementCount - 1; j > pos; --j) {
+											templist.push(parentControls[i].GetContent().GetElement(j))
+											parentControls[i].GetContent().RemoveElement(j)
+										}
+										var doclist = getObjectByPos2(docpos)
+										targetpos = docpos[docpos.length - 1].Position + 1
+										if (doclist.length == 1) {
+											targetp = oDocument
+										} else {
+											targetp = doclist[doclist.length - 2].GetContent()
+										}
+									}
+									templist.forEach(e => {
+										targetp.AddElement(targetpos, e)
+									})
+								}
+							}
+						}
+					}
+				}
 			}
+			
 		}
 		result.changeList = changeList
 		result.code = 1
@@ -1008,12 +1067,22 @@ function updateHListBYDoc(docList) {
 				if (item.regionType != 'struct') {
 					var preItem = i > 0 ? getItemData(hlist, hlist[i - 1].id) : null
 					var nextItem = i < hlist.length ? getItemData(hlist, hlist[i].id) : null
-					if (preItem && nextItem) {
-						if (preItem.parent_index != undefined && nextItem.parent_index != undefined) {
-							var pindex = Math.max(preItem.parent_index, nextItem.parent_index)
+					if (preItem && nextItem && nextItem.parent_index != undefined) {
+						if ((preItem.parent_index != undefined && nextItem.parent_index > preItem.parent_index) || preItem.parent_index == undefined ) {
+							parent_id = hlist[nextItem.parent_index].id
+						}
+					} else if (item.parent_control_id) {
+						var pindex = hlist.findIndex(e => {
+							return e.id == item.parent_control_id
+						})
+						if (pindex >= 0) {
 							parent_id = hlist[pindex].id
-						} else if (preItem.parent_index != undefined) {
+						}
+					} else if (preItem && preItem.parent_index != undefined) {
+						if (!item.regionType) {
 							parent_id = hlist[preItem.parent_index].id
+						} else {
+							parent_id = getValidParentId(hlist, i - 1, item.regionType)
 						}
 					}
 				}
@@ -1033,6 +1102,31 @@ function updateHListBYDoc(docList) {
 		hlist.splice(i, hlist.length - i)
 	}
 	console.log('updateHListBYDoc end ', [].concat(hlist))
+}
+
+function getValidParentId(hlist, index, regionType) {
+	if (index >= 0 && index < hlist.length) {
+		var typeMap = {
+			'struct': 1,
+			'question': 2,
+			'sub-question': 3,
+			null: 4
+		}
+		if (typeMap[hlist[index].regionType] >= typeMap[regionType]) {
+			if (hlist[index].parent_id) {
+				var parentIndex = hlist.findIndex(e => {
+					return e.id == hlist[index].parent_id
+				})
+				return getValidParentId(hlist, parentIndex, regionType)
+			} else {
+				return 0
+			}
+		} else {
+			return hlist[index].id
+		}
+	} else {
+		return 0
+	}
 }
 
 function updatePosBySetType(changeData) {

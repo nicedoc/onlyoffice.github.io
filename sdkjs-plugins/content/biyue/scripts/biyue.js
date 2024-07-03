@@ -489,12 +489,18 @@ import { initExamTree, refreshExamTree, updateTreeRenderWhenClick, updateRangeCo
           id: 'updateControlType_question',
           text: '设置为 - 题目'
         }, {
+			id: 'updateControlType_sub-question',
+			text: '设置为 - 小题'
+		}, {
           id: 'updateControlType_write',
           text: '设置为 - 小问'
         }, {
-          id: 'updateControlType_sub-question',
-          text: '设置为 - 小题'
-        }]
+			id: 'updateControlType_clear',
+          	text: '清除控制'
+		}, {
+			id: 'updateControlType_clearAll',
+			text: '清除范围内所有控制'
+		}]
       }
       let settings = {
         guid: window.Asc.plugin.guid,
