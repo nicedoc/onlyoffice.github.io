@@ -1,7 +1,6 @@
 // 主要用于处理业务逻辑
 import {
 	reqPaperInfo,
-	paperOnlineInfo,
 	structAdd,
 	questionCreate,
 	questionDelete,
@@ -32,25 +31,28 @@ function initPaperInfo() {
 					$('#school').text(
 						`${workbook.school_id ? workbook.school_name : '内部练习册'}#${workbook.id}`
 					)
+					window.BiyueCustomData.workbook_info = workbook
 				}
 				if (paper) {
 					$('#exam_title').text(`《${paper.title}》`)
 					window.BiyueCustomData.exam_title = paper.title
 					$('#grade_data').text(`${paper.period_name}${paper.subject_name}/${paper.edition_name || ''}/${paper.phase_name || ''}`)
 				}
-				updateControls().then((res) => {
-					resolve(res)
-				})
+				resolve(res)
+				// updateControls().then((res) => {
+				// 	resolve(res)
+				// })
 			})
 			.catch((res) => {
+				resolve(res)
 				console.log('catch', res)
-				updateControls().then((res) => {
-					resolve(res)
-				})
+				// updateControls().then((res) => {
+					
+				// })
 			})
 	})
 }
-
+ 
 function getPaperInfo() {
 	return paper_info
 }
@@ -196,7 +198,6 @@ function updateControls() {
 	return biyueCallCommand(
 		window,
 		function () {
-			console.log('+++++++++++++++++++++++')
 			let paperinfo = Asc.scope.paper_info
 			var oDocument = Api.GetDocument()
 			let controls = oDocument.GetAllContentControls() || []
@@ -1231,6 +1232,7 @@ function drawPosition2(data) {
 			var MM2EMU = Asc.scope.MM2EMU
 			var control_id = Asc.scope.control_id
 			var oDocument = Api.GetDocument()
+			var oControls = oDocument.GetAllContentControls()
 			if (control_id) {
 				var tag = JSON.stringify({
 					regionType: 'feature',
@@ -1238,7 +1240,6 @@ function drawPosition2(data) {
 					mode: 6,
 					v: posdata.v,
 				})
-				var oControls = oDocument.GetAllContentControls()
 				for (var i = 0; i < oControls.length; i++) {
 					var oControl = oControls[i]
 					if (oControl.Sdt.GetId() === control_id) {
@@ -3576,6 +3577,135 @@ function setSectionColumn(num) {
 		false,
 		true)
 }
+// 获取所有相关坐标，用于铺码使用，这里只给出如何获取的代码演示
+function getAllPositions() {
+	biyueCallCommand(window, function() {
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls()
+		var ques_list = []
+		for (var i = 0, imax = controls.length; i < imax; ++i) {
+			var oControl = controls[i]
+			var bounds = []
+			if (oControl.GetClassType() == 'blockLvlSdt') {
+				var oControlContent = oControl.GetContent()
+				var Pages = oControlContent.Document.Pages
+				if (Pages) {
+					Pages.forEach((page, index) => {
+						bounds.push({
+							Page: oControl.Sdt.GetAbsolutePage(index),
+							X: page.Bounds.Left,
+							Y: page.Bounds.Top,
+							W: page.Bounds.Right - page.Bounds.Left,
+							H: page.Bounds.Bottom - page.Bounds.Top
+						})
+					})
+				}
+			} else if (oControl.GetClassType() == 'inlineLvlSdt') {
+				if (oControl.Sdt.Bounds) {
+					bounds = Object.values(oControl.Sdt.Bounds)
+				}
+			}
+			// todo..分数框和识别框的尚未添加
+			var tag = JSON.parse(oControl.GetTag() || '{}')
+			if (tag.regionType == 'question' || tag.regionType == 'sub-question') {
+				ques_list.push({
+					control_id: oControl.Sdt.GetId(),
+					text: oControl.GetRange().GetText(), // 如果需要html, 请参考ExamTree.js的reqUploadTree
+					title_region: bounds,
+					correct_region: {},
+					mark_ask_region: []
+				})
+			} else if (tag.regionType == 'write') {
+				var parentControl = oControl.GetParentContentControl()
+				if (parentControl) {
+					var id = parentControl.Sdt.GetId()
+					var item = ques_list.find(e => {
+						return e.control_id == id
+					})
+					if (item) {
+						bounds.forEach(e => {
+							item.mark_ask_region.push({
+								order: item.mark_ask_region.length,
+								Page: e.Page,
+								X: e.X,
+								Y: e.Y,
+								W: e.W,
+								H: e.H
+							})
+						})
+					}
+				}
+			}
+		}
+		var feature_list = []
+		var drawings = oDocument.GetAllDrawingObjects()
+		var oShapes = oDocument.GetAllShapes()
+		if (drawings) {
+			for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
+				var oDrawing = drawings[j]
+				if (oDrawing.Drawing.docPr) {
+					var title = oDrawing.Drawing.docPr.title
+					console.log(title)
+					if (title && title.indexOf('feature') >= 0) {
+						var titleObj = JSON.parse(title)
+						if (titleObj.feature && titleObj.feature.zone_type && titleObj.feature.zone_type != 'question') {
+							var featureObj = {
+								zone_type: titleObj.feature.zone_type,
+								fields: []
+							}
+							// todo..红花的需要特殊处理，不能用整个drawing
+							if (titleObj.feature.zone_type == 'self_evaluation' || titleObj.feature.zone_type == 'teather_evaluation') {
+								var oShape = oShapes.find(e => {
+									return e.Drawing && e.Drawing.Id == oDrawing.Drawing.Id
+								})
+								if (oShape) {
+									var tables = oShape.GetContent().GetAllTables()
+									if (tables && tables.length) {
+										var oRow  = tables[0].GetRow(0)
+										if (oRow) {
+											var CellsInfo = oRow.Row.CellsInfo
+											for (var c = 2; c < CellsInfo.length; ++c) {
+												var cell = CellsInfo[c]
+												featureObj.fields.push({
+													v: c - 1,
+													Page: oDrawing.Drawing.PageNum,
+													X: oDrawing.Drawing.X + cell.X_cell_start,
+													Y: oDrawing.Drawing.Y,
+													W: cell.X_cell_end - cell.X_cell_start,
+													H: oDrawing.Drawing.Height
+												})
+											}
+										}
+									} else {
+										console.log('cannot find tables', oShapes, oDrawing)
+									}
+								} else {
+									console.log('cannot find oShape')
+								}
+							} else {
+								featureObj.fields.push({
+									v: titleObj.feature.v,
+									Page: oDrawing.Drawing.PageNum,
+									X: oDrawing.Drawing.X,
+									Y: oDrawing.Drawing.Y,
+									W: oDrawing.Drawing.Width,
+									H: oDrawing.Drawing.Height
+								})
+							}
+							feature_list.push(featureObj)
+						}
+					}
+				}
+			}
+		}
+		return {
+			ques_list,
+			feature_list
+		} 
+	}, false, false).then(res => {
+		console.log('the result of getAllPositions', res)
+	})
+}
 
 export {
 	getPaperInfo,
@@ -3604,4 +3734,5 @@ export {
 	batchChangeInteraction,
 	batchChangeProportion,
 	batchChangeQuesType,
+	getAllPositions
 }

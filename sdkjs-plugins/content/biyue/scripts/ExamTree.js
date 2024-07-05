@@ -13,11 +13,14 @@ function initExamTree() {
 			var hlist = generateListByDoc(res)
 			g_horizontal_list = hlist
 			console.log(' after generateListByDoc', [].concat(hlist))
+			window.BiyueCustomData.node_list = hlist
 			var treeInfo = genetateTreeByHList(hlist)
 			console.log('******************   hlist', hlist)
 			console.log('******************   treeInfo', treeInfo)
 			renderTree(treeInfo)
 			resolve()
+		}).catch(error => {
+			reject(error)
 		})
 	})
 }

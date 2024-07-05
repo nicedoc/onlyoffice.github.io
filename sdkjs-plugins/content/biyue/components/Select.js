@@ -2,6 +2,7 @@ class ComponentSelect {
   constructor(params = {}) {
     this.id = params.id
     this.callback_item = params.callback_item
+	this.force_click_notify = params.force_click_notify
     this.updateOptions(params)
   }
 
@@ -64,6 +65,9 @@ class ComponentSelect {
       }
     }
     if (this.value_select == data.value) {
+		if (this.force_click_notify && this.callback_item) {
+			this.callback_item(data)
+		}
       return
     }
     $(`#${this.id}_${this.value_select}`).removeClass('selected')

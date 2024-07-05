@@ -1,10 +1,9 @@
 import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./dep.js";
 import { getToken, setXToken } from './auth.js'
 import { toXml, downloadAs } from "./convert.js";
-import { getPaperInfo, initPaperInfo, updateCustomControls, clearStruct, getStruct, savePositons, showQuestionTree, updateQuestionScore, drawPositions, addQuesScore, addScoreField, handleScoreField, handleIdentifyBox, showIdentifyIndex, removeAllIdentify, showWriteIdentifyIndex,
-  addImage, addMarkField, handleContentControlChange, deletePositions, setSectionColumn, batchChangeInteraction, batchChangeProportion, batchChangeQuesType } from './business.js'
+import { getPaperInfo, initPaperInfo, updateCustomControls, savePositons, updateQuestionScore, drawPositions,  handleIdentifyBox, handleContentControlChange, deletePositions, setSectionColumn, batchChangeInteraction, batchChangeProportion, batchChangeQuesType, getAllPositions } from './business.js'
 import { showQuesData, initListener } from './panelQuestionDetial.js'
-import { initFeature } from './panelFeature.js'
+import { initFeature, initExtroInfo } from './panelFeature.js'
 import { handleHeader } from "./featureManager.js";
 import { biyueCallCommand, dispatchCommandResult } from "./command.js";
 import { initExamTree, refreshExamTree, updateTreeRenderWhenClick, updateRangeControlType, reqGetQuestionType, reqUploadTree } from "./ExamTree.js";
@@ -965,6 +964,7 @@ import { initExamTree, refreshExamTree, updateTreeRenderWhenClick, updateRangeCo
 		addBtnClickEvent('getQuesType', reqGetQuestionType)
         addBtnClickEvent('questree', refreshExamTree)
 		addBtnClickEvent('uploadTree', reqUploadTree)
+		addBtnClickEvent('getAllPositions', getAllPositions)
     });
 
     function addBtnClickEvent(btnName, func) {
@@ -1894,7 +1894,7 @@ import { initExamTree, refreshExamTree, updateTreeRenderWhenClick, updateRangeCo
             window.BiyueCustomData.paper_uuid = params.id
             initPaperInfo().then((res2) => {
               console.log('initPaperInfo', res2)
-			  window.BiyueCustomData.control_list = res2
+			  // window.BiyueCustomData.control_list = res2
               // setExamTitle(docInfo.Title)
 			  initExamTree().then(() => {
 				if (window.BiyueCustomData && window.BiyueCustomData.node_list) {
@@ -1903,9 +1903,11 @@ import { initExamTree, refreshExamTree, updateTreeRenderWhenClick, updateRangeCo
 					})
 					// 无切题信息，进行切题
 					if (!find) {
+						Asc.scope.split_getdoc = true
 						reSplitQustion()
 					} else {
-						console.log('========== find node', find)
+						Asc.scope.split_getdoc = false
+						initExtroInfo()
 					}
 				  } else {
 					console.log('not node list', window.BiyueCustomData)
@@ -1997,8 +1999,16 @@ import { initExamTree, refreshExamTree, updateTreeRenderWhenClick, updateRangeCo
 		}).then(() => {
 			return checkAnswerRegion()
 		}).then(() => {
-			return updateCustomControls()
-		})
+			return initExamTree()
+		}).then(() => {
+			if (Asc.scope.split_getdoc) {
+				Asc.scope.split_getdoc = false
+				initExtroInfo()
+			}
+		}).catch(err => {
+			console.error(err);
+			throw err; // 抛出错误以便外部捕获
+		});
     }
 
     function changeTab(e) {

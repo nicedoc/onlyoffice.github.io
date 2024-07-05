@@ -11,6 +11,19 @@ var ZONE_TYPE = {
 	QRCODE: 200, // 二维码
 }
 
+var ZONE_TYPE_NAME = {
+	[`${ZONE_TYPE.AGAIN}`]: 'again',
+	[`${ZONE_TYPE.END}`]: 'end',
+	[`${ZONE_TYPE.PASS}`]: 'pass',
+	[`${ZONE_TYPE.SELF_EVALUATION}`]: 'self_evaluation',
+	[`${ZONE_TYPE.THER_EVALUATION}`]: 'teather_evaluation',
+	[`${ZONE_TYPE.STATISTICS}`]: 'statistics',
+	[`${ZONE_TYPE.IGNORE}`]: 'ignore',
+	[`${ZONE_TYPE.CHECK}`]: 'check',
+	[`${ZONE_TYPE.SEALING_LINE}`]: 'sealing_line',
+	[`${ZONE_TYPE.QRCODE}`]: 'qr_code',
+}
+
 var ZONE_SIZE = {
 	[`${ZONE_TYPE.AGAIN}`]: {
 		w: 20,
@@ -76,4 +89,4 @@ var ZONE_SIZE = {
 	},
 }
 
-export { ZONE_TYPE, ZONE_SIZE }
+export { ZONE_TYPE, ZONE_SIZE, ZONE_TYPE_NAME }

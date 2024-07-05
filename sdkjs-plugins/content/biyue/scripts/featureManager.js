@@ -1,33 +1,61 @@
 import { map_base64 } from '../resources/list_base64.js'
-import { ZONE_TYPE, ZONE_SIZE } from './model/feature.js'
+import { ZONE_TYPE, ZONE_SIZE, ZONE_TYPE_NAME } from './model/feature.js'
 import { biyueCallCommand, dispatchCommandResult } from "./command.js";
 
 var loading = false // 正在绘制中
 var list_command = [] // 操作列表
 var list_wait_command = [] // 等待执行的操作列表
 
+
+var c_oAscRelativeFromH = {
+	Character: 0,
+	Column: 1,
+	InsideMargin: 2,
+	LeftMargin: 3,
+	Margin: 4,
+	OutsideMargin: 5,
+	Page: 6,
+	RightMargin: 7
+}
+
+var c_oAscRelativeFromV = {
+	BottomMargin: 0,
+	InsideMargin: 1,
+	Line: 2,
+	Margin: 3,
+	OutsideMargin: 4,
+	Page: 5,
+	Paragraph: 6,
+	TopMargin: 7
+}
+
 function handleFeature(options) {
-	if (options.zone_type == ZONE_TYPE.QRCODE) {
-		options.url = map_base64.qrcode
-	} else if (options.zone_type == ZONE_TYPE.AGAIN) {
-		options.text = '再练'
-	} else if (options.zone_type == ZONE_TYPE.PASS) {
-		options.text = '通过'
-	} else if (options.zone_type == ZONE_TYPE.IGNORE) {
-		options.text = '日期/评语'
-	}
-	options.size = ZONE_SIZE[options.zone_type]
+	options.size = Object.assign({}, ZONE_SIZE[options.zone_type], (options.size || {}))
 	if (options.v == undefined) {
 		options.v = 1
 	}
 	options.page_num = options.p || 0
 	options.type = 'feature'
+	options.type_name = ZONE_TYPE_NAME[options.zone_type]
 	addCommand(options)
 	if (loading) {
 		console.log('loading...')
 		return
 	}
 	drawList([options])
+}
+
+function drawExtroInfo(list) {
+	list.forEach(e => {
+		e.page_num = e.p || 0
+		if (e.v == undefined) {
+			e.v = 1
+		}
+		e.size = Object.assign({}, ZONE_SIZE[e.zone_type], (e.size || {}))
+		e.type = 'feature'
+		e.type_name = ZONE_TYPE_NAME[e.zone_type]
+	})
+	drawList(list)
 }
 // 整理参数
 function addCommand(options) {
@@ -182,18 +210,64 @@ function drawHeader(cmdType, examTitle) {
 	})
 }
 
+function deleteAllFeatures(exceptList) {
+	Asc.scope.exceptList = exceptList
+	return biyueCallCommand(window, function() {
+		var oDocument = Api.GetDocument()
+		var drawings = oDocument.GetAllDrawingObjects()
+		var exceptList = Asc.scope.exceptList
+		if (drawings) {
+			for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
+				var oDrawing = drawings[j]
+				if (oDrawing.Drawing.docPr) {
+					var title = oDrawing.Drawing.docPr.title
+					if (title && title.indexOf('feature') >= 0) {
+						var titleObj = JSON.parse(title)
+						if (titleObj.feature && titleObj.feature.zone_type && titleObj.feature.zone_type != 'question') {
+							if (exceptList) {
+								var inExcept = exceptList.findIndex(e => {
+									return e.zone_type == titleObj.feature.zone_type
+								})
+								if (inExcept >= 0) {
+									continue
+								}
+							}
+							oDrawing.Delete()
+						}
+					}
+				}
+			}
+		}
+	}, false, true).then(() => {
+		console.log('功能区都已删除')
+	})
+}
+
 function drawList(list) {
 	loading = true
 	Asc.scope.feature_wait_handle = list
 	Asc.scope.pos_list = window.BiyueCustomData.pos_list
+	console.log('========================= drawList', list)
 	Asc.scope.ZONE_TYPE = ZONE_TYPE
 	biyueCallCommand(window, function() {
-		var pos_list = Asc.scope.pos_list || []
 		var ZONE_TYPE = Asc.scope.ZONE_TYPE
 		var MM2TWIPS = 25.4 / 72 / 20
 		var oDocument = Api.GetDocument()
 		var objs = oDocument.GetAllDrawingObjects()
 		var feature_wait_handle = Asc.scope.feature_wait_handle
+		feature_wait_handle = feature_wait_handle.filter(e => {
+			return e.zone_type
+		})
+		var elementsCount = oDocument.GetElementsCount()
+		var lastElement = oDocument.GetElement(elementsCount - 1)
+		var pageCount = oDocument.GetPageCount()
+		var lastParagraph = null
+		if (lastElement.GetClassType() == 'paragraph') {
+			lastParagraph = lastElement
+		} else {
+			lastParagraph = Api.CreateParagraph()
+			oDocument.push(lastParagraph)
+		}
 		var res = {
 			list: [],
 		}
@@ -262,20 +336,48 @@ function drawList(list) {
 				cell.SetCellMarginRight(mright)
 			}
 		}
-		feature_wait_handle.forEach((options) => {
-			var pos_data = pos_list.find((pos) => {
-				return pos.zone_type == options.zone_type && pos.v == options.v
-			})
-			var oDrawing = null
-			if (pos_data && pos_data.drawing_id) {
-				// 已存在
-				var index = objs.findIndex((obj) => {
-					return obj.Drawing.Id == pos_data.drawing_id
-				})
-				if (index >= 0) {
-					oDrawing = objs[index]
+		// 获取用于放置drawing的paragraph
+		/* ApiDocument.AddDrawingToPage的逻辑是
+		// ApiDocument.Document.GoToPage(nPage);
+		// var paragraph = ApiDocument.Document.GetCurrentParagraph();		
+		// paragraph.AddToParagraph(drawing); => var oRun = new AscCommonWord.ParaRun;  oRun.AddToContent(0, this); oParagraph.AddToContent(0, oRun)
+		*/
+		// 因此当存在段落跨页时，若直接调用AddDrawingToPage，会出现渲染到前页的情况
+		// 需要动态计算出适合的paragraph
+		function GetPageParagraphForDraw(page_num) {
+			oDocument.Document.GoToPage(page_num)
+			var curParagraph = oDocument.Document.GetCurrentParagraph()
+			if (page_num == 0) {
+				return curParagraph
+			} else if (page_num > 0) {
+				var Pages = curParagraph.Pages
+				if (Pages) {
+					if (Pages.length == 1) {
+						return curParagraph
+					} else {
+						if (curParagraph.GetAbsolutePage(Pages.length - 1) == page_num) {
+							var nextParagraph = Api.LookupObject(curParagraph.Id).GetNext()
+							if (nextParagraph && nextParagraph.Paragraph.GetAbsolutePage(0) == page_num) {
+								return nextParagraph.Paragraph
+							}
+						}
+					}
 				}
+				return curParagraph
 			}
+		}
+		feature_wait_handle.forEach((options) => {
+			var props_title = JSON.stringify({
+				feature: {
+					zone_type: options.type_name,
+					v: options.v
+				}
+			})
+			console.warn('props_title', props_title, options)
+			var find = objs.find(e => {
+				return e.Drawing && e.Drawing.docPr && e.Drawing.docPr.title == props_title
+			})
+			var oDrawing = find
 			var result = {
 				code: 0,
 				zone_type: options.zone_type,
@@ -296,10 +398,6 @@ function drawList(list) {
 					if (options.size) {
 						var shapeWidth = options.size.w
 						var shapeHeight = options.size.h
-						if (options.zone_type == ZONE_TYPE.QRCODE) {
-							shapeWidth = 32
-							shapeHeight += 2
-						}
 						// if (options.zone_type == ZONE_TYPE.AGAIN) {
 						//   var firstSection = oSections[0]
 						//   var oHeader = firstSection.GetHeader("default", true);
@@ -308,36 +406,13 @@ function drawList(list) {
 						//   console.log('oHeader', oParagraph)
 						// }
 						if (options.zone_type == ZONE_TYPE.QRCODE) {
-							var oTable = Api.CreateTable(2, 1)
-							addImageToCell(
-								oTable,
-								0,
-								0,
-								options.url,
-								options.size.w,
-								options.size.h
-							)
-							oTable
-								.GetCell(0, 0)
-								.SetCellBorderRight('single', 1, 0.1, 255, 255, 255)
-							oTable.SetTableBorderTop('single', 1, 0.1, 255, 255, 255)
-							oTable.SetTableBorderBottom('single', 1, 0.1, 255, 255, 255)
-							oTable.SetTableBorderLeft('single', 1, 0.1, 255, 255, 255)
-							oTable.SetTableBorderRight('single', 1, 0.1, 255, 255, 255)
-
-							addTextToCell(
-								oTable,
-								0,
-								1,
-								['编码-未生成', '吕老师'],
-								'center',
-								shapeWidth - options.size.w - 2,
-								14
-							)
-							oTable.SetWidth('twips', shapeWidth / MM2TWIPS)
-
+							var showtext = options.texts && options.texts.length
+							if (showtext) {
+								shapeWidth += shapeWidth * 1.5
+								shapeHeight += 2
+							}
 							var oFill = Api.CreateNoFill()
-							var oStroke = Api.CreateStroke(0, Api.CreateNoFill())
+							var oStroke = showtext ? Api.CreateStroke(0, Api.CreateNoFill()) : Api.CreateStroke(1, Api.CreateSolidFill(Api.CreateRGBColor(225, 225, 225)))
 							oDrawing = Api.CreateShape(
 								'rect',
 								shapeWidth * 36e3,
@@ -345,24 +420,59 @@ function drawList(list) {
 								oFill,
 								oStroke
 							)
-							var oDrawingContent = oDrawing.GetContent()
-							oDrawingContent.AddElement(0, oTable)
-						} else if (options.zone_type == ZONE_TYPE.THER_EVALUATION) {
-							var oTable = Api.CreateTable(13, 1)
+							if (showtext) {
+								var oTable = Api.CreateTable(2, 1)
+								addImageToCell(
+									oTable,
+									0,
+									0,
+									options.url,
+									options.size.imgSize,
+									options.size.imgSize
+								)
+								oTable
+									.GetCell(0, 0)
+									.SetCellBorderRight('single', 1, 0.1, 255, 255, 255)
+								oTable.SetTableBorderTop('single', 1, 0.1, 255, 255, 255)
+								oTable.SetTableBorderBottom('single', 1, 0.1, 255, 255, 255)
+								oTable.SetTableBorderLeft('single', 1, 0.1, 255, 255, 255)
+								oTable.SetTableBorderRight('single', 1, 0.1, 255, 255, 255)
+								addTextToCell(
+									oTable,
+									0,
+									1,
+									options.texts, // texts内容类似['编码-未生成', '吕老师']
+									'center',
+									shapeWidth - options.size.w - 2,
+									14
+								)
+								oTable.SetWidth('twips', shapeWidth / MM2TWIPS)
+								var oDrawingContent = oDrawing.GetContent()
+								oDrawingContent.AddElement(0, oTable)
+							} else {
+								oDrawing.SetPaddings(0, 0, 0, 0)
+								var shapeContent = oDrawing.GetContent()
+								var p = shapeContent.GetElement(0)
+								if (p && p.GetClassType() == 'paragraph') {
+									var oImage = Api.CreateImage(options.url, (options.size.imgSize) * 36e3, (options.size.imgSize) * 36e3)
+									p.AddDrawing(oImage)
+								}
+							}
+						} else if (options.zone_type == ZONE_TYPE.THER_EVALUATION || options.zone_type == ZONE_TYPE.SELF_EVALUATION) {
+							var flowers = options.flowers || []
+							var oTable = Api.CreateTable(2 + flowers.length, 1)
 							var scale = 0.25
 							var flowersize = 24
 							var fw = flowersize * scale
 							var fh = flowersize * scale
 							var textw = 24
-							var w = (21.33 * scale + textw + fw * 4) * 2 + 10
-							var furl =
-								'https://eduteacher.xmdas-link.com/online_editor/static/img_20240614165159/flower.png'
+							var w = 21.33 * scale + textw + fw * flowers.length
 							var fmargin = 1 / MM2TWIPS
 							addImageToCell(
 								oTable,
 								0,
 								0,
-								'https://eduteacher.xmdas-link.com/online_editor/static/xiaoyue.png',
+								options.icon_url,
 								21.33 * scale,
 								30 * scale,
 								0,
@@ -372,47 +482,48 @@ function drawList(list) {
 								oTable,
 								0,
 								1,
-								['测试评价:'],
+								[options.label],
 								'center',
 								textw,
 								20,
 								0,
 								fmargin
 							)
-							addImageToCell(oTable, 0, 2, furl, fw, fh, fmargin, fmargin)
-							addImageToCell(oTable, 0, 3, furl, fw, fh, fmargin, fmargin)
-							addImageToCell(oTable, 0, 4, furl, fw, fh, fmargin, fmargin)
-							addImageToCell(oTable, 0, 5, furl, fw, fh, fmargin, fmargin)
-							oTable.GetCell(0, 6).SetWidth('twips', 10 / MM2TWIPS)
-							addImageToCell(
-								oTable,
-								0,
-								7,
-								'https://eduteacher.xmdas-link.com/online_editor/static/xiaotao.png',
-								21.33 * scale,
-								30 * scale,
-								0,
-								0
-							)
-							addTextToCell(
-								oTable,
-								0,
-								8,
-								['教师评价:'],
-								'center',
-								textw,
-								20,
-								0,
-								fmargin
-							)
-							addImageToCell(oTable, 0, 9, furl, fw, fh, fmargin, fmargin)
-							addImageToCell(oTable, 0, 10, furl, fw, fh, fmargin, fmargin)
-							addImageToCell(oTable, 0, 11, furl, fw, fh, fmargin, fmargin)
-							addImageToCell(oTable, 0, 12, furl, fw, fh, fmargin, fmargin)
+							var cellindex = 2
+							if (flowers) {
+								flowers.forEach((url, index) => {
+									addImageToCell(oTable, 0, cellindex + index, url, fw, fh, fmargin, fmargin)	
+								})
+							}
+							// oTable.GetCell(0, 6).SetWidth('twips', 10 / MM2TWIPS)
+							// addImageToCell(
+							// 	oTable,
+							// 	0,
+							// 	7,
+							// 	'https://by-qa-image-cdn.biyue.tech/xiaotao.png',
+							// 	21.33 * scale,
+							// 	30 * scale,
+							// 	0,
+							// 	0
+							// )
+							// addTextToCell(
+							// 	oTable,
+							// 	0,
+							// 	8,
+							// 	[options.label],
+							// 	'center',
+							// 	textw,
+							// 	20,
+							// 	0,
+							// 	fmargin
+							// )
+							// addImageToCell(oTable, 0, 9, furl, fw, fh, fmargin, fmargin)
+							// addImageToCell(oTable, 0, 10, furl, fw, fh, fmargin, fmargin)
+							// addImageToCell(oTable, 0, 11, furl, fw, fh, fmargin, fmargin)
+							// addImageToCell(oTable, 0, 12, furl, fw, fh, fmargin, fmargin)
 
-							oTable.SetWidth('twips', w / MM2TWIPS)
+							// oTable.SetWidth('twips', w / MM2TWIPS)
 							oTable.GetRow(0).SetHeight('auto', shapeHeight / MM2TWIPS)
-							console.log('w', w)
 
 							shapeWidth = w + 1
 							var oFill = Api.CreateNoFill()
@@ -427,14 +538,32 @@ function drawList(list) {
 							var oDrawingContent = oDrawing.GetContent()
 							oDrawingContent.AddElement(0, oTable)
 							oDrawing.SetPaddings(0, 0, 0, 0)
-						} else if (options.text) {
+						} else if (options.url) {
 							var oFill = Api.CreateNoFill()
+							var oStroke = Api.CreateStroke(0, Api.CreateNoFill())
+							oDrawing = Api.CreateShape(
+								'rect',
+								shapeWidth * 36e3,
+								shapeHeight * 36e3,
+								oFill,
+								oStroke
+							)
+							oDrawing.SetPaddings(0, 0, 0, 0)
+							var shapeContent = oDrawing.GetContent()
+							var p = shapeContent.GetElement(0)
+							if (p && p.GetClassType() == 'paragraph') {
+								var oImage = Api.CreateImage(options.url, (options.size.w) * 36e3, (options.size.h) * 36e3)
+								p.AddDrawing(oImage)
+							}
+						} else if (options.label) {
+							var oFill = Api.CreateNoFill()
+							var stroke_width = options.size.stroke_width || 0.1
 							var oStroke = Api.CreateStroke(
-								options.size.stroke_width * 36e3,
-								Api.CreateSolidFill(Api.CreateRGBColor(153, 153, 153))
+								stroke_width * 36e3,
+								Api.CreateSolidFill(Api.CreateRGBColor(225, 225, 225))
 							)
 							oDrawing = Api.CreateShape(
-								options.size.shape_type,
+								options.size.shape_type || 'rect',
 								shapeWidth * 36e3,
 								shapeHeight * 36e3,
 								oFill,
@@ -444,33 +573,74 @@ function drawList(list) {
 							var paragraphs = drawDocument.GetAllParagraphs()
 							if (paragraphs && paragraphs.length > 0) {
 								var oRun = Api.CreateRun()
-								oRun.AddText(options.text)
+								oRun.AddText(options.label)
 								paragraphs[0].AddElement(oRun)
-								paragraphs[0].SetColor(153, 153, 153, false)
-								paragraphs[0].SetFontSize(options.size.font_size)
-								paragraphs[0].SetJc(options.size.jc || 'center')
+								paragraphs[0].SetColor(3, 3, 3, false)
+								paragraphs[0].SetFontSize(14)
+								var jc = options.size && options.size.jc ? options.size.jc : 'center'
+								paragraphs[0].SetJc(jc)
+								if (jc == 'center') {
+									oDrawing.SetPaddings(0, 0, 0, 0)
+								} else {
+									oDrawing.SetPaddings(4 * 36e3, 0, 0, 0)
+								}
 							}
 							oDrawing.SetVerticalTextAlign('center')
-							console.log('oDrawing', oDrawing)
 						}
-						oDrawing.Drawing.Set_Props({
-							title: 'feature',
-						})
-						oDocument.AddDrawingToPage(
-							oDrawing,
-							options.page_num,
-							options.x * 36e3,
-							options.y * 36e3
-						)
+						if (oDrawing) {
+							oDrawing.Drawing.Set_Props({
+								title: props_title,
+							})
+							// if (options.zone_type == ZONE_TYPE.STATISTICS) {
+							// 	var finalSection = oSections[oSections.length - 1]
+							// 	var oFooter = finalSection.GetFooter("default", true)
+							// 	var paragraph = oFooter.GetElement(0)
+							// 	var drawing = oDrawing.Drawing;
+							// 			// drawing.Set_PositionH(6, false, options.x, false);
+							// 			// drawing.Set_PositionV(5, false, options.y, false);
+							// 			drawing.Set_DrawingType(2);
+							// 			paragraph.Paragraph.AddToParagraph(drawing);
+							// } else {
+								var page_num = options.page_num || options.p
+								if (page_num == 0) {
+									oDocument.AddDrawingToPage(
+										oDrawing,
+										page_num,
+										options.x * 36e3,
+										options.y * 36e3
+									)
+								} else if (page_num < pageCount - 1) {
+									var paragraph = GetPageParagraphForDraw(page_num)
+									if (paragraph) {
+										var drawing = oDrawing.Drawing
+										drawing.Set_PositionH(6, false, options.x, false)
+										drawing.Set_PositionV(5, false, options.y, false)
+										drawing.Set_DrawingType(2)
+										paragraph.AddToParagraph(drawing)
+									}
+								} else {
+									var paragraph = lastParagraph.Paragraph
+									if (paragraph) {
+										var drawing = oDrawing.Drawing;
+										drawing.Set_PositionH(6, false, options.x, false);
+										drawing.Set_PositionV(5, false, options.y, false);
+										drawing.Set_DrawingType(2);
+										paragraph.AddToParagraph(drawing);
+									}
+								}
+							//}
+						}
 					}
 				} else {
-					oDrawing.SetHorPosition('page', options.x * 36e3)
-					oDrawing.SetVerPosition('page', options.y * 36e3)
+					if (oDrawing) {
+						oDrawing.SetHorPosition('page', options.x * 36e3)
+						oDrawing.SetVerPosition('page', options.y * 36e3)
+					}
 				}
 				result.code = 1
 				result.x = options.x
 				result.y = options.y
-				result.drawing_id = oDrawing.Drawing.Id
+				result.drawing_id = oDrawing ? oDrawing.Drawing.Id : 0
 			}
 			res.list.push(result)
 		})
@@ -508,4 +678,4 @@ function drawList(list) {
 	})
 }
 
-export { handleFeature, handleHeader }
+export { handleFeature, handleHeader, drawExtroInfo, deleteAllFeatures }
