@@ -210,12 +210,14 @@ function drawHeader(cmdType, examTitle) {
 	})
 }
 
-function deleteAllFeatures(exceptList) {
+function deleteAllFeatures(exceptList, specifyFeatures) {
 	Asc.scope.exceptList = exceptList
+	Asc.scope.specifyFeatures = specifyFeatures
 	return biyueCallCommand(window, function() {
 		var oDocument = Api.GetDocument()
 		var drawings = oDocument.GetAllDrawingObjects()
 		var exceptList = Asc.scope.exceptList
+		var specifyFeatures = Asc.scope.specifyFeatures
 		if (drawings) {
 			for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
 				var oDrawing = drawings[j]
@@ -223,7 +225,7 @@ function deleteAllFeatures(exceptList) {
 					var title = oDrawing.Drawing.docPr.title
 					if (title && title.indexOf('feature') >= 0) {
 						var titleObj = JSON.parse(title)
-						if (titleObj.feature && titleObj.feature.zone_type && titleObj.feature.zone_type != 'question') {
+						if (titleObj.feature && titleObj.feature.zone_type) {
 							if (exceptList) {
 								var inExcept = exceptList.findIndex(e => {
 									return e.zone_type == titleObj.feature.zone_type
@@ -232,7 +234,16 @@ function deleteAllFeatures(exceptList) {
 									continue
 								}
 							}
-							oDrawing.Delete()
+							if (specifyFeatures) {
+								var inSpecify = specifyFeatures.find(e => {
+									return title.indexOf(e) >= 0
+								})
+								if (inSpecify) {
+									oDrawing.Delete()
+								}
+							} else {
+								oDrawing.Delete()
+							}
 						}
 					}
 				}
@@ -345,6 +356,11 @@ function drawList(list) {
 		// 因此当存在段落跨页时，若直接调用AddDrawingToPage，会出现渲染到前页的情况
 		// 需要动态计算出适合的paragraph
 		function GetPageParagraphForDraw(page_num) {
+			var pageCount = oDocument.GetPageCount()
+			if (page_num >= pageCount) {
+				console.log('+++++++++++ GetPageParagraphForDraw', page_num, pageCount)
+				return
+			}
 			oDocument.Document.GoToPage(page_num)
 			var curParagraph = oDocument.Document.GetCurrentParagraph()
 			if (page_num == 0) {
@@ -359,7 +375,11 @@ function drawList(list) {
 							var nextParagraph = Api.LookupObject(curParagraph.Id).GetNext()
 							if (nextParagraph && nextParagraph.Paragraph.GetAbsolutePage(0) == page_num) {
 								return nextParagraph.Paragraph
+							} else {
+								console.log('nextParagraph is null')
 							}
+						} else {
+							console.log('curParagraph end page != page_num')
 						}
 					}
 				}
@@ -612,6 +632,7 @@ function drawList(list) {
 								} else if (page_num < pageCount - 1) {
 									var paragraph = GetPageParagraphForDraw(page_num)
 									if (paragraph) {
+										console.log(page_num, 'ppp ', Api.LookupObject(paragraph.Id).GetRange())
 										var drawing = oDrawing.Drawing
 										drawing.Set_PositionH(6, false, options.x, false)
 										drawing.Set_PositionV(5, false, options.y, false)
@@ -678,4 +699,241 @@ function drawList(list) {
 	})
 }
 
-export { handleFeature, handleHeader, drawExtroInfo, deleteAllFeatures }
+function setInteraction(type) {
+	Asc.scope.interaction_type = type
+	return biyueCallCommand(window, function() {
+		var interaction_type = Asc.scope.interaction_type
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls()
+		var MM2TWIPS = 25.4 / 72 / 20
+		if (!controls) {
+			return
+		}
+
+		function getExistDrawing(draws, sub_type) {
+			for (var i = 0; i < draws.length; ++i) {
+				var title = draws[i].Drawing.docPr.title
+				if (title) {
+					var titleObj = JSON.parse(title)
+					if (titleObj.feature) {
+						if (titleObj.feature.zone_type == 'question' && titleObj.feature.sub_type == sub_type) {
+							return draws[i]
+						}
+					}
+				}
+			}
+			return null
+		}
+
+		function addSimple(oControl) {
+			if (!oControl) {
+				return
+			}
+			var oFill = Api.CreateNoFill()
+			var oStroke = Api.CreateStroke(
+				3600,
+				Api.CreateSolidFill(Api.CreateRGBColor(225, 225, 225))
+			)
+			var oDrawing = Api.CreateShape(
+				'rect',
+				3.18 * 36e3,
+				3.18 * 36e3,
+				oFill,
+				oStroke
+			)
+			var titleobj = {
+				feature: {
+					zone_type: 'question',
+					type: 'ques_interaction',
+					sub_type: 'simple',
+					control_id: oControl.Sdt.GetId()
+				}
+			}
+			oDrawing.Drawing.Set_Props({
+				title: JSON.stringify(titleobj),
+			})
+			oDrawing.SetDistances(0, 0, 2 * 36e3, 0);
+			var paragraphs = oControl.GetAllParagraphs()
+			if (paragraphs && paragraphs.length > 0) {
+				var pParagraph = paragraphs[0]
+				var oRun = Api.CreateRun()
+				oRun.AddDrawing(oDrawing)
+				pParagraph.AddElement(
+					oRun,
+					0
+				)
+				oDrawing.SetWrappingStyle('tight')	
+			}
+		}
+		function addAccurate(oControl) {
+			if (!oControl) {
+				return
+			}
+			var control_id = oControl.Sdt.GetId()
+			var childControls = oControl.GetAllContentControls()
+			var write_list = []
+			if (childControls) {
+				for (var i = 0; i < childControls.length; ++i) {
+					var parentControl = childControls[i].GetParentContentControl()
+					if (!parentControl || parentControl.Sdt.GetId() != control_id) {
+						continue
+					}
+					var tag = JSON.parse(childControls[i].GetTag() || '{}')
+					if (tag.regionType == 'write') {
+						write_list.push(childControls[i])
+					}
+				}
+			}
+			var num = write_list.length
+			if (num == 0) {
+				return
+			}
+			var rect = Api.asc_GetContentControlBoundingRect(control_id, true)
+			var newRect = {
+				Left: rect.X0,
+				Right: rect.X1,
+				Top: rect.Y0,
+				Bottom: rect.Y1,
+			}
+			var controlContent = oControl.GetContent()
+			if (controlContent) {
+				var pageIndex = 0
+				if (
+					controlContent.Document &&
+					controlContent.Document.Pages &&
+					controlContent.Document.Pages.length > 1
+				) {
+					for (var p = 0; p < controlContent.Document.Pages.length; ++p) {
+						if (!control.Sdt.IsEmptyPage(p)) {
+							pageIndex = p
+							break
+						}
+					}
+				}
+				var pagebounds = controlContent.Document.Get_PageBounds(pageIndex)
+				if (pagebounds) {
+					newRect.Right = Math.max(pagebounds.Right, newRect.Right)
+				}
+			}
+			var width = newRect.Right - newRect.Left
+			var oTable = Api.CreateTable(num, 1)
+			var oTableStyle = oDocument.CreateStyle('CustomTableStyle', 'table')
+			var oTableStylePr = oTableStyle.GetConditionalTableStyle('wholeTable')
+			oTable.SetTableLook(true, true, true, true, true, true)
+			oTableStylePr.GetTableRowPr().SetHeight('atLeast', 8 / MM2TWIPS) // 高度至少多少trips
+			var oTableCellPr = oTableStyle.GetTableCellPr()
+			oTableCellPr.SetVerticalAlign('center')
+			oTable.SetWrappingStyle(true)
+			oTable.SetStyle(oTableStyle)
+			oTable.SetCellSpacing(150)
+			oTable.SetTableBorderTop('single', 1, 0.1, 255, 255, 255)
+			oTable.SetTableBorderBottom('single', 1, 0.1, 255, 255, 255)
+			oTable.SetTableBorderLeft('single', 1, 0.1, 255, 255, 255)
+			oTable.SetTableBorderRight('single', 1, 0.1, 255, 255, 255)
+			var Props = {
+				CellSelect: true,
+				Locked: false,
+				PositionV: {
+					Align: 1,
+					RelativeFrom: 2,
+					UseAlign: true,
+					Value: 0,
+				},
+				PositionH: {
+					Align: 4,
+					RelativeFrom: 0,
+					UseAlign: true,
+					Value: 0,
+				},
+				TableDefaultMargins: {
+					Bottom: 0,
+					Left: 0,
+					Right: 0,
+					Top: 0,
+				},
+			}
+			oTable.Table.Set_Props(Props)
+			for (var i = 0; i < num; ++i) {
+				var cell = oTable.GetCell(0, i)
+				if (cell) {
+					var cellcontent = cell.GetContent()
+					if (cellcontent) {
+						var oCellPara = cellcontent.GetElement(0)
+						if (oCellPara) {
+							oCellPara.AddText(`${i + 1}`)
+							cell.SetWidth('twips', 8 / MM2TWIPS)
+							oCellPara.SetJc('center')
+							oCellPara.SetColor(0, 0, 0, false)
+							oCellPara.SetFontSize(16)
+						} else {
+							console.log('oCellPra is null')
+						}
+					} else {
+						console.log('cellcontent is null')
+					}
+				}
+			}
+
+			var shapew = num * 12
+			var oDrawing = Api.CreateShape(
+				'rect',
+				shapew * 36e3,
+				(8 + 4) * 36e3,
+				Api.CreateNoFill(),
+				Api.CreateStroke(0, Api.CreateNoFill())
+			)
+			var titleobj = {
+				feature: {
+					zone_type: 'question',
+					type: 'ques_interaction',
+					sub_type: 'accurate',
+					control_id: control_id
+				}
+			}
+			oDrawing.Drawing.Set_Props({
+				title: JSON.stringify(titleobj),
+			})
+			oDrawing.SetPaddings(0, 0, 0, 0)
+			var drawDocument = oDrawing.GetContent()
+			drawDocument.AddElement(0, oTable)
+			oDrawing.SetWrappingStyle('square')
+			oDrawing.SetHorPosition('column', (width - shapew) * 36e3)
+			var oRun = Api.CreateRun()
+			oRun.AddDrawing(oDrawing)
+			var paragraphs = oControl.GetContent().GetAllParagraphs()
+			if (paragraphs && paragraphs.length > 0) {
+				paragraphs[0].AddElement(oRun, 0)
+			}
+		}
+		for (var i = 0, imax = controls.length; i < imax; ++i) {
+			var oControl = controls[i]
+			var tag = JSON.parse(oControl.GetTag() || '{}')
+			if (tag.regionType == 'question' || tag.regionType == 'sub-question') {
+				var allDraws = oControl.GetAllDrawingObjects()
+				var simpleDrawing = getExistDrawing(allDraws, 'simple')
+				var accurateDrawing = getExistDrawing(allDraws, 'accurate')
+				if (interaction_type == 'simple') {
+					if (!simpleDrawing) {
+						addSimple(oControl)	
+					}
+					if (accurateDrawing) {
+						console.log('accurateDrawing', accurateDrawing)
+						accurateDrawing.Delete()
+					}
+				} else if (interaction_type == 'accurate') {
+					if (!simpleDrawing) {
+						addSimple(oControl)
+					}
+					if (!accurateDrawing) {
+						addAccurate(oControl)
+					}
+				}
+			}
+		}
+
+	}, false, true).then(res => {
+		console.log('setInteraction result:', res)
+	})
+}
+
+export { handleFeature, handleHeader, drawExtroInfo, deleteAllFeatures, setInteraction }

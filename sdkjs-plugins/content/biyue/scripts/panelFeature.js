@@ -1,7 +1,7 @@
 import ComponentSelect from '../components/Select.js'
 import NumberInput from '../components/NumberInput.js'
 import { ZONE_SIZE, ZONE_TYPE, ZONE_TYPE_NAME } from './model/feature.js'
-import { handleFeature, handleHeader, drawExtroInfo, deleteAllFeatures } from './featureManager.js'
+import { handleFeature, handleHeader, drawExtroInfo, deleteAllFeatures, setInteraction } from './featureManager.js'
 import { biyueCallCommand, dispatchCommandResult } from "./command.js";
 var list_feature = []
 var timeout_pos = null
@@ -11,6 +11,14 @@ function initExtroInfo() {
 	updatePageSizeMargins().then(() => {
 		initPositions(true)
 	})
+}
+
+function getValue(v1, v2) {
+	if (v1 == '' || isNaN(v1 * 1)) {
+		return v2
+	} else {
+		return v1
+	}
 }
 
 function getList() {
@@ -23,15 +31,16 @@ function getList() {
 		extra_info.practise_again = workbook.practise_again
 	}
 	var list = []
+	var scale = 0.2647058823529412
 	if (extra_info.workbook_qr_code_show) {
 		list.push({
 			zone_type: ZONE_TYPE.QRCODE,
 		  	id: ZONE_TYPE_NAME[ZONE_TYPE.QRCODE],
 		  	label: '二维码',
-			ox: extra_info.workbook_qr_code_x,
-			oy: extra_info.workbook_qr_code_y,
-			ow: extra_info.workbook_qr_code_size,
-			oh: extra_info.workbook_qr_code_size,
+			ox: getValue(extra_info.workbook_qr_code_x, 700 * scale) ,
+			oy: getValue(extra_info.workbook_qr_code_y, 20 * scale),
+			ow: 45 * scale, // extra_info.workbook_qr_code_size,
+			oh: 45 * scale, //  extra_info.workbook_qr_code_size,
 			url: 'https://by-qa-image-cdn.biyue.tech/qrCodeUnset.png'
 		})
 	}
@@ -41,9 +50,7 @@ function getList() {
 			id: ZONE_TYPE_NAME[ZONE_TYPE.AGAIN],
 			label: '再练',
 			ox: extra_info.practise_again.x,
-			oy: extra_info.practise_again.y,
-			ow: 41.6,
-			oh: 23.6
+			oy: extra_info.practise_again.y
 		})
 	}
 	if (extra_info.custom_evaluate) {
@@ -64,17 +71,13 @@ function getList() {
 		list.push({
 			zone_type: ZONE_TYPE.PASS,
 			id: ZONE_TYPE_NAME[ZONE_TYPE.PASS],
-			label: '通过',
-			ow: 57.56,
-			oh: 30
+			label: '通过'
 		})
 	} else {
 		list.push({
 			zone_type: ZONE_TYPE.END,
 			id: ZONE_TYPE_NAME[ZONE_TYPE.END],
-			label: '完成',
-			ow: 57.56,
-			oh: 30
+			label: '完成'
 		})
 	}
 
@@ -91,17 +94,15 @@ function getList() {
 		p: 0,
 		v: 1,
 		// hidden: true,
-		ow: 18,
-		oh: 18,
 		url: 'https://by-qa-image-cdn.biyue.tech/statistics.png'
 	})
 
-	if (extra_info.start_interaction && extra_info.start_interaction.checked) {
+	// if (extra_info.start_interaction && extra_info.start_interaction.checked) {
 		list.push({
 			id: 'interaction',
 			label: '互动模式'
 		})
-	}
+	// }
 	return list
 }
 
@@ -115,6 +116,19 @@ function initFeature() {
 			value: 'open',
 			label: '开',
 		},
+	]
+	var interactionTypes = [
+		{
+			value: 'none',
+			label: '无互动'
+		},
+		{
+			value: 'simple',
+			label: '简单互动'
+		}, {
+			value: 'accurate',
+			label: '精准互动'
+		}
 	]
 	$('#panelFeature').empty()
 	var content = '<table><tbody>'
@@ -147,14 +161,15 @@ function initFeature() {
 		},
 	})
 	list.forEach((e, index) => {
+		var optionsTypes = e.id == 'interaction' ? interactionTypes : types
 		if (!e.hidden) {
 			e.comSelect = new ComponentSelect({
 				id: e.id,
-				options: types,
-				value_select: types[1].value,
+				options: optionsTypes,
+				value_select: optionsTypes[0].value,
 				width: '100%',
 				callback_item: (data) => {
-					changeItem(e.zone_type, data, index)
+					changeItem(e.zone_type, data, e.id)
 				},
 			})
 			e.inputX = new NumberInput(`${e.id}X`, {
@@ -181,9 +196,8 @@ function changeAll(data) {
 	}
 } 
 
-function changeItem(type, data, index) {
-	var fdata = list_feature[index]
-	var poscom = $(`#${fdata.id}Pos`)
+function changeItem(type, data, id) {
+	var poscom = $(`#${id}Pos`)
 	if (poscom) {
 		if (data.value == 'open') {
 			poscom.show()
@@ -191,10 +205,16 @@ function changeItem(type, data, index) {
 			poscom.hide()
 		}
 	}
-	if (fdata.id == 'header') {
+	if (id == 'header') {
 		handleHeader(data.value, window.BiyueCustomData.exam_title || '试卷标题')
+	} else if (id == 'interaction') {
+		if (data.value == 'none') {
+			deleteAllFeatures(null, ['ques_interaction'])
+		} else {
+			setInteraction(data.value)
+		}
 	} else {
-		if (fdata.zone_type == ZONE_TYPE.STATISTICS) {
+		if (id == ZONE_TYPE_NAME[ZONE_TYPE.STATISTICS]) {
 			var list = list_feature.filter(e => {
 				return e.zone_type == ZONE_TYPE.STATISTICS
 			})
@@ -206,6 +226,12 @@ function changeItem(type, data, index) {
 				}))
 			}
 		} else {
+			var fdata = list_feature.find(e => {
+				return e.id == id
+			})
+			if (!fdata) {
+				return
+			}
 			handleFeature(Object.assign({}, fdata, {
 				cmd: data.value,
 			}))
@@ -317,6 +343,7 @@ function initPositions(draw) {
 			var bottom = 8
 			// 后端给的坐标是基于页面尺寸 816*1100 的
 			var scale = PageSize.W / 816
+			console.log('ssss ', scale)
 			var lastleft = ((Num - 1) * PageSize.W) / Num
 			var evaluationX = Num > 1 ? lastleft : PageMargins.Left
 			var statsIndex = list_feature.findIndex(e => {
@@ -334,16 +361,16 @@ function initPositions(draw) {
 				list_feature.splice(statsIndex + 1, 0, ...addStats)
 			}
 			list_feature.forEach((e, index) => {
-				var x = e.ox != undefined ? scale * e.ox : 0
-				var y = e.oy != undefined ? scale * e.oy : 0
+				var x = e.ox != undefined ? e.ox : 0
+				var y = e.oy != undefined ? e.oy : 0
 				var size = {}
 				if (e.ow != undefined && e.oh != undefined) {
-					size.w = scale * e.ow
-					size.h = scale * e.oh
+					size.w = e.ow
+					size.h = e.oh
 				}
 				var page_num = res.pageNum - 1
 				if (e.zone_type == ZONE_TYPE.QRCODE) {
-					size.imgSize = scale * (list_feature[0].ow - 10)
+					size.imgSize = scale * (45 - 10)
 					page_num = 0
 				} else if (e.zone_type == ZONE_TYPE.AGAIN) {
 					page_num = 0
@@ -362,8 +389,6 @@ function initPositions(draw) {
 				} else if (e.zone_type == ZONE_TYPE.STATISTICS) {
 					x = PageSize.W - PageMargins.Right
 					y = PageSize.H - PageMargins.Bottom
-					size.w = 18 * scale
-					size.h = 18 * scale
 					page_num = e.p
 				}
 				setXY(

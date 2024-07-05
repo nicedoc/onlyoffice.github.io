@@ -26,22 +26,22 @@ var ZONE_TYPE_NAME = {
 
 var ZONE_SIZE = {
 	[`${ZONE_TYPE.AGAIN}`]: {
-		w: 20,
-		h: 10,
+		w: 11.011764705882353,
+		h: 6.247058823529412, 
 		font_size: 18,
 		shape_type: 'rect',
 		stroke_width: 0.1,
 	},
 	[`${ZONE_TYPE.END}`]: {
-		w: 20,
-		h: 10,
+		w: 15.236470588235296,
+		h: 7.9411764705882355,
 		font_size: 18,
 		shape_type: 'rect',
 		stroke_width: 0.1,
 	},
 	[`${ZONE_TYPE.PASS}`]: {
-		w: 20,
-		h: 10,
+		w: 15.236470588235296,
+		h: 7.9411764705882355,
 		font_size: 18,
 		shape_type: 'rect',
 		stroke_width: 0.1,
@@ -61,12 +61,12 @@ var ZONE_SIZE = {
 		icon_size: 21.33 * 0.25,
 	},
 	[`${ZONE_TYPE.STATISTICS}`]: {
-		w: 8,
-		h: 4,
+		w: 4.76,
+		h: 4.76,
 	},
 	[`${ZONE_TYPE.CHECK}`]: {
-		w: 20,
-		h: 10,
+		w: 15.236470588235296,
+		h: 7.9411764705882355,
 		font_size: 18,
 		shape_type: 'rect',
 		stroke_width: 0.1,
@@ -83,9 +83,10 @@ var ZONE_SIZE = {
 		sb: 153,
 	},
 	[`${ZONE_TYPE.QRCODE}`]: {
-		w: 12,
-		h: 12,
+		w: 45 * 0.25,
+		h: 45 * 0.25,
 		font_size: 14,
+		imgSize: 35 * 0.25
 	},
 }
 
