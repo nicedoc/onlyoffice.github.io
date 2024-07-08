@@ -393,7 +393,6 @@ function drawList(list) {
 					v: options.v
 				}
 			})
-			console.warn('props_title', props_title, options)
 			var find = objs.find(e => {
 				return e.Drawing && e.Drawing.docPr && e.Drawing.docPr.title == props_title
 			})
@@ -709,20 +708,20 @@ function setInteraction(type) {
 		if (!controls) {
 			return
 		}
-
-		function getExistDrawing(draws, sub_type) {
+		function getExistDrawing(draws, sub_type_list) {
+			var list = []
 			for (var i = 0; i < draws.length; ++i) {
 				var title = draws[i].Drawing.docPr.title
 				if (title) {
 					var titleObj = JSON.parse(title)
 					if (titleObj.feature) {
-						if (titleObj.feature.zone_type == 'question' && titleObj.feature.sub_type == sub_type) {
-							return draws[i]
+						if (titleObj.feature.zone_type == 'question' && sub_type_list.indexOf(titleObj.feature.sub_type) >= 0) {
+							list.push(draws[i])
 						}
 					}
 				}
 			}
-			return null
+			return list
 		}
 
 		function addSimple(oControl) {
@@ -762,7 +761,64 @@ function setInteraction(type) {
 					oRun,
 					0
 				)
-				oDrawing.SetWrappingStyle('tight')	
+				oDrawing.SetWrappingStyle('tight')
+			}
+		}
+
+		function addAskInteraction(askControl, index) {
+			var oFill = Api.CreateNoFill()
+			var oStroke = Api.CreateStroke(
+				3600,
+				Api.CreateSolidFill(Api.CreateRGBColor(225, 225, 225))
+			)
+			var oDrawing = Api.CreateShape(
+				'rect',
+				6 * 36e3,
+				4 * 36e3,
+				oFill,
+				oStroke
+			)
+			var drawDocument = oDrawing.GetContent()
+			var paragraphs = drawDocument.GetAllParagraphs()
+			if (paragraphs && paragraphs.length > 0) {
+				var oRun = Api.CreateRun()
+				oRun.AddText(index + '')
+				paragraphs[0].AddElement(oRun)
+				paragraphs[0].SetColor(3, 3, 3, false)
+				paragraphs[0].SetFontSize(14)
+				paragraphs[0].SetJc('center')
+				oDrawing.SetPaddings(0, 0, 0, 0)
+			}
+			var titleobj = {
+				feature: {
+					zone_type: 'question',
+					type: 'ques_interaction',
+					sub_type: 'ask_accurate',
+					control_id: oControl.Sdt.GetId()
+				}
+			}
+			oDrawing.Drawing.Set_Props({
+				title: JSON.stringify(titleobj),
+			})
+			if (askControl.GetClassType() == 'inlineLvlSdt') {
+				var elementCount = askControl.GetElementsCount()
+				if (elementCount > 0) {
+					var oRun = Api.CreateRun();
+					oRun.AddDrawing(oDrawing)
+					askControl.AddElement(oRun, 0)
+				}
+			} else if (askControl.GetClassType() == 'blockLvlSdt') {
+				var paragraphs2 = askControl.GetAllParagraphs()
+				if (paragraphs2 && paragraphs2.length > 0) {
+					var pParagraph = paragraphs2[0]
+					var oRun = Api.CreateRun()
+					oRun.AddDrawing(oDrawing)
+					pParagraph.AddElement(
+						oRun,
+						0
+					)
+					oDrawing.SetWrappingStyle('inline')
+				}
 			}
 		}
 		function addAccurate(oControl) {
@@ -780,6 +836,7 @@ function setInteraction(type) {
 					}
 					var tag = JSON.parse(childControls[i].GetTag() || '{}')
 					if (tag.regionType == 'write') {
+						addAskInteraction(childControls[i], write_list.length + 1)
 						write_list.push(childControls[i])
 					}
 				}
@@ -804,7 +861,7 @@ function setInteraction(type) {
 					controlContent.Document.Pages.length > 1
 				) {
 					for (var p = 0; p < controlContent.Document.Pages.length; ++p) {
-						if (!control.Sdt.IsEmptyPage(p)) {
+						if (!oControl.Sdt.IsEmptyPage(p)) {
 							pageIndex = p
 							break
 						}
@@ -901,8 +958,20 @@ function setInteraction(type) {
 			var oRun = Api.CreateRun()
 			oRun.AddDrawing(oDrawing)
 			var paragraphs = oControl.GetContent().GetAllParagraphs()
+			var find = false
 			if (paragraphs && paragraphs.length > 0) {
-				paragraphs[0].AddElement(oRun, 0)
+				for (var p = 0; p < paragraphs.length; ++p) {
+					var paragraphParent = paragraphs[p].GetParentContentControl()
+					if (paragraphParent && paragraphParent.Sdt.GetId() == oControl.Sdt.GetId()) {
+						paragraphs[p].AddElement(oRun, 0)
+						find = true
+						console.log('add accurate success', oControl.Sdt.GetId())
+						break
+					}
+				}
+			}
+			if (!find) {
+				console.warn('cannot find paragraph')
 			}
 		}
 		for (var i = 0, imax = controls.length; i < imax; ++i) {
@@ -910,21 +979,23 @@ function setInteraction(type) {
 			var tag = JSON.parse(oControl.GetTag() || '{}')
 			if (tag.regionType == 'question' || tag.regionType == 'sub-question') {
 				var allDraws = oControl.GetAllDrawingObjects()
-				var simpleDrawing = getExistDrawing(allDraws, 'simple')
-				var accurateDrawing = getExistDrawing(allDraws, 'accurate')
+				var simpleDrawings = getExistDrawing(allDraws, ['simple'])
+				var accurateDrawings = getExistDrawing(allDraws, ['accurate', 'ask_accurate'])
 				if (interaction_type == 'simple') {
-					if (!simpleDrawing) {
+					if (!simpleDrawings || simpleDrawings.length == 0) {
 						addSimple(oControl)	
 					}
-					if (accurateDrawing) {
-						console.log('accurateDrawing', accurateDrawing)
-						accurateDrawing.Delete()
+					if (accurateDrawings && accurateDrawings.length) {
+						for (var j = 0; j < accurateDrawings.length; ++j) {
+							accurateDrawings[j].Delete()
+						}
 					}
+					
 				} else if (interaction_type == 'accurate') {
-					if (!simpleDrawing) {
+					if (!simpleDrawings || simpleDrawings.length == 0) {
 						addSimple(oControl)
 					}
-					if (!accurateDrawing) {
+					if (!accurateDrawings || accurateDrawings.length == 0) {
 						addAccurate(oControl)
 					}
 				}

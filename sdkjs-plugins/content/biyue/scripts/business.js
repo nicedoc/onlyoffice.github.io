@@ -3053,8 +3053,11 @@ function handleIdentifyBox(add) {
 					drawDocument.AddElement(0, oParagraph)
 					oDrawing.SetPaddings(0, 0, 0, 0.5 * 36e3)
 					var titleobj = {
-						type: 'quesIdentify',
-						control_id: paraentControl.Sdt.GetId(),
+						feature: {
+							zone_type: 'question',
+							type: 'ques_identify',
+							control_id: paraentControl.Sdt.GetId(),
+						}
 					}
 					oDrawing.Drawing.Set_Props({
 						title: JSON.stringify(titleobj),
@@ -3111,7 +3114,7 @@ function handleIdentifyBox(add) {
 											var dtitle = JSON.parse(
 												drawings[sidx].Drawing.docPr.title
 											)
-											if (dtitle.type == 'quesIdentify') {
+											if (dtitle.feature && dtitle.feature.type == 'ques_identify') {
 												res.remove_ids.push(drawings[sidx].Drawing.Id)
 												drawings[sidx].Delete()
 											}
@@ -3132,7 +3135,7 @@ function handleIdentifyBox(add) {
 		if (!res.code) {
 			return
 		}
-		var control_list = window.BiyueCustomData.control_list
+		var control_list = window.BiyueCustomData.control_list || []
 		var control = control_list.find((e) => {
 			return e.control_id == res.control_id
 		})
@@ -3190,7 +3193,7 @@ function showIdentifyIndex(show) {
 				) {
 					try {
 						var dtitle = JSON.parse(drawingObj.Drawing.docPr.title)
-						if (dtitle.type == 'quesIdentify') {
+						if (dtitle.feature && dtitle.feature.type == 'ques_identify') {
 							console.log(i, 'drawingObj', drawingObj)
 							var drawDocument = drawingObj.GetContent()
 							var oParagraph = drawDocument.GetElement(0)
@@ -3261,7 +3264,7 @@ function removeAllIdentify() {
 				) {
 					try {
 						var dtitle = JSON.parse(drawingObj.Drawing.docPr.title)
-						if (dtitle.type == 'quesIdentify') {
+						if (dtitle.feature && dtitle.feature.type == 'ques_identify') {
 							drawingObj.Delete()
 						}
 					} catch (error) {}
@@ -3582,7 +3585,58 @@ function getAllPositions() {
 	biyueCallCommand(window, function() {
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls()
+		var drawings = oDocument.GetAllDrawingObjects()
+		var oShapes = oDocument.GetAllShapes()
 		var ques_list = []
+
+		function GetCorrectRegion(oControl) {
+			var correct_ask_region = []
+			var correct_region = {}
+			if (oControl.GetClassType() == 'blockLvlSdt') {
+				var oControlContent = oControl.GetContent()
+				var drawings = oControlContent.GetAllDrawingObjects()
+				if (drawings) {
+					for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
+						var oDrawing = drawings[j]
+						var parentControl = oDrawing.GetParentContentControl()
+						if (!parentControl || parentControl.Sdt.GetId() != oControl.Sdt.GetId()) {
+							continue
+						}
+						if (oDrawing.Drawing.docPr) {
+							var title = oDrawing.Drawing.docPr.title
+							if (title && title.indexOf('feature') >= 0) {
+								var titleObj = JSON.parse(title)
+								if (titleObj.feature && titleObj.feature.zone_type == 'question') {
+									if (titleObj.feature.sub_type == 'simple') {
+										correct_region = {
+											Page: oDrawing.Drawing.PageNum,
+											X: oDrawing.Drawing.X,
+											Y: oDrawing.Drawing.Y,
+											W: oDrawing.Drawing.Width,
+											H: oDrawing.Drawing.Height
+										}
+									} else if (titleObj.feature.sub_type == 'ask_accurate') {
+										correct_ask_region.push({
+											v: correct_ask_region.length + 1,
+											Page: oDrawing.Drawing.PageNum,
+											X: oDrawing.Drawing.X,
+											Y: oDrawing.Drawing.Y,
+											W: oDrawing.Drawing.Width,
+											H: oDrawing.Drawing.Height
+										})
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			return {
+				correct_ask_region,
+				correct_region
+			}
+		}
+
 		for (var i = 0, imax = controls.length; i < imax; ++i) {
 			var oControl = controls[i]
 			var bounds = []
@@ -3608,13 +3662,16 @@ function getAllPositions() {
 			// todo..分数框和识别框的尚未添加
 			var tag = JSON.parse(oControl.GetTag() || '{}')
 			if (tag.regionType == 'question' || tag.regionType == 'sub-question') {
+				var correctPos = GetCorrectRegion(oControl)
 				ques_list.push({
 					control_id: oControl.Sdt.GetId(),
 					text: oControl.GetRange().GetText(), // 如果需要html, 请参考ExamTree.js的reqUploadTree
 					title_region: bounds,
-					correct_region: {},
+					correct_region: correctPos.correct_region,
+					correct_ask_region: correctPos.correct_ask_region,
 					mark_ask_region: []
 				})
+				
 			} else if (tag.regionType == 'write') {
 				var parentControl = oControl.GetParentContentControl()
 				if (parentControl) {
@@ -3638,8 +3695,6 @@ function getAllPositions() {
 			}
 		}
 		var feature_list = []
-		var drawings = oDocument.GetAllDrawingObjects()
-		var oShapes = oDocument.GetAllShapes()
 		if (drawings) {
 			for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
 				var oDrawing = drawings[j]
@@ -3653,7 +3708,6 @@ function getAllPositions() {
 								zone_type: titleObj.feature.zone_type,
 								fields: []
 							}
-							// todo..红花的需要特殊处理，不能用整个drawing
 							if (titleObj.feature.zone_type == 'self_evaluation' || titleObj.feature.zone_type == 'teather_evaluation') {
 								var oShape = oShapes.find(e => {
 									return e.Drawing && e.Drawing.Id == oDrawing.Drawing.Id

@@ -26,6 +26,7 @@ function getList() {
 	var extra_info = {}
 	if (workbook.extra_info && workbook.extra_info.length > 0) {
 		extra_info = JSON.parse(workbook.extra_info)
+		window.BiyueCustomData.workbook_info.parse_extra_data = extra_info
 	}
 	if (workbook.practise_again) {
 		extra_info.practise_again = workbook.practise_again
@@ -96,13 +97,14 @@ function getList() {
 		// hidden: true,
 		url: 'https://by-qa-image-cdn.biyue.tech/statistics.png'
 	})
-
-	// if (extra_info.start_interaction && extra_info.start_interaction.checked) {
+	if (!extra_info.hidden_correct_region.checked) {
+		var value_select = extra_info.start_interaction.checked ? 'accurate' : 'simple'
 		list.push({
 			id: 'interaction',
-			label: '互动模式'
+			label: '互动模式',
+			value_select: value_select
 		})
-	// }
+	}
 	return list
 }
 
@@ -166,7 +168,7 @@ function initFeature() {
 			e.comSelect = new ComponentSelect({
 				id: e.id,
 				options: optionsTypes,
-				value_select: optionsTypes[0].value,
+				value_select: e.value_select || optionsTypes[0].value,
 				width: '100%',
 				callback_item: (data) => {
 					changeItem(e.zone_type, data, e.id)
@@ -419,7 +421,14 @@ function initPositions(draw) {
 		console.log('list_feature', list_feature)
 		if (draw) {
 			deleteAllFeatures(list_feature).then(() => {
-				drawExtroInfo(list_feature)
+				var extra_info = window.BiyueCustomData.workbook_info.parse_extra_data
+				if (extra_info.hidden_correct_region.checked == false) {
+					setInteraction(extra_info.start_interaction.checked ? 'accurate' : 'simple').then(() => {
+						drawExtroInfo(list_feature)		
+					})
+				} else {
+					drawExtroInfo(list_feature)
+				}
 			})
 			// drawExtroInfo([].concat(list_feature.slice(6, 9)))
 		}

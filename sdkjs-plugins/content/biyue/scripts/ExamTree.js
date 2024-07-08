@@ -695,6 +695,58 @@ function updateRangeControlType(typeName) {
 			}
 			return objList
 		}
+		// 删除题目互动
+		function clearQuesInteraction(control_id) {
+			if (!control_id) {
+				return
+			}
+			var oControl = Api.LookupObject(control_id)
+			if (!oControl) {
+				return
+			}
+			var tag = JSON.parse(oControl.GetTag() || {})
+			if (tag.regionType == 'write') {
+				if (oControl.GetClassType() == 'inlineLvlSdt') {
+					var elementCount = oControl.GetElementsCount()
+					for (var idx = 0; idx < elementCount; ++idx) {
+						var oRun = oControl.GetElement(idx)
+						if (oRun && 
+							oRun.Run &&
+							oRun.Run.Content &&
+							oRun.Run.Content[0] &&
+							oRun.Run.Content[0].docPr) {
+							var title = oRun.Run.Content[0].docPr.title
+							if (title) {
+								var titleObj = JSON.parse(title)
+								if (titleObj.feature && titleObj.feature.sub_type == 'ask_accurate') {
+									oRun.Delete()
+									break		
+								}
+							}
+						}
+					}
+				}
+			} else if (tag.regionType =='question' || tag.regionType == 'sub-question') {
+				if (oControl.GetClassType() == 'blockLvlSdt') {
+					var oControlContent = oControl.GetContent()
+					var drawings = oControlContent.GetAllDrawingObjects()
+					if (drawings) {
+						for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
+							var oDrawing = drawings[j]
+							if (oDrawing.Drawing.docPr) {
+								var title = oDrawing.Drawing.docPr.title
+								if (title && title.indexOf('feature') >= 0) {
+									var titleObj = JSON.parse(title)
+									if (titleObj.feature && titleObj.feature.zone_type == 'question') {
+										oDrawing.Delete()
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 
 		if (!oRange) {
 			var currentContentControl = oDocument.Document.GetContentControl()
@@ -712,6 +764,7 @@ function updateRangeControlType(typeName) {
 					if (typeName == 'clearAll' && oControl.GetClassType() == 'blockLvlSdt') {
 						var childControls = oControl.GetAllContentControls()
 						for (var i = 0; i < childControls.length; ++i) {
+							clearQuesInteraction(childControls[i].Sdt.GetId())
 							Api.asc_RemoveContentControlWrapper(childControls[i].Sdt.GetId());
 						}
 					}
@@ -719,6 +772,8 @@ function updateRangeControlType(typeName) {
 						id_old: currentContentControl.Id,
 						command_type: 'remove'
 					})
+					// 删除之前创建的精准互动
+					clearQuesInteraction(currentContentControl.Id)
 					Api.asc_RemoveContentControlWrapper(currentContentControl.Id);
 				} else {
 					var tag = JSON.parse(oControl.GetTag() || {})
@@ -850,6 +905,7 @@ function updateRangeControlType(typeName) {
 					removeId = parentControls[parentControls.length - 1].Sdt.GetId()
 				}
 				if (removeId) {
+					clearQuesInteraction(removeId)
 					Api.asc_RemoveContentControlWrapper(removeId)
 					changeList.push({
 						id_old: removeId,
@@ -862,6 +918,7 @@ function updateRangeControlType(typeName) {
 					controls.push(completeOverlapControl)
 				}
 				controls.forEach(e => {
+					clearQuesInteraction(e.Sdt.GetId())
 					Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
 					changeList.push({
 						id_old: e.Sdt.GetId(),
