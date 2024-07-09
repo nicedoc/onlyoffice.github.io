@@ -5,7 +5,23 @@ class NumberInput{
     this.width = options.width || '85px'
     this.render() 
   }
+
+  removeEvent() {
+	var btnup = $(`#${this.id} .spinner-up`)
+	if (btnup) {
+		btnup.off('click')
+	}
+	var btndown = $(`#${this.id} .spinner-down`)
+	if (btndown) {
+		btndown.off('click')
+	}
+	var input = $(`#${this.id} input`)
+	if (input) {
+		input.off('input')
+	}
+  }
   render() {
+	this.removeEvent()
     var content = ''  
     content = `
     <div id=${this.id} class="spinner" style="width: ${this.width};">

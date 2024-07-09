@@ -1,29 +1,18 @@
 import ComponentSelect from '../components/Select.js'
 import NumberInput from '../components/NumberInput.js'
+import { changeProportion } from './ExamTree.js'
 // 单题详情
-var questionTypes = [
-	{ value: '0', label: '未定义' },
-	{ value: '1', label: '单选' },
-	{ value: '2', label: '填空' },
-	{ value: '3', label: '作答' },
-	{ value: '4', label: '判断' },
-	{ value: '5', label: '多选' },
-	{ value: '6', label: '文本' },
-	{ value: '7', label: '单选组合' },
-	{ value: '8', label: '作文' },
-]
 var proportionTypes = [
-	{ value: '0', label: '默认' },
-	{ value: '1', label: '1/2' },
-	{ value: '2', label: '1/3' },
-	{ value: '3', label: '1/4' },
-	{ value: '4', label: '1/5' },
-	{ value: '5', label: '1/6' },
-	{ value: '6', label: '1/7' },
-	{ value: '7', label: '1/8' },
+	{ value: '1', label: '默认' },
+	{ value: '2', label: '1/2' },
+	{ value: '3', label: '1/3' },
+	{ value: '4', label: '1/4' },
+	{ value: '5', label: '1/5' },
+	{ value: '6', label: '1/6' },
+	{ value: '7', label: '1/7' },
+	{ value: '8', label: '1/8' },
 ]
 var ques_control_id
-var ques_control_index
 var select_type = null // 题型
 var select_proportion = null // 占比
 var input_score = null // 分数/权重
@@ -31,6 +20,7 @@ var list_ask = [] // 小问
 var inited = false
 
 function initElements() {
+	console.log('====================================================== panelquestiondetail initElements')
 	var content = ''
 	content = `
   <div class="hint" style="text-align:center">请先选中一道题</div>
@@ -62,6 +52,18 @@ function initElements() {
   </div>
   `
 	$('#panelQues').html(content)
+	var questionTypes = []
+	var paper_options = window.BiyueCustomData.paper_options || {}
+	if (paper_options.question_type) {
+		Object.keys(paper_options.question_type).forEach(e => {
+			questionTypes.push({
+				value: e,
+				label: paper_options.question_type[e],
+			})
+		})
+		questionTypes.unshift({ value: '0', label: '未定义' })
+	}
+	console.log('============ questionTypes', questionTypes)
 	select_type = new ComponentSelect({
 		id: 'questionType',
 		options: questionTypes,
@@ -89,11 +91,11 @@ function initElements() {
 	inited = true
 }
 
-function updateElements(controlData) {
+function updateElements(quesData) {
 	if (!inited) {
 		initElements()
 	}
-	if (!controlData) {
+	if (!quesData) {
 		$('#panelQues .hint').show()
 		$('#panelQuesWrapper').hide()
 		return
@@ -101,32 +103,32 @@ function updateElements(controlData) {
 	$('#panelQues .hint').hide()
 	$('#panelQuesWrapper').show()
 	if (select_type) {
-		select_type.setSelect((controlData.ques_type || 0) + '')
+		select_type.setSelect((quesData.ques_type || 0) + '')
 	}
 	if (select_proportion) {
-		select_proportion.setSelect((controlData.proportion || 0) + '')
+		select_proportion.setSelect((quesData.proportion || 0) + '')
 	}
 	if (input_score) {
-		input_score.setValue((controlData.score || 0) + '')
+		input_score.setValue((quesData.score || 0) + '')
 	}
-	if (controlData.ques_name) {
-		$('#ques_name').html(controlData.ques_name)
+	if (quesData.ques_name) {
+		$('#ques_name').html(quesData.ques_name)
 	}
-	if (controlData.ask_controls && controlData.ask_controls.length > 0) {
+	if (quesData.ask_list && quesData.ask_list.length > 0) {
 		var content = ''
 		content += '<label class="header">每空权重/分数</label><div class="asks">'
-		controlData.ask_controls.forEach((ask, index) => {
+		quesData.ask_list.forEach((ask, index) => {
 			content += `<div class="item"><span class="asklabel">(${
 				index + 1
 			})</span><div id="ask${index}"></div></div>`
 		})
 		content += '</div>'
 		$('#panelQuesAsks').html(content)
-		var askcount = controlData.ask_controls.length
-		controlData.ask_controls.forEach((ask, index) => {
+		var askcount = quesData.ask_list.length
+		quesData.ask_list.forEach((ask, index) => {
 			if (list_ask && index < list_ask.length) {
-				list_ask[index].setValue(ask.score || 0)
 				list_ask[index].render()
+				list_ask[index].setValue((ask.score || 0) + '')
 			} else {
 				var askInput = new NumberInput(`ask${index}`, {
 					width: '60px',
@@ -135,7 +137,7 @@ function updateElements(controlData) {
 					},
 				})
 				list_ask.push(askInput)
-				askInput.setValue(ask.score || 0)
+				askInput.setValue((ask.score || 0) + '')
 			}
 		})
 		if (list_ask && list_ask.length > askcount) {
@@ -156,79 +158,80 @@ function updateElements(controlData) {
 }
 
 function showQuesData(control_id, reginType) {
-	ques_control_id = control_id
-	var control_list = window.BiyueCustomData.control_list || []
-	var control_index = -1
-	if (control_id) {
-		var control_index = control_list.findIndex((e) => {
-			return e.control_id == control_id
-		})
-	}
-	if (control_index >= 0) {
-		if (reginType == 'sub-question' || reginType == 'write') {
-			var quesCtrlId = control_list[control_index].parent_ques_control_id
-			control_index = control_list.findIndex((e) => {
-				return e.control_id == quesCtrlId
-			})
-		}
-	}
-	if (control_index < 0) {
+	console.log('showQuesData', control_id, reginType)
+	ques_control_id = control_id || Asc.scope.controlId || Asc.scope.click_id
+	if (!ques_control_id) {
 		updateElements(null)
 		return
 	}
-	ques_control_index = control_index
-	var controlData = control_list[control_index]
-	updateElements(controlData)
+	var question_map = window.BiyueCustomData.question_map || {}
+	if (!question_map) {
+		updateElements(null)
+		return
+	}
+	if (!question_map[ques_control_id]) {
+		var keys = Object.keys(question_map)
+		for (var i = 0; i < keys.length; ++i) {
+			var ask_list = question_map[keys[i]].ask_list || []
+			var find = ask_list.find(e => {
+				return e.control_id == control_id
+			})
+			if (find) {
+				ques_control_id = keys[i]
+				break
+			}
+		}
+	}
+	if (!question_map[ques_control_id]) {
+		updateElements(null)
+		return
+	}
+	var quesData = question_map[ques_control_id]
+	console.log('=========== showQuesData ques:', quesData)
+	updateElements(quesData)
 }
 
 function changeQuestionType(data) {
-	var controlData = window.BiyueCustomData.control_list[ques_control_index]
-	controlData.ques_type = data.value * 1
+	if (window.BiyueCustomData.question_map[ques_control_id]) {
+		window.BiyueCustomData.question_map[ques_control_id].ques_type = data.value * 1
+	}
 }
-
+// 修改占比
 function chagneProportion(data) {
 	console.log('chagneProportion', data)
+	changeProportion(ques_control_id, data.value)
 }
 
 function initListener() {
 	document.addEventListener('clickSingleQues', (event) => {
 		if (!event || !event.detail) return
 		console.log('receive clickSingleQues', event.detail)
-		showQuesData(event.detail.control_id, event.detail.regionType)
+		showQuesData(event.detail.control_id)
 	})
 	document.addEventListener('updateQuesData', (event) => {
-		if (!event || !event.detail) return
+		if (!event) return
 		console.log('receive updateQuesData', event.detail)
-		var detail = event.detail
-		if (ques_control_index >= 0) {
-			var control_data = window.BiyueCustomData.control_list[ques_control_index]
-			if (detail.list && detail.list.indexOf(control_data.control_id) >= 0) {
-				if (detail.field == 'ques_type') {
-					if (select_type) {
-						select_type.setSelect(detail.value + '')
-					}
-				} else if (detail.field == 'proportion') {
-					if (select_proportion) {
-						select_proportion.setSelect(detail.value + '')
-					}
-				} else if (detail.field == 'score') {
-					if (input_score) {
-						input_score.setValue((detail.field || 0) + '')
-					}
-					// toto ask
-				}
-			}
-		}
+		var quesData = window.BiyueCustomData.question_map[ques_control_id]
+		updateElements(quesData)
+		// quesData[detail.field] = detail.value
+		// if (select_type) {
+		// 	select_type.setSelect(detail.value + '')
+		// }
+		// if (select_proportion) {
+		// 	select_proportion.setSelect(detail.value + '')
+		// }
+		// if (input_score) {
+		// 	input_score.setValue((detail.field || 0) + '')
+		// }
 	})
 }
 
 function changeScore(id, data) {
-	var controlData = window.BiyueCustomData.control_list[ques_control_index]
 	if (id == 'ques_weight') {
-		controlData.score = data
+		window.BiyueCustomData.question_map[ques_control_id].score = data
 	} else {
 		var index = id.replace('ask', '') * 1
-		controlData.ask_controls[index].score = data
+		window.BiyueCustomData.question_map[ques_control_id].ask_list[index].score = data
 	}
 }
 

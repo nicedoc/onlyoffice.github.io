@@ -88,7 +88,9 @@ class ComponentSelect {
     this.value_select = value
     var data = this.options.find(item => item.value == value)
     $(`#${this.id}_span`).removeClass('open')
-    $(`#${this.id}_input`).val(data.label)
+	if (data) {
+		$(`#${this.id}_input`).val(data.label)
+	}
   }
 
   getValue() {

@@ -259,6 +259,7 @@ function clickItem(id, item, e) {
 	if (g_exam_tree) {
 		g_exam_tree.setSelect([id])
 	}
+	Asc.scope.controlId = null
 	Asc.scope.click_id = id
 	biyueCallCommand(window, function() {
 		var click_id = Asc.scope.click_id
@@ -1077,7 +1078,7 @@ function updateRangeControlType(typeName) {
 						updateHListBYDoc(res2)
 						updatePosBySetType(res)
 					}
-				})	
+				})
 			} else if (res.message) {
 				alert(res.message)
 			}
@@ -1127,6 +1128,7 @@ function updateHListBYDoc(docList) {
 			// id相同，更新text
 			hlist[i].text = item.text
 			hlist[i].regionType = item.regionType
+			hlist[i].writes = item.writes
 			if (item.parent_control_id) {
 				var index1 = hlist.findIndex(e => {
 					return e.id == item.parent_control_id
@@ -1347,6 +1349,12 @@ function updatePosBySetType(changeData) {
 	var treeInfo = genetateTreeByHList(hlist)
 	console.log('============= treeInfo', treeInfo)
 	renderTree(treeInfo)
+	// 需要同步更新单题详情
+	if (window.tab_select == 'tabQues') {
+		document.dispatchEvent(
+			new CustomEvent('updateQuesData')
+		)
+	}
 }
 
 function setNodeParentId(list, id, parent_id) {
@@ -1675,7 +1683,8 @@ function updateQuestionMap(hlist) {
 				question_map[e.id].ask_list = []
 			} else {
 				var ask_list = question_map[e.id].ask_list
-				for (var idx = 0; idx < e.writes.length; ++idx) {
+				var idx = 0
+				for (; idx < e.writes.length; ++idx) {
 					if (idx < ask_list.length) {
 						if (ask_list[idx].control_id != e.writes[idx]) {
 							var idx2 = e.writes.indexOf(ask_list[idx].control_id)
@@ -1696,6 +1705,10 @@ function updateQuestionMap(hlist) {
 						})
 					}
 				}
+				//  删除多余的
+				if (ask_list.length > e.writes.length) {
+					ask_list.splice(e.writes.length, ask_list.length - e.writes.length)
+				}
 			}
 		} else {
 			var ask_list = []
@@ -1715,6 +1728,10 @@ function updateQuestionMap(hlist) {
 		}
 	})
 }
+// 修改题目占比
+function changeProportion(id, proportion) {
+	// todo..
+}
 
 export {
 	initExamTree,
@@ -1723,5 +1740,6 @@ export {
 	handleDocUpdate,
 	updateRangeControlType,
 	reqGetQuestionType,
-	reqUploadTree
+	reqUploadTree,
+	changeProportion
 }

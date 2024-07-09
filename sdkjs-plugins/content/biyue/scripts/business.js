@@ -38,6 +38,7 @@ function initPaperInfo() {
 					window.BiyueCustomData.exam_title = paper.title
 					$('#grade_data').text(`${paper.period_name}${paper.subject_name}/${paper.edition_name || ''}/${paper.phase_name || ''}`)
 				}
+				window.BiyueCustomData.paper_options = res.data.options
 				resolve(res)
 				// updateControls().then((res) => {
 				// 	resolve(res)

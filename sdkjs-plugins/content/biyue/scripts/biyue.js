@@ -2,7 +2,7 @@ import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./d
 import { getToken, setXToken } from './auth.js'
 import { toXml, downloadAs } from "./convert.js";
 import { getPaperInfo, initPaperInfo, updateCustomControls, savePositons, updateQuestionScore, drawPositions,  handleIdentifyBox, handleContentControlChange, deletePositions, setSectionColumn, batchChangeInteraction, batchChangeProportion, batchChangeQuesType, getAllPositions } from './business.js'
-import { showQuesData, initListener } from './panelQuestionDetial.js'
+import { showQuesData, initListener } from './panelQuestionDetail.js'
 import { initFeature, initExtroInfo } from './panelFeature.js'
 import { handleHeader } from "./featureManager.js";
 import { biyueCallCommand, dispatchCommandResult } from "./command.js";
@@ -1369,13 +1369,9 @@ import { initExamTree, refreshExamTree, updateTreeRenderWhenClick, updateRangeCo
 	}
 
     window.Asc.plugin.event_onChangeContentControl = function (res) {
-		console.log('event_onChangeContentControl', res)
+		// console.log('event_onChangeContentControl', res)
     //   onContentControlChange(res)
     }
-
-	window.Asc.plugin.event_onChangeContentControl = function (res) {
-		// onContentControlChange(res)
-	}
     let DismissGroup = function () {
         window.Asc.plugin.executeMethod("GetCurrentContentControlPr", [], function (obj) {
             if (obj === undefined || obj === null || obj.Tag === undefined || !obj.Tag.includes("group")) {
