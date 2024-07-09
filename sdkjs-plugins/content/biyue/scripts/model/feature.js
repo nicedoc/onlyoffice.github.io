@@ -72,7 +72,7 @@ var ZONE_SIZE = {
 		stroke_width: 0.1,
 	},
 	[`${ZONE_TYPE.IGNORE}`]: {
-		w: 30,
+		w: 40,
 		h: 8,
 		font_size: 16,
 		jc: 'left',

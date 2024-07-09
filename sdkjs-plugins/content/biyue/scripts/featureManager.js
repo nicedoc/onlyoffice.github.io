@@ -55,7 +55,7 @@ function drawExtroInfo(list) {
 		e.type = 'feature'
 		e.type_name = ZONE_TYPE_NAME[e.zone_type]
 	})
-	drawList(list)
+	return drawList(list)
 }
 // 整理参数
 function addCommand(options) {
@@ -74,31 +74,35 @@ function addCommand(options) {
 
 function handleNext() {
 	loading = false
-	if (list_wait_command && list_wait_command.length > 0) {
-		var newlist = []
-		var type = list_wait_command[0].type
-		newlist.push(Object.assign({}, list_wait_command[0]))
-		var end = -1
-		for (var i = 1; i < list_wait_command.length; ++i) {
-			if (list_wait_command[i].type != type) {
-				list_wait_command.splice(0, i)
-				end = i
-				break
+	return new Promise((resolve, reject) => {
+		if (list_wait_command && list_wait_command.length > 0) {
+			var newlist = []
+			var type = list_wait_command[0].type
+			newlist.push(Object.assign({}, list_wait_command[0]))
+			var end = -1
+			for (var i = 1; i < list_wait_command.length; ++i) {
+				if (list_wait_command[i].type != type) {
+					list_wait_command.splice(0, i)
+					end = i
+					break
+				}
+				newlist.push(Object.assign({}, list_wait_command[i]))
 			}
-			newlist.push(Object.assign({}, list_wait_command[i]))
+			if (end == -1) {
+				list_wait_command = []
+			}
+			if (type == 'feature') {
+				return drawList(newlist)
+			} else if (type == 'header') {
+				return drawHeader(
+					newlist[newlist.length - 1].cmd,
+					newlist[newlist.length - 1].title
+				)
+			}
+		} else {
+			resolve()
 		}
-		if (end == -1) {
-			list_wait_command = []
-		}
-		if (type == 'feature') {
-			drawList(newlist)
-		} else if (type == 'header') {
-			drawHeader(
-				newlist[newlist.length - 1].cmd,
-				newlist[newlist.length - 1].title
-			)
-		}
-	}
+	})
 }
 
 function handleHeader(cmdType, examTitle) {
@@ -257,10 +261,8 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 function drawList(list) {
 	loading = true
 	Asc.scope.feature_wait_handle = list
-	Asc.scope.pos_list = window.BiyueCustomData.pos_list
-	console.log('========================= drawList', list)
 	Asc.scope.ZONE_TYPE = ZONE_TYPE
-	biyueCallCommand(window, function() {
+	return biyueCallCommand(window, function() {
 		var ZONE_TYPE = Asc.scope.ZONE_TYPE
 		var MM2TWIPS = 25.4 / 72 / 20
 		var oDocument = Api.GetDocument()
@@ -285,6 +287,9 @@ function drawList(list) {
 			list: [],
 		}
 		function addImageToCell(oTable, nRow, nCell, url, w, h, mleft, mright) {
+			if (!oTable) {
+				return
+			}
 			var cell = oTable.GetCell(nRow, nCell)
 			if (!cell) {
 				return
@@ -319,6 +324,9 @@ function drawList(list) {
 			mleft,
 			mright
 		) {
+			if (!oTable) {
+				return
+			}
 			var cell = oTable.GetCell(nRow, nCell)
 			var oCellContent = cell.GetContent()
 			if (oCellContent) {
@@ -363,6 +371,9 @@ function drawList(list) {
 				return null
 			}
 			if (page_num == 0) {
+				if (posType == 'end' && page_num == pageCount - 1) {
+					return lastParagraph.Paragraph
+				}
 				var nearestPos = oDocument.Document.Get_NearestPos(page_num, 0, 0)
 				if (nearestPos.Paragraph) {
 					return nearestPos.Paragraph
@@ -396,37 +407,6 @@ function drawList(list) {
 				}
 			}
 			return null
-		}
-		function GetPageParagraphForDraw(page_num) {
-			var pageCount = oDocument.GetPageCount()
-			if (page_num >= pageCount) {
-				console.log('+++++++++++ GetPageParagraphForDraw', page_num, pageCount)
-				return
-			}
-			oDocument.Document.GoToPage(page_num)
-			var curParagraph = oDocument.Document.GetCurrentParagraph()
-			if (page_num == 0) {
-				return curParagraph
-			} else if (page_num > 0) {
-				var Pages = curParagraph.Pages
-				if (Pages) {
-					if (Pages.length == 1) {
-						return curParagraph
-					} else {
-						if (curParagraph.GetAbsolutePage(Pages.length - 1) == page_num) {
-							var nextParagraph = Api.LookupObject(curParagraph.Id).GetNext()
-							if (nextParagraph && nextParagraph.Paragraph.GetAbsolutePage(0) == page_num) {
-								return nextParagraph.Paragraph
-							} else {
-								console.log('nextParagraph is null')
-							}
-						} else {
-							console.log('curParagraph end page != page_num')
-						}
-					}
-				}
-				return curParagraph
-			}
 		}
 		feature_wait_handle.forEach((options) => {
 			var props_title = JSON.stringify({
@@ -556,34 +536,6 @@ function drawList(list) {
 									addImageToCell(oTable, 0, cellindex + index, url, fw, fh, fmargin, fmargin)	
 								})
 							}
-							// oTable.GetCell(0, 6).SetWidth('twips', 10 / MM2TWIPS)
-							// addImageToCell(
-							// 	oTable,
-							// 	0,
-							// 	7,
-							// 	'https://by-qa-image-cdn.biyue.tech/xiaotao.png',
-							// 	21.33 * scale,
-							// 	30 * scale,
-							// 	0,
-							// 	0
-							// )
-							// addTextToCell(
-							// 	oTable,
-							// 	0,
-							// 	8,
-							// 	[options.label],
-							// 	'center',
-							// 	textw,
-							// 	20,
-							// 	0,
-							// 	fmargin
-							// )
-							// addImageToCell(oTable, 0, 9, furl, fw, fh, fmargin, fmargin)
-							// addImageToCell(oTable, 0, 10, furl, fw, fh, fmargin, fmargin)
-							// addImageToCell(oTable, 0, 11, furl, fw, fh, fmargin, fmargin)
-							// addImageToCell(oTable, 0, 12, furl, fw, fh, fmargin, fmargin)
-
-							// oTable.SetWidth('twips', w / MM2TWIPS)
 							oTable.GetRow(0).SetHeight('auto', shapeHeight / MM2TWIPS)
 
 							shapeWidth = w + 1
@@ -653,14 +605,34 @@ function drawList(list) {
 								title: props_title,
 							})
 							if (options.zone_type == ZONE_TYPE.STATISTICS) {
-								var finalSection = oSections[oSections.length - 1]
-								var oFooter = finalSection.GetFooter("default", true)
-								var paragraph = oFooter.GetElement(0)
-								var drawing = oDrawing.Drawing;
+								oSections.forEach((section, index) => {
+									var oFooter = section.GetFooter("default", false)
+									if (!oFooter) {
+										oFooter = section.GetFooter("default", true)
+										var bottom = section.Section.PageMargins.Bottom - 13
+										section.SetFooterDistance(bottom / (25.4 / 72 / 20));
+									}
+									var elementCount = oFooter.GetElementsCount()
+									if (elementCount > 1) {
+										for(var i = elementCount - 1; i >= 0; i--) {
+											oFooter.RemoveElement(i)
+										}
+									}
+									var paragraph = oFooter.GetElement(0)
+									oFooter.AddElement(0, paragraph);
+									var drawing
+									if (index > 0) {
+										drawing = oDrawing.Copy().Drawing
+									} else {
+										drawing = oDrawing.Drawing
+									}
 										// drawing.Set_PositionH(6, false, options.x, false);
 										// drawing.Set_PositionV(5, false, options.y, false);
-										paragraph.SetJc('right')
-										paragraph.Paragraph.AddToParagraph(drawing);
+									paragraph.SetJc('right')
+									paragraph.Paragraph.AddToParagraph(drawing);
+								})
+								
+								
 							} else {
 								var page_num = options.page_num || options.p
 								var paragraph = GetParagraphForDraw(page_num, 'end')
@@ -693,33 +665,33 @@ function drawList(list) {
 	}, false, true).then(res => {
 		loading = false
 		console.log('drawList result:', res)
-		if (res && res.list) {
-			var pos_list = window.BiyueCustomData.pos_list || []
-			res.list.forEach((result) => {
-				var index = pos_list.findIndex((e) => {
-					return e.zone_type == result.zone_type && e.v == result.v
-				})
-				if (index >= 0) {
-					if (result.cmd == 'close') {
-						pos_list[index].drawing_id = null
-					} else {
-						pos_list[index].drawing_id = result.drawing_id
-						pos_list[index].x = result.x
-						pos_list[index].y = result.y
-					}
-				} else if (result.cmd == 'open') {
-					pos_list.push({
-						zone_type: result.zone_type,
-						v: result.v,
-						drawing_id: result.drawing_id,
-						x: result.x,
-						y: result.y,
-					})
-				}
-			})
-			window.BiyueCustomData.pos_list = pos_list
-		}
-		handleNext()
+		// if (res && res.list) {
+		// 	var pos_list = window.BiyueCustomData.pos_list || []
+		// 	res.list.forEach((result) => {
+		// 		var index = pos_list.findIndex((e) => {
+		// 			return e.zone_type == result.zone_type && e.v == result.v
+		// 		})
+		// 		if (index >= 0) {
+		// 			if (result.cmd == 'close') {
+		// 				pos_list[index].drawing_id = null
+		// 			} else {
+		// 				pos_list[index].drawing_id = result.drawing_id
+		// 				pos_list[index].x = result.x
+		// 				pos_list[index].y = result.y
+		// 			}
+		// 		} else if (result.cmd == 'open') {
+		// 			pos_list.push({
+		// 				zone_type: result.zone_type,
+		// 				v: result.v,
+		// 				drawing_id: result.drawing_id,
+		// 				x: result.x,
+		// 				y: result.y,
+		// 			})
+		// 		}
+		// 	})
+		// 	window.BiyueCustomData.pos_list = pos_list
+		// }
+		return handleNext()
 	})
 }
 

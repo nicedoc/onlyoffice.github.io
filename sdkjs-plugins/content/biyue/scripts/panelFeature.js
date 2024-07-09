@@ -43,7 +43,8 @@ function getList() {
 			oy: getValue(extra_info.workbook_qr_code_y, 20 * scale),
 			ow: size,
 			oh: size,
-			url: 'https://by-qa-image-cdn.biyue.tech/qrCodeUnset.png'
+			url: 'https://by-qa-image-cdn.biyue.tech/qrCodeUnset.png',
+			value_select: 'open'
 		})
 	}
 	if (extra_info.practise_again && extra_info.practise_again.switch) {
@@ -52,7 +53,8 @@ function getList() {
 			id: ZONE_TYPE_NAME[ZONE_TYPE.AGAIN],
 			label: '再练',
 			ox: extra_info.practise_again.x,
-			oy: extra_info.practise_again.y
+			oy: extra_info.practise_again.y,
+			value_select: 'open'
 		})
 	}
 	if (extra_info.custom_evaluate) {
@@ -61,32 +63,37 @@ function getList() {
 			id: ZONE_TYPE_NAME[ZONE_TYPE.SELF_EVALUATION],
 			label: extra_info.self_evaluate || '自我评价',
 			icon_url: 'https://by-base-cdn.biyue.tech/xiaoyue.png',
-			flowers: ['https://by-base-cdn.biyue.tech/flower.png', 'https://by-base-cdn.biyue.tech/flower.png', 'https://by-base-cdn.biyue.tech/flower.png', 'https://by-base-cdn.biyue.tech/flower.png']
+			flowers: Object.values(extra_info.self_filling_imgs || {}),
+			value_select: 'open'
 		})
 		list.push({
 			zone_type: ZONE_TYPE.THER_EVALUATION,
 			id: ZONE_TYPE_NAME[ZONE_TYPE.THER_EVALUATION],
 			label: '教师评价',
 			icon_url: 'https://by-base-cdn.biyue.tech/xiaotao.png',
-			flowers: ['https://by-base-cdn.biyue.tech/flower.png', 'https://by-base-cdn.biyue.tech/flower.png', 'https://by-base-cdn.biyue.tech/flower.png', 'https://by-base-cdn.biyue.tech/flower.png']
+			flowers: Object.values(extra_info.teacher_filling_imgs || {}),
+			value_select: 'open'
 		})
 		list.push({
 			zone_type: ZONE_TYPE.PASS,
 			id: ZONE_TYPE_NAME[ZONE_TYPE.PASS],
-			label: '通过'
+			label: '通过',
+			value_select: 'open'
 		})
 	} else {
 		list.push({
 			zone_type: ZONE_TYPE.END,
 			id: ZONE_TYPE_NAME[ZONE_TYPE.END],
-			label: '完成'
+			label: '完成',
+			value_select: 'open'
 		})
 	}
 
 	list.push({
 		zone_type: ZONE_TYPE.IGNORE,
 		id: ZONE_TYPE_NAME[ZONE_TYPE.IGNORE],
-		label: '日期/评语'
+		label: '日期/评语',
+		value_select: 'open'
 	})
 
 	list.push({
@@ -96,7 +103,8 @@ function getList() {
 		p: 0,
 		v: 1,
 		// hidden: true,
-		url: 'https://by-qa-image-cdn.biyue.tech/statistics.png'
+		url: 'https://by-qa-image-cdn.biyue.tech/statistics.png',
+		value_select: 'open'
 	})
 	if (!extra_info.hidden_correct_region.checked) {
 		var value_select = extra_info.start_interaction.checked ? 'accurate' : 'simple'
@@ -198,6 +206,19 @@ function changeAll(data) {
 	} else {
 		drawExtroInfo([].concat(list_feature))
 	}
+	if (list_feature) {
+		list_feature.forEach(e => {
+			if (e.id == 'interaction') {
+				if (data.value == 'close') {
+					e.comSelect.setSelect('none')
+				}
+			} else {
+				if (e.comSelect) {
+					e.comSelect.setSelect(data.value)
+				}
+			}
+		})
+	}
 } 
 
 function changeItem(type, data, id) {
@@ -289,16 +310,13 @@ function updatePageSizeMargins() {
 			var m = Math.max(mm, 10)
 			return m / (25.4 / 72 / 20)
 		}
-		function get2(v) {
-			return MM2Twips(v * (workbook.page_size.width / 816)) 
-		}
 		if (sections && sections.length > 0) {
 			sections.forEach(oSection => {
 				oSection.SetPageSize(MM2Twips(workbook.page_size.width), MM2Twips(workbook.page_size.height))
 				oSection.SetPageMargins(MM2Twips(workbook.margin.left), MM2Twips(workbook.margin.top), MM2Twips(workbook.margin.right), MM2Twips(workbook.margin.bottom))
-				oSection.SetFooterDistance(MM2Twips(workbook.margin.bottom));
+				oSection.SetFooterDistance(MM2Twips(workbook.margin.bottom - 13));
 				oSection.SetHeaderDistance(MM2Twips(workbook.margin.top))
-				// oSection.SetPageMargins(get2(workbook.margin.left), get2(workbook.margin.top), get2(workbook.margin.right), get2(workbook.margin.bottom))
+				oSection.RemoveFooter('default')
 			})
 		}
 		return null
@@ -318,11 +336,6 @@ function initPositions(draw) {
 			return MM2Twips(v * (workbook.page_size.width / 816)) 
 		}
 		if (sections && sections.length > 0) {
-			// sections.forEach(oSection => {
-			// 	oSection.SetPageSize(MM2Twips(workbook.page_size.width), MM2Twips(workbook.page_size.height))
-			// 	// oSection.SetPageMargins(MM2Twips(workbook.margin.left), MM2Twips(workbook.margin.top), MM2Twips(workbook.margin.right), MM2Twips(workbook.margin.bottom))
-			// 	oSection.SetPageMargins(get2(workbook.margin.left), get2(workbook.margin.top), get2(workbook.margin.right), get2(workbook.margin.bottom))
-			// })
 			var oSection = sections[0]
 			var pageNum = oDocument.Document.Pages.length
 			var hasHeader = !!oSection.GetHeader('title', false)
@@ -365,19 +378,19 @@ function initPositions(draw) {
 					page_num = 0
 				} else if (e.zone_type == ZONE_TYPE.SELF_EVALUATION) {
 					x = evaluationX
-					y = PageSize.H - PageMargins.Bottom - bottom
+					y = PageSize.H - PageMargins.Bottom
 				} else if (e.zone_type == ZONE_TYPE.THER_EVALUATION) {
 					x = evaluationX + 60
-					y = PageSize.H - PageMargins.Bottom - bottom
+					y = PageSize.H - PageMargins.Bottom
 				} else if (e.zone_type == ZONE_TYPE.PASS || e.zone_type == ZONE_TYPE.END) {
-					x = PageSize.W - PageMargins.Right - ZONE_SIZE[ZONE_TYPE.STATISTICS].w - ZONE_SIZE[ZONE_TYPE.IGNORE].w - 6 - ZONE_SIZE[ZONE_TYPE.PASS].w
-					y = PageSize.H - PageMargins.Bottom - bottom
+					x = PageSize.W - PageMargins.Right - ZONE_SIZE[ZONE_TYPE.IGNORE].w - 4 - ZONE_SIZE[ZONE_TYPE.PASS].w
+					y = PageSize.H - PageMargins.Bottom
 				} else if (e.zone_type == ZONE_TYPE.IGNORE) {
-					x = PageSize.W - PageMargins.Right - ZONE_SIZE[ZONE_TYPE.STATISTICS].w - ZONE_SIZE[ZONE_TYPE.IGNORE].w - 2
-					y = PageSize.H - PageMargins.Bottom - bottom
+					x = PageSize.W - PageMargins.Right - ZONE_SIZE[ZONE_TYPE.IGNORE].w
+					y = PageSize.H - PageMargins.Bottom
 				} else if (e.zone_type == ZONE_TYPE.STATISTICS) {
 					x = PageSize.W - PageMargins.Right
-					y = PageSize.H - PageMargins.Bottom + 2
+					y = PageSize.H - PageMargins.Bottom
 					page_num = e.p
 				}
 				setXY(
@@ -411,15 +424,25 @@ function initPositions(draw) {
 				var extra_info = window.BiyueCustomData.workbook_info.parse_extra_data
 				if (extra_info.hidden_correct_region.checked == false) {
 					setInteraction(extra_info.start_interaction.checked ? 'accurate' : 'simple').then(() => {
-						drawExtroInfo(list_feature)
+						drawExtroInfo(list_feature).then(res => {
+							MoveCursor()
+						})
 					})
 				} else {
-					drawExtroInfo(list_feature)
+					drawExtroInfo(list_feature).then(res => {
+						MoveCursor()
+					})
 				}
 			})
-			// drawExtroInfo([].concat(list_feature.slice(6, 9)))
 		}
 	})
+}
+
+function MoveCursor() {
+	return biyueCallCommand(window, function() {
+		var oDocument = Api.GetDocument()
+		oDocument.Document.MoveCursorToPageEnd()
+	}, false, false)
 }
 
 export { initFeature, initExtroInfo }
