@@ -34,14 +34,15 @@ function getList() {
 	var list = []
 	var scale = 0.2647058823529412
 	if (extra_info.workbook_qr_code_show) {
+		var size = getValue(extra_info.workbook_qr_code_size, 45 * scale)
 		list.push({
 			zone_type: ZONE_TYPE.QRCODE,
 		  	id: ZONE_TYPE_NAME[ZONE_TYPE.QRCODE],
 		  	label: '二维码',
-			ox: getValue(extra_info.workbook_qr_code_x, 700 * scale) ,
+			ox: getValue(extra_info.workbook_qr_code_x, 700 * scale),
 			oy: getValue(extra_info.workbook_qr_code_y, 20 * scale),
-			ow: 45 * scale, // extra_info.workbook_qr_code_size,
-			oh: 45 * scale, //  extra_info.workbook_qr_code_size,
+			ow: size,
+			oh: size,
 			url: 'https://by-qa-image-cdn.biyue.tech/qrCodeUnset.png'
 		})
 	}
@@ -170,6 +171,7 @@ function initFeature() {
 				options: optionsTypes,
 				value_select: e.value_select || optionsTypes[0].value,
 				width: '100%',
+				force_click_notify: true,
 				callback_item: (data) => {
 					changeItem(e.zone_type, data, e.id)
 				},
@@ -342,26 +344,11 @@ function initPositions(draw) {
 			var Num = res.Num
 			var PageSize = res.PageSize
 			var PageMargins = res.PageMargins
-			var bottom = 8
+			var bottom = 6
 			// 后端给的坐标是基于页面尺寸 816*1100 的
-			var scale = PageSize.W / 816
-			console.log('ssss ', scale)
 			var lastleft = ((Num - 1) * PageSize.W) / Num
 			var evaluationX = Num > 1 ? lastleft : PageMargins.Left
-			var statsIndex = list_feature.findIndex(e => {
-				return e.zone_type == ZONE_TYPE.STATISTICS
-			})
-			if (statsIndex >= 0 && res.pageNum > 1) {
-				var addStats = []
-				for (var j = 1; j < res.pageNum; j++) {
-					addStats.push(Object.assign({}, list_feature[statsIndex], {
-						p: j,
-						hidden: true,
-						v: j + 1
-					}))
-				}
-				list_feature.splice(statsIndex + 1, 0, ...addStats)
-			}
+			console.log('evaluationX', evaluationX)
 			list_feature.forEach((e, index) => {
 				var x = e.ox != undefined ? e.ox : 0
 				var y = e.oy != undefined ? e.oy : 0
@@ -372,7 +359,7 @@ function initPositions(draw) {
 				}
 				var page_num = res.pageNum - 1
 				if (e.zone_type == ZONE_TYPE.QRCODE) {
-					size.imgSize = scale * (45 - 10)
+					size.imgSize = size.w - 3
 					page_num = 0
 				} else if (e.zone_type == ZONE_TYPE.AGAIN) {
 					page_num = 0
@@ -383,14 +370,14 @@ function initPositions(draw) {
 					x = evaluationX + 60
 					y = PageSize.H - PageMargins.Bottom - bottom
 				} else if (e.zone_type == ZONE_TYPE.PASS || e.zone_type == ZONE_TYPE.END) {
-					x = evaluationX + 120
+					x = PageSize.W - PageMargins.Right - ZONE_SIZE[ZONE_TYPE.STATISTICS].w - ZONE_SIZE[ZONE_TYPE.IGNORE].w - 6 - ZONE_SIZE[ZONE_TYPE.PASS].w
 					y = PageSize.H - PageMargins.Bottom - bottom
 				} else if (e.zone_type == ZONE_TYPE.IGNORE) {
-					x = PageSize.W - 15 - ZONE_SIZE[ZONE_TYPE.IGNORE].w
-					y = PageSize.H - PageMargins.Bottom - bottom	
+					x = PageSize.W - PageMargins.Right - ZONE_SIZE[ZONE_TYPE.STATISTICS].w - ZONE_SIZE[ZONE_TYPE.IGNORE].w - 2
+					y = PageSize.H - PageMargins.Bottom - bottom
 				} else if (e.zone_type == ZONE_TYPE.STATISTICS) {
 					x = PageSize.W - PageMargins.Right
-					y = PageSize.H - PageMargins.Bottom
+					y = PageSize.H - PageMargins.Bottom + 2
 					page_num = e.p
 				}
 				setXY(
@@ -424,7 +411,7 @@ function initPositions(draw) {
 				var extra_info = window.BiyueCustomData.workbook_info.parse_extra_data
 				if (extra_info.hidden_correct_region.checked == false) {
 					setInteraction(extra_info.start_interaction.checked ? 'accurate' : 'simple').then(() => {
-						drawExtroInfo(list_feature)		
+						drawExtroInfo(list_feature)
 					})
 				} else {
 					drawExtroInfo(list_feature)

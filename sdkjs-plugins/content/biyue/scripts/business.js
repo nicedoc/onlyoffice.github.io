@@ -3588,7 +3588,7 @@ function getAllPositions() {
 		var drawings = oDocument.GetAllDrawingObjects()
 		var oShapes = oDocument.GetAllShapes()
 		var ques_list = []
-
+		var pageCount = oDocument.GetPageCount()
 		function GetCorrectRegion(oControl) {
 			var correct_ask_region = []
 			var correct_region = {}
@@ -3700,7 +3700,6 @@ function getAllPositions() {
 				var oDrawing = drawings[j]
 				if (oDrawing.Drawing.docPr) {
 					var title = oDrawing.Drawing.docPr.title
-					console.log(title)
 					if (title && title.indexOf('feature') >= 0) {
 						var titleObj = JSON.parse(title)
 						if (titleObj.feature && titleObj.feature.zone_type && titleObj.feature.zone_type != 'question') {
@@ -3708,45 +3707,61 @@ function getAllPositions() {
 								zone_type: titleObj.feature.zone_type,
 								fields: []
 							}
-							if (titleObj.feature.zone_type == 'self_evaluation' || titleObj.feature.zone_type == 'teather_evaluation') {
-								var oShape = oShapes.find(e => {
-									return e.Drawing && e.Drawing.Id == oDrawing.Drawing.Id
-								})
-								if (oShape) {
-									var tables = oShape.GetContent().GetAllTables()
-									if (tables && tables.length) {
-										var oRow  = tables[0].GetRow(0)
-										if (oRow) {
-											var CellsInfo = oRow.Row.CellsInfo
-											for (var c = 2; c < CellsInfo.length; ++c) {
-												var cell = CellsInfo[c]
-												featureObj.fields.push({
-													v: c - 1,
-													Page: oDrawing.Drawing.PageNum,
-													X: oDrawing.Drawing.X + cell.X_cell_start,
-													Y: oDrawing.Drawing.Y,
-													W: cell.X_cell_end - cell.X_cell_start,
-													H: oDrawing.Drawing.Height
-												})
-											}
-										}
-									} else {
-										console.log('cannot find tables', oShapes, oDrawing)
-									}
-								} else {
-									console.log('cannot find oShape')
+							if (titleObj.feature.zone_type == 'statistics') {
+								for (var p = 0; p < pageCount; ++p) {
+									feature_list.push({
+										zone_type: titleObj.feature.zone_type,
+										fields: [{
+											v: p + 1,
+											Page: p,
+											X: oDrawing.Drawing.X,
+											Y: oDrawing.Drawing.Y,
+											W: oDrawing.Drawing.Width,
+											H: oDrawing.Drawing.Height
+										}]
+									})	
 								}
 							} else {
-								featureObj.fields.push({
-									v: titleObj.feature.v,
-									Page: oDrawing.Drawing.PageNum,
-									X: oDrawing.Drawing.X,
-									Y: oDrawing.Drawing.Y,
-									W: oDrawing.Drawing.Width,
-									H: oDrawing.Drawing.Height
-								})
+								if (titleObj.feature.zone_type == 'self_evaluation' || titleObj.feature.zone_type == 'teather_evaluation') {
+									var oShape = oShapes.find(e => {
+										return e.Drawing && e.Drawing.Id == oDrawing.Drawing.Id
+									})
+									if (oShape) {
+										var tables = oShape.GetContent().GetAllTables()
+										if (tables && tables.length) {
+											var oRow  = tables[0].GetRow(0)
+											if (oRow) {
+												var CellsInfo = oRow.Row.CellsInfo
+												for (var c = 2; c < CellsInfo.length; ++c) {
+													var cell = CellsInfo[c]
+													featureObj.fields.push({
+														v: c - 1,
+														Page: oDrawing.Drawing.PageNum,
+														X: oDrawing.Drawing.X + cell.X_cell_start,
+														Y: oDrawing.Drawing.Y,
+														W: cell.X_cell_end - cell.X_cell_start,
+														H: oDrawing.Drawing.Height
+													})
+												}
+											}
+										} else {
+											console.log('cannot find tables', oShapes, oDrawing)
+										}
+									} else {
+										console.log('cannot find oShape')
+									}
+								} else {
+									featureObj.fields.push({
+										v: titleObj.feature.v,
+										Page: oDrawing.Drawing.PageNum,
+										X: oDrawing.Drawing.X,
+										Y: oDrawing.Drawing.Y,
+										W: oDrawing.Drawing.Width,
+										H: oDrawing.Drawing.Height
+									})
+								}
+								feature_list.push(featureObj)
 							}
-							feature_list.push(featureObj)
 						}
 					}
 				}

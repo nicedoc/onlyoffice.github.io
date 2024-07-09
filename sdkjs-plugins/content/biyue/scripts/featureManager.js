@@ -265,6 +265,7 @@ function drawList(list) {
 		var MM2TWIPS = 25.4 / 72 / 20
 		var oDocument = Api.GetDocument()
 		var objs = oDocument.GetAllDrawingObjects()
+		var oSections = oDocument.GetSections()
 		var feature_wait_handle = Asc.scope.feature_wait_handle
 		feature_wait_handle = feature_wait_handle.filter(e => {
 			return e.zone_type
@@ -272,6 +273,7 @@ function drawList(list) {
 		var elementsCount = oDocument.GetElementsCount()
 		var lastElement = oDocument.GetElement(elementsCount - 1)
 		var pageCount = oDocument.GetPageCount()
+
 		var lastParagraph = null
 		if (lastElement.GetClassType() == 'paragraph') {
 			lastParagraph = lastElement
@@ -282,7 +284,6 @@ function drawList(list) {
 		var res = {
 			list: [],
 		}
-		var oSections = oDocument.GetSections()
 		function addImageToCell(oTable, nRow, nCell, url, w, h, mleft, mright) {
 			var cell = oTable.GetCell(nRow, nCell)
 			if (!cell) {
@@ -355,6 +356,47 @@ function drawList(list) {
 		*/
 		// 因此当存在段落跨页时，若直接调用AddDrawingToPage，会出现渲染到前页的情况
 		// 需要动态计算出适合的paragraph
+		// GoToPage后，调用GetCurrentParagraph，此时拿到的未必是第一个段落
+		function GetParagraphForDraw(page_num, posType) {
+			var pageCount = oDocument.GetPageCount()
+			if (page_num >= pageCount) {
+				return null
+			}
+			if (page_num == 0) {
+				var nearestPos = oDocument.Document.Get_NearestPos(page_num, 0, 0)
+				if (nearestPos.Paragraph) {
+					return nearestPos.Paragraph
+				}
+			} else {
+				if (posType == 'end') {
+					if (page_num == pageCount - 1 && lastParagraph) {
+						return lastParagraph.Paragraph
+					}
+					var PageSize = oSections[0].Section.PageSize
+					var PageMargins = oSections[0].Section.PageMargins
+					var nearestPos = oDocument.Document.Get_NearestPos(page_num, PageSize.W - PageMargins.Right, PageSize.H - PageMargins.Bottom)
+					if (nearestPos.Paragraph) {
+						if (nearestPos.Paragraph.Pages.length > 0) {
+							if (nearestPos.Paragraph.GetAbsolutePage(0) == page_num) {
+								var bounds = nearestPos.Paragraph.Pages[0].Bounds
+								if (bounds && bounds.Bottom - bounds.Top > 4) {
+									return nearestPos.Paragraph
+								} else {
+									var previosParagraph = Api.LookupObject(nearestPos.Paragraph.Id).GetPrevious()
+									if (previosParagraph) {
+										return previosParagraph.Paragraph
+									}
+								}
+							} else {
+								// todo..
+							}
+						}
+						return nearestPos.Paragraph
+					}
+				}
+			}
+			return null
+		}
 		function GetPageParagraphForDraw(page_num) {
 			var pageCount = oDocument.GetPageCount()
 			if (page_num >= pageCount) {
@@ -601,7 +643,7 @@ function drawList(list) {
 								if (jc == 'center') {
 									oDrawing.SetPaddings(0, 0, 0, 0)
 								} else {
-									oDrawing.SetPaddings(4 * 36e3, 0, 0, 0)
+									oDrawing.SetPaddings(2 * 36e3, 0, 0, 0)
 								}
 							}
 							oDrawing.SetVerticalTextAlign('center')
@@ -610,45 +652,28 @@ function drawList(list) {
 							oDrawing.Drawing.Set_Props({
 								title: props_title,
 							})
-							// if (options.zone_type == ZONE_TYPE.STATISTICS) {
-							// 	var finalSection = oSections[oSections.length - 1]
-							// 	var oFooter = finalSection.GetFooter("default", true)
-							// 	var paragraph = oFooter.GetElement(0)
-							// 	var drawing = oDrawing.Drawing;
-							// 			// drawing.Set_PositionH(6, false, options.x, false);
-							// 			// drawing.Set_PositionV(5, false, options.y, false);
-							// 			drawing.Set_DrawingType(2);
-							// 			paragraph.Paragraph.AddToParagraph(drawing);
-							// } else {
+							if (options.zone_type == ZONE_TYPE.STATISTICS) {
+								var finalSection = oSections[oSections.length - 1]
+								var oFooter = finalSection.GetFooter("default", true)
+								var paragraph = oFooter.GetElement(0)
+								var drawing = oDrawing.Drawing;
+										// drawing.Set_PositionH(6, false, options.x, false);
+										// drawing.Set_PositionV(5, false, options.y, false);
+										paragraph.SetJc('right')
+										paragraph.Paragraph.AddToParagraph(drawing);
+							} else {
 								var page_num = options.page_num || options.p
-								if (page_num == 0) {
-									oDocument.AddDrawingToPage(
-										oDrawing,
-										page_num,
-										options.x * 36e3,
-										options.y * 36e3
-									)
-								} else if (page_num < pageCount - 1) {
-									var paragraph = GetPageParagraphForDraw(page_num)
-									if (paragraph) {
-										console.log(page_num, 'ppp ', Api.LookupObject(paragraph.Id).GetRange())
-										var drawing = oDrawing.Drawing
-										drawing.Set_PositionH(6, false, options.x, false)
-										drawing.Set_PositionV(5, false, options.y, false)
-										drawing.Set_DrawingType(2)
-										paragraph.AddToParagraph(drawing)
-									}
-								} else {
-									var paragraph = lastParagraph.Paragraph
-									if (paragraph) {
-										var drawing = oDrawing.Drawing;
+								var paragraph = GetParagraphForDraw(page_num, 'end')
+								if (paragraph) {
+									var drawing = oDrawing.Drawing;
 										drawing.Set_PositionH(6, false, options.x, false);
 										drawing.Set_PositionV(5, false, options.y, false);
 										drawing.Set_DrawingType(2);
 										paragraph.AddToParagraph(drawing);
-									}
+								} else {
+									console.log('cannot find paragraph for draw', page_num)
 								}
-							//}
+							}
 						}
 					}
 				} else {

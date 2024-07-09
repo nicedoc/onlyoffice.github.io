@@ -18,6 +18,25 @@ function initExamTree() {
 			console.log('******************   hlist', hlist)
 			console.log('******************   treeInfo', treeInfo)
 			renderTree(treeInfo)
+
+			var ques_map = {}
+			for (var i = 0, imax = hlist.length; i < imax; ++i) {
+				var ask_list = []
+				if (hlist[i].writes) {
+					for (var j = 0; j < hlist[i].writes.length; ++j) {
+						ask_list.push({
+							control_id: hlist[i].writes[j],
+							score: 0
+						})
+					}
+				}
+				ques_map[hlist[i].id] = {
+					control_id: hlist[i].id,
+					score: 0,
+					ask_list: ask_list
+				}
+			}
+			window.BiyueCustomData.question_map = ques_map
 			resolve()
 		}).catch(error => {
 			reject(error)
@@ -34,6 +53,34 @@ function getDocList() {
 		}
 		var allControls = oDocument.GetAllContentControls()
 		var list = []
+
+		function addItem(e, defaultParentId) {
+			var parentCtrl = e.GetParentContentControl()
+			var subtag = JSON.parse(e.GetTag() || {})
+			if (
+				subtag.regionType == 'question' ||
+				subtag.regionType == 'sub-question'
+			) {
+				var obj = {
+					id: e.Sdt.GetId(),
+					regionType: subtag.regionType,
+					text: e.GetRange().GetText(),
+					classType: e.GetClassType(),
+					parent_control_id: parentCtrl ? parentCtrl.Sdt.GetId() : defaultParentId
+				}
+				list.push(obj)
+			} else if (subtag.regionType == 'write' && parentCtrl) {
+				var parentIndex = list.findIndex(e2 => {
+					return e2.id == parentCtrl.Sdt.GetId()
+				})
+				if (parentIndex >= 0) {
+					if (!list[parentIndex].writes) {
+						list[parentIndex].writes = []
+					}
+					list[parentIndex].writes.push(e.Sdt.GetId())
+				}
+			}
+		}
 		for (var idx = 0; idx < elementCount; ++idx) {
 			var oElement = oDocument.GetElement(idx)
 			if (!oElement) {
@@ -53,25 +100,12 @@ function getDocList() {
 					id: oElement.Sdt.GetId(),
 					regionType: tag.regionType,
 					text: oElement.GetRange().GetText(),
-					classType: classType,
+					classType: classType
 				})
 				var controls = oElement.GetAllContentControls()
 				if (controls) {
 					controls.forEach((e) => {
-						var subtag = JSON.parse(e.GetTag() || {})
-						if (
-							subtag.regionType == 'question' ||
-							subtag.regionType == 'sub-question'
-						) {
-							var parentCtrl = e.GetParentContentControl()
-							list.push({
-								id: e.Sdt.GetId(),
-								regionType: subtag.regionType,
-								text: e.GetRange().GetText(),
-								classType: e.GetClassType(),
-								parent_control_id: parentCtrl ? parentCtrl.Sdt.GetId() : oElement.Sdt.GetId()
-							})
-						}
+						addItem(e, oElement.Sdt.GetId())
 					})
 				}
 			} else if (classType == 'table') {
@@ -83,18 +117,7 @@ function getDocList() {
 							return c.Sdt.GetId() == e.Id
 						})
 						if (control) {
-							var subtag = JSON.parse(control.GetTag() || {})
-							if (
-								subtag.regionType == 'question' ||
-								subtag.regionType == 'sub-question'
-							) {
-								list.push({
-									id: control.Sdt.GetId(),
-									regionType: subtag.regionType,
-									text: control.GetRange().GetText(),
-									classType: control.GetClassType(),
-								})
-							}
+							addItem(control, 0)
 						}
 					})
 				}
@@ -121,7 +144,6 @@ function generateListByDoc(docList) {
 					parent_id = struct_index != undefined ? docList[struct_index].id : 0
 				} else if (e.regionType == 'sub-question') {
 					parent_id = question_index != undefined ? docList[question_index].id : (struct_index != undefined ? docList[struct_index].id : 0)
-		
 				} else if (!e.regionType) {
 					if (index > 0) {
 						if (hlist[index - 1].regionType) {
@@ -157,7 +179,8 @@ function generateListByDoc(docList) {
 			classType: e.classType,
 			parent_id: parent_id,
 			children: [],
-			child_pos: child_pos
+			child_pos: child_pos,
+			writes: e.writes
 		}
 		hlist.push(obj)
 		if (e.regionType == 'struct') {
@@ -170,6 +193,7 @@ function generateListByDoc(docList) {
 }
 // 根据list生成渲染需要的tree
 function genetateTreeByHList(list) {
+	updateQuestionMap(list)
 	if (!list) {
 		return null
 	}
@@ -529,10 +553,15 @@ function dropItem(list, dragId, dropId, direction) {
 			}
 		}
 	}, false, false).then(res => {
-		var hlist = []
-		updateHorListByTree(list, hlist)
-		g_horizontal_list = hlist
-		console.log('list after drop', g_horizontal_list)
+		// 当使用自动编号时，拖动后文档里的编号会相应更新，但目前树没有更新，需要再取一次，拿到的text才是最新的
+		handleDocUpdate()
+		// var hlist = []
+		// // updateHorListByTree(list, hlist)
+		// // g_horizontal_list = hlist
+		// getDocList().then(res2 => {
+		// 	updateHListBYDoc(res2)
+		// })
+		// console.log('list after drop', g_horizontal_list)
 	})
 }
 // 通过tree重新构建horlist
@@ -587,6 +616,7 @@ function handleDocUpdate() {
 // 划分类型
 function updateRangeControlType(typeName) {
 	Asc.scope.typename = typeName
+	console.log('updateRangeControlType begin:', typeName)
 	biyueCallCommand(window, function() {
 		var typeName = Asc.scope.typename
 		var oDocument = Api.GetDocument()
@@ -1077,13 +1107,23 @@ function getItemData(list, id) {
 }
 // 文档更新后，更新horlist，先不关注父子关系
 function updateHListBYDoc(docList) {
-	var hlist = g_horizontal_list
+	var hlist = g_horizontal_list || []
 	console.log('updateHListBYDoc begin ', [].concat(hlist))
 	var i = 0
 	var imax = docList.length
 	for (; i < imax; ++i) {
 		var item = docList[i]
-		if (item.id == hlist[i].id) {
+		if (i >= hlist.length) {
+			hlist.splice(i, 0, {
+				id: item.id,
+				regionType: item.regionType,
+				text: item.text,
+				classType: item.classType,
+				parent_id: parent_id,
+				children: [],
+				child_pos: 0
+			})
+		} else if (item.id == hlist[i].id) {
 			// id相同，更新text
 			hlist[i].text = item.text
 			hlist[i].regionType = item.regionType
@@ -1100,9 +1140,12 @@ function updateHListBYDoc(docList) {
 			var index1 = hlist.findIndex(e => {
 				return e.id == item.id
 			})
-			var index2 = docList.findIndex(e => {
-				return e.id == hlist[i].id
-			})
+			var index2 = -1
+			if (i < hlist.length) {
+				index2 = docList.findIndex(e => {
+					return e.id == hlist[i].id
+				})
+			}
 			if (index1 >= 0) { // 之前已在hlist中
 				if (index2 == -1) {
 					// 删除
@@ -1612,6 +1655,65 @@ function getTimeString() {
 	var second = date.getSeconds()
 	var micsecond = date.getMilliseconds()
 	return year + '-' + month + '-' + day + ' ' + hour + ':' + minute + ':' + second + ' ' + micsecond
+}
+// 根据hlist更新维护题目列表
+function updateQuestionMap(hlist) {
+	if (!hlist) {
+		return
+	}
+	var question_map = window.BiyueCustomData.question_map || {}
+	var keys = Object.keys(question_map)
+	keys.forEach((key) => {
+		if (hlist.findIndex(e => e.id == key) == -1) {
+			delete question_map[key]
+		}
+	})
+	hlist.forEach(e => {
+		if (question_map[e.id]) {
+			// 更新writes
+			if (!e.writes || e.writes.length == 0) {
+				question_map[e.id].ask_list = []
+			} else {
+				var ask_list = question_map[e.id].ask_list
+				for (var idx = 0; idx < e.writes.length; ++idx) {
+					if (idx < ask_list.length) {
+						if (ask_list[idx].control_id != e.writes[idx]) {
+							var idx2 = e.writes.indexOf(ask_list[idx].control_id)
+							if (idx2 == -1) {
+								ask_list.splice(idx, 0, {
+									control_id: e.writes[idx],
+									score: 0
+								})
+							} else {
+								var swapElement = ask_list.splice(idx2, 1)
+								ask_list.splice(idx, 0, ...swapElement)
+							}
+						}
+					} else {
+						ask_list.splice(idx, 0, {
+							control_id: e.writes[idx],
+							score: 0
+						})
+					}
+				}
+			}
+		} else {
+			var ask_list = []
+			if (e.writes) {
+				for (var j = 0; j < e.writes.length; ++j) {
+					ask_list.push({
+						control_id: e.writes[j],
+						score: 0
+					})
+				}
+			}
+			question_map[e.id] = {
+				control_id: e.id,
+				score: 0,
+				ask_list: ask_list
+			}
+		}
+	})
 }
 
 export {
