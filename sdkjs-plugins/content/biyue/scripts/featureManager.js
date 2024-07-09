@@ -635,6 +635,13 @@ function drawList(list) {
 								
 							} else {
 								var page_num = options.page_num || options.p
+								if (options.zone_type == ZONE_TYPE.THER_EVALUATION ||
+									options.zone_type == ZONE_TYPE.SELF_EVALUATION ||
+									options.zone_type == ZONE_TYPE.PASS ||
+									options.zone_type == ZONE_TYPE.END ||
+									options.zone_type == ZONE_TYPE.IGNORE) {
+										page_num = pageCount - 1
+									}
 								var paragraph = GetParagraphForDraw(page_num, 'end')
 								if (paragraph) {
 									var drawing = oDrawing.Drawing;
