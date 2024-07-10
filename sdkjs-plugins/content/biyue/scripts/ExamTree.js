@@ -8,13 +8,27 @@ var g_horizontal_list = []
 var upload_control_list = []
 
 // 载入框架或重新切题后会调用initExamTree，需要视情况更新node_list和question_map
+function existDiff(list1, list2) {
+	if (!list1 || !list2) {
+		return true
+	}
+	if (list1.length != list2.length) {
+		return true
+	}
+	for (var i = 0, imax = list1.length; i < imax; ++i) {
+		if (list1[i].id != list2[i].id) {
+			return true
+		}
+	}
+	return false
+}
 function initExamTree() {
 	return new Promise((resolve, reject) => {
 		console.log('[initExamTree]')
 		var nodeList = window.BiyueCustomData.node_list
 		getDocList().then(res => {
 			updateQuestionMapByDoc(res)
-			if (!nodeList || nodeList.length == 0 || nodeList[0].text) {
+			if (existDiff(nodeList, res) || !nodeList || nodeList.length == 0 || nodeList[0].text) {
 				var hlist = generateListByDoc(res)
 				g_horizontal_list = hlist
 				console.log(' after generateListByDoc', [].concat(hlist))
@@ -118,6 +132,7 @@ function updateQuestionMapByDoc(list) {
 		}
 	}
 	window.BiyueCustomData.question_map = quesmap
+	console.log('【updateQuestionMapByDoc end】', window.BiyueCustomData.question_map)
 }
 
 
@@ -280,7 +295,7 @@ function genetateTreeByHList(list) {
 		if (e.parent_id == 0) {
 			tree.push({
 				id: e.id,
-				label: quesmap[e.id].text, // e.text,
+				label: quesmap[e.id] ? quesmap[e.id].text : '', // e.text,
 				expand: true,
 				is_folder: e.regionType == 'struct',
 				children: [],
@@ -293,7 +308,7 @@ function genetateTreeByHList(list) {
 			if (parent && parent.children) {
 				parent.children.push({
 					id: e.id,
-					label: quesmap[e.id].text, // e.text,
+					label: quesmap[e.id] ? quesmap[e.id].text : '', // e.text,
 					expand: true,
 					is_folder: e.regionType == 'struct',
 					children: [],
@@ -1769,6 +1784,7 @@ function changeProportion(id, proportion) {
 		var oDocument = Api.GetDocument()
 		var oTable = oControl.GetParentTable()
 		var oParentControl = oControl.GetParentContentControl()
+		
 		var posinparent = oControl.GetPosInParent()
 		var docPos = oControl.Sdt.GetDocumentPositionFromObject()
 		if (oParentControl) {
@@ -1806,7 +1822,7 @@ function changeProportion(id, proportion) {
 				if (targetCellIndex == -1) {
 					oParentControl.GetContent().RemoveElement(posinparent)
 					var max_cols = change_options.proportion
-					oTable = Api.CreateTable(max_cols, 1);
+					var oTable = Api.CreateTable(max_cols, 1);
 					oTable.SetWidth("percent", 100);
 					var oTableStyle = oDocument.CreateStyle("CustomTableStyle", "table");
 					var oTableCellPr = oTableStyle.GetTableCellPr();
@@ -1818,6 +1834,8 @@ function changeProportion(id, proportion) {
 					oCell.GetContent().RemoveElement(0);
 					oParentControl.GetContent().AddElement(posinparent, oTable);
 				}
+			} else {
+
 			}
 		}
 	}, false, true).then(res => {
@@ -1825,6 +1843,54 @@ function changeProportion(id, proportion) {
 	})
 }
 
+// 批量设置题型
+function batchChangeQuesType(type) {
+	Asc.scope.ques_type = type
+	biyueCallCommand(window, function () {
+		var oDocument = Api.GetDocument()
+		var control_list = oDocument.GetAllContentControls()
+		var ques_id_list = []
+		control_list.forEach((e) => {
+			if (
+				e.Sdt &&
+				e.Sdt.Content &&
+				e.Sdt.Content.Selection &&
+				e.Sdt.Content.Selection.Use
+			) {
+				var tag = JSON.parse(e.GetTag())
+				if (tag && (tag.regionType == 'question' || tag.regionType == 'sub-question')) {
+					ques_id_list.push(e.Sdt.GetId())
+				}
+			}
+		})
+		return {
+			code: 1,
+			list: ques_id_list,
+			type: Asc.scope.ques_type
+		}
+	}, false, false).then((res) => {
+		if (!res || !res.code || !res.list) {
+			return
+		}
+		res.list.forEach(id => {
+			if (window.BiyueCustomData.question_map && window.BiyueCustomData.question_map[id]) {
+				window.BiyueCustomData.question_map[id].question_type = res.type
+			}
+		})
+		// 需要同步更新单题详情
+		if (window.tab_select == 'tabQues') {
+			document.dispatchEvent(
+				new CustomEvent('updateQuesData', {
+					detail: {
+						list: res.list,
+						field: 'question_type',
+						value: res.type,
+					},
+				})
+			)
+		}
+	})
+}
 export {
 	initExamTree,
 	refreshExamTree,
@@ -1833,5 +1899,6 @@ export {
 	updateRangeControlType,
 	reqGetQuestionType,
 	reqUploadTree,
-	changeProportion
+	changeProportion,
+	batchChangeQuesType
 }

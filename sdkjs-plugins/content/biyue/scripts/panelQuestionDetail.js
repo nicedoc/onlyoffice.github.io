@@ -52,17 +52,12 @@ function initElements() {
   </div>
   `
 	$('#panelQues').html(content)
-	var questionTypes = []
 	var paper_options = window.BiyueCustomData.paper_options || {}
+	var questionTypes = []
 	if (paper_options.question_type) {
-		Object.keys(paper_options.question_type).forEach(e => {
-			questionTypes.push({
-				value: e,
-				label: paper_options.question_type[e],
-			})
-		})
-		questionTypes.unshift({ value: '0', label: '未定义' })
+		questionTypes = questionTypes.concat(paper_options.question_type)
 	}
+	questionTypes.unshift({ value: '0', label: '未定义' })
 	console.log('============ questionTypes', questionTypes)
 	select_type = new ComponentSelect({
 		id: 'questionType',
@@ -111,8 +106,8 @@ function updateElements(quesData) {
 	if (input_score) {
 		input_score.setValue((quesData.score || 0) + '')
 	}
-	if (quesData.ques_name) {
-		$('#ques_name').html(quesData.ques_name)
+	if (quesData.text) {
+		$('#ques_name').html(quesData.text)
 	}
 	if (quesData.ask_list && quesData.ask_list.length > 0) {
 		var content = ''
@@ -199,7 +194,7 @@ function changeQuestionType(data) {
 // 修改占比
 function chagneProportion(data) {
 	console.log('chagneProportion', data)
-	// changeProportion(ques_control_id, data.value)
+	changeProportion(ques_control_id, data.value)
 }
 
 function initListener() {
@@ -210,19 +205,31 @@ function initListener() {
 	})
 	document.addEventListener('updateQuesData', (event) => {
 		if (!event) return
-		console.log('receive updateQuesData', event.detail)
 		var quesData = window.BiyueCustomData.question_map[ques_control_id]
-		updateElements(quesData)
-		// quesData[detail.field] = detail.value
-		// if (select_type) {
-		// 	select_type.setSelect(detail.value + '')
-		// }
-		// if (select_proportion) {
-		// 	select_proportion.setSelect(detail.value + '')
-		// }
-		// if (input_score) {
-		// 	input_score.setValue((detail.field || 0) + '')
-		// }
+		if (event.detail && event.detail.field) {
+			// 来源为批量设置，只针对单个field更新
+			switch(event.detail.field) {
+				case 'question_type':
+					if (select_type) {
+						select_type.setSelect(quesData.question_type + '')
+					}
+					break
+				case 'proportion':
+					if (select_proportion) {
+						select_proportion.setSelect(quesData.proportion + '')
+					}
+					break
+				case 'score':
+					if (input_score) {
+						input_score.setValue((quesData.score || 0) + '')
+					}
+					break
+				default:
+					break
+			}
+		} else {
+			updateElements(quesData)
+		}
 	})
 }
 

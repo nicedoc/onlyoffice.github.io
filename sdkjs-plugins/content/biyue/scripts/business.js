@@ -38,7 +38,19 @@ function initPaperInfo() {
 					window.BiyueCustomData.exam_title = paper.title
 					$('#grade_data').text(`${paper.period_name}${paper.subject_name}/${paper.edition_name || ''}/${paper.phase_name || ''}`)
 				}
-				window.BiyueCustomData.paper_options = res.data.options
+				var options = res.data.options || {}
+				var paper_options = {}
+				Object.keys(options).forEach((key) => {
+					var list = []
+					Object.keys(options[key]).forEach(e => {
+						list.push({
+							value: e,
+							label: options[key][e],
+						})
+					})
+					paper_options[key] = list
+				})
+				window.BiyueCustomData.paper_options = paper_options
 				resolve(res)
 			})
 			.catch((res) => {
@@ -3486,60 +3498,6 @@ function deletePositions(list) {
 		}
 	})
 }
-
-// 批量设置题型
-function batchChangeQuesType(type) {
-	biyueCallCommand(
-		window,
-		function () {
-			var oDocument = Api.GetDocument()
-			var control_list = oDocument.GetAllContentControls()
-			var ques_id_list = []
-			control_list.forEach((e) => {
-				if (
-					e.Sdt &&
-					e.Sdt.Content &&
-					e.Sdt.Content.Selection &&
-					e.Sdt.Content.Selection.Use
-				) {
-					var tag = JSON.parse(e.GetTag())
-					if (tag && tag.regionType == 'question') {
-						ques_id_list.push(e.Sdt.GetId())
-					}
-				}
-			})
-			return {
-				code: 1,
-				list: ques_id_list,
-			}
-		},
-		false,
-		false
-	).then((res) => {
-		console.log('the result of batchChangeQuesType', res)
-		if (!res || !res.code) {
-			return
-		}
-		var control_list = window.BiyueCustomData.control_list || []
-		control_list.forEach((e) => {
-			if (e.regionType == 'question' && res.list.indexOf(e.control_id) >= 0) {
-				e.ques_type = type
-			}
-		})
-		// 需要同步更新单题详情
-		if (window.tab_select == 'tabQues') {
-			document.dispatchEvent(
-				new CustomEvent('updateQuesData', {
-					detail: {
-						list: res.list,
-						field: 'ques_type',
-						value: type,
-					},
-				})
-			)
-		}
-	})
-}
 // 批量设置占比
 function batchChangeProportion(type) {
 	// todo..
@@ -3826,6 +3784,5 @@ export {
 	setSectionColumn,
 	batchChangeInteraction,
 	batchChangeProportion,
-	batchChangeQuesType,
 	getAllPositions
 }

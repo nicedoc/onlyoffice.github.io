@@ -1,12 +1,12 @@
 import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./dep.js";
 import { getToken, setXToken } from './auth.js'
 import { toXml, downloadAs } from "./convert.js";
-import { getPaperInfo, initPaperInfo, updatePageSizeMargins, updateCustomControls, savePositons, updateQuestionScore, drawPositions,  handleIdentifyBox, handleContentControlChange, deletePositions, setSectionColumn, batchChangeInteraction, batchChangeProportion, batchChangeQuesType, getAllPositions } from './business.js'
+import { getPaperInfo, initPaperInfo, updatePageSizeMargins, updateCustomControls, savePositons, updateQuestionScore, drawPositions,  handleIdentifyBox, handleContentControlChange, deletePositions, setSectionColumn, batchChangeInteraction, batchChangeProportion, getAllPositions } from './business.js'
 import { showQuesData, initListener } from './panelQuestionDetail.js'
 import { initFeature, initExtroInfo } from './panelFeature.js'
 import { handleHeader } from "./featureManager.js";
 import { biyueCallCommand, dispatchCommandResult } from "./command.js";
-import { initExamTree, refreshExamTree, updateTreeRenderWhenClick, updateRangeControlType, reqGetQuestionType, reqUploadTree } from "./ExamTree.js";
+import { initExamTree, refreshExamTree, updateTreeRenderWhenClick, updateRangeControlType, reqGetQuestionType, reqUploadTree, batchChangeQuesType } from "./ExamTree.js";
 
 (function (window, undefined) {
     var styleEnable = false;
@@ -518,14 +518,7 @@ import { initExamTree, refreshExamTree, updateTreeRenderWhenClick, updateRangeCo
       })
       if (contextMenu_options) {
         if (contextMenu_options.type == 'Selection') {
-          var questypes = [{ value: '1', label: '单选' },
-          { value: '2', label: '填空' },
-          { value: '3', label: '作答' },
-          { value: '4', label: '判断' },
-          { value: '5', label: '多选' },
-          { value: '6', label: '文本' },
-          { value: '7', label: '单选组合' },
-          { value: '8', label: '作文' }]
+          var questypes = window.BiyueCustomData.paper_options.question_type
           var itemsQuesType = questypes.map(e => {
             return {
               id: `batchChangeQuesType_${e.value}`,
@@ -1961,16 +1954,6 @@ import { initExamTree, refreshExamTree, updateTreeRenderWhenClick, updateRangeCo
       timeout_controlchange = setTimeout(() => {
         handleContentControlChange(res)
       }, 500)
-    }
-    
-    function setExamTitle(title) {
-      var element = document.getElementById('exam_title')
-      if (!element) {
-        return
-      }
-      element.innerHTML = `《${title.replace(/.docx/g, '')}》`
-      window.BiyueCustomData.exam_title = title
-      // handleHeader('update', title)
     }
     // 重新切题
     function reSplitQustion() {
