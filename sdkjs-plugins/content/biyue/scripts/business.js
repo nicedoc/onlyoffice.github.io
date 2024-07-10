@@ -40,18 +40,40 @@ function initPaperInfo() {
 				}
 				window.BiyueCustomData.paper_options = res.data.options
 				resolve(res)
-				// updateControls().then((res) => {
-				// 	resolve(res)
-				// })
 			})
 			.catch((res) => {
 				resolve(res)
 				console.log('catch', res)
-				// updateControls().then((res) => {
-					
-				// })
 			})
 	})
+}
+
+function updatePageSizeMargins() {
+	Asc.scope.workbook = window.BiyueCustomData.workbook_info
+	return biyueCallCommand(window, function () {
+		var workbook = Asc.scope.workbook
+		var oDocument = Api.GetDocument()
+		var sections = oDocument.GetSections()
+		function MM2Twips(mm) {
+			var m = Math.max(mm, 10)
+			return m / (25.4 / 72 / 20)
+		}
+		if (sections && sections.length > 0) {
+			sections.forEach(oSection => {
+				if (workbook.page_size) {
+					oSection.SetPageSize(MM2Twips(workbook.page_size.width), MM2Twips(workbook.page_size.height))
+				}
+				if (workbook.margin) {
+					oSection.SetPageMargins(MM2Twips(workbook.margin.left), MM2Twips(workbook.margin.top), MM2Twips(workbook.margin.right), MM2Twips(workbook.margin.bottom))
+					oSection.SetFooterDistance(MM2Twips(workbook.margin.bottom - 13));
+					oSection.SetHeaderDistance(MM2Twips(workbook.margin.top))
+				}
+				oSection.RemoveFooter('default')
+				oSection.RemoveHeader('default')
+			})
+		}
+		return null
+	}, false, true)
 }
  
 function getPaperInfo() {
@@ -3780,6 +3802,7 @@ function getAllPositions() {
 export {
 	getPaperInfo,
 	initPaperInfo,
+	updatePageSizeMargins,
 	updateCustomControls,
 	clearStruct,
 	getStruct,

@@ -6,43 +6,121 @@ import { biyueCallCommand } from './command.js'
 var g_exam_tree = null
 var g_horizontal_list = []
 var upload_control_list = []
+
+// 载入框架或重新切题后会调用initExamTree，需要视情况更新node_list和question_map
 function initExamTree() {
 	return new Promise((resolve, reject) => {
 		console.log('[initExamTree]')
+		var nodeList = window.BiyueCustomData.node_list
 		getDocList().then(res => {
-			var hlist = generateListByDoc(res)
-			g_horizontal_list = hlist
-			console.log(' after generateListByDoc', [].concat(hlist))
-			window.BiyueCustomData.node_list = hlist
-			var treeInfo = genetateTreeByHList(hlist)
-			console.log('******************   hlist', hlist)
+			updateQuestionMapByDoc(res)
+			if (!nodeList || nodeList.length == 0 || nodeList[0].text) {
+				var hlist = generateListByDoc(res)
+				g_horizontal_list = hlist
+				console.log(' after generateListByDoc', [].concat(hlist))
+				window.BiyueCustomData.node_list = hlist
+			} else {
+				g_horizontal_list = nodeList
+			}
+			var treeInfo = genetateTreeByHList(g_horizontal_list)
+			console.log('******************   hlist', g_horizontal_list)
 			console.log('******************   treeInfo', treeInfo)
 			renderTree(treeInfo)
-
-			var ques_map = {}
-			for (var i = 0, imax = hlist.length; i < imax; ++i) {
-				var ask_list = []
-				if (hlist[i].writes) {
-					for (var j = 0; j < hlist[i].writes.length; ++j) {
-						ask_list.push({
-							control_id: hlist[i].writes[j],
-							score: 0
-						})
-					}
-				}
-				ques_map[hlist[i].id] = {
-					control_id: hlist[i].id,
-					score: 0,
-					ask_list: ask_list
-				}
+			var question_map = window.BiyueCustomData.question_map
+			var findQuesType = Object.values(question_map).findIndex(e => {
+				return e.question_type && e.question_type > 0
+			})
+			if (findQuesType == -1) {
+				reqGetQuestionType()
 			}
-			window.BiyueCustomData.question_map = ques_map
 			resolve()
 		}).catch(error => {
 			reject(error)
-		})
+		}) 
 	})
 }
+function updateQuestionMapByDoc(list) {
+	if (!list) {
+		return
+	}
+	var quesmap = window.BiyueCustomData.question_map || {}
+	list.forEach(e => {
+		if (quesmap[e.id]) {
+			quesmap[e.id].text = e.text
+			if (quesmap[e.id].ask_list) {
+				var ask_list = quesmap[e.id].ask_list
+				var idx = 0
+				var imax = e.writes ? e.writes.length : 0
+				if (imax) {
+					for (; idx < e.writes.length; ++idx) {
+						if (idx < ask_list.length) {
+							if (ask_list[idx].control_id != e.writes[idx]) {
+								var idx2 = e.writes.indexOf(ask_list[idx].control_id)
+								if (idx2 == -1) {
+									ask_list.splice(idx, 0, {
+										control_id: e.writes[idx],
+										score: 0
+									})
+								} else {
+									var swapElement = ask_list.splice(idx2, 1)
+									ask_list.splice(idx, 0, ...swapElement)
+								}
+							}
+						} else {
+							ask_list.splice(idx, 0, {
+								control_id: e.writes[idx],
+								score: 0
+							})
+						}
+					}
+					//  删除多余的
+					if (ask_list.length > e.writes.length) {
+						ask_list.splice(e.writes.length, ask_list.length - e.writes.length)
+					}
+				} else {
+					ask_list = []
+				}
+			} else {
+				if (e.writes && e.writes.length) {
+					quesmap[e.id].ask_list = []
+					e.writes.forEach(wid => {
+						quesmap[e.id].ask_list.push({
+							control_id: wid,
+							score: 0
+						})
+					})
+				}
+			}
+		} else {
+			var ask_list = []
+			if (e.writes) {
+				ask_list = e.writes.map(wid => {
+					return {
+						control_id: wid,
+						score: 0
+					}
+				})
+			}
+			quesmap[e.id] = {
+				text: e.text,
+				score: 0,
+				ask_list: ask_list
+			}
+		}
+	})
+	var keys = Object.keys(quesmap)
+	for (var i = 0; i < keys.length; ++i) {
+		var index = list.findIndex(e => {
+			return e.id == keys[i]
+		})
+		if (index == -1) {
+			delete quesmap[keys[i]]
+		}
+	}
+	window.BiyueCustomData.question_map = quesmap
+}
+
+
 // 获取文档列表
 function getDocList() {
 	return biyueCallCommand(window, function() {
@@ -175,7 +253,7 @@ function generateListByDoc(docList) {
 		var obj = {
 			id: e.id,
 			regionType: e.regionType,
-			text: e.text,
+			// text: e.text,
 			classType: e.classType,
 			parent_id: parent_id,
 			children: [],
@@ -193,16 +271,16 @@ function generateListByDoc(docList) {
 }
 // 根据list生成渲染需要的tree
 function genetateTreeByHList(list) {
-	updateQuestionMap(list)
 	if (!list) {
 		return null
 	}
+	var quesmap = window.BiyueCustomData.question_map
 	var tree = []
 	list.forEach((e) => {
 		if (e.parent_id == 0) {
 			tree.push({
 				id: e.id,
-				label: e.text,
+				label: quesmap[e.id].text, // e.text,
 				expand: true,
 				is_folder: e.regionType == 'struct',
 				children: [],
@@ -215,7 +293,7 @@ function genetateTreeByHList(list) {
 			if (parent && parent.children) {
 				parent.children.push({
 					id: e.id,
-					label: e.text,
+					label: quesmap[e.id].text, // e.text,
 					expand: true,
 					is_folder: e.regionType == 'struct',
 					children: [],
@@ -605,6 +683,7 @@ function handleDocUpdate() {
 	console.log('===== handleDocUpdate getDocList')
 	getDocList().then(res => {
 		console.log(' handleDocUpdate 1', res)
+		updateQuestionMapByDoc(res)
 		updateHListBYDoc(res)
 		console.log(' handleDocUpdate 2', [].concat(g_horizontal_list))
 		rebuildRelation(g_horizontal_list)
@@ -1075,6 +1154,7 @@ function updateRangeControlType(typeName) {
 			if (res.code == 1) {
 				getDocList().then(res2 => {
 					if (res2) {
+						updateQuestionMapByDoc(res2)
 						updateHListBYDoc(res2)
 						updatePosBySetType(res)
 					}
@@ -1423,8 +1503,8 @@ function isLoading(elementId) {
 }
 
 
-function reqGetQuestionType() {
-	if (isLoading('getQuesType')) {
+function reqGetQuestionType(source) {
+	if (!source && isLoading('getQuesType')) {
 		return
 	}
 	setBtnLoading('getQuesType', true)
@@ -1468,6 +1548,13 @@ function reqGetQuestionType() {
 		}
 		getQuesType(window.BiyueCustomData.paper_uuid, control_list).then(res => {
 			console.log('getQuesType success ', res)
+			var content_list = res.data.content_list
+			if (content_list && content_list.length) {
+				content_list.forEach(e => {
+					window.BiyueCustomData.question_map[e.id].question_type = e.question_type
+					window.BiyueCustomData.question_map[e.id].question_type_name = e.question_type_name
+				})
+			}
 			setBtnLoading('getQuesType', false)
 		}).catch(res => {
 			console.log('getQuesType fail ', res)
@@ -1664,73 +1751,78 @@ function getTimeString() {
 	var micsecond = date.getMilliseconds()
 	return year + '-' + month + '-' + day + ' ' + hour + ':' + minute + ':' + second + ' ' + micsecond
 }
-// 根据hlist更新维护题目列表
-function updateQuestionMap(hlist) {
-	if (!hlist) {
-		return
-	}
-	var question_map = window.BiyueCustomData.question_map || {}
-	var keys = Object.keys(question_map)
-	keys.forEach((key) => {
-		if (hlist.findIndex(e => e.id == key) == -1) {
-			delete question_map[key]
-		}
-	})
-	hlist.forEach(e => {
-		if (question_map[e.id]) {
-			// 更新writes
-			if (!e.writes || e.writes.length == 0) {
-				question_map[e.id].ask_list = []
-			} else {
-				var ask_list = question_map[e.id].ask_list
-				var idx = 0
-				for (; idx < e.writes.length; ++idx) {
-					if (idx < ask_list.length) {
-						if (ask_list[idx].control_id != e.writes[idx]) {
-							var idx2 = e.writes.indexOf(ask_list[idx].control_id)
-							if (idx2 == -1) {
-								ask_list.splice(idx, 0, {
-									control_id: e.writes[idx],
-									score: 0
-								})
-							} else {
-								var swapElement = ask_list.splice(idx2, 1)
-								ask_list.splice(idx, 0, ...swapElement)
-							}
-						}
-					} else {
-						ask_list.splice(idx, 0, {
-							control_id: e.writes[idx],
-							score: 0
-						})
-					}
-				}
-				//  删除多余的
-				if (ask_list.length > e.writes.length) {
-					ask_list.splice(e.writes.length, ask_list.length - e.writes.length)
-				}
-			}
-		} else {
-			var ask_list = []
-			if (e.writes) {
-				for (var j = 0; j < e.writes.length; ++j) {
-					ask_list.push({
-						control_id: e.writes[j],
-						score: 0
-					})
-				}
-			}
-			question_map[e.id] = {
-				control_id: e.id,
-				score: 0,
-				ask_list: ask_list
-			}
-		}
-	})
-}
+
 // 修改题目占比
 function changeProportion(id, proportion) {
-	// todo..
+	Asc.scope.change_options = {
+		id: id,
+		proportion: proportion
+	}
+	Asc.scope.question_map = window.BiyueCustomData.question_map
+	return biyueCallCommand(window, function () {
+		var change_options = Asc.scope.change_options
+		var oControl = Api.LookupObject(change_options.id)
+		if (!oControl) {
+			return
+		}
+		var ques_map = Asc.scope.question_map
+		var oDocument = Api.GetDocument()
+		var oTable = oControl.GetParentTable()
+		var oParentControl = oControl.GetParentContentControl()
+		var posinparent = oControl.GetPosInParent()
+		var docPos = oControl.Sdt.GetDocumentPositionFromObject()
+		if (oParentControl) {
+			if (!oTable) {
+				var targetCellIndex = -1
+				var parent = oControl.Sdt.GetParent()
+				if (posinparent > 1) {
+					var preElement = oParentControl.GetContent().GetElement(posinparent - 1)
+					if (preElement.GetClassType && preElement.GetClassType() == 'table' && preElement.GetTableTitle() == 'question') {
+						var oRow = preElement.GetRow(0)
+						var cellCount = oRow.GetCellsCount()
+						for (var i = 0; i < cellCount; ++i) {
+							var oCell = oRow.GetCell(i)
+							if (oCell) {
+								var oCellContent = oCell.GetContent()
+								var element = oCellContent.GetElement(0)
+								if (element && element.GetClassType && 
+									element.GetClassType() == 'paragraph' &&
+									element.Paragraph.Bounds.Bottom == 0 &&
+									element.Paragraph.Bounds.Top == 0) {
+										targetCellIndex = i
+										break
+									}
+							}
+						}
+						if (targetCellIndex >= 0) {
+							// 暂时不考虑此时要设的占比，只一味丢到空单元格里
+							oParentControl.GetContent().RemoveElement(posinparent)
+							var oCell = preElement.GetCell(0, targetCellIndex);
+							oCell.GetContent().Push(oControl)
+							oCell.GetContent().RemoveElement(0);
+						}
+					}
+				}
+				if (targetCellIndex == -1) {
+					oParentControl.GetContent().RemoveElement(posinparent)
+					var max_cols = change_options.proportion
+					oTable = Api.CreateTable(max_cols, 1);
+					oTable.SetWidth("percent", 100);
+					var oTableStyle = oDocument.CreateStyle("CustomTableStyle", "table");
+					var oTableCellPr = oTableStyle.GetTableCellPr();
+					oTableCellPr.SetWidth("percent", 100 / max_cols);
+					oTable.SetStyle(oTableStyle);
+					oTable.SetTableTitle('question')
+					var oCell = oTable.GetCell(0, 0);
+					oCell.GetContent().Push(oControl)
+					oCell.GetContent().RemoveElement(0);
+					oParentControl.GetContent().AddElement(posinparent, oTable);
+				}
+			}
+		}
+	}, false, true).then(res => {
+
+	})
 }
 
 export {

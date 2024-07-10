@@ -8,9 +8,7 @@ var timeout_pos = null
 
 function initExtroInfo() {
 	list_feature = getList()
-	updatePageSizeMargins().then(() => {
-		initPositions(true)
-	})
+	initPositions(true)
 }
 
 function getValue(v1, v2) {
@@ -300,29 +298,6 @@ function setXY(index, p, x, y, size) {
 	}
 }
 
-function updatePageSizeMargins() {
-	Asc.scope.workbook = window.BiyueCustomData.workbook_info
-	return biyueCallCommand(window, function () {
-		var workbook = Asc.scope.workbook
-		var oDocument = Api.GetDocument()
-		var sections = oDocument.GetSections()
-		function MM2Twips(mm) {
-			var m = Math.max(mm, 10)
-			return m / (25.4 / 72 / 20)
-		}
-		if (sections && sections.length > 0) {
-			sections.forEach(oSection => {
-				oSection.SetPageSize(MM2Twips(workbook.page_size.width), MM2Twips(workbook.page_size.height))
-				oSection.SetPageMargins(MM2Twips(workbook.margin.left), MM2Twips(workbook.margin.top), MM2Twips(workbook.margin.right), MM2Twips(workbook.margin.bottom))
-				oSection.SetFooterDistance(MM2Twips(workbook.margin.bottom - 13));
-				oSection.SetHeaderDistance(MM2Twips(workbook.margin.top))
-				oSection.RemoveFooter('default')
-			})
-		}
-		return null
-	}, false, false).then()
-}
-
 function initPositions(draw) {
 	Asc.scope.workbook = window.BiyueCustomData.workbook_info
 	biyueCallCommand(window, function () {
@@ -420,7 +395,7 @@ function initPositions(draw) {
 		})
 		console.log('list_feature', list_feature)
 		if (draw) {
-			deleteAllFeatures(list_feature).then(() => {
+			deleteAllFeatures([], list_feature).then(() => {
 				var extra_info = window.BiyueCustomData.workbook_info.parse_extra_data
 				if (extra_info.hidden_correct_region.checked == false) {
 					setInteraction(extra_info.start_interaction.checked ? 'accurate' : 'simple').then(() => {
@@ -441,7 +416,12 @@ function initPositions(draw) {
 function MoveCursor() {
 	return biyueCallCommand(window, function() {
 		var oDocument = Api.GetDocument()
-		oDocument.Document.MoveCursorToPageEnd()
+		var controls = oDocument.GetAllContentControls()
+		if (controls && controls.length) {
+			oDocument.Document.MoveCursorToContentControl(controls[0].Sdt.GetId(), true)
+		} else {
+			oDocument.Document.MoveCursorToPageEnd()
+		}
 	}, false, false)
 }
 

@@ -1,7 +1,7 @@
 import { getNumChar, newSplit, rangeToHtml, insertHtml, normalizeDoc } from "./dep.js";
 import { getToken, setXToken } from './auth.js'
 import { toXml, downloadAs } from "./convert.js";
-import { getPaperInfo, initPaperInfo, updateCustomControls, savePositons, updateQuestionScore, drawPositions,  handleIdentifyBox, handleContentControlChange, deletePositions, setSectionColumn, batchChangeInteraction, batchChangeProportion, batchChangeQuesType, getAllPositions } from './business.js'
+import { getPaperInfo, initPaperInfo, updatePageSizeMargins, updateCustomControls, savePositons, updateQuestionScore, drawPositions,  handleIdentifyBox, handleContentControlChange, deletePositions, setSectionColumn, batchChangeInteraction, batchChangeProportion, batchChangeQuesType, getAllPositions } from './business.js'
 import { showQuesData, initListener } from './panelQuestionDetail.js'
 import { initFeature, initExtroInfo } from './panelFeature.js'
 import { handleHeader } from "./featureManager.js";
@@ -1871,44 +1871,46 @@ import { initExamTree, refreshExamTree, updateTreeRenderWhenClick, updateRangeCo
     }
 
     function GetDocInfo() {
-        window.Asc.plugin.callCommand(function () {
-          return Api.DocInfo;
-        }
-        , false, false, function (docInfo) {
-          console.log('docInfo', docInfo)
-          if (docInfo) {
-            let url = docInfo.CallbackUrl
-            const regex = /[?&]([^=#]+)=([^&#]*)/g
-            const params = {}
-            let match
-            while ((match = regex.exec(url))) {
-              params[decodeURIComponent(match[1])] = decodeURIComponent(match[2])
-            }
-            console.log('params', params)
-            setXToken(params.xtoken)
-            window.BiyueCustomData.xtoken = params.xtoken
-            window.BiyueCustomData.paper_uuid = params.id
-            initPaperInfo().then((res2) => {
-              console.log('initPaperInfo', res2)
-			  // window.BiyueCustomData.control_list = res2
-              // setExamTitle(docInfo.Title)
-			  initExamTree().then(() => {
-				if (window.BiyueCustomData && window.BiyueCustomData.node_list) {
-					var find = window.BiyueCustomData.node_list.find(e => {
-						return e.regionType == 'question' || e.regionType == 'struct'
+		window.Asc.plugin.callCommand(function () {
+          	return Api.DocInfo;
+        }, false, false, function (docInfo) {
+			console.log('docInfo', docInfo)
+			if (docInfo) {
+				let url = docInfo.CallbackUrl
+            	const regex = /[?&]([^=#]+)=([^&#]*)/g
+            	const params = {}
+            	let match
+            	while ((match = regex.exec(url))) {
+              		params[decodeURIComponent(match[1])] = decodeURIComponent(match[2])
+            	}
+            	console.log('params', params)
+            	setXToken(params.xtoken)
+            	window.BiyueCustomData.xtoken = params.xtoken
+            	window.BiyueCustomData.paper_uuid = params.id
+            	initPaperInfo().then((res2) => {
+              		console.log('initPaperInfo', res2)
+					updatePageSizeMargins().then(() => {
+						// 是否初次导入
+						var isFirstLoad = !window.BiyueCustomData.node_list || !window.BiyueCustomData.node_list.length
+						if (!isFirstLoad) {
+							var find = window.BiyueCustomData.node_list.find(e => {
+								return e.regionType == 'question' || e.regionType == 'struct'
+							})
+							// 无切题信息，需要重新切题，当初次导入处理
+							if (!find) {
+								isFirstLoad = true
+							}
+						}
+						if (isFirstLoad) {
+							Asc.scope.split_getdoc = true
+							reSplitQustion()
+						} else {
+							initExamTree().then(() => {
+								Asc.scope.split_getdoc = false
+								initExtroInfo()
+							})
+						}
 					})
-					// 无切题信息，进行切题
-					if (!find) {
-						Asc.scope.split_getdoc = true
-						reSplitQustion()
-					} else {
-						Asc.scope.split_getdoc = false
-						initExtroInfo()
-					}
-				  } else {
-					console.log('not node list', window.BiyueCustomData)
-				  }
-			  })
             })
             return params
           }
@@ -1972,7 +1974,7 @@ import { initExamTree, refreshExamTree, updateTreeRenderWhenClick, updateRangeCo
     }
     // 重新切题
     function reSplitQustion() {
-		biyueCallCommand(window, function() {
+		return biyueCallCommand(window, function() {
 			var oDocument = Api.GetDocument();
 			var controls = oDocument.GetAllContentControls();
 			// 先删除所有control

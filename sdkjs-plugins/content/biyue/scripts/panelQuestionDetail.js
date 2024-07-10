@@ -103,7 +103,7 @@ function updateElements(quesData) {
 	$('#panelQues .hint').hide()
 	$('#panelQuesWrapper').show()
 	if (select_type) {
-		select_type.setSelect((quesData.ques_type || 0) + '')
+		select_type.setSelect((quesData.question_type || 0) + '')
 	}
 	if (select_proportion) {
 		select_proportion.setSelect((quesData.proportion || 0) + '')
@@ -193,13 +193,13 @@ function showQuesData(control_id, reginType) {
 
 function changeQuestionType(data) {
 	if (window.BiyueCustomData.question_map[ques_control_id]) {
-		window.BiyueCustomData.question_map[ques_control_id].ques_type = data.value * 1
+		window.BiyueCustomData.question_map[ques_control_id].question_type = data.value * 1
 	}
 }
 // 修改占比
 function chagneProportion(data) {
 	console.log('chagneProportion', data)
-	changeProportion(ques_control_id, data.value)
+	// changeProportion(ques_control_id, data.value)
 }
 
 function initListener() {
