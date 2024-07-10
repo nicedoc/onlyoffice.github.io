@@ -614,24 +614,24 @@ function drawList(list) {
 									}
 									var elementCount = oFooter.GetElementsCount()
 									if (elementCount > 1) {
-										for(var i = elementCount - 1; i >= 0; i--) {
+										for(var i = elementCount - 1; i > 0; i--) {
 											oFooter.RemoveElement(i)
 										}
 									}
 									var paragraph = oFooter.GetElement(0)
-									oFooter.AddElement(0, paragraph);
 									var drawing
 									if (index > 0) {
 										drawing = oDrawing.Copy().Drawing
 									} else {
 										drawing = oDrawing.Drawing
 									}
-										// drawing.Set_PositionH(6, false, options.x, false);
-										// drawing.Set_PositionV(5, false, options.y, false);
-									paragraph.SetJc('right')
+										drawing.Set_PositionH(7, false, - 4, false);
+										drawing.Set_DrawingType(2);
+									// todo.. 在页脚显示页数
+									// paragraph.AddPageNumber();
+									paragraph.SetJc('center')
 									paragraph.Paragraph.AddToParagraph(drawing);
 								})
-								
 								
 							} else {
 								var page_num = options.page_num || options.p

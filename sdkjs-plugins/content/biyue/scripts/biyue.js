@@ -3,8 +3,7 @@ import { getToken, setXToken } from './auth.js'
 import { toXml, downloadAs } from "./convert.js";
 import { getPaperInfo, initPaperInfo, updatePageSizeMargins, updateCustomControls, savePositons, updateQuestionScore, drawPositions,  handleIdentifyBox, handleContentControlChange, deletePositions, setSectionColumn, batchChangeInteraction, batchChangeProportion, getAllPositions } from './business.js'
 import { showQuesData, initListener } from './panelQuestionDetail.js'
-import { initFeature, initExtroInfo } from './panelFeature.js'
-import { handleHeader } from "./featureManager.js";
+import { initFeature, initExtroInfo, syncInteractionWhenReSplit } from './panelFeature.js'
 import { biyueCallCommand, dispatchCommandResult } from "./command.js";
 import { initExamTree, refreshExamTree, updateTreeRenderWhenClick, updateRangeControlType, reqGetQuestionType, reqUploadTree, batchChangeQuesType } from "./ExamTree.js";
 
@@ -1960,7 +1959,23 @@ import { initExamTree, refreshExamTree, updateTreeRenderWhenClick, updateRangeCo
 		return biyueCallCommand(window, function() {
 			var oDocument = Api.GetDocument();
 			var controls = oDocument.GetAllContentControls();
-			// 先删除所有control
+			// 先删除所有题目的互动
+			var drawings = oDocument.GetAllDrawingObjects()
+			if (drawings) {
+				for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
+					var oDrawing = drawings[j]
+					if (oDrawing.Drawing.docPr) {
+						var title = oDrawing.Drawing.docPr.title
+						if (title && title.indexOf('feature') >= 0) {
+							var titleObj = JSON.parse(title)
+							if (titleObj.feature && titleObj.feature.zone_type == 'question') {
+								oDrawing.Delete()
+							}
+						}
+					}
+				}
+			}
+			// 再删除所有control
 			console.log('删除所有control')
 			controls.forEach(e => {
 			  Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
@@ -1985,6 +2000,8 @@ import { initExamTree, refreshExamTree, updateTreeRenderWhenClick, updateRangeCo
 			if (Asc.scope.split_getdoc) {
 				Asc.scope.split_getdoc = false
 				initExtroInfo()
+			} else {
+				syncInteractionWhenReSplit()
 			}
 		}).catch(err => {
 			console.error(err);

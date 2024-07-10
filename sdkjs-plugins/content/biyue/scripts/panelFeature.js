@@ -228,6 +228,12 @@ function changeItem(type, data, id) {
 			poscom.hide()
 		}
 	}
+	var fdata = list_feature.find(e => {
+		return e.id == id
+	})
+	if (fdata) {
+		fdata.value_select = data.value
+	}
 	if (id == 'header') {
 		handleHeader(data.value, window.BiyueCustomData.exam_title || '试卷标题')
 	} else if (id == 'interaction') {
@@ -238,26 +244,23 @@ function changeItem(type, data, id) {
 		}
 	} else {
 		if (id == ZONE_TYPE_NAME[ZONE_TYPE.STATISTICS]) {
-			var list = list_feature.filter(e => {
-				return e.zone_type == ZONE_TYPE.STATISTICS
-			})
-			if (list) {
-				drawExtroInfo(list.map(e => {
-					return Object.assign({}, e, {
-						cmd: data.value,
-					})
-				}))
-			}
+			drawExtroInfo([Object.assign({}, fdata, {
+				cmd:data.value
+			})])
 		} else {
-			var fdata = list_feature.find(e => {
-				return e.id == id
-			})
-			if (!fdata) {
-				return
-			}
 			handleFeature(Object.assign({}, fdata, {
 				cmd: data.value,
 			}))
+		}
+	}
+
+}
+// 重新切题后同步互动情况
+function syncInteractionWhenReSplit() {
+	var interaction = list_feature.find(e => e.id == 'interaction')
+	if (interaction) {
+		if (interaction.value_select != 'none') {
+			setInteraction(interaction.value_select)	
 		}
 	}
 }
@@ -425,4 +428,4 @@ function MoveCursor() {
 	}, false, false)
 }
 
-export { initFeature, initExtroInfo }
+export { initFeature, initExtroInfo, syncInteractionWhenReSplit }
