@@ -61,6 +61,11 @@ function updateQuestionMapByDoc(list) {
 	list.forEach(e => {
 		if (quesmap[e.id]) {
 			quesmap[e.id].text = e.text
+			if (e.regionType) {
+				const regex = /^([^.．、]*)/
+				const match = e.text.match(regex)
+				quesmap[e.id].ques_default_name = match ? match[1] : ''
+			}
 			if (quesmap[e.id].ask_list) {
 				var ask_list = quesmap[e.id].ask_list
 				var idx = 0
@@ -1594,11 +1599,13 @@ function reqUploadTree() {
 	Asc.scope.horlist = g_horizontal_list
 	upload_control_list = []
 	console.log('[reqUploadTree start]', Date.now())
+	Asc.scope.question_map = window.BiyueCustomData.question_map
 	biyueCallCommand(window, function() {
 		var horlist = Asc.scope.horlist
 		var target_list = []
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls()
+		var question_map = Asc.scope.question_map
 		horlist.forEach(e => {
 			if (e.regionType == 'struct' || e.regionType == 'question' || e.regionType == 'sub-question') {
 				var control = controls.find(citem => {
@@ -1614,9 +1621,13 @@ function reqUploadTree() {
 						const result = pattern.exec(text)
 						question_name = result ? result[0] : null
 					} else if (e.regionType) {
-						const regex = /^([^.．、]*)/
-						const match = text.match(regex)
-						question_name = match ? match[1] : ''
+						if (question_map[e.id].ques_name) {
+							question_name = question_map[e.id].ques_name	
+						} else {
+							const regex = /^([^.．、]*)/
+							const match = text.match(regex)
+							question_name = match ? match[1] : ''
+						}
 					}
 					let text_data = {
 						data:     "",
@@ -1752,6 +1763,11 @@ function generateTreeForUpload(control_list) {
 	reqComplete(uploadTree, version).then(res => {
 		console.log('reqComplete', res)
 		console.log('[reqUploadTree end]', Date.now())
+		if (res.data.questions) {
+			res.data.questions.forEach(e => {
+				window.BiyueCustomData.question_map[e.id].uuid = e.uuid
+			})
+		}
 		setBtnLoading('uploadTree', false)
 		alert('全量更新成功')
 	}).catch(res => {

@@ -41,6 +41,20 @@ function reqPaperInfo(paper_uuid) {
 	})
 }
 
+function reqSaveQuestion(paper_uuid, question_uuid, content_type, content_number, scores) {
+	return request({
+		url: '/oodoc/save/question',
+		method: 'post',
+		data: {
+			paper_uuid, //	试卷UUID
+			question_uuid, //	题目UUID
+			content_type, //	题目类型
+			content_number, //	题号（题型为6时非必填
+			scores
+		},
+	})
+}
+
 function paperOnlineInfo(paper_uuid, enter) {
 	return request({
 		url: '/paper/online/info',
@@ -310,6 +324,7 @@ export {
 	getQuesType,
 	reqComplete,
 	reqPaperInfo,
+	reqSaveQuestion,
 	paperOnlineInfo,
 	structAdd,
 	structDelete,

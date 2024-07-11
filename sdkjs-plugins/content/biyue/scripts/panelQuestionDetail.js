@@ -1,6 +1,7 @@
 import ComponentSelect from '../components/Select.js'
 import NumberInput from '../components/NumberInput.js'
 import { changeProportion } from './ExamTree.js'
+import { reqSaveQuestion } from './api/paper.js'
 // 单题详情
 var proportionTypes = [
 	{ value: '1', label: '默认' },
@@ -25,9 +26,17 @@ function initElements() {
 	content = `
   <div class="hint" style="text-align:center">请先选中一道题</div>
   <div id="panelQuesWrapper">
-    <div>题目：<span id="ques_name"></span></div>
-    <table>
+    <div>题目：<span id="ques_text"></span></div>
+    <table style="width: 100%">
       <tbody>
+	  	<tr>
+          <td class="padding-small" width="100%">
+            <label class="header">题号</label>
+			<div id="ques_name" class="spinner" style="width: 100%">
+      			<input type="text" class="form-control" spellcheck="false">
+    		</div>
+          </td>
+        </tr>
         <tr>
           <td class="padding-small" colspan="1" width="100%">
             <label class="header">题型</label>
@@ -83,6 +92,9 @@ function initElements() {
 			changeScore(id, data)
 		},
 	})
+	$(`#ques_name input`).on('input', () => {
+		changeQuesName($(`#ques_name input`).val())
+	  })
 	inited = true
 }
 
@@ -97,6 +109,7 @@ function updateElements(quesData) {
 	}
 	$('#panelQues .hint').hide()
 	$('#panelQuesWrapper').show()
+	$(`#ques_name input`).val(quesData.ques_name || '')
 	if (select_type) {
 		select_type.setSelect((quesData.question_type || 0) + '')
 	}
@@ -107,7 +120,7 @@ function updateElements(quesData) {
 		input_score.setValue((quesData.score || 0) + '')
 	}
 	if (quesData.text) {
-		$('#ques_name').html(quesData.text)
+		$('#ques_text').html(quesData.text)
 	}
 	if (quesData.ask_list && quesData.ask_list.length > 0) {
 		var content = ''
@@ -189,6 +202,7 @@ function showQuesData(control_id, reginType) {
 function changeQuestionType(data) {
 	if (window.BiyueCustomData.question_map[ques_control_id]) {
 		window.BiyueCustomData.question_map[ques_control_id].question_type = data.value * 1
+		autoSave()
 	}
 }
 // 修改占比
@@ -233,6 +247,11 @@ function initListener() {
 	})
 }
 
+function changeQuesName(data) {
+	window.BiyueCustomData.question_map[ques_control_id].ques_name = data
+	autoSave()
+}
+
 function changeScore(id, data) {
 	if (id == 'ques_weight') {
 		window.BiyueCustomData.question_map[ques_control_id].score = data
@@ -240,6 +259,38 @@ function changeScore(id, data) {
 		var index = id.replace('ask', '') * 1
 		window.BiyueCustomData.question_map[ques_control_id].ask_list[index].score = data
 	}
+	autoSave()
+}
+
+function autoSave() {
+	var quesData = window.BiyueCustomData.question_map[ques_control_id]
+	if (!quesData || !quesData.uuid) {
+		return
+	}
+	var scores = []
+	var qname = quesData.ques_name || quesData.ques_default_name
+	if (quesData.question_type != 6) {
+		if (qname == '') {
+			return
+		}
+		if (quesData.ask_list && quesData.ask_list.length > 1) {
+			scores = quesData.ask_list.map(e => {
+				return e.score * 1
+			})
+		} else {
+			scores = [quesData.score * 1]
+		}
+		for (var i = 0; i < scores.length; ++i) {
+			if (isNaN(scores[i]) || !scores[i] || scores[i] < 0) {
+				return
+			}
+		}
+	}
+	reqSaveQuestion(window.BiyueCustomData.paper_uuid, quesData.uuid, quesData.question_type, qname, scores.join(',')).then(res => {
+		console.log('保存单题成功')
+	}).catch(err => {
+		console.warn(err)
+	})
 }
 
 export { showQuesData, initListener }
