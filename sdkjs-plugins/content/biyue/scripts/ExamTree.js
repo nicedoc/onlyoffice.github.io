@@ -1268,8 +1268,15 @@ function updateHListBYDoc(docList) {
 					var preItem = i > 0 ? getItemData(hlist, hlist[i - 1].id) : null
 					var nextItem = i < hlist.length ? getItemData(hlist, hlist[i].id) : null
 					if (preItem && nextItem && nextItem.parent_index != undefined) {
-						if ((preItem.parent_index != undefined && nextItem.parent_index > preItem.parent_index) || preItem.parent_index == undefined ) {
+						if ((preItem.parent_index != undefined && nextItem.parent_index >= preItem.parent_index) || preItem.parent_index == undefined ) {
 							parent_id = hlist[nextItem.parent_index].id
+						} else if (item.parent_control_id) {
+							var pindex = hlist.findIndex(e => {
+								return e.id == item.parent_control_id
+							})
+							if (pindex >= 0) {
+								parent_id = hlist[pindex].id
+							}	
 						}
 					} else if (item.parent_control_id) {
 						var pindex = hlist.findIndex(e => {
@@ -1559,6 +1566,7 @@ function reqGetQuestionType(source) {
 	}, false, false).then( control_list => {
 		console.log('[reqGetQuestionType] control_list', control_list)
 		if (!window.BiyueCustomData.paper_uuid || !control_list || control_list.length == 0) {
+			setBtnLoading('getQuesType', false)
 			return
 		}
 		getQuesType(window.BiyueCustomData.paper_uuid, control_list).then(res => {
