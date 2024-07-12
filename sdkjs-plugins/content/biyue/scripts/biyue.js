@@ -318,7 +318,7 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
 
                     // 标记空白行
                     {
-                        // debugger;
+                        debugger;
                         var content = control.GetContent();
                         var elements = content.GetElementsCount();
                         for (var j = elements - 1; j >= 0; j--) {
@@ -875,7 +875,7 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
                         // Api.asc_RemoveSelection();
                         var oDocument = Api.GetDocument();
                         var text_all = oDocument.GetRange().GetText({ Math: false, TableCellSeparator: "\u24D2", TableRowSeparator: "\u24E1" }) || "";
-                        var text_json = oDocument.ToJSON(true);
+                        var text_json = oDocument.ToJSON(false, false, false, false, true, true);
 
                         return { text_all, text_json };
                     }, false, false)
@@ -883,7 +883,7 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
                             var ranges = newSplit(result.text_json);
                             console.log('splitQuestion:', ranges)
                             return createContentControl(ranges);})
-                    .then(() => { console.log("1.处理第三级子题"); return checkSubQuestion(); })
+                    //.then(() => { console.log("1.处理第三级子题"); return checkSubQuestion(); })
                     .then(() => { console.log("2.处理需要分列的题目"); return processTableColumn(undefined); })
                     .then(() => { console.log("3.处理答题区域"); return checkAnswerRegion(); }) 
                     .then(() => { console.log("4.刷新控件");  return updateCustomControls(); });
