@@ -1,5 +1,5 @@
 // 主要用于处理业务逻辑
-import { paperOnlineInfo, structAdd, questionCreate, questionDelete, questionUpdateContent, structDelete, paperCanConfirm, structRename, paperSavePosition, examQuestionsUpdate } from './api/paper.js'
+
 import { JSONPath } from '../vendor/jsonpath-plus/dist/index-browser-esm.js';
 import { biyueCallCommand } from './command.js';
 let paper_info = {} // 从后端返回的试卷信息
@@ -18,6 +18,17 @@ async function initPaperInfo() {
     updateCustomControls()
   })
 }
+
+function paperOnlineInfo() {}
+function structAdd() {} 
+function questionCreate() {}
+function questionDelete() {}
+function questionUpdateContent() {}
+function structDelete() {}
+function paperCanConfirm() {}
+function structRename() {}
+function paperSavePosition(){}
+function examQuestionsUpdate(){}
 
 function getPaperInfo() {
   return paper_info
