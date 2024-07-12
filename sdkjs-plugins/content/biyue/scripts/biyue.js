@@ -511,7 +511,11 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
                 //console.log('createContentControl:', e);                    
                 var range = MakeRange(e.beg, e.end);
                 range.Select()
+                
+                // 特殊处理，如果range的最后一个段落是DocumentContent的最后一个段落，创建ContentControl过程中会额外增加一个段落
+                // 需要在创建ContentControl之后，将DocumentContent的最后一个段落删除                
                 var oResult = Api.asc_AddContentControl(e.controlType || 1, { "Tag": e.info ? JSON.stringify(e.info) : '' });
+
                 Api.asc_RemoveSelection();
                 if (e.column !== undefined && e.column > 1) {
                     results.push({
