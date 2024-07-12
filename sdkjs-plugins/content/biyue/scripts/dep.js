@@ -185,7 +185,14 @@ let getNumChar = function (numFmt, no) {
 
 
 // convert 
-// "$['content'][9]['content'][0]['content'][0]" => "$['content'][8]['content'][-1]['content'][-1]"
+// ("$['content'][9]['content'][0]['content'][0]", -1） => "$['content'][8]['content'][-1]['content'][-1]"
+// ("$['content'][9]['content'][0]['content'][0]",  0） => "$['content'][9]['content'][-1]['content'][-1]"
+/**
+ * Decreases the index of a specific paragraph in a given path by a specified step.
+ * @param {string} path - The path containing the paragraph index.
+ * @param {number} step - The step to decrease the paragraph index by.
+ * @returns {string} - The updated path with the decreased paragraph index.
+ */
 function prev_paragraph(path, step) {
     var ids = path.match(/\d+/g).map(function (item) {
         return parseInt(item);
@@ -332,18 +339,30 @@ function calc_relation(pathArrayA, pathArrayB) {
 */
 let newSplit = function (text) {
     var k = JSON.parse(text);
+
+    let minimize_pPr = function (node) {
+        if (node.pPr) {
+            if (node.pPr.numPr && k.numbering.num[node.pPr.numPr.numId] !== undefined) {
+                node.pPr = { numPr: node.pPr.numPr, type: "paraPr"};
+                return;
+            }
+
+            if (node.pPr.pStyle !== undefined && k.styles[node.pPr.pStyle] !== undefined) {
+                node.pPr = { pStyle: node.pPr.pStyle};
+                return;
+            }
+
+            delete node.pPr;            
+        }        
+    }
+
     // 删除不需要的属性
     JSONPath({
         path: '$..[pPr,rPr,tblPr,tcPr]^', json: k, callback: function (node) {
 
             // check node whether has pPr property
-            if (node.pPr) {
-                if (node.pPr.numPr) {
-                    node.pPr = { numPr: node.pPr.numPr, type: "paraPr" };
-                } else {
-                    delete node.pPr;
-                }
-            }
+            minimize_pPr(node);
+
             delete node.changes;
             delete node.bFromDocument;
             delete node.rPr;
@@ -383,9 +402,24 @@ let newSplit = function (text) {
         return ret;
     }
 
-    // 合并属性相同的run
+    var ranges = [];
+
+    var style2lvl = {};
+    // 获取有自动编号属性的样式 $..styles..pPr.numPr
     JSONPath({
-        path: '$..content[?(@.type=="paragraph")]', json: k, resultType: "value", callback: function (node) {
+        path: '$..styles..pPr.numPr^^', json: k, resultType: "all", callback: function (result) {
+            var styleId = result.parentProperty;
+            var lvl = result.value.pPr.numPr.ilvl;
+            style2lvl[styleId] = lvl;
+        }    
+    });
+
+
+    // 合并属性相同的run
+    
+    JSONPath({
+        path: '$..content[?(@.type=="paragraph")]', json: k, resultType: "all", callback: function (res) {
+            var node = res.value;
             if (!node.content) {
                 return;
             }
@@ -406,55 +440,34 @@ let newSplit = function (text) {
                 }
             });
 
-
-            // numberings
-            let genNum = function (node) {
-                if (!node.pPr || !node.pPr.numPr) {
-                    return;
+            let getNumberingLvl = function (node) {
+                if (node.pPr && node.pPr.numPr) {
+                    return node.pPr.numPr.ilvl;
                 }
-
-
-                var ilvl = node.pPr.numPr.ilvl;
-                var numId = node.pPr.numPr.numId;
-
-                if (!k.numbering.num[numId]) {
-                    return;
+                if (node.pPr !== undefined && node.pPr.pStyle !== undefined && style2lvl[node.pPr.pStyle] !== "undefined") {
+                    return style2lvl[node.pPr.pStyle];
                 }
+                return undefined;
+            }
 
-                var abstractNumId = k.numbering.num[numId].abstractNumId;
-                if (!k.numbering.abstractNum[abstractNumId]) {
-                    return;
+            let fromNumberingToRange = function (node, path) {
+                // 获取有直接自动编号的段落
+                path = path + "['content'][0]['content'][0]";
+                var ilvl = getNumberingLvl(node);
+                if (ilvl === undefined) {
+                    return;                
+                } else {
+                    ranges.push({
+                        beg: path,
+                        info: { 'regionType': 'question', 'mode': 1,  column: 1, lvl: ilvl },
+                        controlType: 1,
+                        major_pos: major_pos(path)
+                    });
                 }
-
-                var abstractNum = k.numbering.abstractNum[abstractNumId];
-                if (!abstractNum.lvl || !abstractNum.lvl[ilvl]) {
-                    return;
-                }
-
-                var lvl = abstractNum.lvl[ilvl];
-                var numFmt = lvl.numFmt.val;
-                var lvlText = lvl.lvlText;
-                var no = (lvl.start ? lvl.start : 1) + getNum(numId, ilvl);
-                var txt = lvlText.replace("%1", getNumChar(numFmt, no)) + "\t";
-
-
-                var done = false;
-                for (var i = 0; i < node.content.length; i++) {
-                    var item = node.content[i];
-                    if (item.type === "run" && item.content.length === 1 && !item.content[0].type) {
-                        item.content[0] = txt + item.content[0];
-                        done = true;
-                        break;
-                    }
-                }
-                if (done == false) {
-                    node.content = [{ type: "run",
-                        content: [txt]
-                    }].concat(node.content);
-                }
-            };
+            }
+            
             if (k.numbering !== undefined) {
-                genNum(node);
+                fromNumberingToRange(node, res.path);
             }
 
         }
@@ -480,7 +493,7 @@ let newSplit = function (text) {
         }
     });
 
-    var ranges = [];
+    
     // 获取结构区域    
     // $..content[?(typeof(@) == "string"  && @.match('^\\d+\\.'))] 
     const structPatt = "$..content[?(typeof(@) == 'string'  && @.match('[一二三四五六七八九十]+、'))]";
@@ -494,7 +507,7 @@ let newSplit = function (text) {
                 major_pos: major_pos(res)
             })
         }
-    });
+    });    
 
     // 获取题目区域
     // $..content[?(typeof(@) == "string"  && @.match('^\\d+\\.'))] 
@@ -516,12 +529,21 @@ let newSplit = function (text) {
         console.log(marker, 'border: 1px solid red; padding: 2px', '');
     };
 
-
     // 获取解答
     ranges.sort(function (a, b) {
         return a.major_pos - b.major_pos;
     });
 
+    // delete duplicate range
+    range = ranges.filter((item, index, arr) => {
+        if (index === 0) {
+            return true;
+        }
+        if (item.beg === arr[index - 1].beg) {
+            return false;
+        }
+        return true;
+    });
   
     for (var i = 0  ; i < ranges.length; i++) {
         var range = ranges[i];
