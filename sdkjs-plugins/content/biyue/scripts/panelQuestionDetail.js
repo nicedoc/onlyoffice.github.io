@@ -114,7 +114,10 @@ function updateElements(quesData) {
 		select_type.setSelect((quesData.question_type || 0) + '')
 	}
 	if (select_proportion) {
-		select_proportion.setSelect((quesData.proportion || 0) + '')
+		select_proportion.setSelect((quesData.proportion || 1) + '')
+		if (!quesData.proportion) {
+			window.BiyueCustomData.question_map[ques_control_id].proportion = 1
+		}
 	}
 	if (input_score) {
 		input_score.setValue((quesData.score || 0) + '')

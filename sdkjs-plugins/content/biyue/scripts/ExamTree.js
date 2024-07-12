@@ -61,6 +61,7 @@ function updateQuestionMapByDoc(list) {
 	list.forEach(e => {
 		if (quesmap[e.id]) {
 			quesmap[e.id].text = e.text
+			quesmap[e.id].proportion = 1
 			if (e.regionType) {
 				const regex = /^([^.．、]*)/
 				const match = e.text.match(regex)
@@ -1646,13 +1647,13 @@ function reqUploadTree() {
 					target_list.push({
 						parent_id: e.parent_id,
 						id: e.id,
-						uuid: "",
+						uuid: question_map[e.id].uuid || '',
 						regionType: e.regionType,
 						content_type: content_type,
 						content_xml: '',
 						content_html: content_html,
 						content_text: text,
-						question_type: 0,
+						question_type: question_map[e.id].question_type,
 						question_name: question_name
 					})
 				}
@@ -1808,7 +1809,7 @@ function changeProportion(id, proportion) {
 		var oDocument = Api.GetDocument()
 		var oTable = oControl.GetParentTable()
 		var oParentControl = oControl.GetParentContentControl()
-		
+
 		var posinparent = oControl.GetPosInParent()
 		var docPos = oControl.Sdt.GetDocumentPositionFromObject()
 		if (oParentControl) {
@@ -1863,7 +1864,9 @@ function changeProportion(id, proportion) {
 			}
 		}
 	}, false, true).then(res => {
-
+		// if (res) {
+		// 	window.BiyueCustomData.question_map[res.id].proportion = res.proportion
+		// }
 	})
 }
 
