@@ -45,11 +45,23 @@ function handleContextMenuShow(options) {
 		window.Asc.plugin.executeMethod('AddContextMenuItem', [getContextMenuItems(options.type)])
 	} else if (options.type == 'Selection') { // 选中范围，针对所选范围处理
 		window.Asc.plugin.executeMethod('AddContextMenuItem', [getContextMenuItems(options.type)])
+	} else if (options.type == 'Shape') {
+		window.Asc.plugin.executeMethod('AddContextMenuItem', [getContextMenuItems(options.type)])
 	}
 }
 
 function getContextMenuItems(type) {
 	console.log('getContextMenuItems', type)
+	if (type == 'Shape') {
+		return {
+			guid: window.Asc.plugin.guid,
+			items: [{
+				separator: true,
+				id: 'handleWrite_del',
+				text: '删除作答区'
+			}],
+		}
+	}
 	var splitType = {
 		separator: true,
 		icons:
@@ -107,8 +119,29 @@ function getContextMenuItems(type) {
 	}
 	if (isQuestion) {
 		settings.items.push({
-			id: 'addWrite',
-			text: '添加作答区'
+			id: 'write',
+			text: '作答区',
+			items: [{
+				id: 'handleWrite_add',
+				text: '添加',
+			}, {
+				id: 'handleWrite_del',
+				text: '删除',
+			}] 
+		})
+		settings.items.push({
+			id: 'identify',
+			text: '识别框',
+			items: [
+				{
+					id: 'handleIdentifyBox_add',
+					text: '添加',
+				},
+				{
+					id: 'handleIdentifyBox_del',
+					text: '删除',
+				},
+			],
 		})
 	}
 	return settings
@@ -929,9 +962,12 @@ function reqGetQuestionType() {
 	})
 }
 
-function addWrite() {
-	console.log('              addWrite')
+function handleWrite(cmdType) {
+	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
+	Asc.scope.write_cmd = cmdType
 	return biyueCallCommand(window, function() {
+		var client_node_id = Asc.scope.client_node_id
+		var write_cmd = Asc.scope.write_cmd
 		var oDocument = Api.GetDocument()
 		var curControl = oDocument.Document.GetContentControl()
 		if (!curControl) {
@@ -940,53 +976,284 @@ function addWrite() {
 		}
 		var oControl = Api.LookupObject(curControl.Id)
 		if (oControl) {
-			console.log('oControl', oControl)
 			var tag = JSON.parse(oControl.GetTag() || '{}')
-			var oFill = Api.CreateSolidFill(Api.CreateRGBColor(255, 0, 0))
-			oFill.UniFill.transparent = 255 * 0.2 // 透明度
-			var oStroke = Api.CreateStroke(3600, Api.CreateNoFill())
-			var oDrawing = Api.CreateShape(
-				'rect',
-				20 * 36e3,
-				10 * 36e3,
-				oFill,
-				oStroke
-			)
-			console.log(' 2')
-			var titleobj = {
-				feature: {
-					zone_type: 'question',
-					type: 'write',
-					control_id: oControl.Sdt.GetId(),
-					client_id: tag.client_id
+			if (write_cmd == 'add') {
+				client_node_id += 1
+				var oFill = Api.CreateSolidFill(Api.CreateRGBColor(255, 0, 0))
+				oFill.UniFill.transparent = 255 * 0.2 // 透明度
+				var oStroke = Api.CreateStroke(3600, Api.CreateNoFill())
+				var oDrawing = Api.CreateShape(
+					'rect',
+					20 * 36e3,
+					10 * 36e3,
+					oFill,
+					oStroke
+				)
+				var titleobj = {
+					feature: {
+						zone_type: 'question',
+						sub_type: 'write',
+						control_id: oControl.Sdt.GetId(),
+						parent_id: tag.client_id,
+						client_id: client_node_id
+					}
+				}
+				oDrawing.Drawing.Set_Props({
+					title: JSON.stringify(titleobj),
+				})
+				oDrawing.SetWrappingStyle('inFront')
+				oDrawing.SetDistances(0, 0, 2 * 36e3, 0);
+				var paragraphs = oControl.GetAllParagraphs()
+				if (paragraphs && paragraphs.length > 0) {
+					var pParagraph = paragraphs[0]
+					var oRun = Api.CreateRun()
+					oRun.AddDrawing(oDrawing)
+					pParagraph.AddElement(
+						oRun,
+						1
+					)
+				}
+				return {
+					ques_id: tag.client_id,
+					write_id: client_node_id,
+					client_node_id: client_node_id,
+					drawing_id: oDrawing.Drawing.Id,
+					cmdType: write_cmd
+				}
+			} else {
+				var selectDrawings = oDocument.GetSelectedDrawings()
+				if (selectDrawings) {
+					var drawings = oDocument.GetAllDrawingObjects()
+					for (var i = 0; i < selectDrawings.length; ++i) {
+						if (selectDrawings[i].GetClassType() == 'shape') {
+							var title = selectDrawings[i].Drawing.docPr.title || '{}'
+							var titleObj = JSON.parse(title)
+							if (titleObj.feature && titleObj.feature.zone_type == 'question' && titleObj.feature.sub_type == 'write') {
+								var drawingId = selectDrawings[i].Drawing.Id
+								var oDrawing = drawings.find(e => {
+									return e.Drawing.Id == drawingId
+								})
+								if (oDrawing) {
+									oDrawing.Delete()
+									return {
+										ques_id: titleObj.feature.parent_id,
+										write_id: titleObj.feature.client_id,
+										client_node_id: client_node_id,
+										drawing_id: drawingId,
+										cmdType: write_cmd
+									}
+								}
+							}
+						}
+					}
 				}
 			}
-			console.log(' 3')
-			oDrawing.Drawing.Set_Props({
-				title: JSON.stringify(titleobj),
-			})
-			console.log(' 4')
-			oDrawing.SetDistances(0, 0, 2 * 36e3, 0);
-			var paragraphs = oControl.GetAllParagraphs()
-			if (paragraphs && paragraphs.length > 0) {
-				var pParagraph = paragraphs[0]
-				var oRun = Api.CreateRun()
-				oRun.AddDrawing(oDrawing)
-				pParagraph.AddElement(
-					oRun,
-					1
-				)
-				console.log(' 5')
-			}
-			console.log(' 1', oDrawing)
-			return oDrawing.Drawing.Id
 		} else {
 			console.log('======== oControl is null ========')
 		}
 		return null
 	}, false, true).then(res => {
-		console.log('=============== addWrite', res)
+		handleWriteResult(res)
 	})
+}
+
+// 添加或删除标识
+function handleIdentifyBox(cmdType) {
+	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
+	Asc.scope.write_cmd = cmdType
+	biyueCallCommand(window, function () {
+			var oDocument = Api.GetDocument()
+			var curPosInfo = oDocument.Document.GetContentPosition()
+			var cmdType = Asc.scope.write_cmd
+			var client_node_id = Asc.scope.client_node_id
+			console.log('curPosInfo', curPosInfo)
+			var res = {
+				cmdType: cmdType
+			}
+			if (curPosInfo) {
+				var runIdx = -1
+				var paragraphIdx = -1
+				for (var i = curPosInfo.length - 1; i >= 0; --i) {
+					if (curPosInfo[i].Class.GetType) {
+						var t = curPosInfo[i].Class.GetType()
+						if (t == 1) {
+							paragraphIdx = i
+							break
+						} else if (t == 39) {
+							runIdx = i
+						}
+					}
+				}
+				function createDrawing(parent_control_id, parent_id) {
+					var oFill = Api.CreateNoFill()
+					var oStroke = Api.CreateStroke(
+						3600,
+						Api.CreateSolidFill(Api.CreateRGBColor(125, 125, 125))
+					)
+					var oDrawing = Api.CreateShape(
+						'rect',
+						8 * 36e3,
+						5 * 36e3,
+						oFill,
+						oStroke
+					)
+					var drawDocument = oDrawing.GetContent()
+					var oParagraph = Api.CreateParagraph()
+					oParagraph.AddText('×')
+					oParagraph.SetColor(125, 125, 125, false)
+					oParagraph.SetFontSize(24)
+					oParagraph.SetFontFamily('黑体')
+					oParagraph.SetJc('center')
+					drawDocument.AddElement(0, oParagraph)
+					oDrawing.SetPaddings(0, 0, 0, 0.5 * 36e3)
+					var titleobj = {
+						feature: {
+							zone_type: 'question',
+							sub_type: 'identify',
+							control_id: parent_control_id,
+							parent_id: parent_id,
+							client_id: client_node_id
+
+						}
+					}
+					oDrawing.Drawing.Set_Props({
+						title: JSON.stringify(titleobj),
+					})
+					oDrawing.SetWrappingStyle('inline')
+					return oDrawing
+				}
+				if (paragraphIdx >= 0) {
+					var pParagraph = new Api.private_CreateApiParagraph(
+						AscCommon.g_oTableId.Get_ById(curPosInfo[paragraphIdx].Class.Id)
+					)
+					var paraentControl = pParagraph.GetParentContentControl()
+					if (paraentControl) {
+						var tag = JSON.parse(paraentControl.GetTag())
+						if (
+							tag.regionType == 'question'
+						) {
+							res.control_id = paraentControl.Sdt.GetId()
+							res.ques_id = tag.client_id
+							if (cmdType == 'add') {
+								client_node_id += 1
+								var oDrawing = createDrawing(paraentControl.Sdt.GetId(), tag.client_id)
+								if (runIdx >= 0) {
+									res.run_id = curPosInfo[runIdx].Class.Id
+									curPosInfo[runIdx].Class.Add_ToContent(
+										curPosInfo[runIdx].Position,
+										oDrawing.Drawing
+									)
+									res.add_pos = 'run'
+								} else {
+									var oRun = Api.CreateRun()
+									oRun.AddDrawing(oDrawing)
+									pParagraph.AddElement(
+										oRun,
+										curPosInfo[paragraphIdx].Position + 1
+									)
+								}
+							} else {
+								res.remove_ids = []
+								var drawings = paraentControl.GetAllDrawingObjects()
+								for (var sidx = 0; sidx < drawings.length; ++sidx) {
+									if (
+										drawings[sidx].Drawing &&
+										drawings[sidx].Drawing.docPr &&
+										drawings[sidx].Drawing.docPr.title &&
+										drawings[sidx].Drawing.docPr.title != ''
+									) {
+										try {
+											var dtitle = JSON.parse(
+												drawings[sidx].Drawing.docPr.title
+											)
+											if (dtitle.feature && dtitle.feature.sub_type == 'identify') {
+												res.remove_ids.push(dtitle.feature.client_id)
+												drawings[sidx].Delete()
+											}
+										} catch (error) {}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			res.client_node_id = client_node_id
+			return res
+		},
+		false,
+		true
+	).then((res) => {
+		console.log('handleIdentifyBox result', res)
+		handleWriteResult(res)
+	})
+}
+
+function handleWriteResult(res) {
+	console.log('handleWriteResult', res)
+	if (!res) {
+		return
+	}
+	if (res.client_node_id) {
+		window.BiyueCustomData.client_node_id = res.client_node_id
+	}
+	if (res.ques_id) {
+		var node_list = window.BiyueCustomData.node_list || []
+		var question_map = window.BiyueCustomData.question_map || {}
+		var nodeData = node_list.find(e => {
+			return e.id == res.ques_id
+		})
+		if (res.cmdType == 'del' && !res.remove_ids && res.write_id) {
+			res.remove_ids = [res.write_id]
+		}
+		if (nodeData) {
+			if (res.cmdType == 'add') {
+				if (!nodeData.write_list) {
+					nodeData.write_list = []
+				}
+				nodeData.write_list.push({
+					id: res.write_id,
+					drawing_id: res.drawing_id
+				})
+			} else if (nodeData.write_list) {
+				res.remove_ids.forEach(removeid => {
+					var writeIndex = nodeData.write_list.findIndex(e => {
+						return e.id == removeid
+					})
+					if (writeIndex >= 0) {
+						nodeData.write_list.splice(writeIndex, 1)
+					}
+				})
+			}
+		}
+		if (question_map[res.ques_id]) {
+			if (res.cmdType == 'add') {
+				if (!question_map[res.ques_id].ask_list) {
+					question_map[res.ques_id].ask_list = []
+				}
+				question_map[res.ques_id].ask_list.push({
+					id: res.write_id,
+					score: 0
+				})
+			} else if (question_map[res.ques_id].ask_list) {
+				res.remove_ids.forEach(removeid => {
+					var askIndex = question_map[res.ques_id].ask_list.findIndex(e => {
+						return e.id == removeid
+					})
+					if (askIndex >= 0) {
+						question_map[res.ques_id].ask_list.splice(askIndex, 1)
+					}
+				})
+			}
+		}
+		document.dispatchEvent(
+			new CustomEvent('updateQuesData', {
+				detail: {
+					client_id: res.ques_id
+				}
+			})
+		)
+	}
 }
 function setBtnLoading(elementId, isLoading) {
 	var element = $(`#${elementId}`)
@@ -1242,5 +1509,6 @@ export {
 	showLevelSetDialog,
 	confirmLevelSet,
 	initControls,
-	addWrite
+	handleWrite,
+	handleIdentifyBox
 }

@@ -3583,6 +3583,8 @@ function getAllPositions() {
 		function GetCorrectRegion(oControl) {
 			var correct_ask_region = []
 			var correct_region = {}
+			var identify_region = []
+			var write_region = []
 			if (oControl.GetClassType() == 'blockLvlSdt') {
 				var oControlContent = oControl.GetContent()
 				var drawings = oControlContent.GetAllDrawingObjects()
@@ -3598,23 +3600,24 @@ function getAllPositions() {
 							if (title && title.indexOf('feature') >= 0) {
 								var titleObj = JSON.parse(title)
 								if (titleObj.feature && titleObj.feature.zone_type == 'question') {
+									var obj = {
+										page: oDrawing.Drawing.PageNum + 1,
+										x: mmToPx(oDrawing.Drawing.X),
+										y: mmToPx(oDrawing.Drawing.Y),
+										w: mmToPx(oDrawing.Drawing.Width),
+										h: mmToPx(oDrawing.Drawing.Height)
+									}
 									if (titleObj.feature.sub_type == 'simple') {
-										correct_region = {
-											page: oDrawing.Drawing.PageNum + 1,
-											x: mmToPx(oDrawing.Drawing.X),
-											y: mmToPx(oDrawing.Drawing.Y),
-											w: mmToPx(oDrawing.Drawing.Width),
-											h: mmToPx(oDrawing.Drawing.Height)
-										}
+										correct_region = obj
 									} else if (titleObj.feature.sub_type == 'ask_accurate') {
-										correct_ask_region.push({
-											v: correct_ask_region.length + 1 + '',
-											page: oDrawing.Drawing.PageNum + 1,
-											x: mmToPx(oDrawing.Drawing.X),
-											y: mmToPx(oDrawing.Drawing.Y),
-											w: mmToPx(oDrawing.Drawing.Width),
-											h: mmToPx(oDrawing.Drawing.Height)
-										})
+										obj.v = correct_ask_region.length + 1 + ''
+										correct_ask_region.push(obj)
+									} else if (titleObj.feature.sub_type == 'write') {
+										obj.write_id = titleObj.feature.client_id
+										write_region.push(obj)
+									} else if (titleobj.feature.sub_type == 'identify') {
+										obj.write_id = titleObj.feature.client_id
+										identify_region.push(obj)
 									}
 								}
 							}
@@ -3624,7 +3627,9 @@ function getAllPositions() {
 			}
 			return {
 				correct_ask_region,
-				correct_region
+				correct_region,
+				write_region,
+				identify_region
 			}
 		}
 
@@ -3650,67 +3655,66 @@ function getAllPositions() {
 					bounds = Object.values(oControl.Sdt.Bounds)
 				}
 			}
-			// todo..分数框和识别框的尚未添加
+			// todo..分数框的尚未添加
 			var tag = JSON.parse(oControl.GetTag() || '{}')
-			if (tag.regionType == 'question' || tag.regionType == 'sub-question') {
+			if (tag.regionType == 'question') {
 				var correctPos = GetCorrectRegion(oControl)
-        var control_id = oControl.Sdt.GetId()
-        var question_obj = question_map[control_id] ? question_map[control_id] : {}
-        var item = {
+        		var question_obj = question_map[tag.client_id] ? question_map[tag.client_id] : {}
+        		var item = {
+					id: tag.client_id,
 					control_id: oControl.Sdt.GetId(),
 					text: oControl.GetRange().GetText(), // 如果需要html, 请参考ExamTree.js的reqUploadTree
-          content: '',
+          			content: '',
 					title_region: [],
 					correct_region: correctPos.correct_region,
 					correct_ask_region: correctPos.correct_ask_region,
-          score: 0,
-          ask_num: 0,
-          additional: false, // 是否为附加题
-          answer: '',
-          ref_id: question_obj.uuid || '',
-          ques_type: question_obj.question_type || '',
-          ques_name: '',
-          mark_method: "1",
+					score: 0,
+					ask_num: 0,
+					additional: false, // 是否为附加题
+					answer: '',
+					ref_id: question_obj.uuid || '',
+					ques_type: question_obj.question_type || '',
+					ques_name: question_obj.ques_name || question_obj.ques_default_name,
+					mark_method: "1",
 					mark_ask_region: {},
-          write_ask_region: []
+          			write_ask_region: []
 				}
 
-        bounds.forEach(e => {
-          item.title_region.push({
-            page: e.Page + 1,
-            x: e.X,
-            y: e.Y,
-            w: e.W,
-            h: e.H
-          })
-        })
+				bounds.forEach(e => {
+					item.title_region.push({
+						page: e.Page + 1,
+						x: e.X,
+						y: e.Y,
+						w: e.W,
+						h: e.H
+					})
+				})
 
-        if (item.ques_type === 3) {
-						bounds.forEach(e => {
-							item.write_ask_region.push({
-								order: item.write_ask_region.length+1 + '',
-								page: e.Page + 1,
-								x: e.X,
-								y: e.Y,
-								w: e.W,
-								h: e.H,
-                v: '1'
-							})
+        		if (item.ques_type === 3) {
+					bounds.forEach(e => {
+						item.write_ask_region.push({
+							order: item.write_ask_region.length+1 + '',
+							page: e.Page + 1,
+							x: e.X,
+							y: e.Y,
+							w: e.W,
+							h: e.H,
+							v: '1'
 						})
-            let mark_ask_region = item.write_ask_region.map((e) => { return { ...e, order: e.order + '' } })
-            item.mark_ask_region = mark_ask_region.reduce((acc, obj) => {
-              const order = obj.order
-              if (!acc.hasOwnProperty(order)) {
-                acc[order] = []
-              }
-              acc[order].push(obj)
-              return acc
-            }, {})
+					})
+					let mark_ask_region = item.write_ask_region.map((e) => { return { ...e, order: e.order + '' } })
+					item.mark_ask_region = mark_ask_region.reduce((acc, obj) => {
+					const order = obj.order
+					if (!acc.hasOwnProperty(order)) {
+						acc[order] = []
+					}
+					acc[order].push(obj)
+					return acc
+					}, {})
 
-            item.ask_num = Object.keys(item.mark_ask_region).length
-            item.score = item.ask_num // 模拟分数为1问1分
-        }
-
+					item.ask_num = Object.keys(item.mark_ask_region).length
+					item.score = item.ask_num // 模拟分数为1问1分
+        		}
 				ques_list.push(item)
 			} else if (tag.regionType == 'write') {
 				var parentControl = oControl.GetParentContentControl()
@@ -3728,22 +3732,22 @@ function getAllPositions() {
 								y: mmToPx(e.Y),
 								w: mmToPx(e.W),
 								h: mmToPx(e.H),
-                v: '1'
+                				v: '1'
 							})
 						})
-            let mark_ask_region = item.write_ask_region.map((e) => { return { ...e, order: e.order + '' } })
-            item.mark_ask_region = mark_ask_region.reduce((acc, obj) => {
-              const order = obj.order
-              if (!acc.hasOwnProperty(order)) {
-                acc[order] = []
-              }
-              acc[order].push(obj)
-              return acc
-            }, {})
+            			let mark_ask_region = item.write_ask_region.map((e) => { return { ...e, order: e.order + '' } })
+            			item.mark_ask_region = mark_ask_region.reduce((acc, obj) => {
+              			const order = obj.order
+						if (!acc.hasOwnProperty(order)) {
+							acc[order] = []
+						}
+						acc[order].push(obj)
+						return acc
+						}, {})
 
-            item.ask_num = Object.keys(item.mark_ask_region).length
-            item.score = item.ask_num // 模拟分数为1问1分
-            item.mark_method = '2'
+						item.ask_num = Object.keys(item.mark_ask_region).length
+						item.score = item.ask_num // 模拟分数为1问1分
+						item.mark_method = '2'
 					}
 				}
 			}

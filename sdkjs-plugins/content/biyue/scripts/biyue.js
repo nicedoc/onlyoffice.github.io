@@ -15,7 +15,6 @@ import {
 	savePositons,
 	updateQuestionScore,
 	drawPositions,
-	handleIdentifyBox,
 	handleContentControlChange,
 	deletePositions,
 	setSectionColumn,
@@ -41,7 +40,8 @@ import {
 	initControls,
 	handleDocClick,
 	handleContextMenuShow,
-	addWrite
+	handleWrite,
+	handleIdentifyBox
 } from './QuesManager.js'
 
 ;(function (window, undefined) {
@@ -746,7 +746,7 @@ import {
 					batchChangeInteraction(strs[1])
 					break
 				case 'handleIdentifyBox':
-					handleIdentifyBox(strs[1] * 1)
+					handleIdentifyBox(strs[1])
 					break
 				case 'onDismissGroup':
 					onDismissGroup()
@@ -761,8 +761,8 @@ import {
 					var columnCount = strs[1] * 1
 					setSectionColumn(columnCount)
 					break
-				case 'addWrite':
-					addWrite()
+				case 'handleWrite':
+					handleWrite(strs[1])
 					break
 				default:
 					break
