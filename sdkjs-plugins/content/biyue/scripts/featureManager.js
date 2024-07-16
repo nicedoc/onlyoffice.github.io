@@ -720,15 +720,15 @@ function drawList(list) {
 	})
 }
 
-function setInteraction(type, quesId) {
+function setInteraction(type, quesIds) {
 	Asc.scope.interaction_type = type
-	Asc.scope.interaction_quesId = quesId
+	Asc.scope.interaction_quesIds = quesIds
 	return biyueCallCommand(window, function() {
 		var interaction_type = Asc.scope.interaction_type
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls()
 		var MM2TWIPS = 25.4 / 72 / 20
-		var quesId = Asc.scope.interaction_quesId
+		var quesIds = Asc.scope.interaction_quesIds
 		if (!controls) {
 			return
 		}
@@ -1022,8 +1022,13 @@ function setInteraction(type, quesId) {
 		for (var i = 0, imax = controls.length; i < imax; ++i) {
 			var oControl = controls[i]
 			var tag = JSON.parse(oControl.GetTag() || '{}')
-			if (quesId && quesId != tag.client_id) {
-				continue
+			if (quesIds) {
+				var qindex = quesIds.findIndex(e => {
+					return e == tag.client_id
+				})
+				if (qindex == -1) {
+					continue
+				}
 			}
 			if (tag.regionType == 'question') {
 				var allDraws = oControl.GetAllDrawingObjects()

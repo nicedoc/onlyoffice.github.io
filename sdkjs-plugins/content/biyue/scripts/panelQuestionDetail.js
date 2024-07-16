@@ -266,7 +266,7 @@ function chagneProportion(data) {
 function chagneInteraction(data) {
 	console.log('chagneInteraction', data)
 	if (window.BiyueCustomData.question_map[g_ques_id]) {
-		setInteraction(data.value, g_ques_id)
+		setInteraction(data.value, [g_ques_id])
 		window.BiyueCustomData.question_map[g_ques_id].interaction = data.value
 	}
 }

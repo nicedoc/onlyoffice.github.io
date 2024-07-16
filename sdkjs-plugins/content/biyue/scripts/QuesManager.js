@@ -1,6 +1,7 @@
 
 import { biyueCallCommand, dispatchCommandResult } from "./command.js";
 import { getQuesType, reqComplete } from '../scripts/api/paper.js'
+import { setInteraction } from "./featureManager.js";
 var levelSetWindow = null
 var level_map = {}
 var g_click_value = null
@@ -80,6 +81,7 @@ function getContextMenuItems(type) {
 		}
 	})
 	var isQuestion = false
+	var canBatch = false // 是否可批量操作
 	if (type == 'Target') {
 		var client_id = g_click_value.Tag.client_id
 		var node_list = window.BiyueCustomData.node_list || []
@@ -89,17 +91,20 @@ function getContextMenuItems(type) {
 		if (nodeData) {
 			if (nodeData.level_type == 'struct') {
 				valueMap['struct'] = 0
+				canBatch = true
 			} else if (nodeData.level_type == 'question') {
 				valueMap['question'] = 0
 				valueMap['setBig'] = !(nodeData.is_big)
 				valueMap['clearBig'] = nodeData.is_big
 				isQuestion = true
+				canBatch = true
 			} else if (nodeData.level_type == 'write') {
 				valueMap['write'] = 0
 			}
 		}
 	} else {
 		valueMap['setBig'] = 0
+		canBatch = true
 	}
 	var items = []
 	list.forEach((e, index) => {
@@ -116,6 +121,60 @@ function getContextMenuItems(type) {
 	let settings = {
 		guid: window.Asc.plugin.guid,
 		items: [splitType],
+	}
+	if (canBatch) {
+		var questypes = window.BiyueCustomData.paper_options.question_type
+		var itemsQuesType = questypes.map((e) => {
+			return {
+				id: `batchChangeQuesType_${e.value}`,
+				text: e.label,
+			}
+		})
+		var itemsProportion = []
+		for (var i = 1; i <= 8; ++i) {
+			itemsProportion.push({
+				id: `batchChangeProportion_${i}`,
+				text: i == 1 ? '默认' : `1/${i}`,
+			})
+		}
+		settings.items.push({
+			id: 'batchCmd',
+			text: '批量操作',
+			items: [
+				{
+					id: 'batchChangeQuesType',
+					text: '修改题型',
+					items: itemsQuesType,
+				},
+				{
+					id: 'batchChangeScore',
+					text: '修改分数',
+				},
+				{
+					id: 'batchChangeProportion',
+					text: '修改占比',
+					items: itemsProportion,
+				},
+				{
+					id: 'batchChangeInteraction',
+					text: '修改互动模式',
+					items: [
+						{
+							id: 'batchChangeInteraction_none',
+							text: '无互动',
+						},
+						{
+							id: 'batchChangeInteraction_simple',
+							text: '简单互动',
+						},
+						{
+							id: 'batchChangeInteraction_accurate',
+							text: '精准互动',
+						},
+					],
+				},
+			],
+		})
 	}
 	if (isQuestion) {
 		settings.items.push({
@@ -674,41 +733,114 @@ function handleChangeType(res) {
 		})
 	)
 }
-// 批量修改题型
-function batchChangeQuesType(type) {
-	Asc.scope.ques_type = type
+// 获取批量操作列表
+function getBatchList() {
+	Asc.scope.node_list = window.BiyueCustomData.node_list
 	return biyueCallCommand(window, function () {
 		var oDocument = Api.GetDocument()
 		var control_list = oDocument.GetAllContentControls()
 		var ques_id_list = []
-		control_list.forEach((e) => {
-			if (
-				e.Sdt &&
-				e.Sdt.Content &&
-				e.Sdt.Content.Selection &&
-				e.Sdt.Content.Selection.Use
-			) {
-				var tag = JSON.parse(e.GetTag() || '{}')
-				if (tag && tag.client_id) {
-					ques_id_list.push({
-						id: tag.client_id,
-						control_id: e.Sdt.GetId()
-					})
+		var oRange = oDocument.GetRangeBySelect()
+		var type = 'Selection'
+		if (!oRange) {
+			type = 'Target'
+			var node_list = Asc.scope.node_list || []
+			console.log('node_list', node_list)
+			var currentContentControl = oDocument.Document.GetContentControl()
+			var controls = oDocument.GetAllContentControls()
+			if (currentContentControl) {
+				var oControl = Api.LookupObject(currentContentControl.Id)
+				if (oControl) {
+					if (oControl.GetClassType() == 'inlineLvlSdt') {
+						oControl = oControl.GetParentContentControl()
+					}
+					if (oControl) {
+						var tag = JSON.parse(oControl.GetTag() || '{}')
+						if (tag.regionType == 'question' && tag.client_id) {
+							var nodeData = node_list.find(e => {
+								return e.id == tag.client_id
+							})
+							if (nodeData) {
+								if (nodeData.level_type == 'struct') {
+									var controlIndex = controls.findIndex(e => {
+										return e.Sdt.GetId() == currentContentControl.Id
+									})
+									for (var i = controlIndex + 1; i < controls.length; i++) {
+										var nextControl = controls[i]
+										if (nextControl.GetClassType() == 'blockLvlSdt') {
+											var nextTag = JSON.parse(nextControl.GetTag() || '{}')
+											if (nextTag.lvl <= tag.lvl) {
+												break
+											}
+											ques_id_list.push({
+												id: nextTag.client_id,
+												control_id: nextControl.Sdt.GetId()	
+											})
+										}
+									}
+								} else if (nodeData.level_type == 'question') {
+									ques_id_list.push({
+										id: tag.client_id,
+										control_id: oControl.Sdt.GetId()
+									})
+									if (nodeData.is_big) {
+										var childControls = oControl.GetAllContentControls()
+										if (childControls) {
+											childControls.forEach(e => {
+												if (e.GetClassType() == 'blockLvlSdt') {
+													var childTag = JSON.parse(e.GetTag() || '{}')
+													if (childTag.regionType == 'question' && childTag.client_id) {
+														ques_id_list.push({
+															id: childTag.client_id,
+															control_id: e.Sdt.GetId()	
+														})
+													}
+												}
+											})
+										}
+									}
+								}
+							}
+						}
+					}
 				}
 			}
-		})
+		} else {
+			control_list.forEach((e) => {
+				if (
+					e.Sdt &&
+					e.Sdt.Content &&
+					e.Sdt.Content.Selection &&
+					e.Sdt.Content.Selection.Use
+				) {
+					var tag = JSON.parse(e.GetTag() || '{}')
+					if (tag && tag.client_id) {
+						ques_id_list.push({
+							id: tag.client_id,
+							control_id: e.Sdt.GetId()
+						})
+					}
+				}
+			})
+		}
 		return {
 			code: 1,
 			list: ques_id_list,
-			type: Asc.scope.ques_type
+			type: type
 		}
-	}, false, false).then((res) => {
-		if (!res || !res.code || !res.list) {
+	}, false, false)
+}
+// 批量修改题型
+function batchChangeQuesType(type) {
+	return getBatchList().then(res => {
+		console.log('batchChangeQuesType',res)
+		if (!res || !res.code || !res.list || res.list.length == 0) {
 			return
 		}
+		var question_map = window.BiyueCustomData.question_map
 		res.list.forEach(e => {
-			if (window.BiyueCustomData.question_map && window.BiyueCustomData.question_map[e.id]) {
-				window.BiyueCustomData.question_map[e.id].question_type = res.type
+			if (question_map && question_map[e.id]) {
+				question_map[e.id].question_type = type
 			}
 		})
 		// 需要同步更新单题详情
@@ -718,14 +850,28 @@ function batchChangeQuesType(type) {
 					detail: {
 						list: res.list,
 						field: 'question_type',
-						value: res.type,
+						value: type,
 					},
 				})
 			)
 		}
 	})
 }
-
+// 批量设置互动
+function batchChangeInteraction(type) {
+	return getBatchList().then(res => {
+		if (!res || !res.code || !res.list || res.list.length == 0) {
+			return
+		}
+		var question_map = window.BiyueCustomData.question_map
+		res.list.forEach(e => {
+			if (question_map && question_map[e.id]) {
+				question_map[e.id].interaction = type
+			}
+		})
+		return setInteraction(type, res.list.map(e => e.id))
+	})
+}
 // 切题完成
 function splitEnd() {
 	console.log('splitEnd')
@@ -1447,23 +1593,22 @@ function generateTreeForUpload(control_list) {
 	}
 	console.log('               uploadTree', uploadTree)
 	var version = getTimeString()
-	// reqComplete(uploadTree, version).then(res => {
-	// 	console.log('reqComplete', res)
-	// 	console.log('[reqUploadTree end]', Date.now())
-	// 	if (res.data.questions) {
-	// 		res.data.questions.forEach(e => {
-	// 			window.BiyueCustomData.question_map[e.id].uuid = e.uuid
-	// 		})
-	// 	}
-	// 	setBtnLoading('uploadTree', false)
-	// 	alert('全量更新成功')
-	// }).catch(res => {
-	// 	console.log('reqComplete fail', res)
-	// 	console.log('[reqUploadTree end]', Date.now())
-	// 	setBtnLoading('uploadTree', false)
-	// 	alert('全量更新失败')
-	// })
-	setBtnLoading('uploadTree', false)
+	reqComplete(uploadTree, version).then(res => {
+		console.log('reqComplete', res)
+		console.log('[reqUploadTree end]', Date.now())
+		if (res.data.questions) {
+			res.data.questions.forEach(e => {
+				window.BiyueCustomData.question_map[e.id].uuid = e.uuid
+			})
+		}
+		setBtnLoading('uploadTree', false)
+		alert('全量更新成功')
+	}).catch(res => {
+		console.log('reqComplete fail', res)
+		console.log('[reqUploadTree end]', Date.now())
+		setBtnLoading('uploadTree', false)
+		alert('全量更新失败')
+	})
 	console.log(tree)
 }
 
@@ -1505,6 +1650,7 @@ export {
 	reqGetQuestionType,
 	reqUploadTree,
 	batchChangeQuesType,
+	batchChangeInteraction,
 	splitEnd,
 	showLevelSetDialog,
 	confirmLevelSet,
