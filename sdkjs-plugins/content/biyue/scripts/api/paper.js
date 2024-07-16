@@ -320,6 +320,19 @@ function teacherExamPrintPaperSelections() {
 	})
 }
 
+/**
+ * 上传试卷预览图
+ * http://api.dcx.com/#/home/project/inside/api/detail?groupID=479&childGroupID=498&apiID=1931&projectName=%E7%AD%86%E6%9B%B0%20-%20%E9%A2%98%E5%BA%93&projectID=39
+ */
+function paperUploadPreview(data) {
+  return request({
+    url: '/paper/upload/preview',
+    method: 'post',
+    isFileData: true,
+    data: data
+  })
+}
+
 export {
 	getQuesType,
 	reqComplete,
@@ -341,4 +354,5 @@ export {
 	examQuestionsUpdate,
 	teacherClassMyGradePrint,
 	teacherExamPrintPaperSelections,
+  paperUploadPreview
 }

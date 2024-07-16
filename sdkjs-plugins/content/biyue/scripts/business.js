@@ -87,7 +87,7 @@ function updatePageSizeMargins() {
 		return null
 	}, false, true)
 }
- 
+
 function getPaperInfo() {
 	return paper_info
 }
@@ -189,7 +189,7 @@ function onQuesTreeClick(e) {
 	}
 	updateQuesStyle(newlist)
 	Asc.scope.click_ids = newlist
-	biyueCallCommand(window, 
+	biyueCallCommand(window,
 		function () {
 			var ids = Asc.scope.click_ids
 			var oDocument = Api.GetDocument()
@@ -904,7 +904,7 @@ function testAddTable() {
 
 function addQuesScore(score = 10) {
 	Asc.scope.score = score
-	biyueCallCommand(window, 
+	biyueCallCommand(window,
 		function () {
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls()
@@ -1226,7 +1226,7 @@ function addScoreField(score, mode, layout, posall) {
 
 function selectQues(treeInfo, index) {
 	Asc.scope.temp_sel_index = index
-	biyueCallCommand(window, 
+	biyueCallCommand(window,
 		function () {
 			var res = Api.GetDocument().GetAllContentControls()
 			var index = Asc.scope.temp_sel_index
@@ -1261,7 +1261,7 @@ function drawPosition2(data) {
 		Asc.scope.control_id = null
 	}
 	// testAddTable()
-	biyueCallCommand(window, 
+	biyueCallCommand(window,
 		function () {
 			var posdata = Asc.scope.pos
 			var MM2EMU = Asc.scope.MM2EMU
@@ -1488,7 +1488,7 @@ function drawPosition(data) {
 		Asc.scope.drawing_id = null
 	}
 	// testAddTable()
-	biyueCallCommand(window, 
+	biyueCallCommand(window,
 		function () {
 			var posdata = Asc.scope.pos
 			console.log('posdata', posdata)
@@ -2725,7 +2725,7 @@ function addImage() {
 	// toggleWeight()
 	// return
 	Asc.scope.map_base64 = map_base64
-	biyueCallCommand(window, 
+	biyueCallCommand(window,
 		function () {
 			var oDocument = Api.GetDocument()
 			let controls = oDocument.GetAllContentControls()
@@ -2955,7 +2955,7 @@ function toggleWeight() {
 
 function getPos() {
 	Asc.scope.control_list = window.BiyueCustomData.control_list
-	biyueCallCommand(window, 
+	biyueCallCommand(window,
 		function () {
 			var control_list = Asc.scope.control_list
 			console.log('control_list', control_list)
@@ -3563,13 +3563,23 @@ function setSectionColumn(num) {
 }
 // 获取所有相关坐标，用于铺码使用，这里只给出如何获取的代码演示
 function getAllPositions() {
-	biyueCallCommand(window, function() {
+	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
+	return biyueCallCommand(window, function() {
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls()
 		var drawings = oDocument.GetAllDrawingObjects()
 		var oShapes = oDocument.GetAllShapes()
 		var ques_list = []
 		var pageCount = oDocument.GetPageCount()
+    var question_map = Asc.scope.question_map
+
+    function mmToPx(mm) {
+      // 1 英寸 = 25.4 毫米
+      // 1 英寸 = 96 像素（常见的屏幕分辨率）
+      // 因此，1 毫米 = (96 / 25.4) 像素
+      const pixelsPerMillimeter = 96 / 25.4
+      return Math.floor(mm * pixelsPerMillimeter) >>> 0
+    }
 		function GetCorrectRegion(oControl) {
 			var correct_ask_region = []
 			var correct_region = {}
@@ -3590,20 +3600,20 @@ function getAllPositions() {
 								if (titleObj.feature && titleObj.feature.zone_type == 'question') {
 									if (titleObj.feature.sub_type == 'simple') {
 										correct_region = {
-											Page: oDrawing.Drawing.PageNum,
-											X: oDrawing.Drawing.X,
-											Y: oDrawing.Drawing.Y,
-											W: oDrawing.Drawing.Width,
-											H: oDrawing.Drawing.Height
+											page: oDrawing.Drawing.PageNum + 1,
+											x: mmToPx(oDrawing.Drawing.X),
+											y: mmToPx(oDrawing.Drawing.Y),
+											w: mmToPx(oDrawing.Drawing.Width),
+											h: mmToPx(oDrawing.Drawing.Height)
 										}
 									} else if (titleObj.feature.sub_type == 'ask_accurate') {
 										correct_ask_region.push({
-											v: correct_ask_region.length + 1,
-											Page: oDrawing.Drawing.PageNum,
-											X: oDrawing.Drawing.X,
-											Y: oDrawing.Drawing.Y,
-											W: oDrawing.Drawing.Width,
-											H: oDrawing.Drawing.Height
+											v: correct_ask_region.length + 1 + '',
+											page: oDrawing.Drawing.PageNum + 1,
+											x: mmToPx(oDrawing.Drawing.X),
+											y: mmToPx(oDrawing.Drawing.Y),
+											w: mmToPx(oDrawing.Drawing.Width),
+											h: mmToPx(oDrawing.Drawing.Height)
 										})
 									}
 								}
@@ -3628,10 +3638,10 @@ function getAllPositions() {
 					Pages.forEach((page, index) => {
 						bounds.push({
 							Page: oControl.Sdt.GetAbsolutePage(index),
-							X: page.Bounds.Left,
-							Y: page.Bounds.Top,
-							W: page.Bounds.Right - page.Bounds.Left,
-							H: page.Bounds.Bottom - page.Bounds.Top
+							X: mmToPx(page.Bounds.Left),
+							Y: mmToPx(page.Bounds.Top),
+							W: mmToPx(page.Bounds.Right - page.Bounds.Left),
+							H: mmToPx(page.Bounds.Bottom - page.Bounds.Top)
 						})
 					})
 				}
@@ -3644,15 +3654,64 @@ function getAllPositions() {
 			var tag = JSON.parse(oControl.GetTag() || '{}')
 			if (tag.regionType == 'question' || tag.regionType == 'sub-question') {
 				var correctPos = GetCorrectRegion(oControl)
-				ques_list.push({
+        var control_id = oControl.Sdt.GetId()
+        var question_obj = question_map[control_id] ? question_map[control_id] : {}
+        var item = {
 					control_id: oControl.Sdt.GetId(),
 					text: oControl.GetRange().GetText(), // 如果需要html, 请参考ExamTree.js的reqUploadTree
-					title_region: bounds,
+          content: '',
+					title_region: [],
 					correct_region: correctPos.correct_region,
 					correct_ask_region: correctPos.correct_ask_region,
-					mark_ask_region: []
-				})
-				
+          score: 0,
+          ask_num: 0,
+          additional: false, // 是否为附加题
+          answer: '',
+          ref_id: question_obj.uuid || '',
+          ques_type: question_obj.question_type || '',
+          ques_name: '',
+          mark_method: "1",
+					mark_ask_region: {},
+          write_ask_region: []
+				}
+
+        bounds.forEach(e => {
+          item.title_region.push({
+            page: e.Page + 1,
+            x: e.X,
+            y: e.Y,
+            w: e.W,
+            h: e.H
+          })
+        })
+
+        if (item.ques_type === 3) {
+						bounds.forEach(e => {
+							item.write_ask_region.push({
+								order: item.write_ask_region.length+1 + '',
+								page: e.Page + 1,
+								x: e.X,
+								y: e.Y,
+								w: e.W,
+								h: e.H,
+                v: '1'
+							})
+						})
+            let mark_ask_region = item.write_ask_region.map((e) => { return { ...e, order: e.order + '' } })
+            item.mark_ask_region = mark_ask_region.reduce((acc, obj) => {
+              const order = obj.order
+              if (!acc.hasOwnProperty(order)) {
+                acc[order] = []
+              }
+              acc[order].push(obj)
+              return acc
+            }, {})
+
+            item.ask_num = Object.keys(item.mark_ask_region).length
+            item.score = item.ask_num // 模拟分数为1问1分
+        }
+
+				ques_list.push(item)
 			} else if (tag.regionType == 'write') {
 				var parentControl = oControl.GetParentContentControl()
 				if (parentControl) {
@@ -3662,15 +3721,29 @@ function getAllPositions() {
 					})
 					if (item) {
 						bounds.forEach(e => {
-							item.mark_ask_region.push({
-								order: item.mark_ask_region.length,
-								Page: e.Page,
-								X: e.X,
-								Y: e.Y,
-								W: e.W,
-								H: e.H
+							item.write_ask_region.push({
+								order: item.write_ask_region.length+1 + '',
+								page: e.Page + 1,
+								x: mmToPx(e.X),
+								y: mmToPx(e.Y),
+								w: mmToPx(e.W),
+								h: mmToPx(e.H),
+                v: '1'
 							})
 						})
+            let mark_ask_region = item.write_ask_region.map((e) => { return { ...e, order: e.order + '' } })
+            item.mark_ask_region = mark_ask_region.reduce((acc, obj) => {
+              const order = obj.order
+              if (!acc.hasOwnProperty(order)) {
+                acc[order] = []
+              }
+              acc[order].push(obj)
+              return acc
+            }, {})
+
+            item.ask_num = Object.keys(item.mark_ask_region).length
+            item.score = item.ask_num // 模拟分数为1问1分
+            item.mark_method = '2'
 					}
 				}
 			}
@@ -3693,14 +3766,14 @@ function getAllPositions() {
 									feature_list.push({
 										zone_type: titleObj.feature.zone_type,
 										fields: [{
-											v: p + 1,
-											Page: p,
-											X: oDrawing.Drawing.X,
-											Y: oDrawing.Drawing.Y,
-											W: oDrawing.Drawing.Width,
-											H: oDrawing.Drawing.Height
+											v: p + 1 + '',
+											page: p + 1,
+											x: mmToPx(oDrawing.Drawing.X),
+											y: mmToPx(oDrawing.Drawing.Y),
+											w: mmToPx(oDrawing.Drawing.Width),
+											h: mmToPx(oDrawing.Drawing.Height)
 										}]
-									})	
+									})
 								}
 							} else {
 								if (titleObj.feature.zone_type == 'self_evaluation' || titleObj.feature.zone_type == 'teather_evaluation') {
@@ -3716,12 +3789,12 @@ function getAllPositions() {
 												for (var c = 2; c < CellsInfo.length; ++c) {
 													var cell = CellsInfo[c]
 													featureObj.fields.push({
-														v: c - 1,
-														Page: oDrawing.Drawing.PageNum,
-														X: oDrawing.Drawing.X + cell.X_cell_start,
-														Y: oDrawing.Drawing.Y,
-														W: cell.X_cell_end - cell.X_cell_start,
-														H: oDrawing.Drawing.Height
+														v: c - 1 + '',
+														page: oDrawing.Drawing.PageNum + 1,
+														x: mmToPx(oDrawing.Drawing.X + cell.X_cell_start),
+														y: mmToPx(oDrawing.Drawing.Y),
+														w: mmToPx(cell.X_cell_end - cell.X_cell_start),
+														h: mmToPx(oDrawing.Drawing.Height)
 													})
 												}
 											}
@@ -3733,12 +3806,12 @@ function getAllPositions() {
 									}
 								} else {
 									featureObj.fields.push({
-										v: titleObj.feature.v,
-										Page: oDrawing.Drawing.PageNum,
-										X: oDrawing.Drawing.X,
-										Y: oDrawing.Drawing.Y,
-										W: oDrawing.Drawing.Width,
-										H: oDrawing.Drawing.Height
+										v: titleObj.feature.v + '',
+										page: oDrawing.Drawing.PageNum + 1,
+										x: mmToPx(oDrawing.Drawing.X),
+										y: mmToPx(oDrawing.Drawing.Y),
+										w: mmToPx(oDrawing.Drawing.Width),
+										h: mmToPx(oDrawing.Drawing.Height)
 									})
 								}
 								feature_list.push(featureObj)
@@ -3748,13 +3821,19 @@ function getAllPositions() {
 				}
 			}
 		}
+    var paper_info = {
+      pageCount: pageCount
+    }
 		return {
 			ques_list,
-			feature_list
-		} 
-	}, false, false).then(res => {
-		console.log('the result of getAllPositions', res)
-	})
+			feature_list,
+      paper_info
+		}
+	}, false, false)
+  // .then(res => {
+	// 	console.log('the result of getAllPositions', res)
+  //   return res
+	// })
 }
 
 export {

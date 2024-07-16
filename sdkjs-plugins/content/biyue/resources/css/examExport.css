@@ -20,7 +20,7 @@ input {
   margin: 4px;
 }
 
-.info {
+.info, .workbook-info {
 	margin: 8px;
   padding: 8px;
   font-size: 14px;
@@ -58,5 +58,39 @@ input {
     &:hover {
       cursor: pointer;
     }
+  }
+}
+
+
+.workbook-info {
+  div {
+    margin-bottom: 10px;
+  }
+
+  .label-title {
+    font-size: 16px;
+    font-weight: bold;
+    color: #333;
+  }
+
+  .workbook_preview {
+    margin-top: 10px;
+  }
+
+  .uploadPreview {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+
+  .uploadPreview:hover {
+    background-color: #45a049;
   }
 }

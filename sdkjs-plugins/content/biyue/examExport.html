@@ -28,9 +28,19 @@
     <div>
       <input type="file" id="fileInput" accept="image/*" multiple>
       <div id="preview"></div>
-      <button id="uploadImages">上传底图</button>
+      <button id="uploadImages" style="margin-top: 15px;">上传底图</button>
     </div>
 	</div>
+  <div class="workbook-info" style="display: none">
+    <div style="color: #2D3330;font-weight: bold;text-align:center;">练习册试卷上传</div>
+    <div class="label-title">标题</div>
+    <div class="paper-title"></div>
+    <div>
+      <input type="file" id="workbook_fileInput" accept="image/*" multiple>
+      <div id="workbook_preview" class="workbook_preview"></div>
+      <button id="uploadPreview" class="uploadPreview">开始上传</button>
+    </div>
+  </div>
   <script type="module" src="scripts/auth.js"></script>
   <script type="module" src="scripts/request.js"></script>
   <script type="module" src="scripts/api/paper.js"></script>
