@@ -18,7 +18,6 @@ import {
 	handleContentControlChange,
 	deletePositions,
 	setSectionColumn,
-	batchChangeInteraction,
 	batchChangeProportion,
 	getAllPositions
 } from './business.js'
@@ -34,6 +33,7 @@ import {
 	reqGetQuestionType,
 	reqUploadTree,
 	batchChangeQuesType,
+	batchChangeInteraction,
 	splitEnd,
 	showLevelSetDialog,
 	confirmLevelSet,
@@ -713,19 +713,7 @@ import {
 	window.Asc.plugin.attachEvent('onContextMenuShow', function (options) {
 		console.log(options)
 		handleContextMenuShow(options)
-		//     if (!options) return;
-		// contextMenu_options = options
-		// if (options.type === 'Selection' || options.type === 'Target') {
-		// 	this.executeMethod('AddContextMenuItem', [getContextMenuItems()])
-		// }
 	})
-	// window.Asc.plugin.attachContextMenuClickEvent('onMakeGroup', function() {
-	//     console.log("onMakeGroup");
-	//     if (window.prevControl === undefined) {
-	//         return;
-	//     }
-	//     MakeGroup(window.prevControl, window.currControl);
-	// });
 
 	window.Asc.plugin.event_onContextMenuClick = function (id) {
 		console.log('event_onContextMenuClick', id)

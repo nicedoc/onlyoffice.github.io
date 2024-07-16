@@ -723,10 +723,12 @@ function drawList(list) {
 function setInteraction(type, quesIds) {
 	Asc.scope.interaction_type = type
 	Asc.scope.interaction_quesIds = quesIds
+	Asc.scope.question_map = window.BiyueCustomData.question_map
 	return biyueCallCommand(window, function() {
 		var interaction_type = Asc.scope.interaction_type
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls()
+		var question_map = Asc.scope.question_map || {}
 		var MM2TWIPS = 25.4 / 72 / 20
 		var quesIds = Asc.scope.interaction_quesIds
 		if (!controls) {
@@ -1031,6 +1033,11 @@ function setInteraction(type, quesIds) {
 				}
 			}
 			if (tag.regionType == 'question') {
+				if (interaction_type != 'none') {
+					if (!question_map[tag.client_id] || question_map[tag.client_id].level_type != 'question') {
+						continue
+					}
+				}
 				var allDraws = oControl.GetAllDrawingObjects()
 				// var simpleDrawings = getExistDrawing(allDraws, ['simple'])
 				var accurateDrawings = getExistDrawing(allDraws, ['accurate', 'ask_accurate'])

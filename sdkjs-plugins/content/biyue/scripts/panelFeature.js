@@ -213,6 +213,7 @@ function changeAll(data) {
 				if (data.value == 'close') {
 					e.comSelect.setSelect('none')
 				}
+				updateAllInteraction('none')
 			} else {
 				if (e.comSelect) {
 					e.comSelect.setSelect(data.value)
@@ -245,10 +246,7 @@ function changeItem(type, data, id) {
 		} else {
 			setInteraction(data.value)
 		}
-		var question_map = window.BiyueCustomData.question_map || {}
-		Object.keys(question_map).forEach(e => {
-			question_map[e].interaction = data.value
-		})
+		updateAllInteraction(data.value)
 	} else {
 		if (id == ZONE_TYPE_NAME[ZONE_TYPE.STATISTICS]) {
 			drawExtroInfo([Object.assign({}, fdata, {
@@ -267,7 +265,8 @@ function syncInteractionWhenReSplit() {
 	var interaction = list_feature.find(e => e.id == 'interaction')
 	if (interaction) {
 		if (interaction.value_select != 'none') {
-			setInteraction(interaction.value_select)	
+			setInteraction(interaction.value_select)
+			updateAllInteraction(interaction.value_select)
 		}
 	}
 }
@@ -408,7 +407,9 @@ function initPositions(draw) {
 			deleteAllFeatures([], list_feature).then(() => {
 				var extra_info = window.BiyueCustomData.workbook_info.parse_extra_data
 				if (extra_info.hidden_correct_region.checked == false) {
-					setInteraction(extra_info.start_interaction.checked ? 'accurate' : 'simple').then(() => {
+					var vinteraction = extra_info.start_interaction.checked ? 'accurate' : 'simple'
+					updateAllInteraction(vinteraction)
+					setInteraction(vinteraction).then(() => {
 						drawExtroInfo(list_feature).then(res => {
 							MoveCursor()
 						})
@@ -433,6 +434,13 @@ function MoveCursor() {
 			oDocument.Document.MoveCursorToPageEnd()
 		}
 	}, false, false)
+}
+
+function updateAllInteraction(vinteraction) {
+	var question_map = window.BiyueCustomData.question_map || {}
+	Object.keys(question_map).forEach(e => {
+		question_map[e].interaction = vinteraction
+	})
 }
 
 export { initFeature, initExtroInfo, syncInteractionWhenReSplit }
