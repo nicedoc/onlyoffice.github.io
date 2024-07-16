@@ -770,16 +770,23 @@ import {
 		}
 	}
 	function onGetPos(rect) {
-		if (rect === undefined) {
-			return
-		}
-		console.log('onGetPos:', rect)
-		document.getElementById('p-value').innerHTML = rect.Page ? rect.Page + 1 : 1
-		document.getElementById('x-value').innerHTML = mmToPx(rect.X0)
-		document.getElementById('y-value').innerHTML = mmToPx(rect.Y0)
-		document.getElementById('w-value').innerHTML = mmToPx(rect.X1 - rect.X0)
-		document.getElementById('h-value').innerHTML = mmToPx(rect.Y1 - rect.Y0)
-	}
+        if (rect === undefined) {
+            return;
+        }
+
+        if (rect.length !== undefined && rect.length > 0) {
+            console.log('onGetPos:', rect);    
+            rect = rect[0];        
+        }
+
+
+        console.log('onGetPos:', rect);
+        document.getElementById("p-value").innerHTML = rect.Page ? rect.Page + 1 : 1;
+        document.getElementById("x-value").innerHTML = mmToPx(rect.X0);
+        document.getElementById("y-value").innerHTML = mmToPx(rect.Y0);
+        document.getElementById("w-value").innerHTML = mmToPx(rect.X1 - rect.X0);
+        document.getElementById("h-value").innerHTML = mmToPx(rect.Y1 - rect.Y0);
+    };
 
 	let setCurrentContentControlLock = function (lock) {
 		// 直接设置Lock以后，lock都不能操作了，锁定了不能通过插件操作？
@@ -806,50 +813,49 @@ import {
 	}
 
 	let createContentControl = function (ranges) {
-		Asc.scope.ranges = ranges
+        Asc.scope.ranges = ranges;
 
-		return biyueCallCommand(
-			window,
-			function () {
-				var ranges = Asc.scope.ranges
+        return biyueCallCommand(window, function () {
+            var ranges = Asc.scope.ranges;
 
-				let MakeRange = function (beg, end) {
-					if (typeof beg === 'number')
-						return Api.GetDocument().GetRange().GetRange(beg, end)
-					return Api.asc_MakeRangeByPath(e.beg, e.end)
-				}
+            let MakeRange = function (beg, end) {
+                if (typeof beg === 'number')
+                    return Api.GetDocument().GetRange().GetRange(beg, end);
+                try {
+                    return Api.asc_MakeRangeByPath(e.beg, e.end);
+                }
+                catch (error) {
+                    console.error('MakeRange error:', error, e.beg, e.end);
+                    return undefined;
+                }
+            }
 
-				console.log('createContentControl count=', ranges.length)
+            console.log('createContentControl count=', ranges.length);
 
-				var results = []
-				// reverse order loop to keep the order
-				for (var i = ranges.length - 1; i >= 0; i--) {
-					// set selection
-					var e = ranges[i]
-					//console.log('createContentControl:', e);
-					var range = MakeRange(e.beg, e.end)
-					range.Select()
-					var oResult = Api.asc_AddContentControl(e.controlType || 1, {
-						Tag: e.info ? JSON.stringify(e.info) : '',
-					})
-					Api.asc_RemoveSelection()
-					if (e.column !== undefined && e.column > 1) {
-						results.push({
-							InternalId: oResult.InternalId,
-							Tag: oResult.Tag,
-							Column: e.column,
-						})
-					}
-				}
+            var results = [];
+            // reverse order loop to keep the order
+            for (var i = ranges.length - 1; i >= 0; i--) {
+                // set selection
+                var e = ranges[i];
+                //console.log('createContentControl:', e);                    
+                var range = MakeRange(e.beg, e.end);
+                range.Select()
+                var oResult = Api.asc_AddContentControl(e.controlType || 1, { "Tag": e.info ? JSON.stringify(e.info) : '' });
+                Api.asc_RemoveSelection();
+                if (e.column !== undefined && e.column > 1) {
+                    results.push({
+                        "InternalId": oResult.InternalId,
+                        "Tag": oResult.Tag,
+                        "Column": e.column
+                    })
+                }
+            }
 
-				console.log('command createContentControl done')
-
-				return results
-			},
-			false,
-			false
-		)
-	}
+            console.log('command createContentControl done');
+            
+            return results;
+        }, false, false);
+    }
 
 	let insertDrawingObject = function () {
 		console.log('insertDrawingObject')
@@ -891,29 +897,23 @@ import {
 	}
 
 	let showMultiPagePos = function (window, onGetPos) {
-		window.Asc.plugin.executeMethod('GetCurrentContentControl')
-		window.Asc.plugin.onMethodReturn = function (returnValue) {
-			if (window.Asc.plugin.info.methodName == 'GetCurrentContentControl') {
-				console.log('controlId', JSON.stringify(returnValue))
+        window.Asc.plugin.executeMethod("GetCurrentContentControl");
+        window.Asc.plugin.onMethodReturn = function (returnValue) {
+            if (window.Asc.plugin.info.methodName == "GetCurrentContentControl") {
+                console.log("controlId", JSON.stringify(returnValue));
 
-				if (returnValue) {
-					Asc.scope.controlId = returnValue
-					window.Asc.plugin.callCommand(
-						function () {
-							var rects = Api.asc_GetContentControlBoundingRectExt(
-								Asc.scope.controlId,
-								isPageCoord
-							)
-							return rect
-						},
-						false,
-						false,
-						onGetPos
-					)
-				}
-			}
-		}
-	}
+                if (returnValue) {
+                    Asc.scope.controlId = returnValue;
+                    window.Asc.plugin.callCommand(function () {
+                        var isPageCoord = true;
+                        var rects = Api.asc_GetContentControlBoundingRectExt(Asc.scope.controlId, isPageCoord);
+                        return rects;
+                    }, false, false, onGetPos);
+
+                }
+            }
+        };
+    }
 
 	let SetContentProp = function (id, key, value) {
 		window.Asc.plugin.executeMethod(
