@@ -342,12 +342,12 @@ let newSplit = function (text) {
 
     let minimize_pPr = function (node) {
         if (node.pPr) {
-            if (node.pPr.numPr && k.numbering.num[node.pPr.numPr.numId] !== undefined) {
+            if (node.pPr.numPr && k.numbering && k.numbering.num && k.numbering.num[node.pPr.numPr.numId] !== undefined) {
                 node.pPr = { numPr: node.pPr.numPr, type: "paraPr"};
                 return;
             }
 
-            if (node.pPr.pStyle !== undefined && k.styles[node.pPr.pStyle] !== undefined) {
+            if (node.pPr.pStyle !== undefined && k.styles && k.styles[node.pPr.pStyle] !== undefined) {
                 node.pPr = { pStyle: node.pPr.pStyle};
                 return;
             }

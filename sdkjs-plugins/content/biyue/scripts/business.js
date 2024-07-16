@@ -13,7 +13,7 @@ import {
 } from './api/paper.js'
 import { getBase64, map_base64 } from '../resources/list_base64.js'
 import { biyueCallCommand } from './command.js'
-import { initExamTree } from './ExamTree.js'
+import { initExamTree } from './QuesManager.js'
 let paper_info = {} // 从后端返回的试卷信息
 let select_ques_ids = []
 const MM2EMU = 36000 // 1mm = 36000EMU
@@ -3776,7 +3776,7 @@ function getAllPositions() {
 									})
 								}
 							} else {
-								if (titleObj.feature.zone_type == 'self_evaluation' || titleObj.feature.zone_type == 'teather_evaluation') {
+								if (titleObj.feature.zone_type == 'self_evaluation' || titleObj.feature.zone_type == 'teacher_evaluation') {
 									var oShape = oShapes.find(e => {
 										return e.Drawing && e.Drawing.Id == oDrawing.Drawing.Id
 									})

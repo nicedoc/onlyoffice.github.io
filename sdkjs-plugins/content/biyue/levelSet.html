@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <title>LevelSet</title>
+    <script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.js"></script>
+    <script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins-ui.js"></script>
+    <link rel="stylesheet" href="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.css">
+    <script src="vendor/jQuery-2.2.2-min/jquery-v2.2.2-min.js"></script>
+	<style>
+		.info {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			padding: 24px;
+		}
+		.item {
+			padding: 4px;
+		}
+		select {
+			margin-left: 12px;
+		}
+		.confirm-wrapper {
+			display: flex;
+			flex-direction: row;
+			justify-content: space-around;
+			margin-top: 16px;
+		}
+		.btn-cancel,
+		.btn-confirm {
+			padding: 4px 16px;
+			border: 1px solid #333;
+			border-radius: 4px;
+			cursor: pointer;
+		}
+		.btn-cancel {
+			margin-right: 8px;
+		}
+	</style>
+</head>
+
+<body>
+	<div class="info">
+		<div id="levelList"></div>
+		<div class="confirm-wrapper">
+			<div id="cancel" class="btn-cancel">取消</div>
+			<div id="confirm" class="btn-confirm">确定</div>
+		  </div>
+	</div>
+  <script type="module" type="text/javascript" src="scripts/levelSet.js"></script>
+</body>
+</html>
+<script>
+  // 监听消息事件
+  window.addEventListener('message', function(event) {
+    // 检查消息来源是否合法
+    if (event.origin !== window.location.origin) return;
+
+    // 处理接收到的值
+    var receivedData = event.data;
+    console.log("接收到的值:", receivedData);
+  });
+</script>

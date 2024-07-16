@@ -21,6 +21,9 @@ function getValue(v1, v2) {
 
 function getList() {
 	var workbook = window.BiyueCustomData.workbook_info
+	if (!workbook) {
+		return
+	}
 	var extra_info = {}
 	if (workbook.extra_info && workbook.extra_info.length > 0) {
 		extra_info = JSON.parse(workbook.extra_info)
@@ -242,6 +245,10 @@ function changeItem(type, data, id) {
 		} else {
 			setInteraction(data.value)
 		}
+		var question_map = window.BiyueCustomData.question_map || {}
+		Object.keys(question_map).forEach(e => {
+			question_map[e].interaction = data.value
+		})
 	} else {
 		if (id == ZONE_TYPE_NAME[ZONE_TYPE.STATISTICS]) {
 			drawExtroInfo([Object.assign({}, fdata, {

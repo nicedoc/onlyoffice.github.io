@@ -16,7 +16,7 @@ var ZONE_TYPE_NAME = {
 	[`${ZONE_TYPE.END}`]: 'end',
 	[`${ZONE_TYPE.PASS}`]: 'pass',
 	[`${ZONE_TYPE.SELF_EVALUATION}`]: 'self_evaluation',
-	[`${ZONE_TYPE.THER_EVALUATION}`]: 'teather_evaluation',
+	[`${ZONE_TYPE.THER_EVALUATION}`]: 'teacher_evaluation',
 	[`${ZONE_TYPE.STATISTICS}`]: 'statistics',
 	[`${ZONE_TYPE.IGNORE}`]: 'ignore',
 	[`${ZONE_TYPE.CHECK}`]: 'check',

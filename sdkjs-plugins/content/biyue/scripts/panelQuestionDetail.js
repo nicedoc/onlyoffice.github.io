@@ -1,7 +1,7 @@
 import ComponentSelect from '../components/Select.js'
 import NumberInput from '../components/NumberInput.js'
-import { changeProportion } from './ExamTree.js'
 import { reqSaveQuestion } from './api/paper.js'
+import { setInteraction } from './featureManager.js'
 // 单题详情
 var proportionTypes = [
 	{ value: '1', label: '默认' },
@@ -13,9 +13,16 @@ var proportionTypes = [
 	{ value: '7', label: '1/7' },
 	{ value: '8', label: '1/8' },
 ]
-var ques_control_id
+var interactionTypes = [
+	{ 	value: 'none', label: '无互动'},
+	{	value: 'simple', label: '简单互动'},
+	{	value: 'accurate', label: '精准互动'}
+]
+var g_client_id
+var g_ques_id
 var select_type = null // 题型
 var select_proportion = null // 占比
+var select_interaction = null // 互动
 var input_score = null // 分数/权重
 var list_ask = [] // 小问
 var inited = false
@@ -53,6 +60,12 @@ function initElements() {
           <td class="padding-small" width="100%">
             <label class="header">权重/分数</label>
             <div id="ques_weight"></div>
+          </td>
+        </tr>
+		<tr>
+          <td class="padding-small" colspan="1" width="100%">
+            <label class="header">互动</label>
+            <div id="quesInteraction"></div>
           </td>
         </tr>
       </tbody>
@@ -95,35 +108,49 @@ function initElements() {
 	$(`#ques_name input`).on('input', () => {
 		changeQuesName($(`#ques_name input`).val())
 	  })
+	select_interaction = new ComponentSelect({
+		id: 'quesInteraction',
+		options: interactionTypes,
+		value_select: 'none',
+		callback_item: (data) => {
+			chagneInteraction(data)
+		},
+		width: '100%',
+	})
 	inited = true
 }
 
-function updateElements(quesData) {
+function updateElements(quesData, hint) {
 	if (!inited) {
 		initElements()
 	}
 	if (!quesData) {
 		$('#panelQues .hint').show()
 		$('#panelQuesWrapper').hide()
+		$('#panelQues .hint').html(`${hint ? (hint + '，') : ''}请先选中一道题`)
 		return
 	}
 	$('#panelQues .hint').hide()
 	$('#panelQuesWrapper').show()
-	$(`#ques_name input`).val(quesData.ques_name || '')
+	$(`#ques_name input`).val(quesData.ques_name || quesData.ques_default_name || '')
 	if (select_type) {
 		select_type.setSelect((quesData.question_type || 0) + '')
 	}
 	if (select_proportion) {
 		select_proportion.setSelect((quesData.proportion || 1) + '')
 		if (!quesData.proportion) {
-			window.BiyueCustomData.question_map[ques_control_id].proportion = 1
+			window.BiyueCustomData.question_map[g_ques_id].proportion = 1
 		}
+	}
+	if (select_interaction) {
+		select_interaction.setSelect(quesData.interaction || 'none')
 	}
 	if (input_score) {
 		input_score.setValue((quesData.score || 0) + '')
 	}
 	if (quesData.text) {
 		$('#ques_text').html(quesData.text)
+		$('#ques_text').attr('title', quesData.text)
 	}
 	if (quesData.ask_list && quesData.ask_list.length > 0) {
 		var content = ''
@@ -168,62 +195,92 @@ function updateElements(quesData) {
 	}
 }
 
-function showQuesData(control_id, reginType) {
-	console.log('showQuesData', control_id, reginType)
-	ques_control_id = control_id || Asc.scope.controlId || Asc.scope.click_id
-	if (!ques_control_id) {
+function showQuesData(params) {
+	console.log('showQuesData', params)
+	if (!params || !params.client_id ) {
 		updateElements(null)
 		return
 	}
+	g_client_id = params.client_id
 	var question_map = window.BiyueCustomData.question_map || {}
+	var quesData = question_map ? question_map[g_client_id] : null
+	if (g_client_id) {
+		var node_list = window.BiyueCustomData.node_list || []
+		var nodeData = node_list.find(e => {
+			return e.id == g_client_id
+		})
+		console.log('nodeData', nodeData)
+		if (nodeData) {
+			if (nodeData.level_type == 'struct') {
+				updateElements(null, `当前选中为题组：${quesData ? quesData.ques_default_name : ''}`)
+				return
+			} else if (nodeData.level_type == 'text') {
+				updateElements(null, `当前选中为待处理文本`)
+				return
+			}
+		}
+	}
 	if (!question_map) {
 		updateElements(null)
 		return
 	}
-	if (!question_map[ques_control_id]) {
+	var ques_client_id = 0
+	if (params.regionType == 'write') {
 		var keys = Object.keys(question_map)
 		for (var i = 0; i < keys.length; ++i) {
 			var ask_list = question_map[keys[i]].ask_list || []
 			var find = ask_list.find(e => {
-				return e.control_id == control_id
+				return e.id == params.client_id
 			})
 			if (find) {
-				ques_control_id = keys[i]
+				ques_client_id = keys[i]
 				break
 			}
 		}
 	}
-	if (!question_map[ques_control_id]) {
+	if (params.regionType == 'question') {
+		ques_client_id = params.client_id
+	}
+	if (!ques_client_id) {
 		updateElements(null)
 		return
 	}
-	var quesData = question_map[ques_control_id]
+	quesData = question_map[ques_client_id]
+	g_ques_id = ques_client_id
 	console.log('=========== showQuesData ques:', quesData)
 	updateElements(quesData)
 }
 
 function changeQuestionType(data) {
-	if (window.BiyueCustomData.question_map[ques_control_id]) {
-		window.BiyueCustomData.question_map[ques_control_id].question_type = data.value * 1
+	if (window.BiyueCustomData.question_map[g_ques_id]) {
+		window.BiyueCustomData.question_map[g_ques_id].question_type = data.value * 1
 		autoSave()
 	}
 }
 // 修改占比
 function chagneProportion(data) {
 	console.log('chagneProportion', data)
-	changeProportion(ques_control_id, data.value)
+	// changeProportion(g_ques_id, data.value)
+}
+// 修改互动
+function chagneInteraction(data) {
+	console.log('chagneInteraction', data)
+	if (window.BiyueCustomData.question_map[g_ques_id]) {
+		setInteraction(data.value, g_ques_id)
+		window.BiyueCustomData.question_map[g_ques_id].interaction = data.value
+	}
 }
 
 function initListener() {
 	document.addEventListener('clickSingleQues', (event) => {
 		if (!event || !event.detail) return
 		console.log('receive clickSingleQues', event.detail)
-		showQuesData(event.detail.control_id)
+		showQuesData(event.detail)
 	})
 	document.addEventListener('updateQuesData', (event) => {
 		if (!event) return
-		var quesData = window.BiyueCustomData.question_map[ques_control_id]
 		if (event.detail && event.detail.field) {
+			var quesData = window.BiyueCustomData.question_map[g_ques_id]
 			// 来源为批量设置，只针对单个field更新
 			switch(event.detail.field) {
 				case 'question_type':
@@ -244,29 +301,40 @@ function initListener() {
 				default:
 					break
 			}
-		} else {
 			updateElements(quesData)
+		} else {
+			var nodeData = window.BiyueCustomData.node_list.find(e => {
+				return e.id == g_client_id
+			})
+			if (nodeData) {
+				showQuesData({
+					client_id: nodeData.id,
+					regionType: nodeData.regionType
+				})
+			} else {
+				updateElements(null)
+			}
 		}
 	})
 }
 
 function changeQuesName(data) {
-	window.BiyueCustomData.question_map[ques_control_id].ques_name = data
+	window.BiyueCustomData.question_map[g_ques_id].ques_name = data
 	autoSave()
 }
 
 function changeScore(id, data) {
 	if (id == 'ques_weight') {
-		window.BiyueCustomData.question_map[ques_control_id].score = data
+		window.BiyueCustomData.question_map[g_ques_id].score = data
 	} else {
 		var index = id.replace('ask', '') * 1
-		window.BiyueCustomData.question_map[ques_control_id].ask_list[index].score = data
+		window.BiyueCustomData.question_map[g_ques_id].ask_list[index].score = data
 	}
 	autoSave()
 }
 
 function autoSave() {
-	var quesData = window.BiyueCustomData.question_map[ques_control_id]
+	var quesData = window.BiyueCustomData.question_map[g_ques_id]
 	if (!quesData || !quesData.uuid) {
 		return
 	}
