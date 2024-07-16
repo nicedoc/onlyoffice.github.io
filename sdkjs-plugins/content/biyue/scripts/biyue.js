@@ -318,7 +318,7 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
 
                     // 标记空白行
                     {
-                        debugger;
+                        //debugger;
                         var content = control.GetContent();
                         var elements = content.GetElementsCount();
                         for (var j = elements - 1; j >= 0; j--) {
@@ -462,6 +462,13 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
         if (rect === undefined) {
             return;
         }
+
+        if (rect.length !== undefined && rect.length > 0) {
+            console.log('onGetPos:', rect);    
+            rect = rect[0];        
+        }
+
+
         console.log('onGetPos:', rect);
         document.getElementById("p-value").innerHTML = rect.Page ? rect.Page + 1 : 1;
         document.getElementById("x-value").innerHTML = mmToPx(rect.X0);
@@ -498,7 +505,13 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
             let MakeRange = function (beg, end) {
                 if (typeof beg === 'number')
                     return Api.GetDocument().GetRange().GetRange(beg, end);
-                return Api.asc_MakeRangeByPath(e.beg, e.end);
+                try {
+                    return Api.asc_MakeRangeByPath(e.beg, e.end);
+                }
+                catch (error) {
+                    console.error('MakeRange error:', error, e.beg, e.end);
+                    return undefined;
+                }
             }
 
             console.log('createContentControl count=', ranges.length);
@@ -572,8 +585,9 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
                 if (returnValue) {
                     Asc.scope.controlId = returnValue;
                     window.Asc.plugin.callCommand(function () {
+                        var isPageCoord = true;
                         var rects = Api.asc_GetContentControlBoundingRectExt(Asc.scope.controlId, isPageCoord);
-                        return rect;
+                        return rects;
                     }, false, false, onGetPos);
 
                 }
