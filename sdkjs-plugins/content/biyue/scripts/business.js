@@ -3657,14 +3657,14 @@ function getAllPositions() {
 			}
 			// todo..分数框的尚未添加
 			var tag = JSON.parse(oControl.GetTag() || '{}')
-			if (tag.regionType == 'question') {
+      var question_obj = question_map[tag.client_id] ? question_map[tag.client_id] : {}
+			if (tag.regionType == 'question' && question_obj.level_type == 'question') {
 				var correctPos = GetCorrectRegion(oControl)
-        		var question_obj = question_map[tag.client_id] ? question_map[tag.client_id] : {}
         		var item = {
 					id: tag.client_id,
 					control_id: oControl.Sdt.GetId(),
 					text: oControl.GetRange().GetText(), // 如果需要html, 请参考ExamTree.js的reqUploadTree
-          			content: '',
+          content: '',
 					title_region: [],
 					correct_region: correctPos.correct_region,
 					correct_ask_region: correctPos.correct_ask_region,
@@ -3677,7 +3677,7 @@ function getAllPositions() {
 					ques_name: question_obj.ques_name || question_obj.ques_default_name,
 					mark_method: "1",
 					mark_ask_region: {},
-          			write_ask_region: []
+          write_ask_region: []
 				}
 
 				bounds.forEach(e => {
@@ -3766,19 +3766,21 @@ function getAllPositions() {
 								fields: []
 							}
 							if (titleObj.feature.zone_type == 'statistics') {
+                let statistics_arr = []
 								for (var p = 0; p < pageCount; ++p) {
-									feature_list.push({
-										zone_type: titleObj.feature.zone_type,
-										fields: [{
-											v: p + 1 + '',
-											page: p + 1,
-											x: mmToPx(oDrawing.Drawing.X),
-											y: mmToPx(oDrawing.Drawing.Y),
-											w: mmToPx(oDrawing.Drawing.Width),
-											h: mmToPx(oDrawing.Drawing.Height)
-										}]
-									})
+                  statistics_arr.push({
+                    v: p + 1 + '',
+                    page: p + 1,
+                    x: mmToPx(oDrawing.Drawing.X),
+                    y: mmToPx(oDrawing.Drawing.Y),
+                    w: mmToPx(oDrawing.Drawing.Width),
+                    h: mmToPx(oDrawing.Drawing.Height)
+                  })
 								}
+                feature_list.push({
+                  zone_type: titleObj.feature.zone_type,
+                  fields: statistics_arr
+                })
 							} else {
 								if (titleObj.feature.zone_type == 'self_evaluation' || titleObj.feature.zone_type == 'teacher_evaluation') {
 									var oShape = oShapes.find(e => {

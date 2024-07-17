@@ -268,6 +268,11 @@ import { setXToken } from './auth.js'
     paperSavePosition(biyueCustomData.paper_uuid, positions, evaluationPosition, '')
     .then((res) => {
       console.log('保存位置成功')
+      // 将窗口的信息传递出去
+      window.Asc.plugin.sendToPlugin('onWindowMessage', {
+        type: 'positionSaveSuccess',
+        data: source_data,
+      })
     })
     .catch((error) => {
       console.log(error)
@@ -290,7 +295,7 @@ import { setXToken } from './auth.js'
     let index = 1
     for (const key in ques_list) {
       let item = ques_list[key] || ""
-      if (item && item.ref_id) {
+      if (item && item.ref_id && item.ques_type !== 6) {
         if (!positions[item.ref_id]) {
           positions[item.ref_id] = {}
         }

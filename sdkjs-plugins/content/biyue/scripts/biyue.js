@@ -54,6 +54,7 @@ import {
 	let fieldsWindow = null
 	let timeout_controlchange = null
 	let contextMenu_options = null
+  let questionPositions = {}
 
 	function NewDefaultCustomData() {
 		return {
@@ -75,7 +76,13 @@ import {
 				modal.command('initPaper', {
 					paper_info: getPaperInfo(),
 					xtoken: getToken(),
+          questionPositions: questionPositions,
+          biyueCustomData: window.BiyueCustomData,
 				})
+				break
+      case 'positionSaveSuccess':
+				window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
+        alert('上传成功')
 				break
 			case 'scoreSetSuccess': // 分数设置成功
 				if (message.data.control_list) {
@@ -764,8 +771,8 @@ import {
         }
 
         if (rect.length !== undefined && rect.length > 0) {
-            console.log('onGetPos:', rect);    
-            rect = rect[0];        
+            console.log('onGetPos:', rect);
+            rect = rect[0];
         }
 
 
@@ -826,7 +833,7 @@ import {
             for (var i = ranges.length - 1; i >= 0; i--) {
                 // set selection
                 var e = ranges[i];
-                //console.log('createContentControl:', e);                    
+                //console.log('createContentControl:', e);
                 var range = MakeRange(e.beg, e.end);
                 range.Select()
                 var oResult = Api.asc_AddContentControl(e.controlType || 1, { "Tag": e.info ? JSON.stringify(e.info) : '' });
@@ -841,7 +848,7 @@ import {
             }
 
             console.log('command createContentControl done');
-            
+
             return results;
         }, false, false);
     }
@@ -1080,7 +1087,7 @@ import {
 			// 	updateTreeRenderWhenClick(event.detail)
 			// }
 			if (window.tab_select != 'tabQues') {
-				changeTabPanel('tabQues')	
+				changeTabPanel('tabQues')
 			}
 		})
 		initListener()
@@ -2197,7 +2204,7 @@ import {
 					if (!window.BiyueCustomData.client_node_id) {
 						window.BiyueCustomData.client_node_id = 1
 					}
-					
+
 					initPaperInfo().then((res2) => {
 						console.log('initPaperInfo', res2)
 						updatePageSizeMargins().then(() => {
@@ -2261,7 +2268,10 @@ import {
 	}
 
 	function importExam() {
-		showDialog(exportExamWindow, '上传试卷', 'examExport.html', 592, 400)
+    getAllPositions().then(res=>{
+      questionPositions = res
+      showDialog(exportExamWindow, '上传试卷', 'examExport.html', 592, 400)
+    })
 	}
 	// 切换功能区窗口
 	function showPositionsDialog() {
