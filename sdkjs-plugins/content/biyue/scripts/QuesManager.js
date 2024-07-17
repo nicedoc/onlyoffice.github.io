@@ -2,6 +2,7 @@
 import { biyueCallCommand, dispatchCommandResult } from "./command.js";
 import { getQuesType, reqComplete } from '../scripts/api/paper.js'
 import { setInteraction } from "./featureManager.js";
+import { initExtroInfo } from "./panelFeature.js";
 var levelSetWindow = null
 var level_map = {}
 var g_click_value = null
@@ -1034,6 +1035,7 @@ function confirmLevelSet(levels) {
 				console.log('confirmLevelSet', window.BiyueCustomData)
 			}
 			resolve()
+			initExtroInfo()
 		})
 	}).then(() => {
 		reqGetQuestionType()
@@ -1522,13 +1524,6 @@ function reqUploadTree() {
 			if (!quesData) {
 				continue
 			}
-			let text_data = {
-				data:     "",
-				// 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
-				pushData: function (format, value) {
-					this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : "";
-				}
-			};
 			var oParentControl = oControl.GetParentContentControl()
 			var parent_id = 0
 			if (oParentControl) {
@@ -1544,6 +1539,15 @@ function reqUploadTree() {
 					}
 				}
 			}
+			var oRange = oControl.GetRange()
+			oRange.Select()
+			let text_data = {
+				data:     "",
+				// 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
+				pushData: function (format, value) {
+					this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : "";
+				}
+			};
 			Api.asc_CheckCopy(text_data, 2);
 			var content_html = text_data.data
 			target_list.push({
@@ -1638,6 +1642,7 @@ function generateTreeForUpload(control_list) {
 	var tree = []
 	control_list.forEach((e) => {
 		if (e.parent_id == 0) {
+			e.id = e.id + ''
 			tree.push(e)
 		} else {
 			var parent = getDataById(tree, e.parent_id)
@@ -1645,6 +1650,7 @@ function generateTreeForUpload(control_list) {
 				if (!parent.children) {
 					parent.children = []
 				}
+				e.id = e.id + ''
 				parent.children.push(e)
 			}
 		}

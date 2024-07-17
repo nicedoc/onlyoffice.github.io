@@ -638,17 +638,21 @@ function drawList(list) {
 									}
 									var paragraph = oFooter.GetElement(0)
 									var drawing
+									var oAdd = null
 									if (index > 0) {
-										drawing = oDrawing.Copy().Drawing
+										oAdd = oDrawing.Copy()
+										drawing = oAdd.Drawing
 									} else {
 										drawing = oDrawing.Drawing
+										oAdd = oDrawing
 									}
 										drawing.Set_PositionH(7, false, - 4, false);
 										drawing.Set_DrawingType(2);
 									// todo.. 在页脚显示页数
 									// paragraph.AddPageNumber();
 									paragraph.SetJc('center')
-									paragraph.Paragraph.AddToParagraph(drawing);
+									paragraph.AddDrawing(oAdd)
+									// paragraph.Paragraph.AddToParagraph(drawing);
 								})
 								
 							} else {
@@ -666,7 +670,11 @@ function drawList(list) {
 										drawing.Set_PositionH(6, false, options.x, false);
 										drawing.Set_PositionV(5, false, options.y, false);
 										drawing.Set_DrawingType(2);
-										paragraph.AddToParagraph(drawing);
+										if (lastParagraph && paragraph.Id == lastParagraph.Paragraph.Id) {
+											lastParagraph.AddDrawing(oDrawing)
+										} else {
+											paragraph.AddToParagraph(drawing);
+										}
 								} else {
 									console.log('cannot find paragraph for draw', page_num)
 								}
@@ -759,6 +767,9 @@ function setInteraction(type, quesIds) {
 				var pParagraph = paragraphs[0]
 				var oRun = Api.CreateRun()
 				oRun.AddText('▢')
+				// oRun.SetFontFamily('iconfont')
+				// oRun.AddText('\u{e6a1}')
+				
 				oRun.SetColor(153, 153, 153);
 				oRun.SetFontSize(30)
 				pParagraph.AddElement(
