@@ -231,6 +231,7 @@ import { setXToken } from './auth.js'
       return
     }
     var pid = 1
+    console.log('fileInput:', fileInput)
     for (var file of fileInput.files) {
       console.log('file', file)
       const data = new FormData()

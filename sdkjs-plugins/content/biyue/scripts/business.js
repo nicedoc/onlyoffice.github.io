@@ -3572,7 +3572,7 @@ function getAllPositions() {
 		var ques_list = []
 		var pageCount = oDocument.GetPageCount()
     var question_map = Asc.scope.question_map
-
+    console.log('------------------------------')
     function mmToPx(mm) {
       // 1 英寸 = 25.4 毫米
       // 1 英寸 = 96 像素（常见的屏幕分辨率）
@@ -3659,12 +3659,23 @@ function getAllPositions() {
 			var tag = JSON.parse(oControl.GetTag() || '{}')
       var question_obj = question_map[tag.client_id] ? question_map[tag.client_id] : {}
 			if (tag.regionType == 'question' && question_obj.level_type == 'question') {
+        var oRange = oControl.GetRange()
+        oRange.Select()
+        let text_data = {
+          data:     "",
+          // 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
+          pushData: function (format, value) {
+            this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : ""
+          }
+        }
+        Api.asc_CheckCopy(text_data, 2)
+
 				var correctPos = GetCorrectRegion(oControl)
         		var item = {
 					id: tag.client_id,
 					control_id: oControl.Sdt.GetId(),
 					text: oControl.GetRange().GetText(), // 如果需要html, 请参考ExamTree.js的reqUploadTree
-          content: '',
+          // content: `${text_data.data || ''}`,
 					title_region: [],
 					correct_region: correctPos.correct_region,
 					correct_ask_region: correctPos.correct_ask_region,
