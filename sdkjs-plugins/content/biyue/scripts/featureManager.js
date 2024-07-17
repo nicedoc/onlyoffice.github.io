@@ -647,6 +647,7 @@ function drawList(list) {
 										oAdd = oDrawing
 									}
 										drawing.Set_PositionH(7, false, - 4, false);
+										drawing.Set_PositionV(0, false, 7.5, false)
 										drawing.Set_DrawingType(2);
 									// todo.. 在页脚显示页数
 									// paragraph.AddPageNumber();
