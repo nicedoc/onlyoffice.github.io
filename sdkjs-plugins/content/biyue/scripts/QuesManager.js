@@ -1107,6 +1107,75 @@ function reqGetQuestionType() {
 		})
 	})
 }
+// 显示/隐藏/删除所有书写区
+function handleAllWrite(cmdType) {
+	Asc.scope.cmdType = cmdType
+	return biyueCallCommand(window, function() {
+		var oDocument = Api.GetDocument()
+		var drawings = oDocument.GetAllDrawingObjects()
+		var cmdType = Asc.scope.cmdType
+		function updateFill(drawing, oFill) {
+			if (!oFill || !oFill.GetClassType || oFill.GetClassType() !== 'fill') {
+				return false
+			}
+			drawing.GraphicObj.spPr.setFill(oFill.UniFill)
+		}
+		var list = []
+		for (var i = 0, imax = drawings.length; i < imax; ++i) {
+			var oDrawing = drawings[i]
+			var title = oDrawing.Drawing.docPr.title || '{}'
+			var titleObj = JSON.parse(title)
+			if (titleObj.feature && titleObj.feature.zone_type == 'question' && titleObj.feature.sub_type == 'write') {
+				if (cmdType == 'show') {
+					var oFill = Api.CreateSolidFill(Api.CreateRGBColor(255, 0, 0))
+					oFill.UniFill.transparent = 255 * 0.2 // 透明度
+					updateFill(oDrawing.Drawing, oFill)
+				} else if (cmdType == 'hide') {
+					updateFill(oDrawing.Drawing, Api.CreateNoFill())
+				} else if (cmdType == 'del') {
+					list.push({
+						parent_id: titleObj.feature.parent_id,
+						id: titleObj.feature.client_id
+					})
+					oDrawing.Delete()
+				}
+			}
+		}
+		return {
+			list: list,
+			cmdType: cmdType
+		}
+	}, false, true).then(res => {
+		console.log('handleAllWrite', res)
+		if (res) {
+			if (res.cmdType == 'del' && res.list) {
+				var node_list = window.BiyueCustomData.node_list || []
+				var quesiton_map = window.BiyueCustomData.question_map || {}
+				res.list.forEach(e => {
+					var nodeData = node_list.find(item => {
+						return item.id == e.parent_id
+					})
+					if (nodeData && nodeData.write_list) {
+						var writeIndex = nodeData.write_list.findIndex(item => {
+							return item.id == e.id
+						})
+						if (writeIndex >= 0) {
+							nodeData.write_list.splice(writeIndex, 1)
+						}
+					}
+					if (quesiton_map[e.parent_id] && quesiton_map[e.parent_id].ask_list) {
+						var askIndex = quesiton_map[e.parent_id].ask_list.findIndex(item => {
+							return item.id == e.id
+						})
+						if (askIndex >= 0) {
+							quesiton_map[e.parent_id].ask_list.splice(askIndex, 1)
+						}
+					}
+				})
+			}
+		}
+	})
+}
 
 function handleWrite(cmdType) {
 	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
@@ -1166,7 +1235,7 @@ function handleWrite(cmdType) {
 					drawing_id: oDrawing.Drawing.Id,
 					cmdType: write_cmd
 				}
-			} else {
+			} else if (write_cmd == 'del') {
 				var selectDrawings = oDocument.GetSelectedDrawings()
 				if (selectDrawings) {
 					var drawings = oDocument.GetAllDrawingObjects()
@@ -1656,5 +1725,6 @@ export {
 	confirmLevelSet,
 	initControls,
 	handleWrite,
-	handleIdentifyBox
+	handleIdentifyBox,
+	handleAllWrite
 }

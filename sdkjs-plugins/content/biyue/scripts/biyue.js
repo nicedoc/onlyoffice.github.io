@@ -41,7 +41,8 @@ import {
 	handleDocClick,
 	handleContextMenuShow,
 	handleWrite,
-	handleIdentifyBox
+	handleIdentifyBox,
+	handleAllWrite
 } from './QuesManager.js'
 
 ;(function (window, undefined) {
@@ -1089,6 +1090,13 @@ import {
 		addBtnClickEvent('getAllPositions', getAllPositions)
 		addBtnClickEvent('queslist', showLevelSetDialog)
 		addBtnClickEvent('importExam', importExam)
+		if ($('#writeSelect')) {
+			$('#writeSelect').on('change', function() {
+				var selectedValue = $('#writeSelect').val()
+				console.log('writeSelect', selectedValue)
+				handleAllWrite(selectedValue)
+			})
+		}
 	})
 
 	function addBtnClickEvent(btnName, func) {
