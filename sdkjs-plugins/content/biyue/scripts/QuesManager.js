@@ -1118,6 +1118,29 @@ function initControls() {
 			}
 			return null
 		}
+
+		function GetNumberingValue(oControl) {
+			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
+				return null
+			}
+			var paragraphs = oControl.GetAllParagraphs()
+			for (var i = 0; i < paragraphs.length; ++i) {
+				var oParagraph = paragraphs[i]
+				if (oParagraph) {
+					var parent1 = oParagraph.Paragraph.Parent
+					var parent2 = parent1.Parent
+					if (parent2) {
+						if (parent2.Id == oControl.Sdt.GetId()) {
+							if (oParagraph.Paragraph.HaveNumbering()) {
+								return oParagraph.Paragraph.GetNumberingText()
+							}
+							return null
+						}
+					}
+				}
+			}
+			return null
+		}
 		controls.forEach((oControl) => {
 			var tagInfo = JSON.parse(oControl.GetTag() || '{}')
 			if (tagInfo.regionType) {
@@ -1132,12 +1155,14 @@ function initControls() {
 				nodeList.push({
 					id: tagInfo.client_id,
 					text: oControl.GetRange().GetText(),
-					parentId: parentid
+					parentId: parentid,
+					numbing_text: GetNumberingValue(oControl)
 				})
 			}
 		})
 		return nodeList
 	}, false, false).then(nodeList => {
+		console.log('initControls   nodeList', nodeList)
 		return new Promise((resolve, reject) => {
 			// todo.. 这里暂不考虑上次的数据未保存或保存失败的情况，只假设此时的control数据和nodelist里的是一致的，只是乱码而已，其他的后续再处理
 			if (nodeList && nodeList.length > 0) {
@@ -1145,7 +1170,7 @@ function initControls() {
 				nodeList.forEach(node => {
 					if (question_map[node.id]) {
 						question_map[node.id].text = node.text
-						question_map[node.id].ques_default_name = GetDefaultName(question_map[node.id].level_type, node.text)
+						question_map[node.id].ques_default_name = node.numbing_text ? node.numbing_text : GetDefaultName(question_map[node.id].level_type, node.text)
 					}
 				})
 			}
@@ -1175,6 +1200,28 @@ function confirmLevelSet(levels) {
 						return parentControl
 					} else {
 						return getParentBlock(parentControl)
+					}
+				}
+			}
+			return null
+		}
+		function GetNumberingValue(oControl) {
+			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
+				return null
+			}
+			var paragraphs = oControl.GetAllParagraphs()
+			for (var i = 0; i < paragraphs.length; ++i) {
+				var oParagraph = paragraphs[i]
+				if (oParagraph) {
+					var parent1 = oParagraph.Paragraph.Parent
+					var parent2 = parent1.Parent
+					if (parent2) {
+						if (parent2.Id == oControl.Sdt.GetId()) {
+							if (oParagraph.Paragraph.HaveNumbering()) {
+								return oParagraph.Paragraph.GetNumberingText()
+							}
+							return null
+						}
 					}
 				}
 			}
@@ -1218,7 +1265,8 @@ function confirmLevelSet(levels) {
 					var detail = {
 						text: text,
 						ask_list: [],
-						level_type: level_type
+						level_type: level_type,
+						numbing_text: GetNumberingValue(oControl)
 					}
 					if (tagInfo.regionType == 'question') {
 						nodeData.write_list = []
@@ -1235,12 +1283,14 @@ function confirmLevelSet(levels) {
 			questionMap: questionMap
 		}
 	}, false, false).then(res => {
+		console.log('===== confirmLevelSet res', res)
 		return new Promise((resolve, reject) => {
 			if (res) {
 				window.BiyueCustomData.client_node_id = res.client_node_id
 				window.BiyueCustomData.node_list = res.nodeList
 				Object.keys(res.questionMap).forEach(key => {
-					res.questionMap[key].ques_default_name = GetDefaultName(res.questionMap[key].level_type, res.questionMap[key].text)
+					var qdata = res.questionMap[key]
+					res.questionMap[key].ques_default_name = qdata.numbing_text ? qdata.numbing_text : GetDefaultName(qdata.level_type, qdata.text)
 				})
 				window.BiyueCustomData.question_map = res.questionMap
 			}
