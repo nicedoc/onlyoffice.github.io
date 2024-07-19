@@ -531,6 +531,7 @@ import {
 					if (customData === undefined) {
 						console.log('customData inited.')
 						window.BiyueCustomData = NewDefaultCustomData()
+						// console.log('========= window.BiyueCustomData', window.BiyueCustomData)
 						return
 					}
 					window.BiyueCustomId = customData[0].ItemId
@@ -549,10 +550,6 @@ import {
 
 		Asc.scope.BiyueCustomId = window.BiyueCustomId
 		Asc.scope.BiyueCustomData = window.BiyueCustomData
-		if (!Asc.scope.BiyueCustomId) {
-			callback()
-			return
-		}
 		window.Asc.plugin.callCommand(
 			function () {
 				var id = Asc.scope.BiyueCustomId

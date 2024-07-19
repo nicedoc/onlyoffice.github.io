@@ -1047,6 +1047,28 @@ function setInteraction(type, quesIds) {
 			// 	console.warn('cannot find paragraph')
 			// }
 		}
+		function hasSimple(oControl) {
+			var paragraphs = oControl.GetAllParagraphs()
+			for (var i = 0; i < paragraphs.length; ++i) {
+				var oParagraph = paragraphs[i]
+				if (oParagraph) {
+					var parent1 = oParagraph.Paragraph.Parent
+					var parent2 = parent1.Parent
+					if (parent2) {
+						if (parent2.Id == oControl.Sdt.GetId()) {
+							var run1 = oParagraph.GetElement(0)
+							var v = run1 && run1.GetClassType() == 'run' && (run1.GetText() == '\u{e6a1}' || run1.GetText() == '▢') 
+							if (v) {
+								return oParagraph
+							} else {
+								return null
+							}
+						}
+					}
+				}
+			}
+			return false
+		}
 		for (var i = 0, imax = controls.length; i < imax; ++i) {
 			var oControl = controls[i]
 			var tag = JSON.parse(oControl.GetTag() || '{}')
@@ -1067,11 +1089,9 @@ function setInteraction(type, quesIds) {
 				var allDraws = oControl.GetAllDrawingObjects()
 				// var simpleDrawings = getExistDrawing(allDraws, ['simple'])
 				var accurateDrawings = getExistDrawing(allDraws, ['accurate', 'ask_accurate'])
-				var oParagraph = oControl.GetAllParagraphs()[0]
-				var run1 = oParagraph.GetElement(0)
-				var existSimple = run1 && run1.GetClassType() == 'run' && (run1.GetText() == '\u{e6a1}' || run1.GetText() == '▢') 
+				var simpleParagraph = hasSimple(oControl)
 				if (interaction_type == 'simple') {
-					if (!existSimple) {
+					if (!simpleParagraph) {
 						addSimple2(oControl)
 					}
 					if (accurateDrawings && accurateDrawings.length) {
@@ -1080,13 +1100,13 @@ function setInteraction(type, quesIds) {
 						}
 					}
 				} else if (interaction_type == 'accurate') {
-					if (!existSimple) {
+					if (!simpleParagraph) {
 						addSimple2(oControl)
 					}
 					addAccurate(oControl)
 				} else if (interaction_type == 'none') {
-					if (existSimple) {
-						oParagraph.RemoveElement(0)
+					if (simpleParagraph) {
+						simpleParagraph.RemoveElement(0)
 					}
 					// if (simpleDrawings && simpleDrawings.length) {
 					// 	for (var j = 0; j < simpleDrawings.length; ++j) {
