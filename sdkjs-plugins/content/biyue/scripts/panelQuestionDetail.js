@@ -238,8 +238,7 @@ function showQuesData(params) {
 				break
 			}
 		}
-	}
-	if (params.regionType == 'question') {
+	} else if (params.regionType == 'question') {
 		ques_client_id = params.client_id
 	}
 	if (!ques_client_id) {
@@ -247,9 +246,19 @@ function showQuesData(params) {
 		return
 	}
 	quesData = question_map[ques_client_id]
-	g_ques_id = ques_client_id
+	if (!quesData) {
+		updateElements(null)
+		return
+	}
 	console.log('=========== showQuesData ques:', quesData)
-	updateElements(quesData)
+	g_ques_id = ques_client_id
+	if (quesData.level_type == 'question') {
+		updateElements(quesData)	
+	} else if (quesData.level_type == 'struct') {
+		updateElements(null, `当前选中为题组：${quesData ? quesData.ques_default_name : ''}`)
+		return
+	}
+	
 }
 
 function changeQuestionType(data) {
@@ -303,8 +312,9 @@ function initListener() {
 			}
 			updateElements(quesData)
 		} else {
+			var id = event.detail && event.detail.client_id ? event.detail.client_id : g_client_id
 			var nodeData = window.BiyueCustomData.node_list.find(e => {
-				return e.id == g_client_id
+				return e.id == id
 			})
 			if (nodeData) {
 				showQuesData({

@@ -743,7 +743,7 @@ function setInteraction(type, quesIds) {
 		if (!controls) {
 			return
 		}
-		function getExistDrawing(draws, sub_type_list) {
+		function getExistDrawing(draws, sub_type_list, write_id) {
 			var list = []
 			for (var i = 0; i < draws.length; ++i) {
 				var title = draws[i].Drawing.docPr.title
@@ -751,7 +751,13 @@ function setInteraction(type, quesIds) {
 					var titleObj = JSON.parse(title)
 					if (titleObj.feature) {
 						if (titleObj.feature.zone_type == 'question' && sub_type_list.indexOf(titleObj.feature.sub_type) >= 0) {
-							list.push(draws[i])
+							if (write_id) {
+								if (titleObj.feature.write_id == write_id) {
+									list.push(draws[i])
+								}
+							} else {
+								list.push(draws[i])
+							}
 						}
 					}
 				}
@@ -822,7 +828,10 @@ function setInteraction(type, quesIds) {
 			}
 		}
 
-		function addAskInteraction(askControl, index) {
+		function addAskInteraction(askControl, index, write_id) {
+			if (!askControl) {
+				return
+			}
 			var oFill = Api.CreateNoFill()
 			var oStroke = Api.CreateStroke(
 				3600,
@@ -853,7 +862,8 @@ function setInteraction(type, quesIds) {
 					zone_type: 'question',
 					type: 'ques_interaction',
 					sub_type: 'ask_accurate',
-					control_id: oControl.Sdt.GetId()
+					control_id: askControl.Sdt.GetId(),
+					write_id: write_id
 				}
 			}
 			oDrawing.Drawing.Set_Props({
@@ -886,6 +896,7 @@ function setInteraction(type, quesIds) {
 			}
 			var control_id = oControl.Sdt.GetId()
 			var childControls = oControl.GetAllContentControls()
+			var drawings = oControl.GetAllDrawingObjects()
 			var write_list = []
 			if (childControls) {
 				for (var i = 0; i < childControls.length; ++i) {
@@ -895,7 +906,10 @@ function setInteraction(type, quesIds) {
 					}
 					var tag = JSON.parse(childControls[i].GetTag() || '{}')
 					if (tag.regionType == 'write') {
-						addAskInteraction(childControls[i], write_list.length + 1)
+						var dlist = getExistDrawing(drawings, ['ask_accurate'], tag.client_id)
+						if (!dlist || dlist.length == 0) {
+							addAskInteraction(childControls[i], write_list.length + 1, tag.client_id)
+						}
 						write_list.push(childControls[i])
 					}
 				}
@@ -1069,9 +1083,7 @@ function setInteraction(type, quesIds) {
 					if (!existSimple) {
 						addSimple2(oControl)
 					}
-					if (!accurateDrawings || accurateDrawings.length == 0) {
-						addAccurate(oControl)
-					}
+					addAccurate(oControl)
 				} else if (interaction_type == 'none') {
 					if (existSimple) {
 						oParagraph.RemoveElement(0)

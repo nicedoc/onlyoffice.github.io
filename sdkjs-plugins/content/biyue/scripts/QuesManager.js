@@ -237,6 +237,15 @@ function updateRangeControlType(typeName) {
 			}
 			return null
 		}
+		function getParentId(oControl) {
+			var parentBlock = getParentBlock(oControl)
+			var parent_id = 0
+			if (parentBlock) {
+				var parentTag = JSON.parse(parentBlock.GetTag() || '{}')
+				parent_id = parentTag.client_id || 0
+			}
+			return parent_id
+		}
 		function getChildControls(oControl) {
 			if (!oControl) {
 				return null
@@ -329,11 +338,28 @@ function updateRangeControlType(typeName) {
 			}
 			var tagRemove = JSON.parse(oRemove.GetTag() || '{}')
 			clearQuesInteraction(oRemove)
-			Api.asc_RemoveContentControlWrapper(oRemove.Sdt.GetId())
 			result.change_list.push({
 				control_id: oRemove.Sdt.GetId(),
-				client_id: tagRemove.client_id
+				client_id: tagRemove.client_id,
+				parent_id: getParentId(oRemove),
+				regionType: tagRemove.regionType
 			})
+			Api.asc_RemoveContentControlWrapper(oRemove.Sdt.GetId())
+		}
+		function getNewNodeList() {
+			var controls = oDocument.GetAllContentControls() || []
+			var nodeList = []
+			controls.forEach((oControl) => {
+				var tagInfo = JSON.parse(oControl.GetTag() || '{}')
+				if (tagInfo.regionType) {
+					nodeList.push({
+						id: tagInfo.client_id,
+						parentId: getParentId(oControl),
+						regionType: tagInfo.regionType
+					})
+				}
+			})
+			return nodeList
 		}
 		if (typeName == 'examtitle') {
 			if (oRange) {
@@ -382,14 +408,8 @@ function updateRangeControlType(typeName) {
 						oControl.SetTag(JSON.stringify(tag));
 						obj.children = getChildControls(oControl)
 					}
-					var parentBlock = getParentBlock(oControl)
-					var parent_id = 0
-					if (parentBlock) {
-						var parentTag = JSON.parse(parentBlock.GetTag() || '{}')
-						parent_id = parentTag.client_id || 0
-					}
 					obj.client_id = tag.client_id
-					obj.parent_id = parent_id
+					obj.parent_id = getParentId(oControl)
 					obj.control_id = oControl.Sdt.GetId()
 					obj.regionType = tag.regionType
 					var templist = []
@@ -652,10 +672,14 @@ function updateRangeControlType(typeName) {
 					})
 					console.log('asc_AddContentControl', oResult)
 					if(oResult) {
+						var oControl = Api.LookupObject(oResult.InternalId)
+						// 需要返回新增的nodeIndex todo..
 						result.change_list.push({
 							client_id: tag.client_id,
 							control_id: oResult.InternalId,
-							text: oRange.GetText()
+							text: oRange.GetText(),
+							children: oControl && oControl.GetClassType() == 'blockLvlSdt' ? getChildControls(oControl) : [],
+							parent_id: getParentId(oControl)
 						})
 					}
 					// 若是在单元格里添加control后，会多出一行需要删除
@@ -673,6 +697,7 @@ function updateRangeControlType(typeName) {
 				}
 			}
 		}
+		result.new_node_list = getNewNodeList()
 		return result
 	}, false, true).then(res => {
 		console.log('handleChangeType result', res)
@@ -681,6 +706,7 @@ function updateRangeControlType(typeName) {
 }
 
 function handleChangeType(res) {
+	console.log('handleChangeType', res)
 	if (!res) {
 		return
 	}
@@ -698,6 +724,21 @@ function handleChangeType(res) {
 		targetLevel = 'question'
 	}
 	var addIds = []
+	var update_node_id = g_click_value ? g_click_value.Tag.client_id : 0
+	function updateAskList(qid, ask_list) {
+		var old_list = question_map[qid].ask_list || []
+		var new_list = []
+		for (var a = 0; a < ask_list.length; ++a) {
+			var oidx = old_list.findIndex(e1 => {
+				return e1.id == ask_list[a].id
+			})
+			new_list.push({
+				id: ask_list[a].id,
+				score: oidx >= 0 ? (old_list[oidx].score || 0) : 0
+			})
+		}
+		question_map[qid].ask_list = new_list
+	}
 	res.change_list.forEach(item => {
 		var nodeIndex = node_list.findIndex(e => {
 			return e.id == item.client_id
@@ -753,18 +794,7 @@ function handleChangeType(res) {
 						})
 					}
 				} else {
-					var old_list = question[item.client_id].ask_list || []
-					var new_list = []
-					for (var a = 0; a < ask_list.length; ++a) {
-						var oidx = old_list.findIndex(e1 => {
-							return e1.id == ask_list[a].id
-						})
-						new_list.push({
-							id: ask_list[a].id,
-							score: oidx >= 0 ? (old_list[oidx].score || 0) : 0
-						})
-					}
-					quesiton_map[item.client_id].ask_list = new_list
+					updateAskList(item.client_id, ask_list)
 					if (level_type == 'setBig' || level_type == 'clearBig') {
 						question_map[item.client_id].text = item.text
 						question_map[item.client_id].ques_default_name = GetDefaultName(targetLevel, item.text)
@@ -776,9 +806,78 @@ function handleChangeType(res) {
 					delete question_map[item.client_id]
 				}
 			}
+		} else if (level_type == 'write') {
+			var parent_id = item.parent_id
+			if (parent_id > 0) {
+				var parentNode = node_list.find(e => {
+					return e.id == parent_id
+				})
+				if (parentNode) {
+					addIds.push(parent_id)
+					if (!parentNode.write_list) {
+						parentNode.write_list = [{
+							id: item.client_id,
+							control_id: item.control_id
+						}]
+					} else {
+						var write = parentNode.write_list.find(e => {
+							return e.id == item.client_id
+						})
+						if (!write) {
+							var writeIndex = parentNode.write_list.length
+							if (res.new_node_list) {
+								var pidx = res.new_node_list.findIndex(e => {
+									return e.id == parent_id
+								})
+								if (pidx >= 0) {
+									var cnt = 0
+									for (var j = pidx + 1; j < res.new_node_list.length; ++j) {
+										if (res.new_node_list[j].parentId == parent_id && res.new_node_list[j].regionType == 'write') {
+											cnt++
+											if (res.new_node_list[j].id == item.client_id) {
+												writeIndex = cnt
+												break
+											}
+										} else {
+											break
+										}
+									}
+								}
+							}
+							parentNode.write_list.splice(writeIndex, 0, {
+								id: item.client_id,
+								control_id: item.control_id
+							})
+							updateAskList(parent_id, parentNode.write_list)
+						}
+					}
+				}
+			}
 		} else if (level_type != 'clear' && level_type != 'clearAll') {
 			// 之前没有，需要增加
-			node_list.push({
+			var index = node_list.length
+			if (res.new_node_list) { // 需要算出之前的node的位置
+				var idx = res.new_node_list.findIndex(e => {
+					return e.id == item.client_id
+				})
+				if (idx > 0) {
+					for (var idx2 = idx - 1; idx2 >=0; --idx2) {
+						if (res.new_node_list[idx2].regionType == 'question') {
+							var idx3 = node_list.findIndex(e => {
+								return e.id == res.new_node_list[idx2].id
+							})
+							if (idx3 >= 0) {
+								index = idx3
+								break
+							}
+						}
+						
+					}
+				} else {
+					index = 0
+				}
+			}
+			node_list.splice(index, 0, {
 				id: item.client_id,
 				control_id: item.control_id,
 				regionType: item.regionType,
@@ -798,6 +897,29 @@ function handleChangeType(res) {
 					question_map[item.client_id].ask_list = ask_list
 				}
 			}
+		} else {
+			if (item.regionType == 'write' && item.parent_id) {
+				update_node_id = item.parent_id
+				var nodeData = node_list.find(e => {
+					return e.id == item.parent_id
+				})
+				if (nodeData && nodeData.write_list) {
+					var write_index = nodeData.write_list.findIndex(e => {
+						return e.id == item.client_id
+					})
+					if (write_index >= 0) {
+						nodeData.write_list.splice(write_index, 1)
+					}	
+				}
+				if (question_map[item.parent_id] && question_map[item.parent_id].ask_list) {
+					var ask_index = question_map[item.parent_id].ask_list.findIndex(e => {
+						return e.id == item.client_id
+					})
+					if (ask_index >= 0) {
+						question_map[item.parent_id].ask_list.splice(ask_index, 1)
+					}
+				}
+			}
 		}
 	})
 	
@@ -807,15 +929,21 @@ function handleChangeType(res) {
 	document.dispatchEvent(
 		new CustomEvent('updateQuesData', {
 			detail: {
-				client_id: g_click_value ? g_click_value.Tag.client_id : 0
+				client_id: update_node_id
 			}
 		})
 	)
-	if (targetLevel == 'question' && addIds && addIds.length) {
-		var extra_info = window.BiyueCustomData.workbook_info.parse_extra_data
-		if (extra_info.hidden_correct_region.checked == false) {
-			var vinteraction = extra_info.start_interaction.checked ? 'accurate' : 'simple'
-			setInteraction(vinteraction, addIds)
+	console.log('============== addIds', addIds, level_type)
+	if (addIds && addIds.length) {
+		if (level_type == 'write') {
+			console.log('        ', question_map[addIds[0]])
+			setInteraction(question_map[addIds[0]].interaction, addIds)
+		} else if (targetLevel == 'question') {
+			var extra_info = window.BiyueCustomData.workbook_info.parse_extra_data
+			if (extra_info.hidden_correct_region.checked == false) {
+				var vinteraction = extra_info.start_interaction.checked ? 'accurate' : 'simple'
+				setInteraction(vinteraction, addIds)
+			}
 		}
 	}
 }
@@ -1234,7 +1362,7 @@ function handleAllWrite(cmdType) {
 		if (res) {
 			if (res.cmdType == 'del' && res.list) {
 				var node_list = window.BiyueCustomData.node_list || []
-				var quesiton_map = window.BiyueCustomData.question_map || {}
+				var question_map = window.BiyueCustomData.question_map || {}
 				res.list.forEach(e => {
 					var nodeData = node_list.find(item => {
 						return item.id == e.parent_id
@@ -1247,12 +1375,12 @@ function handleAllWrite(cmdType) {
 							nodeData.write_list.splice(writeIndex, 1)
 						}
 					}
-					if (quesiton_map[e.parent_id] && quesiton_map[e.parent_id].ask_list) {
-						var askIndex = quesiton_map[e.parent_id].ask_list.findIndex(item => {
+					if (question_map[e.parent_id] && question_map[e.parent_id].ask_list) {
+						var askIndex = question_map[e.parent_id].ask_list.findIndex(item => {
 							return item.id == e.id
 						})
 						if (askIndex >= 0) {
-							quesiton_map[e.parent_id].ask_list.splice(askIndex, 1)
+							question_map[e.parent_id].ask_list.splice(askIndex, 1)
 						}
 					}
 				})
@@ -2363,10 +2491,10 @@ function changeProportion(idList, proportion) {
 		}
 	}, false, true).then(res => {
 		console.log('changeProportion result', res)
-		if (res && res.idList && window.BiyueCustomData.quesiton_map) {
+		if (res && res.idList && window.BiyueCustomData.question_map) {
 			res.idList.forEach(id => {
-				if (window.BiyueCustomData.quesiton_map[id]) {
-					window.BiyueCustomData.quesiton_map[id].proportion = res.proportion
+				if (window.BiyueCustomData.question_map[id]) {
+					window.BiyueCustomData.question_map[id].proportion = res.proportion
 				}
 			})
 		}
