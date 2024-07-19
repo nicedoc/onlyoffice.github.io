@@ -2,6 +2,7 @@ import ComponentSelect from '../components/Select.js'
 import NumberInput from '../components/NumberInput.js'
 import { reqSaveQuestion } from './api/paper.js'
 import { setInteraction } from './featureManager.js'
+import { changeProportion } from './QuesManager.js'
 // 单题详情
 var proportionTypes = [
 	{ value: '1', label: '默认' },
@@ -95,7 +96,7 @@ function initElements() {
 		options: proportionTypes,
 		value_select: '0',
 		callback_item: (data) => {
-			chagneProportion(data)
+			onChangeProportion(data)
 		},
 		width: '100%',
 	})
@@ -258,9 +259,8 @@ function changeQuestionType(data) {
 	}
 }
 // 修改占比
-function chagneProportion(data) {
-	console.log('chagneProportion', data)
-	// changeProportion(g_ques_id, data.value)
+function onChangeProportion(data) {
+	changeProportion([g_ques_id], data.value)
 }
 // 修改互动
 function chagneInteraction(data) {

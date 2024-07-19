@@ -53,7 +53,6 @@ function handleContextMenuShow(options) {
 }
 
 function getContextMenuItems(type) {
-	console.log('getContextMenuItems', type)
 	if (type == 'Shape') {
 		return {
 			guid: window.Asc.plugin.guid,
@@ -117,7 +116,6 @@ function getContextMenuItems(type) {
 			})
 		}
 	})
-	console.log('items', items)
 	splitType.items = items
 	let settings = {
 		guid: window.Asc.plugin.guid,
@@ -276,7 +274,6 @@ function updateRangeControlType(typeName) {
 			if (!oControl) {
 				return
 			}
-			console.log('       2', oControl, oControl.GetTag)
 			var tag = JSON.parse(oControl.GetTag() || '{}')
 			if (tag.regionType == 'write') {
 				if (oControl.GetClassType() == 'inlineLvlSdt') {
@@ -301,6 +298,12 @@ function updateRangeControlType(typeName) {
 				}
 			} else if (tag.regionType =='question') {
 				if (oControl.GetClassType() == 'blockLvlSdt') {
+					var oParagraph = oControl.GetAllParagraphs()[0]
+					var run1 = oParagraph.GetElement(0)
+					var existSimple = run1 && run1.GetClassType() == 'run' && (run1.GetText() == '\u{e6a1}' || run1.GetText() == '▢')
+					if (existSimple) {
+						oParagraph.RemoveElement(0)
+					}
 					var oControlContent = oControl.GetContent()
 					var drawings = oControlContent.GetAllDrawingObjects()
 					if (drawings) {
@@ -356,7 +359,6 @@ function updateRangeControlType(typeName) {
 			if (!oControl) {
 				return
 			}
-			console.log('oControl.GetTag', oControl.GetTag)
 			var tag = JSON.parse(oControl.GetTag() || '{}')
 			if (oControl) {
 				if (typeName == 'clear' || typeName == 'clearAll') {
@@ -378,7 +380,7 @@ function updateRangeControlType(typeName) {
 							tag.regionType = text == 'write' ? 'write' : 'question'
 						}
 						oControl.SetTag(JSON.stringify(tag));
-						obj.chidren = getChildControls(oControl)
+						obj.children = getChildControls(oControl)
 					}
 					var parentBlock = getParentBlock(oControl)
 					var parent_id = 0
@@ -390,37 +392,55 @@ function updateRangeControlType(typeName) {
 					obj.parent_id = parent_id
 					obj.control_id = oControl.Sdt.GetId()
 					obj.regionType = tag.regionType
-					var parentId = oControl.Sdt.GetParent().Id
 					var templist = []
+					var posinparent = oControl.GetPosInParent()
+					var oParent = Api.LookupObject(oControl.Sdt.GetParent().Id)
 					if (typeName == 'setBig') { // 设置为大题
 						// 需要将后面的级别比他小的控件挪到它的范围内
-						var index = allControls.findIndex(e => {
-							return e.Sdt.GetId() == oControl.Sdt.GetId()
-						})
-						for (i = index + 1; i < allControls.length; ++i) {
-							var nextControl = allControls[i]
-							var nexParent = nextControl.Sdt.GetParent()
-							if (nexParent.Id != parentId) {
-								continue
+						var parentElementCount = oParent.GetElementsCount()
+						for (var i = posinparent + 1; i < parentElementCount; ++i) {
+							var element = oParent.GetElement(i)
+							if (!element) {
+								break
 							}
-							var parentcontrol = getParentBlock(nextControl)
-							if (parentcontrol && parentcontrol.Sdt.GetId() == oControl.Sdt.GetId()) {
-								continue
+							if (!element.GetClassType) {
+								break
 							}
-							var nextTag = JSON.parse(nextControl.GetTag() || '{}')
-							if (nextTag.regionType == 'question') {
-								if (nextTag.lvl <= tag.lvl) {
+							if (element.GetClassType() == 'blockLvlSdt') {
+								var nextTag = JSON.parse(element.GetTag() || '{}')
+								if (nextTag.regionType == 'question') {
+									if (nextTag.lvl <= tag.lvl) {
+										break
+									}
+								}
+							} else if (element.GetClassType() == 'table') {
+								var oCell = element.GetCell(0, 0)
+								if (oCell) {
+									var oCellContent = oCell.GetContent()
+									var paragraphs = oCellContent.GetAllParagraphs()
+									if (paragraphs && paragraphs.length) {
+										var existLvl = paragraphs.filter(p => {
+											var NumPr = p.GetNumbering()
+											if (NumPr && NumPr.Lvl < tag.lvl) {
+												return true
+											}
+										})
+										if (existLvl && existLvl.length) {
+											break
+										}
+									}
+								}
+							} else if (element.GetClassType() == 'paragraph') {
+								var NumPr = element.GetNumbering()
+								if (NumPr && NumPr.Lvl <= tag.lvl) {
 									break
 								}
 							}
-							var posinparent = nextControl.GetPosInParent()
-							var oNextParent = editor.LookupObject(nexParent.Id)
-							if (oNextParent) {
-								templist.push(oNextParent.GetElement(posinparent))
-								oNextParent.RemoveElement(posinparent)
-							}
+							templist.push(element)
 						}
-						console.log('controllist', templist)
+						for (var i = 0; i < templist.length; ++i) {
+							oParent.RemoveElement(posinparent + 1)
+						}
 						if (templist.length) {
 							var count = oControl.GetContent().GetElementsCount()
 							templist.forEach((e, index) => {
@@ -429,31 +449,66 @@ function updateRangeControlType(typeName) {
 						}
 					} else if (typeName == 'clearBig') { // 清除大题
 						// 需要将包含的子控件挪出它的范围内
-						var childControls = oControl.GetAllContentControls()
-						for (var i = childControls.length - 1; i >= 0; --i) {
-							if (childControls[i].GetClassType() != 'blockLvlSdt') {
-								continue
+						var controlContent = oControl.GetContent()
+						var childCount = controlContent.GetElementsCount()
+						for (var i = childCount - 1; i >= 0; --i) {
+							var element = controlContent.GetElement(i)
+							if (!element) {
+								break
 							}
-							var childParent = childControls[i].GetParentContentControl()
-							if (childParent.Sdt.GetId() == oControl.Sdt.GetId()) {
-								var posinparent = childControls[i].GetPosInParent()
-								templist.push(oControl.GetContent().GetElement(posinparent))
-								oControl.GetContent().RemoveElement(posinparent)
+							if (!element.GetClassType) {
+								break
+							}
+							if (element.GetClassType() == 'blockLvlSdt') {
+								templist.push(element)
+								controlContent.RemoveElement(i)
+							} else if (element.GetClassType() == 'table') {
+								if (element.GetTableTitle() != 'questionTable') {
+									var find = false
+									// 判断所有单元格都是control
+									var rows = element.GetRowsCount()
+									for (var r = 0; r < rows.length; ++r) {
+										var oRow = element.GetRow(r)
+										var cnt = oRow.GetElementsCount()
+										for (var c = 0; c < cnt; ++c) {
+											var oCell = oRow.GetCell(c)
+											var oCellContent = oCell.GetContent()
+											var elcount = oCellContent.GetElementsCount()
+											for (var k = 0; k < elcount; ++k) {
+												var el = oCellContent.GetElement(k)
+												if (!el || !el.GetClassType || el.GetClassType() != 'blockLvlSdt') {
+													find = true
+													break
+												}
+											}
+											if (find) {
+												break
+											}
+										}
+										if (find) {
+											break
+										}
+									}
+									if (find) {
+										break
+									}
+								}
+								templist.push(element)
+								controlContent.RemoveElement(i)
 							}
 						}
 						if (templist.length) {
-							var oParent = editor.LookupObject(parentId)
-							if (oParent) {
-								var posinparent = oControl.GetPosInParent() + 1
-								templist.forEach(e => {
-									oParent.AddElement(posinparent, e)
-								})
-							}
+							templist.forEach(e => {
+								oParent.AddElement(posinparent + 1, e)
+							})
 						}
 					}
 					obj.text = tag.regionType == 'question' ? oControl.GetRange().GetText() : null
-					console.log('=============== obj.text', obj.text, tag.regionType)
+					obj.children = getChildControls(oControl)
 					result.change_list.push(obj)
+					if (typeName == 'struct') {
+						clearQuesInteraction(oControl)
+					}
 				}
 			}
 		} else {
@@ -605,7 +660,7 @@ function updateRangeControlType(typeName) {
 					}
 					// 若是在单元格里添加control后，会多出一行需要删除
 					if (isInCell) {
-						var oCell = editor.LookupObject(oResult.InternalId).GetParentTableCell()
+						var oCell = Api.LookupObject(oResult.InternalId).GetParentTableCell()
 						if (oCell) {
 							if (oCell.GetContent().GetElementsCount() == 2) {
 								var oElement2 = oCell.GetContent().GetElement(1)
@@ -642,6 +697,7 @@ function handleChangeType(res) {
 	if (res.typeName == 'setBig' || res.typeName == 'clearBig') {
 		targetLevel = 'question'
 	}
+	var addIds = []
 	res.change_list.forEach(item => {
 		var nodeIndex = node_list.findIndex(e => {
 			return e.id == item.client_id
@@ -666,30 +722,55 @@ function handleChangeType(res) {
 				}
 			}
 		}
+		var ask_list
+		if (item.children && item.children.length) {
+			ask_list = item.children.filter(child => {
+				return child.regionType == 'write'
+			})
+		}
 		if (nodeData) {
 			if (level_type == 'clear' || level_type == 'clearAll') {
 				node_list.splice(nodeIndex, 1)
 			} else {
 				nodeData.is_big = level_type == 'setBig'
+				if (nodeData.level_type != 'question' && targetLevel == 'question') {
+					addIds.push(nodeData.id)
+				}
 				nodeData.level_type = targetLevel
 			}
 			if (targetLevel == 'question') {
+				nodeData.write_list = ask_list
 				if (!question_map[item.client_id]) {
+					var write_list = nodeData.write_list || []
 					question_map[item.client_id] = {
 						text: item.text,
 						level_type: targetLevel,
 						ques_default_name: GetDefaultName(targetLevel, item.text),
-						ask_list: nodeData.write_list.map(e => {
+						ask_list: write_list.map(e => {
 							return {
 								id: e.id
 							}
 						})
 					}
-				} else if (level_type == 'setBig' || level_type == 'clearBig') {
-					question_map[item.client_id].text = item.text
-					question_map[item.client_id].ques_default_name = GetDefaultName(targetLevel, item.text)
-					question_map[item.client_id].level_type = targetLevel
-				}
+				} else {
+					var old_list = question[item.client_id].ask_list || []
+					var new_list = []
+					for (var a = 0; a < ask_list.length; ++a) {
+						var oidx = old_list.findIndex(e1 => {
+							return e1.id == ask_list[a].id
+						})
+						new_list.push({
+							id: ask_list[a].id,
+							score: oidx >= 0 ? (old_list[oidx].score || 0) : 0
+						})
+					}
+					quesiton_map[item.client_id].ask_list = new_list
+					if (level_type == 'setBig' || level_type == 'clearBig') {
+						question_map[item.client_id].text = item.text
+						question_map[item.client_id].ques_default_name = GetDefaultName(targetLevel, item.text)
+						question_map[item.client_id].level_type = targetLevel
+					}
+				} 
 			} else {
 				if (question_map[item.client_id]) {
 					delete question_map[item.client_id]
@@ -697,12 +778,6 @@ function handleChangeType(res) {
 			}
 		} else if (level_type != 'clear' && level_type != 'clearAll') {
 			// 之前没有，需要增加
-			var ask_list
-			if (item.children && item.chidren.length) {
-				ask_list = item.chidren.filter(child => {
-					return child.regionType == 'write'
-				})
-			}
 			node_list.push({
 				id: item.client_id,
 				control_id: item.control_id,
@@ -710,6 +785,9 @@ function handleChangeType(res) {
 				level_type: targetLevel,
 				write_list: ask_list
 			})
+			if (targetLevel == 'question') {
+				addIds.push(item.client_id)
+			}
 			if (targetLevel == 'question' || targetLevel == 'struct') {
 				question_map[item.client_id] = {
 					text: item.text,
@@ -733,6 +811,13 @@ function handleChangeType(res) {
 			}
 		})
 	)
+	if (targetLevel == 'question' && addIds && addIds.length) {
+		var extra_info = window.BiyueCustomData.workbook_info.parse_extra_data
+		if (extra_info.hidden_correct_region.checked == false) {
+			var vinteraction = extra_info.start_interaction.checked ? 'accurate' : 'simple'
+			setInteraction(vinteraction, addIds)
+		}
+	}
 }
 // 获取批量操作列表
 function getBatchList() {
@@ -746,7 +831,6 @@ function getBatchList() {
 		if (!oRange) {
 			type = 'Target'
 			var node_list = Asc.scope.node_list || []
-			console.log('node_list', node_list)
 			var currentContentControl = oDocument.Document.GetContentControl()
 			var controls = oDocument.GetAllContentControls()
 			if (currentContentControl) {
@@ -834,7 +918,6 @@ function getBatchList() {
 // 批量修改题型
 function batchChangeQuesType(type) {
 	return getBatchList().then(res => {
-		console.log('batchChangeQuesType',res)
 		if (!res || !res.code || !res.list || res.list.length == 0) {
 			return
 		}
@@ -1032,7 +1115,6 @@ function confirmLevelSet(levels) {
 					res.questionMap[key].ques_default_name = GetDefaultName(res.questionMap[key].level_type, res.questionMap[key].text)
 				})
 				window.BiyueCustomData.question_map = res.questionMap
-				console.log('confirmLevelSet', window.BiyueCustomData)
 			}
 			resolve()
 			initExtroInfo()
@@ -1716,6 +1798,580 @@ function getTimeString() {
 	var micsecond = date.getMilliseconds()
 	return year + '-' + month + '-' + day + ' ' + hour + ':' + minute + ':' + second + ' ' + micsecond
 }
+// 批量修改占比
+function batchChangeProportion(proportion) {
+	return getBatchList().then(res => {
+		if (!res || !res.code || !res.list || res.list.length == 0) {
+			return
+		}
+		var question_map = window.BiyueCustomData.question_map
+		res.list.forEach(e => {
+			if (question_map && question_map[e.id]) {
+				question_map[e.id].proportion = proportion
+			}
+		})
+		return batchProportion(res.list, proportion)
+	})
+}
+
+function batchProportion(idList, proportion) {
+	if (!idList || idList.length == 0) {
+		return
+	}
+	Asc.scope.change_id_list = idList
+	Asc.scope.proportion = proportion
+	return biyueCallCommand(window, function() {
+		var idList = Asc.scope.change_id_list
+		var question_map = Asc.scope.question_map || {}
+		var oDocument = Api.GetDocument()
+		var oControls = oDocument.GetAllContentControls()
+		var target_proportion = Asc.scope.proportion || 1
+		var TABLE_TITLE = 'questionTable'
+		var newW = 100 / target_proportion
+		// 先考虑所有题目都不在表格内的情况
+		var templist = []
+		var iTable = 0
+		var tables = {}
+		var wBefore = 0
+		var toIndex = -1
+		var sections = oDocument.GetSections()
+		var oSection = sections[0]
+		var PageSize = oSection.Section.PageSize
+		var PageMargins = oSection.Section.PageMargins
+		var tw = PageSize.W - PageMargins.Left - PageMargins.Right
+		function isTableEmpty(tableId) {
+			var oTable = Api.LookupObject(tableId)
+			if (!oTable) {
+				return false
+			}
+			if (oTable.GetClassType() != 'table') {
+				return false
+			}
+			var rows = oTable.GetRowsCount()
+			for (var row = 0; row < rows; ++row) {
+				var oRow = oTable.GetRow(row)
+				var cellsCount = oRow.GetCellsCount()
+				for (var cell = 0; cell < cellsCount; ++cell) {
+					var oCell = oRow.GetCell(0)
+					var elementCount = oCell.GetContent().GetElementsCount()
+					if (elementCount > 0) {
+						for (var j = 0; j < elementCount; ++j) {
+							var oElement = oCell.GetContent().GetElement(j)
+							if (oElement.GetClassType() == 'paragraph') {
+								if (oElement.GetElementsCount() > 0) {
+									return false
+								}
+							} else {
+								return false
+							}
+						}
+					}
+				}
+			}
+			return true
+		}
+		function AddControlToCell2(content, oCell) {
+			if (!oCell) {
+				console.log('AddControlToCell2 ocell is null')
+				return
+			}
+			if (!content) {
+				console.log('AddControlToCell2 content is null')
+				return
+			}
+			oCell.SetCellMarginLeft(0)
+			oCell.SetCellMarginRight(0)
+			var cellContent = oCell.GetContent()
+			content.forEach((e, index) => {
+				cellContent.AddElement(index, e)
+			})
+			var lastindex = cellContent.GetElementsCount() - 1
+			if (cellContent.GetElementsCount() > 1 && cellContent.GetElement(lastindex).GetClassType() == 'paragraph') {
+				cellContent.RemoveElement(lastindex)
+			}
+		}
+		for (var idx = 0; idx < idList.length; ++idx){
+			var id = idList[idx].id
+			var quesData = question_map[id]
+			if (!quesData) {
+				continue
+			}
+			var oControl = oControls.find(e => {
+				var tag = JSON.parse(e.GetTag() || '{}')
+				return tag.client_id == id
+			})
+			if (!oControl) {
+				continue
+			}
+			var posinparent = oControl.GetPosInParent()
+			var parent = oControl.Sdt.GetParent()
+			var oParent = Api.LookupObject(parent.Id)
+			var isInCell = false
+			var parentTable = null
+			var parentCell = null
+			if (oParent && oParent.GetClassType && oParent.GetClassType() == 'documentContent') {
+				var parent2 = oParent.Document.GetParent()
+				if (parent2) {
+					var oParent2 = Api.LookupObject(parent2.Id)
+					if (oParent2 && oParent2.GetClassType && oParent2.GetClassType() == 'tableCell') {
+						isInCell = true
+						parentTable = oControl.GetParentTable()
+						parentCell = oControl.GetParentTableCell()
+					}
+				}
+			}
+			if (isInCell) {
+				templist.push({
+					content: [oControl],
+					oParent: oParent,
+					posinparent: posinparent,
+					tablePos: parentTable.GetPosInParent(),
+					tableParent: Api.LookupObject(parentTable.Table.Parent.Id),
+					tableId: parentTable.Table.Id
+				})
+			} else {
+				templist.push({
+					content: [oControl],
+					oParent: oParent,
+					posinparent: posinparent
+				})
+			}
+			if (wBefore + newW > 100) {
+				iTable++
+				tables[iTable] = {
+					cells: [{
+						icell: 0,
+						W: newW
+					}],
+					W: newW
+				}
+				wBefore = newW
+			} else {
+				if (!tables[iTable]) {
+					tables[iTable] = {
+						cells: [{
+							icell: 0,
+							W: newW
+						}],
+						W: newW
+					}
+				} else {
+					tables[iTable].cells.push({
+						icell: tables[iTable].cells.length,
+						W: newW
+					})
+					tables[iTable].W += newW
+				}
+				wBefore += newW
+			}
+		}
+		for (var j = templist.length - 1; j >= 0; --j) {
+			templist[j].oParent.RemoveElement(templist[j].posinparent)
+			if (templist[j].tableParent) {
+				if (isTableEmpty(templist[j].tableId)) {
+					templist[j].tableParent.RemoveElement(templist[j].tablePos)
+				}
+			}
+		}
+		var count = 0
+		for (var i = 0; i <= iTable; ++i) {
+			if (!tables[i]) {
+				break
+			}
+			var targetcellscount = tables[i].cells.length
+			var oTable
+			if (i <= toIndex) {
+				oTable = oStartTableParent.GetElement(startTablePos + i)
+				if (oTable.GetClassType() != 'table') {
+					break
+				}
+				var oRow = oTable.GetRow(0)
+				var cellscount = oRow.GetCellsCount()
+				if (cellscount < targetcellscount) { // 需要拆分
+					oTable.Split(oTable.GetCell(0, 0), 1, targetcellscount - cellscount + 1);
+				} else if (cellscount > targetcellscount) { // 需要合并
+					var mergeCells = []
+					for (var m = 0; m <= cellscount - targetcellscount; ++m) {
+						mergeCells.push(oTable.GetCell(0, m))
+					}
+					oTable.MergeCells(mergeCells)
+				}
+			} else {
+				oTable  = Api.CreateTable(targetcellscount, 1)
+				oTable.SetCellSpacing(0)
+				oTable.SetTableTitle(TABLE_TITLE)
+			}
+			oTable.SetWidth('percent', tables[i].W)
+			tables[i].cells.forEach((cell, cidx) => {
+				oTable.GetCell(0, cell.icell).SetWidth('percent', cell.W)
+				AddControlToCell2(templist[count].content, oTable.GetCell(0, cell.icell))
+				count++
+				// // var tw = oTable.Table.Pages[0].XLimit - oTable.Table.Pages[0].X
+				// console.log('tw', tw)
+				// var twips = (tw * (cell.W / 100)) / (25.4 / 72 / 20)
+				// oTable.GetCell(0, cell.icell).SetWidth('twips', twips)
+			})
+			if (i >= toIndex) {
+				if (templist[0].tableId) {
+					templist[0].tableParent.AddElement(templist[0].tablePos + i, oTable)
+				} else {
+					templist[0].oParent.AddElement(templist[0].posinparent + i, oTable)
+				}
+			}
+		}
+	}, false, true).then(res => {
+		console.log('batchProportion', res)
+	})
+}
+
+function changeProportion(idList, proportion) {
+	if (!idList || idList.length == 0) {
+		return
+	}
+	Asc.scope.node_list = window.BiyueCustomData.node_list
+	Asc.scope.question_map = window.BiyueCustomData.question_map
+	Asc.scope.change_id_list = idList
+	Asc.scope.proportion = proportion
+	return biyueCallCommand(window, function() {
+		var idList = Asc.scope.change_id_list
+		var question_map = Asc.scope.question_map || {}
+		var target_proportion = Asc.scope.proportion || 1
+		var oDocument = Api.GetDocument()
+		var oControls = oDocument.GetAllContentControls()
+		var TABLE_TITLE = 'questionTable'
+		var newW = 100 / target_proportion
+		function AddControlToCell(oControl, oCell) {
+			var templist = []
+			templist.push(oControl)
+			var posinparent = oControl.GetPosInParent()
+			var parent = oControl.Sdt.GetParent()
+			var oParent = Api.LookupObject(parent.Id)
+			oParent.RemoveElement(posinparent)
+			oCell.SetWidth('percent', 100 / target_proportion)
+			oCell.AddElement(0, templist[0])
+			if (oCell.GetContent().GetElementsCount() == 2) {
+				oCell.GetContent().RemoveElement(1)
+			}
+		}
+
+		function AddControlToCell2(content, oCell) {
+			if (!oCell) {
+				console.log('AddControlToCell2 ocell is null')
+				return
+			}
+			if (!content) {
+				console.log('AddControlToCell2 content is null')
+				return
+			}
+			oCell.SetCellMarginLeft(0)
+			oCell.SetCellMarginRight(0)
+			var cellContent = oCell.GetContent()
+			content.forEach((e, index) => {
+				cellContent.AddElement(index, e)
+			})
+			var lastindex = cellContent.GetElementsCount() - 1
+			if (cellContent.GetElementsCount() > 1 && cellContent.GetElement(lastindex).GetClassType() == 'paragraph') {
+				cellContent.RemoveElement(lastindex)
+			}
+		}
+		// 上一个表格有足够的空间可以放，需要将上一个表格的最后一个单元格拆分，然后下面的表格内容挪到上面
+		function func1(startTable, oControl) {
+			var templist = []
+			var iTable = 0
+			var tables = {}
+			var wBefore = 0
+			var toIndex = -1
+			var startTablePos = startTable.GetPosInParent()
+			var dataHandled = {}
+			dataHandled.parentTable = oControl.GetParentTable()
+			dataHandled.parentTableCell = oControl.GetParentTableCell()
+			if (dataHandled.parentTableCell) {
+				dataHandled.cellIndex = dataHandled.parentTableCell.GetIndex()
+				dataHandled.rowIndex = dataHandled.parentTableCell.GetRowIndex()
+				dataHandled.table_id = dataHandled.parentTable.Table.Id
+				dataHandled.table_pos = dataHandled.parentTable.GetPosInParent()
+			} else {
+				dataHandled.pos = oControl.GetPosInParent()
+				if (dataHandled.pos < startTablePos) {
+					templist.push({
+						content: [oControl]
+					})
+					tables[iTable] = {
+						cells: [{
+							icell: 0,
+							W: newW
+						}],
+						W: newW
+					}
+					wBefore = newW
+					var oControlParent = Api.LookupObject(oControl.Sdt.GetParent().Id)
+					oControlParent.RemoveElement(dataHandled.pos)
+				}
+			}
+			startTablePos = startTable.GetPosInParent()
+			var startTableParent = startTable.Table.Parent
+			var oStartTableParent = Api.LookupObject(startTableParent.Id)
+			var elementCount1 = oStartTableParent.GetElementsCount()
+			for (var i1 = startTablePos; i1 < elementCount1; ++i1) {
+				var element = oStartTableParent.GetElement(i1)
+				if (element.GetClassType() != 'table') {
+					if (dataHandled.pos != undefined && dataHandled.pos == i1 && element.GetClassType() == 'blockLvlSdt' && element.Sdt.GetId() == oControl.Sdt.GetId()) {
+						templist.push({
+							content: [oControl]
+						})
+						if (wBefore + newW > 100) {
+							iTable++
+							tables[iTable] = {
+								cells: [{
+									icell: 0,
+									W: newW
+								}],
+								W: newW
+							}
+							wBefore = newW
+						} else {
+							tables[iTable].cells.push({
+								icell: tables[iTable].cells.length,
+								W: newW
+							})
+							tables[iTable].W += newW
+							wBefore += newW
+						}
+						var oControlParent = Api.LookupObject(oControl.Sdt.GetParent().Id)
+						oControlParent.RemoveElement(dataHandled.pos)
+					}
+					break
+				}
+				if (element.GetTableTitle() != TABLE_TITLE) {
+					break
+				}
+				var rows = element.GetRowsCount()
+				if (rows != 1) {
+					break
+				}
+				var oTableRow = element.GetRow(0)
+				var cellsCount = oTableRow.GetCellsCount()
+				for (var icell = 0; icell < cellsCount; ++icell) {
+					var oCell = oTableRow.GetCell(icell)
+					var W = oCell.CellPr.TableCellW.W
+					var cellContent = oCell.GetContent()
+					var contents = []
+					var elementcount = cellContent.GetElementsCount()
+					for (var k = 0; k < elementcount; ++k) {
+						contents.push(cellContent.GetElement(k))
+					}
+					for (var k = 0; k < elementcount; ++k) {
+						cellContent.RemoveElement(0)
+					}
+					templist.push({
+						content: contents
+					})
+					if (dataHandled.table_id) {
+						if (i1 < dataHandled.table_pos) { // 上一个表格
+							if (!tables[iTable]) {
+								tables[iTable] = {
+									cells: [{
+										icell: 0,
+										W: W
+									}],
+									W: W
+								}
+							} else {
+								tables[iTable].cells.push({
+									icell: tables[iTable].cells.length,
+									W: W
+								})
+								tables[iTable].W += W
+							}
+							wBefore += W
+						} else {
+							var W2 = W
+							if (dataHandled.table_pos == i1 && dataHandled.cellIndex == icell) {
+								W2 = newW
+							}
+							if (wBefore + W2 <= 100) {
+								if (!tables[iTable]) {
+									tables[iTable] = {
+										cells: [{
+											icell: 0,
+											W: W2
+										}],
+										W: W2
+									}
+									wBefore = W2
+								} else {
+									tables[iTable].cells.push({
+										icell: tables[iTable].cells.length,
+										W: W2
+									})
+									tables[iTable].W += W2
+									wBefore += W2
+								}
+							} else {
+								iTable++
+								tables[iTable] = {
+									cells: [{
+										icell: 0,
+										W: W2
+									}],
+									W: W2
+								}
+								wBefore = W2
+							}
+						}
+					} else { // 当前未处于表格中
+						if (!tables[iTable]) {
+							tables[iTable] = {
+								cells: [{
+									icell: 0,
+									W: W	
+								}],
+								W: W
+							}
+						} else {
+							tables[iTable].cells.push({
+								icell: tables[iTable].cells.length,
+								W: W
+							})
+							tables[iTable].W += W
+						}
+						wBefore += W
+					}
+				}
+				++toIndex
+			}
+			var count = 0
+			for (var i = 0; i <= iTable; ++i) {
+				if (!tables[i]) {
+					break
+				}
+				var targetcellscount = tables[i].cells.length
+				var oTable
+				if (i <= toIndex) {
+					oTable = oStartTableParent.GetElement(startTablePos + i)
+					if (oTable.GetClassType() != 'table') {
+						break
+					}
+					var oRow = oTable.GetRow(0)
+					var cellscount = oRow.GetCellsCount()
+					if (cellscount < targetcellscount) { // 需要拆分
+						oTable.Split(oTable.GetCell(0, 0), 1, targetcellscount - cellscount + 1);
+					} else if (cellscount > targetcellscount) { // 需要合并
+						var mergeCells = []
+						for (var m = 0; m <= cellscount - targetcellscount; ++m) {
+							mergeCells.push(oTable.GetCell(0, m))
+						}
+						oTable.MergeCells(mergeCells)
+					}
+				} else {
+					oTable  = Api.CreateTable(targetcellscount, 1)
+					oTable.SetCellSpacing(0)
+					oTable.SetTableTitle(TABLE_TITLE)
+				}
+				oTable.SetWidth('percent', tables[i].W)
+				tables[i].cells.forEach((cell, cidx) => {
+					AddControlToCell2(templist[count].content, oTable.GetCell(0, cell.icell))
+					count++
+					var twips = oTable.Table.CalculatedTableW * (100 / cell.W)
+					oTable.GetCell(0, cell.icell).SetWidth('twips', twips)
+					// oTable.GetCell(0, cell.icell).SetWidth('percent', cell.W)
+				})
+				if (i >= toIndex) {
+					oStartTableParent.AddElement(startTablePos + i, oTable)
+				}
+			}
+			if (iTable < toIndex) {
+				for (var j = 0; j < toIndex - iTable; ++j) {
+					oStartTableParent.RemoveElement(startTablePos + iTable + j + 1)
+				}
+			}
+		}
+		
+		for (var idx = 0; idx < idList.length; ++idx) {
+			var id = idList[idx]
+			var quesData = question_map[id]
+			if (!quesData) {
+				continue
+			}
+			var oControl = oControls.find(e => {
+				var tag = JSON.parse(e.GetTag() || '{}')
+				return tag.client_id == id
+			})
+			if (!oControl) {
+				continue
+			}
+			var oTable = oControl.GetParentTable()
+			var posinparent = oControl.GetPosInParent()
+			var parent = oControl.Sdt.GetParent()
+			var oParent = Api.LookupObject(parent.Id)
+			var preTable = null
+			if (oParent.GetClassType() == 'document') {
+				if (posinparent) {
+					var previousElement = oParent.GetElement(posinparent - 1)
+					if (previousElement && previousElement.GetClassType() == 'table' && previousElement.GetTableTitle() == TABLE_TITLE) {
+						var TableW = previousElement.TablePr.TableW.W
+						if (TableW + newW <= 100) {
+							preTable = previousElement
+						}
+					}
+				}
+			} else if (oParent.GetClassType() == 'documentContent') {
+				var contentParent = Api.LookupObject(oParent.Document.GetParent().Id)
+				if (contentParent && contentParent.GetClassType() == 'tableCell') {
+					var tablepos = oTable.GetPosInParent()
+					if (tablepos) {
+						var tableParent = Api.LookupObject(oTable.Table.Parent.Id)
+						var pre = tableParent.GetElement(tablepos - 1)
+						if (pre.GetClassType() == 'table' && pre.GetTableTitle() == TABLE_TITLE) {
+							var TableW = pre.TablePr.TableW.W
+							if(TableW + newW <= 100 ) {
+								preTable = pre
+							}
+						}
+					}
+				}
+			}
+			if (preTable) {
+				func1(preTable, oControl)
+			} else if (oTable) {
+				func1(oTable, oControl)
+			} else {
+				var addToNextTable = false
+				var nextTable = oParent.GetElement(posinparent + 1)
+				if (nextTable && nextTable.GetClassType() == 'table' && nextTable.GetTableTitle() == TABLE_TITLE) {
+					var firstCell = nextTable.GetRow(0).GetCell(0)
+					var firstCellW = firstCell.CellPr.TableCellW.W
+					if (firstCellW + newW <= 100) {
+						addToNextTable = true
+						func1(nextTable, oControl)
+					}
+				}
+				if (!addToNextTable) {
+					oTable = Api.CreateTable(1, 1);
+					oTable.SetCellSpacing(0)
+					oTable.SetWidth('percent', newW);
+					oTable.SetTableTitle(TABLE_TITLE)
+					var oCell = oTable.GetRow(0).GetCell(0)
+					AddControlToCell(oControl, oCell)
+					oParent.AddElement(posinparent, oTable)
+				}
+			}
+		}
+		return {
+			idList: idList,
+			proportion: target_proportion
+		}
+	}, false, true).then(res => {
+		console.log('changeProportion result', res)
+		if (res && res.idList && window.BiyueCustomData.quesiton_map) {
+			res.idList.forEach(id => {
+				if (window.BiyueCustomData.quesiton_map[id]) {
+					window.BiyueCustomData.quesiton_map[id].proportion = res.proportion
+				}
+			})
+		}
+	})
+}
 
 export {
 	handleDocClick,
@@ -1726,11 +2382,13 @@ export {
 	reqUploadTree,
 	batchChangeQuesType,
 	batchChangeInteraction,
+	batchChangeProportion,
 	splitEnd,
 	showLevelSetDialog,
 	confirmLevelSet,
 	initControls,
 	handleWrite,
 	handleIdentifyBox,
-	handleAllWrite
+	handleAllWrite,
+	changeProportion
 }

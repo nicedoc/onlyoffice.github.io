@@ -18,7 +18,6 @@ import {
 	handleContentControlChange,
 	deletePositions,
 	setSectionColumn,
-	batchChangeProportion,
 	getAllPositions
 } from './business.js'
 import { showQuesData, initListener } from './panelQuestionDetail.js'
@@ -34,6 +33,7 @@ import {
 	reqUploadTree,
 	batchChangeQuesType,
 	batchChangeInteraction,
+	batchChangeProportion,
 	splitEnd,
 	showLevelSetDialog,
 	confirmLevelSet,
@@ -549,6 +549,10 @@ import {
 
 		Asc.scope.BiyueCustomId = window.BiyueCustomId
 		Asc.scope.BiyueCustomData = window.BiyueCustomData
+		if (!Asc.scope.BiyueCustomId) {
+			callback()
+			return
+		}
 		window.Asc.plugin.callCommand(
 			function () {
 				var id = Asc.scope.BiyueCustomId
@@ -827,7 +831,29 @@ import {
             }
 
             console.log('createContentControl count=', ranges.length);
-
+			function getCellId(Pos) {
+				if (!Pos) {
+					return null
+				}
+				for (var i = Pos.length - 1; i >= 0; --i) {
+					var element = Api.LookupObject(Pos[i].Class.Id)
+					if (!element) {
+						return null
+					}
+					if (!element.GetClassType) {
+						return null
+					}
+					if (element.GetClassType() == 'documentContent') {
+						if (i > 0) {
+							var nextElement = Api.LookupObject(Pos[i - 1].Class.Id)
+							if (nextElement && nextElement.GetClassType && nextElement.GetClassType() == 'tableRow') {
+								return Pos[i].Class.Id
+							}
+						}
+					}
+				}
+				return null
+			}
             var results = [];
             // reverse order loop to keep the order
             for (var i = ranges.length - 1; i >= 0; i--) {
@@ -836,8 +862,27 @@ import {
                 //console.log('createContentControl:', e);
                 var range = MakeRange(e.beg, e.end);
                 range.Select()
+				var startCellId = getCellId(range.StartPos)
+				var endCellId = getCellId(range.EndPos)
+				var inCell = startCellId && endCellId && startCellId == endCellId
                 var oResult = Api.asc_AddContentControl(e.controlType || 1, { "Tag": e.info ? JSON.stringify(e.info) : '' });
                 Api.asc_RemoveSelection();
+				if (inCell) {
+					var oControl = Api.LookupObject(oResult.InternalId)
+					if (oControl.GetClassType() == 'blockLvlSdt') {
+						var oCell = oControl.GetParentTableCell()
+						if (oCell.GetContent().GetElementsCount() > 1) {
+							oCell.GetContent().RemoveElement(1)
+						}
+						if (oControl.GetContent().GetElementsCount() > 1) {
+							var lastpos = oControl.GetContent().GetElementsCount() - 1
+							var lastElement = oControl.GetContent().GetElement(lastpos)
+							if (lastElement.GetClassType() == 'paragraph' && lastElement.GetElementsCount() == 0) {
+								oControl.GetContent().RemoveElement(lastpos)
+							}
+						}
+					}
+				}
                 if (e.column !== undefined && e.column > 1) {
                     results.push({
                         "InternalId": oResult.InternalId,

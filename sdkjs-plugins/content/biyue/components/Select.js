@@ -2,7 +2,11 @@ class ComponentSelect {
   constructor(params = {}) {
     this.id = params.id
     this.callback_item = params.callback_item
-	this.force_click_notify = params.force_click_notify
+	if (params.force_click_notify == undefined) {
+		this.force_click_notify = true
+	} else {
+		this.force_click_notify = params.force_click_notify
+	}
     this.updateOptions(params)
   }
 

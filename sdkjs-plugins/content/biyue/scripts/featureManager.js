@@ -261,7 +261,7 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 					var oParagraph = oControl.GetAllParagraphs()[0]
 					if (oParagraph) {
 						var run1 = oParagraph.GetElement(0)
-						var existSimple = run1 && run1.GetClassType() == 'run' && run1.GetText() == '▢'
+						var existSimple = run1 && run1.GetClassType() == 'run' && (run1.GetText() == '\u{e6a1}' || run1.GetText() == '▢') 
 						if (existSimple) {
 							oParagraph.RemoveElement(0)
 						}
@@ -767,12 +767,12 @@ function setInteraction(type, quesIds) {
 			if (paragraphs && paragraphs.length > 0) {
 				var pParagraph = paragraphs[0]
 				var oRun = Api.CreateRun()
-				oRun.AddText('▢')
-				// oRun.SetFontFamily('iconfont')
-				// oRun.AddText('\u{e6a1}')
+				// oRun.AddText('▢')
+				oRun.SetFontFamily('iconfont')
+				oRun.AddText('\u{e6a1}')
 				
 				oRun.SetColor(153, 153, 153);
-				oRun.SetFontSize(30)
+				oRun.SetFontSize(24)
 				pParagraph.AddElement(
 					oRun,
 					0
@@ -1055,7 +1055,7 @@ function setInteraction(type, quesIds) {
 				var accurateDrawings = getExistDrawing(allDraws, ['accurate', 'ask_accurate'])
 				var oParagraph = oControl.GetAllParagraphs()[0]
 				var run1 = oParagraph.GetElement(0)
-				var existSimple = run1 && run1.GetClassType() == 'run' && run1.GetText() == '▢'
+				var existSimple = run1 && run1.GetClassType() == 'run' && (run1.GetText() == '\u{e6a1}' || run1.GetText() == '▢') 
 				if (interaction_type == 'simple') {
 					if (!existSimple) {
 						addSimple2(oControl)
