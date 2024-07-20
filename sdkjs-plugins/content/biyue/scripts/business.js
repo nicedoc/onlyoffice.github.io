@@ -26,23 +26,29 @@ function initPaperInfo() {
 				if (!paper_info) {
 					return
 				}
-				const { paper, workbook} = res.data
+				const { paper, workbook } = res.data
 				if (workbook) {
 					$('#school').text(
-						`${workbook.school_id ? workbook.school_name : '内部练习册'}#${workbook.id}`
+						`${workbook.school_id ? workbook.school_name : '内部练习册'}#${
+							workbook.id
+						}`
 					)
 					window.BiyueCustomData.workbook_info = workbook
 				}
 				if (paper) {
 					$('#exam_title').text(`《${paper.title}》`)
 					window.BiyueCustomData.exam_title = paper.title
-					$('#grade_data').text(`${paper.period_name}${paper.subject_name}/${paper.edition_name || ''}/${paper.phase_name || ''}`)
+					$('#grade_data').text(
+						`${paper.period_name}${paper.subject_name}/${
+							paper.edition_name || ''
+						}/${paper.phase_name || ''}`
+					)
 				}
 				var options = res.data.options || {}
 				var paper_options = {}
 				Object.keys(options).forEach((key) => {
 					var list = []
-					Object.keys(options[key]).forEach(e => {
+					Object.keys(options[key]).forEach((e) => {
 						list.push({
 							value: e,
 							label: options[key][e],
@@ -62,30 +68,43 @@ function initPaperInfo() {
 
 function updatePageSizeMargins() {
 	Asc.scope.workbook = window.BiyueCustomData.workbook_info
-	return biyueCallCommand(window, function () {
-		var workbook = Asc.scope.workbook
-		var oDocument = Api.GetDocument()
-		var sections = oDocument.GetSections()
-		function MM2Twips(mm) {
-			var m = Math.max(mm, 10)
-			return m / (25.4 / 72 / 20)
-		}
-		if (sections && sections.length > 0) {
-			sections.forEach(oSection => {
-				if (workbook.page_size) {
-					oSection.SetPageSize(MM2Twips(workbook.page_size.width), MM2Twips(workbook.page_size.height))
-				}
-				if (workbook.margin) {
-					oSection.SetPageMargins(MM2Twips(workbook.margin.left), MM2Twips(workbook.margin.top), MM2Twips(workbook.margin.right), MM2Twips(workbook.margin.bottom))
-					oSection.SetFooterDistance(MM2Twips(workbook.margin.bottom - 13));
-					oSection.SetHeaderDistance(MM2Twips(workbook.margin.top))
-				}
-				oSection.RemoveFooter('default')
-				oSection.RemoveHeader('default')
-			})
-		}
-		return null
-	}, false, true)
+	return biyueCallCommand(
+		window,
+		function () {
+			var workbook = Asc.scope.workbook
+			var oDocument = Api.GetDocument()
+			var sections = oDocument.GetSections()
+			function MM2Twips(mm) {
+				var m = Math.max(mm, 10)
+				return m / (25.4 / 72 / 20)
+			}
+			if (sections && sections.length > 0) {
+				sections.forEach((oSection) => {
+					if (workbook.page_size) {
+						oSection.SetPageSize(
+							MM2Twips(workbook.page_size.width),
+							MM2Twips(workbook.page_size.height)
+						)
+					}
+					if (workbook.margin) {
+						oSection.SetPageMargins(
+							MM2Twips(workbook.margin.left),
+							MM2Twips(workbook.margin.top),
+							MM2Twips(workbook.margin.right),
+							MM2Twips(workbook.margin.bottom)
+						)
+						oSection.SetFooterDistance(MM2Twips(workbook.margin.bottom - 13))
+						oSection.SetHeaderDistance(MM2Twips(workbook.margin.top))
+					}
+					oSection.RemoveFooter('default')
+					oSection.RemoveHeader('default')
+				})
+			}
+			return null
+		},
+		false,
+		true
+	)
 }
 
 function getPaperInfo() {
@@ -189,7 +208,8 @@ function onQuesTreeClick(e) {
 	}
 	updateQuesStyle(newlist)
 	Asc.scope.click_ids = newlist
-	biyueCallCommand(window,
+	biyueCallCommand(
+		window,
 		function () {
 			var ids = Asc.scope.click_ids
 			var oDocument = Api.GetDocument()
@@ -212,7 +232,8 @@ function onQuesTreeClick(e) {
 			firstRange.Select()
 		},
 		false,
-		false)
+		false
+	)
 }
 // 更新题目选中样式
 function updateQuesStyle(idList) {
@@ -560,7 +581,8 @@ async function getQuesUuid() {
 // 保存位置信息
 function savePositons() {
 	Asc.scope.customData = window.BiyueCustomData
-	biyueCallCommand(window,
+	biyueCallCommand(
+		window,
 		function () {
 			var oDocument = Api.GetDocument()
 			let controls = oDocument.GetAllContentControls()
@@ -595,76 +617,77 @@ function savePositons() {
 			return list
 		},
 		false,
-		false).then (list => {
-			var customData = window.BiyueCustomData
-			var questionPositions = {}
-			customData.control_list.forEach((e) => {
-				if (e.regionType == 'question') {
-					var rectInfo = list.find((item) => {
-						return item.control_id == e.control_id
-					})
-					var title_region = [rectInfo.rect]
-					var mark_ask_region = {}
-					if (e.ask_controls && e.ask_controls.length > 0) {
-						e.ask_controls.forEach((ask, askindex) => {
-							var askfind = list.find((askItm) => () => {
-								return askItm.control_id == ask.control_id
-							})
-							if (askfind) {
-								mark_ask_region[askindex + 1 + ''] = [
-									Object.assign({}, askfind.rect, {
-										v: ask.v + '',
-										order: askindex + 1 + '',
-									}),
-								]
-							}
+		false
+	).then((list) => {
+		var customData = window.BiyueCustomData
+		var questionPositions = {}
+		customData.control_list.forEach((e) => {
+			if (e.regionType == 'question') {
+				var rectInfo = list.find((item) => {
+					return item.control_id == e.control_id
+				})
+				var title_region = [rectInfo.rect]
+				var mark_ask_region = {}
+				if (e.ask_controls && e.ask_controls.length > 0) {
+					e.ask_controls.forEach((ask, askindex) => {
+						var askfind = list.find((askItm) => () => {
+							return askItm.control_id == ask.control_id
 						})
-					} else {
-						mark_ask_region = {
-							1: [
-								Object.assign({}, rectInfo.rect, {
-									v: e.score + '',
-									order: '1',
+						if (askfind) {
+							mark_ask_region[askindex + 1 + ''] = [
+								Object.assign({}, askfind.rect, {
+									v: ask.v + '',
+									order: askindex + 1 + '',
 								}),
-							],
+							]
 						}
-					}
-					var write_ask_region = [
-						Object.assign({}, rectInfo.rect, {
-							v: e.score + '',
-							order: '1',
-						}),
-					]
-
-					questionPositions[e.ques_uuid] = {
-						ques_type: 1,
-						itemId: 3,
-						ques_no: e.ques_no,
-						ques_name: e.ques_name,
-						content: encodeURIComponent(e.text), // 网络请求时提示（无法将值解码），改成'111'后，接口可以正常调用
-						score: e.score,
-						ref_id: e.uuid,
-						answer: '',
-						additional: false,
-						mark_method: 1, // 标错还是打分
-						title_region: title_region,
-						correct_region: {},
-						grade_positions: [],
-						mark_ask_region: mark_ask_region,
-						write_ask_region: write_ask_region,
-						ask_num: e.ask_controls ? e.ask_controls.length || 1 : 1,
+					})
+				} else {
+					mark_ask_region = {
+						1: [
+							Object.assign({}, rectInfo.rect, {
+								v: e.score + '',
+								order: '1',
+							}),
+						],
 					}
 				}
-			})
-			console.log('positions:', questionPositions)
-			paperSavePosition(customData.paper_uuid, questionPositions, '', '')
-				.then((res) => {
-					console.log('保存位置成功')
-				})
-				.catch((error) => {
-					console.log(error)
-				})
+				var write_ask_region = [
+					Object.assign({}, rectInfo.rect, {
+						v: e.score + '',
+						order: '1',
+					}),
+				]
+
+				questionPositions[e.ques_uuid] = {
+					ques_type: 1,
+					itemId: 3,
+					ques_no: e.ques_no,
+					ques_name: e.ques_name,
+					content: encodeURIComponent(e.text), // 网络请求时提示（无法将值解码），改成'111'后，接口可以正常调用
+					score: e.score,
+					ref_id: e.uuid,
+					answer: '',
+					additional: false,
+					mark_method: 1, // 标错还是打分
+					title_region: title_region,
+					correct_region: {},
+					grade_positions: [],
+					mark_ask_region: mark_ask_region,
+					write_ask_region: write_ask_region,
+					ask_num: e.ask_controls ? e.ask_controls.length || 1 : 1,
+				}
+			}
 		})
+		console.log('positions:', questionPositions)
+		paperSavePosition(customData.paper_uuid, questionPositions, '', '')
+			.then((res) => {
+				console.log('保存位置成功')
+			})
+			.catch((error) => {
+				console.log(error)
+			})
+	})
 }
 
 function showQuestionTree() {
@@ -835,7 +858,8 @@ function updateQuestionScore() {
 }
 
 function addDrawingObj() {
-	biyueCallCommand(window,
+	biyueCallCommand(
+		window,
 		function () {
 			var oDocument = Api.GetDocument()
 			var oFill = Api.CreateNoFill()
@@ -864,12 +888,14 @@ function addDrawingObj() {
 			oDocument.AddDrawingToPage(oDrawing, 0, 1070821, 963295)
 		},
 		false,
-		true)
+		true
+	)
 }
 
 // 测试在文档尾部加入表格，显示打分区
 function testAddTable() {
-	biyueCallCommand(window,
+	biyueCallCommand(
+		window,
 		function () {
 			var oDocument = Api.GetDocument()
 			var oTableStyle = oDocument.CreateStyle('CustomTableStyle', 'table')
@@ -899,12 +925,14 @@ function testAddTable() {
 			oDocument.Push(oTable)
 		},
 		false,
-		true)
+		true
+	)
 }
 
 function addQuesScore(score = 10) {
 	Asc.scope.score = score
-	biyueCallCommand(window,
+	biyueCallCommand(
+		window,
 		function () {
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls()
@@ -950,9 +978,8 @@ function addQuesScore(score = 10) {
 			}
 		},
 		false,
-		true).then(res => {
-
-		})
+		true
+	).then((res) => {})
 }
 // 添加分数框
 function addScoreField(score, mode, layout, posall) {
@@ -1226,7 +1253,8 @@ function addScoreField(score, mode, layout, posall) {
 
 function selectQues(treeInfo, index) {
 	Asc.scope.temp_sel_index = index
-	biyueCallCommand(window,
+	biyueCallCommand(
+		window,
 		function () {
 			var res = Api.GetDocument().GetAllContentControls()
 			var index = Asc.scope.temp_sel_index
@@ -1235,7 +1263,8 @@ function selectQues(treeInfo, index) {
 			}
 		},
 		false,
-		false)
+		false
+	)
 }
 
 function drawPosition2(data) {
@@ -1261,7 +1290,8 @@ function drawPosition2(data) {
 		Asc.scope.control_id = null
 	}
 	// testAddTable()
-	biyueCallCommand(window,
+	biyueCallCommand(
+		window,
 		function () {
 			var posdata = Asc.scope.pos
 			var MM2EMU = Asc.scope.MM2EMU
@@ -1345,11 +1375,12 @@ function drawPosition2(data) {
 			}
 		},
 		false,
-		true).then((res) => {
-			if (res && res.add) {
-				window.BiyueCustomData.control_list.push(res.control)
-			}
-		})
+		true
+	).then((res) => {
+		if (res && res.add) {
+			window.BiyueCustomData.control_list.push(res.control)
+		}
+	})
 }
 
 function drawPositions(list) {
@@ -1488,7 +1519,8 @@ function drawPosition(data) {
 		Asc.scope.drawing_id = null
 	}
 	// testAddTable()
-	biyueCallCommand(window,
+	biyueCallCommand(
+		window,
 		function () {
 			var posdata = Asc.scope.pos
 			console.log('posdata', posdata)
@@ -1556,19 +1588,20 @@ function drawPosition(data) {
 			}
 		},
 		false,
-		true).then((res) => {
-			console.log(res)
-			if (res && res.add) {
-				if (!window.BiyueCustomData.pos_list) {
-					window.BiyueCustomData.pos_list = []
-				}
-				window.BiyueCustomData.pos_list.push({
-					id: res.id,
-					zone_type: res.zone_type,
-					v: res.v,
-				})
+		true
+	).then((res) => {
+		console.log(res)
+		if (res && res.add) {
+			if (!window.BiyueCustomData.pos_list) {
+				window.BiyueCustomData.pos_list = []
 			}
-		})
+			window.BiyueCustomData.pos_list.push({
+				id: res.id,
+				zone_type: res.zone_type,
+				v: res.v,
+			})
+		}
+	})
 }
 
 function getScores(score, mode) {
@@ -2725,7 +2758,8 @@ function addImage() {
 	// toggleWeight()
 	// return
 	Asc.scope.map_base64 = map_base64
-	biyueCallCommand(window,
+	biyueCallCommand(
+		window,
 		function () {
 			var oDocument = Api.GetDocument()
 			let controls = oDocument.GetAllContentControls()
@@ -2749,12 +2783,14 @@ function addImage() {
 			}
 		},
 		false,
-		true)
+		true
+	)
 }
 // 添加批改区域
 function addMarkField() {
 	// getPos()
-	biyueCallCommand(window,
+	biyueCallCommand(
+		window,
 		function () {
 			var oDocument = Api.GetDocument()
 			let controls = oDocument.GetAllContentControls()
@@ -2786,7 +2822,8 @@ function addMarkField() {
 			}
 		},
 		false,
-		true)
+		true
+	)
 }
 // 显示小问序号
 function showAskIndex() {
@@ -2815,7 +2852,8 @@ function showAskIndex() {
 // 切换权重显示
 function toggleWeight() {
 	Asc.scope.control_list = window.BiyueCustomData.control_list
-	biyueCallCommand(window,
+	biyueCallCommand(
+		window,
 		function () {
 			var control_list = Asc.scope.control_list
 			var oDocument = Api.GetDocument()
@@ -2948,14 +2986,16 @@ function toggleWeight() {
 			return control_list
 		},
 		false,
-		true).then((res) => {
-			window.BiyueCustomData.control_list = res
-		})
+		true
+	).then((res) => {
+		window.BiyueCustomData.control_list = res
+	})
 }
 
 function getPos() {
 	Asc.scope.control_list = window.BiyueCustomData.control_list
-	biyueCallCommand(window,
+	biyueCallCommand(
+		window,
 		function () {
 			var control_list = Asc.scope.control_list
 			console.log('control_list', control_list)
@@ -2988,7 +3028,8 @@ function getPos() {
 			}
 		},
 		false,
-		false)
+		false
+	)
 }
 
 function handleContentControlChange(params) {
@@ -3009,7 +3050,8 @@ function handleContentControlChange(params) {
 		}
 	}
 	Asc.scope.params = params
-	biyueCallCommand(window,
+	biyueCallCommand(
+		window,
 		function () {
 			var controldata = Asc.scope.find_controldata
 			var params = Asc.scope.params
@@ -3031,7 +3073,8 @@ function handleContentControlChange(params) {
 			}
 		},
 		false,
-		true)
+		true
+	)
 }
 // 添加或删除标识
 function handleIdentifyBox(add) {
@@ -3092,7 +3135,7 @@ function handleIdentifyBox(add) {
 							zone_type: 'question',
 							type: 'ques_identify',
 							control_id: paraentControl.Sdt.GetId(),
-						}
+						},
 					}
 					oDrawing.Drawing.Set_Props({
 						title: JSON.stringify(titleobj),
@@ -3149,7 +3192,10 @@ function handleIdentifyBox(add) {
 											var dtitle = JSON.parse(
 												drawings[sidx].Drawing.docPr.title
 											)
-											if (dtitle.feature && dtitle.feature.type == 'ques_identify') {
+											if (
+												dtitle.feature &&
+												dtitle.feature.type == 'ques_identify'
+											) {
 												res.remove_ids.push(drawings[sidx].Drawing.Id)
 												drawings[sidx].Delete()
 											}
@@ -3203,7 +3249,8 @@ function handleIdentifyBox(add) {
 function showIdentifyIndex(show) {
 	Asc.scope.show = show
 	Asc.scope.control_list = window.BiyueCustomData.control_list
-	biyueCallCommand(window,
+	biyueCallCommand(
+		window,
 		function () {
 			var show = Asc.scope.show
 			var oDocument = Api.GetDocument()
@@ -3275,7 +3322,8 @@ function showIdentifyIndex(show) {
 			}
 		},
 		false,
-		true)
+		true
+	)
 }
 
 function removeAllIdentify() {
@@ -3285,7 +3333,8 @@ function removeAllIdentify() {
 			control.identify_list = []
 		}
 	})
-	biyueCallCommand(window,
+	biyueCallCommand(
+		window,
 		function () {
 			var oDocument = Api.GetDocument()
 			var drawingObjs = oDocument.GetAllDrawingObjects()
@@ -3307,7 +3356,8 @@ function removeAllIdentify() {
 			}
 		},
 		false,
-		true)
+		true
+	)
 }
 
 function showWriteIdentifyIndex(show) {
@@ -3507,7 +3557,8 @@ function batchChangeInteraction(type) {}
 // 分栏
 function setSectionColumn(num) {
 	Asc.scope.column_num = num
-	biyueCallCommand(window,
+	biyueCallCommand(
+		window,
 		function () {
 			var column_num = Asc.scope.column_num
 			var oDocument = Api.GetDocument()
@@ -3559,297 +3610,377 @@ function setSectionColumn(num) {
 			}
 		},
 		false,
-		true)
+		true
+	)
 }
 // 获取所有相关坐标，用于铺码使用，这里只给出如何获取的代码演示
 function getAllPositions() {
 	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
-	return biyueCallCommand(window, function() {
-		var oDocument = Api.GetDocument()
-		var controls = oDocument.GetAllContentControls()
-		var drawings = oDocument.GetAllDrawingObjects()
-		var oShapes = oDocument.GetAllShapes()
-		var ques_list = []
-		var pageCount = oDocument.GetPageCount()
-    var question_map = Asc.scope.question_map
-    console.log('------------------------------')
-    function mmToPx(mm) {
-      // 1 英寸 = 25.4 毫米
-      // 1 英寸 = 96 像素（常见的屏幕分辨率）
-      // 因此，1 毫米 = (96 / 25.4) 像素
-      const pixelsPerMillimeter = 96 / 25.4
-      return Math.floor(mm * pixelsPerMillimeter) >>> 0
-    }
-		function GetCorrectRegion(oControl) {
-			var correct_ask_region = []
-			var correct_region = {}
-			var identify_region = []
-			var write_region = []
-			if (oControl.GetClassType() == 'blockLvlSdt') {
-				var oControlContent = oControl.GetContent()
-				var drawings = oControlContent.GetAllDrawingObjects()
-				if (drawings) {
-					for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
-						var oDrawing = drawings[j]
-						var parentControl = oDrawing.GetParentContentControl()
-						if (!parentControl || parentControl.Sdt.GetId() != oControl.Sdt.GetId()) {
-							continue
-						}
-						if (oDrawing.Drawing.docPr) {
-							var title = oDrawing.Drawing.docPr.title
-							if (title && title.indexOf('feature') >= 0) {
-								var titleObj = JSON.parse(title)
-								if (titleObj.feature && titleObj.feature.zone_type == 'question') {
-									var obj = {
-										page: oDrawing.Drawing.PageNum + 1,
-										x: mmToPx(oDrawing.Drawing.X),
-										y: mmToPx(oDrawing.Drawing.Y),
-										w: mmToPx(oDrawing.Drawing.Width),
-										h: mmToPx(oDrawing.Drawing.Height)
+	return biyueCallCommand(
+		window,
+		function () {
+			var oDocument = Api.GetDocument()
+			var controls = oDocument.GetAllContentControls()
+			var drawings = oDocument.GetAllDrawingObjects()
+			var oShapes = oDocument.GetAllShapes()
+			var ques_list = []
+			var pageCount = oDocument.GetPageCount()
+			var question_map = Asc.scope.question_map
+			console.log('------------------------------')
+			function mmToPx(mm) {
+				// 1 英寸 = 25.4 毫米
+				// 1 英寸 = 96 像素（常见的屏幕分辨率）
+				// 因此，1 毫米 = (96 / 25.4) 像素
+				const pixelsPerMillimeter = 96 / 25.4
+				return Math.floor(mm * pixelsPerMillimeter) >>> 0
+			}
+			function getSimplePos(oControl) {
+				var paragraphs = oControl.GetAllParagraphs()
+				for (var i = 0; i < paragraphs.length; ++i) {
+					var oParagraph = paragraphs[i]
+					if (oParagraph) {
+						var parent1 = oParagraph.Paragraph.Parent
+						var parent2 = parent1.Parent
+						if (parent2) {
+							if (parent2.Id == oControl.Sdt.GetId()) {
+								var run1 = oParagraph.GetElement(0)
+								var v =
+									run1 &&
+									run1.GetClassType() == 'run' &&
+									(run1.GetText() == '\u{e6a1}' || run1.GetText() == '▢')
+								if (v) {
+									var bounds = oParagraph.Paragraph.GetContentBounds(0)
+									var numberingWidth = 0
+									var Numbering = oParagraph.Paragraph.Numbering
+									if (Numbering) {
+										numberingWidth = Numbering.WidthVisible
 									}
-									if (titleObj.feature.sub_type == 'simple') {
-										correct_region = obj
-									} else if (titleObj.feature.sub_type == 'ask_accurate') {
-										obj.v = correct_ask_region.length + 1 + ''
-										correct_ask_region.push(obj)
-									} else if (titleObj.feature.sub_type == 'write') {
-										obj.write_id = titleObj.feature.client_id
-										write_region.push(obj)
-									} else if (titleobj.feature.sub_type == 'identify') {
-										obj.write_id = titleObj.feature.client_id
-										identify_region.push(obj)
+
+									var g_oTextMeasurer = AscCommon.g_oTextMeasurer
+									var oRun = run1.Run
+									var oTextPr = oRun.Get_CompiledPr(false)
+									g_oTextMeasurer.SetTextPr(
+										oTextPr,
+										oParagraph.Paragraph.GetTheme()
+									)
+									g_oTextMeasurer.SetFontSlot(AscWord.fontslot_ASCII)
+									var nTextHeight = g_oTextMeasurer.GetHeight()
+									return {
+										page: oParagraph.Paragraph.PageNum,
+										x: mmToPx(bounds.Left + numberingWidth),
+										y: mmToPx(bounds.Top),
+										w: mmToPx(oRun.Content[0].GetWidth()),
+										h: mmToPx(nTextHeight),
 									}
+								} else {
+									return null
 								}
 							}
 						}
 					}
 				}
+				return false
 			}
-			return {
-				correct_ask_region,
-				correct_region,
-				write_region,
-				identify_region
+			function GetCorrectRegion(oControl) {
+				var correct_ask_region = []
+				var correct_region = {}
+				var identify_region = []
+				var write_region = []
+				if (oControl.GetClassType() == 'blockLvlSdt') {
+					var oControlContent = oControl.GetContent()
+					var drawings = oControlContent.GetAllDrawingObjects()
+					if (drawings) {
+						for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
+							var oDrawing = drawings[j]
+							var parentControl = oDrawing.GetParentContentControl()
+							if (
+								!parentControl ||
+								parentControl.Sdt.GetId() != oControl.Sdt.GetId()
+							) {
+								continue
+							}
+							if (oDrawing.Drawing.docPr) {
+								var title = oDrawing.Drawing.docPr.title
+								if (title && title.indexOf('feature') >= 0) {
+									var titleObj = JSON.parse(title)
+									if (
+										titleObj.feature &&
+										titleObj.feature.zone_type == 'question'
+									) {
+										var obj = {
+											page: oDrawing.Drawing.PageNum + 1,
+											x: mmToPx(oDrawing.Drawing.X),
+											y: mmToPx(oDrawing.Drawing.Y),
+											w: mmToPx(oDrawing.Drawing.Width),
+											h: mmToPx(oDrawing.Drawing.Height),
+										}
+										if (titleObj.feature.sub_type == 'simple') {
+											correct_region = obj
+										} else if (titleObj.feature.sub_type == 'ask_accurate') {
+											obj.v = correct_ask_region.length + 1 + ''
+											correct_ask_region.push(obj)
+										} else if (titleObj.feature.sub_type == 'write') {
+											obj.write_id = titleObj.feature.client_id
+											write_region.push(obj)
+										} else if (titleobj.feature.sub_type == 'identify') {
+											obj.write_id = titleObj.feature.client_id
+											identify_region.push(obj)
+										}
+									}
+								}
+							}
+						}
+					}
+					correct_region = getSimplePos(oControl)
+				}
+				return {
+					correct_ask_region,
+					correct_region,
+					write_region,
+					identify_region,
+				}
 			}
-		}
 
-		for (var i = 0, imax = controls.length; i < imax; ++i) {
-			var oControl = controls[i]
-			var bounds = []
-			if (oControl.GetClassType() == 'blockLvlSdt') {
-				var oControlContent = oControl.GetContent()
-				var Pages = oControlContent.Document.Pages
-				if (Pages) {
-					Pages.forEach((page, index) => {
-						bounds.push({
-							Page: oControl.Sdt.GetAbsolutePage(index),
-							X: mmToPx(page.Bounds.Left),
-							Y: mmToPx(page.Bounds.Top),
-							W: mmToPx(page.Bounds.Right - page.Bounds.Left),
-							H: mmToPx(page.Bounds.Bottom - page.Bounds.Top)
+			for (var i = 0, imax = controls.length; i < imax; ++i) {
+				var oControl = controls[i]
+				var bounds = []
+				if (oControl.GetClassType() == 'blockLvlSdt') {
+					var oControlContent = oControl.GetContent()
+					var Pages = oControlContent.Document.Pages
+					if (Pages) {
+						Pages.forEach((page, index) => {
+							bounds.push({
+								Page: oControl.Sdt.GetAbsolutePage(index),
+								X: mmToPx(page.Bounds.Left),
+								Y: mmToPx(page.Bounds.Top),
+								W: mmToPx(page.Bounds.Right - page.Bounds.Left),
+								H: mmToPx(page.Bounds.Bottom - page.Bounds.Top),
+							})
 						})
-					})
+					}
+				} else if (oControl.GetClassType() == 'inlineLvlSdt') {
+					if (oControl.Sdt.Bounds) {
+						bounds = Object.values(oControl.Sdt.Bounds)
+					}
 				}
-			} else if (oControl.GetClassType() == 'inlineLvlSdt') {
-				if (oControl.Sdt.Bounds) {
-					bounds = Object.values(oControl.Sdt.Bounds)
-				}
-			}
-			// todo..分数框的尚未添加
-			var tag = JSON.parse(oControl.GetTag() || '{}')
-      var question_obj = question_map[tag.client_id] ? question_map[tag.client_id] : {}
-			if (tag.regionType == 'question' && question_obj.level_type == 'question') {
-        var oRange = oControl.GetRange()
-        oRange.Select()
-        let text_data = {
-          data:     "",
-          // 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
-          pushData: function (format, value) {
-            this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : ""
-          }
-        }
-        Api.asc_CheckCopy(text_data, 2)
+				// todo..分数框的尚未添加
+				var tag = JSON.parse(oControl.GetTag() || '{}')
+				var question_obj = question_map[tag.client_id]
+					? question_map[tag.client_id]
+					: {}
+				if (
+					tag.regionType == 'question' &&
+					question_obj.level_type == 'question'
+				) {
+					var oRange = oControl.GetRange()
+					oRange.Select()
+					let text_data = {
+						data: '',
+						// 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
+						pushData: function (format, value) {
+							this.data = value
+								? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, '')
+								: ''
+						},
+					}
+					Api.asc_CheckCopy(text_data, 2)
 
-				var correctPos = GetCorrectRegion(oControl)
-        		var item = {
-					id: tag.client_id,
-					control_id: oControl.Sdt.GetId(),
-					text: oControl.GetRange().GetText(), // 如果需要html, 请参考ExamTree.js的reqUploadTree
-          // content: `${text_data.data || ''}`,
-					title_region: [],
-					correct_region: correctPos.correct_region,
-					correct_ask_region: correctPos.correct_ask_region,
-					score: 0,
-					ask_num: 0,
-					additional: false, // 是否为附加题
-					answer: '',
-					ref_id: question_obj.uuid || '',
-					ques_type: question_obj.question_type || '',
-					ques_name: question_obj.ques_name || question_obj.ques_default_name,
-					mark_method: "1",
-					mark_ask_region: {},
-          write_ask_region: []
-				}
+					var correctPos = GetCorrectRegion(oControl)
+					var item = {
+						id: tag.client_id,
+						control_id: oControl.Sdt.GetId(),
+						text: oControl.GetRange().GetText(), // 如果需要html, 请参考ExamTree.js的reqUploadTree
+						// content: `${text_data.data || ''}`,
+						title_region: [],
+						correct_region: correctPos.correct_region,
+						correct_ask_region: correctPos.correct_ask_region,
+						score: 0,
+						ask_num: 0,
+						additional: false, // 是否为附加题
+						answer: '',
+						ref_id: question_obj.uuid || '',
+						ques_type: question_obj.question_type || '',
+						ques_name: question_obj.ques_name || question_obj.ques_default_name,
+						mark_method: '1',
+						mark_ask_region: {},
+						write_ask_region: [],
+					}
 
-				bounds.forEach(e => {
-					item.title_region.push({
-						page: e.Page + 1,
-						x: e.X,
-						y: e.Y,
-						w: e.W,
-						h: e.H
-					})
-				})
-
-        		if (item.ques_type === 3) {
-					bounds.forEach(e => {
-						item.write_ask_region.push({
-							order: item.write_ask_region.length+1 + '',
+					bounds.forEach((e) => {
+						item.title_region.push({
 							page: e.Page + 1,
 							x: e.X,
 							y: e.Y,
 							w: e.W,
 							h: e.H,
-							v: '1'
 						})
 					})
-					let mark_ask_region = item.write_ask_region.map((e) => { return { ...e, order: e.order + '' } })
-					item.mark_ask_region = mark_ask_region.reduce((acc, obj) => {
-					const order = obj.order
-					if (!acc.hasOwnProperty(order)) {
-						acc[order] = []
-					}
-					acc[order].push(obj)
-					return acc
-					}, {})
 
-					item.ask_num = Object.keys(item.mark_ask_region).length
-					item.score = item.ask_num // 模拟分数为1问1分
-        		}
-				ques_list.push(item)
-			} else if (tag.regionType == 'write') {
-				var parentControl = oControl.GetParentContentControl()
-				if (parentControl) {
-					var id = parentControl.Sdt.GetId()
-					var item = ques_list.find(e => {
-						return e.control_id == id
-					})
-					if (item) {
-						bounds.forEach(e => {
+					if (item.ques_type === 3) {
+						bounds.forEach((e) => {
 							item.write_ask_region.push({
-								order: item.write_ask_region.length+1 + '',
+								order: item.write_ask_region.length + 1 + '',
 								page: e.Page + 1,
-								x: mmToPx(e.X),
-								y: mmToPx(e.Y),
-								w: mmToPx(e.W),
-								h: mmToPx(e.H),
-                				v: '1'
+								x: e.X,
+								y: e.Y,
+								w: e.W,
+								h: e.H,
+								v: '1',
 							})
 						})
-            			let mark_ask_region = item.write_ask_region.map((e) => { return { ...e, order: e.order + '' } })
-            			item.mark_ask_region = mark_ask_region.reduce((acc, obj) => {
-              			const order = obj.order
-						if (!acc.hasOwnProperty(order)) {
-							acc[order] = []
-						}
-						acc[order].push(obj)
-						return acc
+						let mark_ask_region = item.write_ask_region.map((e) => {
+							return { ...e, order: e.order + '' }
+						})
+						item.mark_ask_region = mark_ask_region.reduce((acc, obj) => {
+							const order = obj.order
+							if (!acc.hasOwnProperty(order)) {
+								acc[order] = []
+							}
+							acc[order].push(obj)
+							return acc
 						}, {})
 
 						item.ask_num = Object.keys(item.mark_ask_region).length
 						item.score = item.ask_num // 模拟分数为1问1分
-						item.mark_method = '2'
+					}
+					ques_list.push(item)
+				} else if (tag.regionType == 'write') {
+					var parentControl = oControl.GetParentContentControl()
+					if (parentControl) {
+						var id = parentControl.Sdt.GetId()
+						var item = ques_list.find((e) => {
+							return e.control_id == id
+						})
+						if (item) {
+							bounds.forEach((e) => {
+								item.write_ask_region.push({
+									order: item.write_ask_region.length + 1 + '',
+									page: e.Page + 1,
+									x: mmToPx(e.X),
+									y: mmToPx(e.Y),
+									w: mmToPx(e.W),
+									h: mmToPx(e.H),
+									v: '1',
+								})
+							})
+							let mark_ask_region = item.write_ask_region.map((e) => {
+								return { ...e, order: e.order + '' }
+							})
+							item.mark_ask_region = mark_ask_region.reduce((acc, obj) => {
+								const order = obj.order
+								if (!acc.hasOwnProperty(order)) {
+									acc[order] = []
+								}
+								acc[order].push(obj)
+								return acc
+							}, {})
+
+							item.ask_num = Object.keys(item.mark_ask_region).length
+							item.score = item.ask_num // 模拟分数为1问1分
+							item.mark_method = '2'
+						}
 					}
 				}
 			}
-		}
-		var feature_list = []
-		if (drawings) {
-			for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
-				var oDrawing = drawings[j]
-				if (oDrawing.Drawing.docPr) {
-					var title = oDrawing.Drawing.docPr.title
-					if (title && title.indexOf('feature') >= 0) {
-						var titleObj = JSON.parse(title)
-						if (titleObj.feature && titleObj.feature.zone_type && titleObj.feature.zone_type != 'question') {
-							var featureObj = {
-								zone_type: titleObj.feature.zone_type,
-								fields: []
-							}
-							if (titleObj.feature.zone_type == 'statistics') {
-                let statistics_arr = []
-								for (var p = 0; p < pageCount; ++p) {
-                  statistics_arr.push({
-                    v: p + 1 + '',
-                    page: p + 1,
-                    x: mmToPx(oDrawing.Drawing.X),
-                    y: mmToPx(oDrawing.Drawing.Y),
-                    w: mmToPx(oDrawing.Drawing.Width),
-                    h: mmToPx(oDrawing.Drawing.Height)
-                  })
+			var feature_list = []
+			if (drawings) {
+				for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
+					var oDrawing = drawings[j]
+					if (oDrawing.Drawing.docPr) {
+						var title = oDrawing.Drawing.docPr.title
+						if (title && title.indexOf('feature') >= 0) {
+							var titleObj = JSON.parse(title)
+							if (
+								titleObj.feature &&
+								titleObj.feature.zone_type &&
+								titleObj.feature.zone_type != 'question'
+							) {
+								var featureObj = {
+									zone_type: titleObj.feature.zone_type,
+									fields: [],
 								}
-                feature_list.push({
-                  zone_type: titleObj.feature.zone_type,
-                  fields: statistics_arr
-                })
-							} else {
-								if (titleObj.feature.zone_type == 'self_evaluation' || titleObj.feature.zone_type == 'teacher_evaluation') {
-									var oShape = oShapes.find(e => {
-										return e.Drawing && e.Drawing.Id == oDrawing.Drawing.Id
+								if (titleObj.feature.zone_type == 'statistics') {
+									let statistics_arr = []
+									for (var p = 0; p < pageCount; ++p) {
+										statistics_arr.push({
+											v: p + 1 + '',
+											page: p + 1,
+											x: mmToPx(oDrawing.Drawing.X),
+											y: mmToPx(oDrawing.Drawing.Y),
+											w: mmToPx(oDrawing.Drawing.Width),
+											h: mmToPx(oDrawing.Drawing.Height),
+										})
+									}
+									feature_list.push({
+										zone_type: titleObj.feature.zone_type,
+										fields: statistics_arr,
 									})
-									if (oShape) {
-										var tables = oShape.GetContent().GetAllTables()
-										if (tables && tables.length) {
-											var oRow  = tables[0].GetRow(0)
-											if (oRow) {
-												var CellsInfo = oRow.Row.CellsInfo
-												for (var c = 2; c < CellsInfo.length; ++c) {
-													var cell = CellsInfo[c]
-													featureObj.fields.push({
-														v: c - 1 + '',
-														page: oDrawing.Drawing.PageNum + 1,
-														x: mmToPx(oDrawing.Drawing.X + cell.X_cell_start),
-														y: mmToPx(oDrawing.Drawing.Y),
-														w: mmToPx(cell.X_cell_end - cell.X_cell_start),
-														h: mmToPx(oDrawing.Drawing.Height)
-													})
+								} else {
+									if (
+										titleObj.feature.zone_type == 'self_evaluation' ||
+										titleObj.feature.zone_type == 'teacher_evaluation'
+									) {
+										var oShape = oShapes.find((e) => {
+											return e.Drawing && e.Drawing.Id == oDrawing.Drawing.Id
+										})
+										if (oShape) {
+											var tables = oShape.GetContent().GetAllTables()
+											if (tables && tables.length) {
+												var oRow = tables[0].GetRow(0)
+												if (oRow) {
+													var CellsInfo = oRow.Row.CellsInfo
+													for (var c = 2; c < CellsInfo.length; ++c) {
+														var cell = CellsInfo[c]
+														featureObj.fields.push({
+															v: c - 1 + '',
+															page: oDrawing.Drawing.PageNum + 1,
+															x: mmToPx(oDrawing.Drawing.X + cell.X_cell_start),
+															y: mmToPx(oDrawing.Drawing.Y),
+															w: mmToPx(cell.X_cell_end - cell.X_cell_start),
+															h: mmToPx(oDrawing.Drawing.Height),
+														})
+													}
 												}
+											} else {
+												console.log('cannot find tables', oShapes, oDrawing)
 											}
 										} else {
-											console.log('cannot find tables', oShapes, oDrawing)
+											console.log('cannot find oShape')
 										}
 									} else {
-										console.log('cannot find oShape')
+										featureObj.fields.push({
+											v: titleObj.feature.v + '',
+											page: oDrawing.Drawing.PageNum + 1,
+											x: mmToPx(oDrawing.Drawing.X),
+											y: mmToPx(oDrawing.Drawing.Y),
+											w: mmToPx(oDrawing.Drawing.Width),
+											h: mmToPx(oDrawing.Drawing.Height),
+										})
 									}
-								} else {
-									featureObj.fields.push({
-										v: titleObj.feature.v + '',
-										page: oDrawing.Drawing.PageNum + 1,
-										x: mmToPx(oDrawing.Drawing.X),
-										y: mmToPx(oDrawing.Drawing.Y),
-										w: mmToPx(oDrawing.Drawing.Width),
-										h: mmToPx(oDrawing.Drawing.Height)
-									})
+									feature_list.push(featureObj)
 								}
-								feature_list.push(featureObj)
 							}
 						}
 					}
 				}
 			}
-		}
-    var paper_info = {
-      pageCount: pageCount
-    }
-		return {
-			ques_list,
-			feature_list,
-      paper_info
-		}
-	}, false, false)
-  // .then(res => {
+			var paper_info = {
+				pageCount: pageCount,
+			}
+			console.log('ques_list', ques_list)
+			console.log('feature_list', feature_list)
+			return {
+				ques_list,
+				feature_list,
+				paper_info,
+			}
+		},
+		false,
+		false
+	)
+	// .then(res => {
 	// 	console.log('the result of getAllPositions', res)
-  //   return res
+	//   return res
 	// })
 }
 
@@ -3880,5 +4011,5 @@ export {
 	setSectionColumn,
 	batchChangeInteraction,
 	batchChangeProportion,
-	getAllPositions
+	getAllPositions,
 }
