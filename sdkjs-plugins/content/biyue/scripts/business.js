@@ -3875,7 +3875,7 @@ function getAllPositions() {
 
 							item.ask_num = Object.keys(item.mark_ask_region).length
 							item.score = item.ask_num // 模拟分数为1问1分
-							item.mark_method = '2'
+							item.mark_method = '1'
 						}
 					}
 				}
