@@ -662,9 +662,10 @@ function updateRangeControlType(typeName) {
 					}
 					var type = typeName == 'write' ? 2 : 1
 					result.client_node_id += 1
+					var regionType = typeName == 'write' ? 'write' : 'question' 
 					var tag = {
 						client_id: result.client_node_id,
-						regionType: typeName == 'write' ? 'write' : 'question',
+						regionType: regionType,
 						lvl: level
 					}
 					var oResult = Api.asc_AddContentControl(type, {
@@ -679,7 +680,8 @@ function updateRangeControlType(typeName) {
 							control_id: oResult.InternalId,
 							text: oRange.GetText(),
 							children: oControl && oControl.GetClassType() == 'blockLvlSdt' ? getChildControls(oControl) : [],
-							parent_id: getParentId(oControl)
+							parent_id: getParentId(oControl),
+							regionType: regionType
 						})
 					}
 					// 若是在单元格里添加control后，会多出一行需要删除
@@ -800,6 +802,8 @@ function handleChangeType(res) {
 					if (level_type == 'setBig' || level_type == 'clearBig') {
 						question_map[item.client_id].text = item.text
 						question_map[item.client_id].ques_default_name = GetDefaultName(targetLevel, item.text)
+						question_map[item.client_id].level_type = targetLevel
+					} else {
 						question_map[item.client_id].level_type = targetLevel
 					}
 				} 
@@ -927,14 +931,6 @@ function handleChangeType(res) {
 	
 	window.BiyueCustomData.node_list = node_list
 	window.BiyueCustomData.question_map = question_map
-	console.log('handleChangeType end', node_list, g_click_value)
-	document.dispatchEvent(
-		new CustomEvent('updateQuesData', {
-			detail: {
-				client_id: update_node_id
-			}
-		})
-	)
 	console.log('============== addIds', addIds, level_type)
 	if (addIds && addIds.length) {
 		if (level_type == 'write') {
@@ -947,7 +943,16 @@ function handleChangeType(res) {
 				setInteraction(vinteraction, addIds)
 			}
 		}
+		update_node_id = addIds[0]
 	}
+	console.log('handleChangeType end', node_list, 'g_click_value', g_click_value, 'update_node_id', update_node_id)
+	document.dispatchEvent(
+		new CustomEvent('updateQuesData', {
+			detail: {
+				client_id: update_node_id
+			}
+		})
+	)
 }
 // 获取批量操作列表
 function getBatchList() {
