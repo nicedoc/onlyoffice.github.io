@@ -3641,40 +3641,38 @@ function getAllPositions() {
 					if (oParagraph) {
 						var parent1 = oParagraph.Paragraph.Parent
 						var parent2 = parent1.Parent
-						if (parent2) {
-							if (parent2.Id == oControl.Sdt.GetId()) {
-								var run1 = oParagraph.GetElement(0)
-								var v =
-									run1 &&
-									run1.GetClassType() == 'run' &&
-									(run1.GetText() == '\u{e6a1}' || run1.GetText() == '▢')
-								if (v) {
-									var bounds = oParagraph.Paragraph.GetContentBounds(0)
-									var numberingWidth = 0
-									var Numbering = oParagraph.Paragraph.Numbering
-									if (Numbering) {
-										numberingWidth = Numbering.WidthVisible
-									}
-
-									var g_oTextMeasurer = AscCommon.g_oTextMeasurer
-									var oRun = run1.Run
-									var oTextPr = oRun.Get_CompiledPr(false)
-									g_oTextMeasurer.SetTextPr(
-										oTextPr,
-										oParagraph.Paragraph.GetTheme()
-									)
-									g_oTextMeasurer.SetFontSlot(AscWord.fontslot_ASCII)
-									var nTextHeight = g_oTextMeasurer.GetHeight()
-									return {
-										page: oParagraph.Paragraph.PageNum,
-										x: mmToPx(bounds.Left + numberingWidth),
-										y: mmToPx(bounds.Top),
-										w: mmToPx(oRun.Content[0].GetWidth()),
-										h: mmToPx(nTextHeight),
-									}
-								} else {
-									return null
+						if (parent2 && parent2.Id == oControl.Sdt.GetId()) {
+							var run1 = oParagraph.GetElement(0)
+							var v =
+								run1 &&
+								run1.GetClassType() == 'run' &&
+								(run1.GetText() == '\u{e6a1}' || run1.GetText() == '▢')
+							if (v) {
+								var bounds = oParagraph.Paragraph.GetContentBounds(0)
+								var numberingWidth = 0
+								var Numbering = oParagraph.Paragraph.Numbering
+								if (Numbering) {
+									numberingWidth = Numbering.WidthVisible
 								}
+
+								var g_oTextMeasurer = AscCommon.g_oTextMeasurer
+								var oRun = run1.Run
+								var oTextPr = oRun.Get_CompiledPr(false)
+								g_oTextMeasurer.SetTextPr(
+									oTextPr,
+									oParagraph.Paragraph.GetTheme()
+								)
+								g_oTextMeasurer.SetFontSlot(AscWord.fontslot_ASCII)
+								var nTextHeight = g_oTextMeasurer.GetHeight()
+								return {
+									page: oParagraph.Paragraph.PageNum,
+									x: mmToPx(bounds.Left + numberingWidth),
+									y: mmToPx(bounds.Top),
+									w: mmToPx(oRun.Content[0].GetWidth()),
+									h: mmToPx(nTextHeight),
+								}
+							} else {
+								return null
 							}
 						}
 					}

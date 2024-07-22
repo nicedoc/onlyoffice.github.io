@@ -728,14 +728,16 @@ function handleChangeType(res) {
 	function updateAskList(qid, ask_list) {
 		var old_list = question_map[qid].ask_list || []
 		var new_list = []
-		for (var a = 0; a < ask_list.length; ++a) {
-			var oidx = old_list.findIndex(e1 => {
-				return e1.id == ask_list[a].id
-			})
-			new_list.push({
-				id: ask_list[a].id,
-				score: oidx >= 0 ? (old_list[oidx].score || 0) : 0
-			})
+		if (ask_list) {
+			for (var a = 0; a < ask_list.length; ++a) {
+				var oidx = old_list.findIndex(e1 => {
+					return e1.id == ask_list[a].id
+				})
+				new_list.push({
+					id: ask_list[a].id,
+					score: oidx >= 0 ? (old_list[oidx].score || 0) : 0
+				})
+			}
 		}
 		question_map[qid].ask_list = new_list
 	}
@@ -1453,6 +1455,7 @@ function handleWrite(cmdType) {
 		}
 		var oControl = Api.LookupObject(curControl.Id)
 		if (oControl) {
+			console.log('                 handleWrite', oControl)
 			var tag = JSON.parse(oControl.GetTag() || '{}')
 			if (write_cmd == 'add') {
 				client_node_id += 1
@@ -1482,10 +1485,22 @@ function handleWrite(cmdType) {
 				oDrawing.SetDistances(0, 0, 2 * 36e3, 0);
 				var paragraphs = oControl.GetAllParagraphs()
 				if (paragraphs && paragraphs.length > 0) {
-					var pParagraph = paragraphs[0]
+					var paragraphs = oControl.GetAllParagraphs()
+					var parentParagraph = null
+					for (var i = 0; i < paragraphs.length; ++i) {
+						var oParagraph = paragraphs[i]
+						if (oParagraph) {
+							var parent1 = oParagraph.Paragraph.Parent
+							var parent2 = parent1.Parent
+							if (parent2 && parent2.Id == oControl.Sdt.GetId()) {
+								parentParagraph = oParagraph
+								break
+							}
+						}
+					}
 					var oRun = Api.CreateRun()
 					oRun.AddDrawing(oDrawing)
-					pParagraph.AddElement(
+					parentParagraph.AddElement(
 						oRun,
 						1
 					)
