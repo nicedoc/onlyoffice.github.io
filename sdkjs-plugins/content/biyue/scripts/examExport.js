@@ -282,12 +282,17 @@ import { setXToken } from './auth.js'
 
   function getFieldsByZoneType(zoneType) {
     // 遍历 feature_list 查找匹配的 zone_type
+    let result = zoneType === 'pass' ? {} : []
+
     for (const feature of questionPositions.feature_list) {
-      if (feature.zone_type === zoneType) {
+      if (zoneType === 'pass' && feature.zone_type === zoneType) {
+        // pass区域需要传对象的结构
+        return feature.fields && feature.fields.length > 0 ? feature.fields[0] : {}
+      } else if (feature.zone_type === zoneType) {
         return feature.fields
       }
     }
-    return []
+    return result
   }
 
   function getPositions () {
