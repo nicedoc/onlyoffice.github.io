@@ -8,7 +8,7 @@ var level_map = {}
 var g_click_value = null
 var upload_control_list = []
 function initExamTree() {
-	
+
 }
 
 // 处理文档点击
@@ -185,7 +185,7 @@ function getContextMenuItems(type) {
 			}, {
 				id: 'handleWrite_del',
 				text: '删除',
-			}] 
+			}]
 		})
 		settings.items.push({
 			id: 'identify',
@@ -289,7 +289,7 @@ function updateRangeControlType(typeName) {
 					var elementCount = oControl.GetElementsCount()
 					for (var idx = 0; idx < elementCount; ++idx) {
 						var oRun = oControl.GetElement(idx)
-						if (oRun && 
+						if (oRun &&
 							oRun.Run &&
 							oRun.Run.Content &&
 							oRun.Run.Content[0] &&
@@ -299,7 +299,7 @@ function updateRangeControlType(typeName) {
 								var titleObj = JSON.parse(title)
 								if (titleObj.feature && titleObj.feature.sub_type == 'ask_accurate') {
 									oRun.Delete()
-									break		
+									break
 								}
 							}
 						}
@@ -559,7 +559,7 @@ function updateRangeControlType(typeName) {
 						if (checkPosSame(range1.StartPos, intersectRange.StartPos) && checkPosSame(range1.EndPos, intersectRange.EndPos)) {
 							return 2
 						} else if (checkPosSame(range2.StartPos, intersectRange.StartPos) && checkPosSame(range2.EndPos, intersectRange.EndPos)) {
-							return 3	
+							return 3
 						} else {
 							return 4
 						}
@@ -568,7 +568,7 @@ function updateRangeControlType(typeName) {
 					}
 				}
 			}
-			
+
 			var controlsInRange = []
 			var completeOverlapControl = null
 			var parentControls = []
@@ -662,7 +662,7 @@ function updateRangeControlType(typeName) {
 					}
 					var type = typeName == 'write' ? 2 : 1
 					result.client_node_id += 1
-					var regionType = typeName == 'write' ? 'write' : 'question' 
+					var regionType = typeName == 'write' ? 'write' : 'question'
 					var tag = {
 						client_id: result.client_node_id,
 						regionType: regionType,
@@ -806,7 +806,7 @@ function handleChangeType(res) {
 					} else {
 						question_map[item.client_id].level_type = targetLevel
 					}
-				} 
+				}
 			} else {
 				if (question_map[item.client_id]) {
 					delete question_map[item.client_id]
@@ -877,7 +877,7 @@ function handleChangeType(res) {
 								break
 							}
 						}
-						
+
 					}
 				} else {
 					index = 0
@@ -915,7 +915,7 @@ function handleChangeType(res) {
 					})
 					if (write_index >= 0) {
 						nodeData.write_list.splice(write_index, 1)
-					}	
+					}
 				}
 				if (question_map[item.parent_id] && question_map[item.parent_id].ask_list) {
 					var ask_index = question_map[item.parent_id].ask_list.findIndex(e => {
@@ -928,7 +928,7 @@ function handleChangeType(res) {
 			}
 		}
 	})
-	
+
 	window.BiyueCustomData.node_list = node_list
 	window.BiyueCustomData.question_map = question_map
 	console.log('============== addIds', addIds, level_type)
@@ -994,7 +994,7 @@ function getBatchList() {
 											}
 											ques_id_list.push({
 												id: nextTag.client_id,
-												control_id: nextControl.Sdt.GetId()	
+												control_id: nextControl.Sdt.GetId()
 											})
 										}
 									}
@@ -1012,7 +1012,7 @@ function getBatchList() {
 													if (childTag.regionType == 'question' && childTag.client_id) {
 														ques_id_list.push({
 															id: childTag.client_id,
-															control_id: e.Sdt.GetId()	
+															control_id: e.Sdt.GetId()
 														})
 													}
 												}
@@ -1346,7 +1346,7 @@ function reqGetQuestionType() {
 							this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : "";
 						}
 					};
-			
+
 					Api.asc_CheckCopy(text_data, 2);
 					target_list.push({
 						id: nodeData.id + '',
@@ -1767,7 +1767,7 @@ function setBtnLoading(elementId, isLoading) {
 			children.remove()
 		}
  	}
-	
+
 }
 
 function isLoading(elementId) {
@@ -1860,35 +1860,35 @@ function reqUploadTree() {
 function getXml(controlId) {
 	window.Asc.plugin.executeMethod("SelectContentControl", [controlId])
 	window.Asc.plugin.executeMethod("GetSelectionToDownload", ["docx"], function (data) {
-        // 假设这是你的 ZIP 文件的 URL  
-        const zipFileUrl = data;        
-        fetch(zipFileUrl).then(response => {  
-            if (!response.ok) {  
-            throw new Error('Failed to fetch zip file');  
-            }  
-            return response.arrayBuffer(); // 获取 ArrayBuffer 而不是 Blob，因为 JSZip 需要它  
-        })  
-        .then(arrayBuffer => {  
-            return JSZip.loadAsync(arrayBuffer); // 使用 JSZip 加载 ArrayBuffer  
-        })  
-        .then(zip => {  
-            // 现在你可以操作 zip 对象了  
-            zip.forEach(function(relativePath, file) {  
+        // 假设这是你的 ZIP 文件的 URL
+        const zipFileUrl = data;
+        fetch(zipFileUrl).then(response => {
+            if (!response.ok) {
+            throw new Error('Failed to fetch zip file');
+            }
+            return response.arrayBuffer(); // 获取 ArrayBuffer 而不是 Blob，因为 JSZip 需要它
+        })
+        .then(arrayBuffer => {
+            return JSZip.loadAsync(arrayBuffer); // 使用 JSZip 加载 ArrayBuffer
+        })
+        .then(zip => {
+            // 现在你可以操作 zip 对象了
+            zip.forEach(function(relativePath, file) {
                 if (relativePath.indexOf('word/document.xml') === -1) {
                     return;
                 }
-                // 这里可以遍历 ZIP 文件中的所有文件  
-                file.async("text").then(function(content) {  
+                // 这里可以遍历 ZIP 文件中的所有文件
+                file.async("text").then(function(content) {
                     // 假设文件是文本文件，打印文件内容和相对路径
 					handleXml(controlId, content)
-                });  
-            });  
-        })  
-        .catch(error => {  
+                });
+            });
+        })
+        .catch(error => {
             console.error('Error:', error);
 			handleXmlError()
         });
-        
+
     });
 }
 
@@ -2422,7 +2422,7 @@ function changeProportion(idList, proportion) {
 							tables[iTable] = {
 								cells: [{
 									icell: 0,
-									W: W	
+									W: W
 								}],
 								W: W
 							}
@@ -2484,7 +2484,7 @@ function changeProportion(idList, proportion) {
 				}
 			}
 		}
-		
+
 		for (var idx = 0; idx < idList.length; ++idx) {
 			var id = idList[idx]
 			var quesData = question_map[id]

@@ -51,6 +51,7 @@ import {
 	let activeQuesItem = ''
 	let scoreSetWindow = null
 	let exportExamWindow = null
+  let batchSettingScoresWindow = null
 	let fieldsWindow = null
 	let timeout_controlchange = null
 	let contextMenu_options = null
@@ -1139,6 +1140,7 @@ import {
 		addBtnClickEvent('getAllPositions', getAllPositions)
 		addBtnClickEvent('queslist', showLevelSetDialog)
 		addBtnClickEvent('importExam', importExam)
+		addBtnClickEvent('batchScoreSet', onBatchScoreSet)
 		if ($('#writeSelect')) {
 			$('#writeSelect').on('change', function() {
 				var selectedValue = $('#writeSelect').val()
@@ -2315,6 +2317,9 @@ import {
       showDialog(exportExamWindow, '上传试卷', 'examExport.html', 592, 400)
     })
 	}
+  function onBatchScoreSet() {
+    showDialog(batchSettingScoresWindow, '批量设置分数', 'batchSettingScores.html', 592, 450)
+  }
 	// 切换功能区窗口
 	function showPositionsDialog() {
 		showDialog(fieldsWindow, '功能区管理', 'examPositions.html', 592, 400)

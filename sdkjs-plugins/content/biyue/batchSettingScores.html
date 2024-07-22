@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <title>batchSettingScores</title>
+    <script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.js"></script>
+    <script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins-ui.js"></script>
+    <link rel="stylesheet" href="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.css">
+    <link rel="stylesheet" href="resources/css/batchSettingScores.css">
+    <script src="vendor/jQuery-2.2.2-min/jquery-v2.2.2-min.js"></script>
+    <script type="text/javascript" src="scripts/batchSettingScores.js"></script>
+</head>
+<body>
+	<div class="batch-setting-score-info">
+    <!-- <div class="group">一、选择题</div>
+    <span class="question">1.<input type="text" class="score"><input type="text" class="score"></span> -->
+	</div>
+  <div class="confirm-wrapper">
+    <div id="confirm" class="btn-confirm">确定</div>
+  </div>
+</body>
+</html>
+<script>
+  // 监听消息事件
+  window.addEventListener('message', function(event) {
+    // 检查消息来源是否合法
+    if (event.origin !== window.location.origin) return;
+
+    // 处理接收到的值
+    var receivedData = event.data;
+    console.log("接收到的值:", receivedData);
+  });
+</script>

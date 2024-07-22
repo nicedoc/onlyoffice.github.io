@@ -267,15 +267,19 @@ function examPageUpload(data) {
 }
 
 /**
- * http://api.dcx.com/#/home/project/inside/api/detail?groupID=479&childGroupID=498&apiID=1951&projectName=%E7%AD%86%E6%9B%B0%20-%20%E9%A2%98%E5%BA%93&projectID=39
- * 保存试卷坐标
+ * http://api.dcx.com/#/home/project/inside/api/detail?groupID=-1&apiID=6343&projectName=%E7%AD%86%E6%9B%B0%20-%20%E9%A2%98%E5%BA%93&projectID=39
+ * 保存试卷坐标--以 json 格式
  */
 function paperSavePosition(paper_uuid, position, extra_info, comment_custom) {
 	position = position ? JSON.stringify(position) : ''
 	extra_info = extra_info ? JSON.stringify(extra_info) : ''
 	return request({
-		url: '/paper/save/position',
+		url: '/paper/save/position/json',
 		method: 'post',
+		isJsonData: true,
+		headers: {
+			'Content-Type': 'application/json',
+		},
 		data: {
 			paper_uuid,
 			position,
