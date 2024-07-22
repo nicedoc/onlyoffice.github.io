@@ -264,6 +264,8 @@ import { setXToken } from './auth.js'
     evaluationPosition.pass_regional = getFieldsByZoneType('pass')
     evaluationPosition.ignore_regional = getFieldsByZoneType('ignore')
     evaluationPosition.stat_regional = getFieldsByZoneType('statistics')
+    evaluationPosition['page_size'] = 'printing_a4_standard' // 暂时固定一个尺寸 等接口提供了替换
+    evaluationPosition['exam_type'] = 'exercise'
     console.log('positions and evaluationPosition:', positions, evaluationPosition)
 
     paperSavePosition(biyueCustomData.paper_uuid, positions, evaluationPosition, '')
