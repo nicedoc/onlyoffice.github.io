@@ -10,6 +10,7 @@
   }
   .question {
     font-size: 14px;
+    display: inline-block;
     .score {
       background-color: transparent;
       background-image: none;
