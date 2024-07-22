@@ -343,7 +343,6 @@ export {
 	reqComplete,
 	reqPaperInfo,
 	reqSaveQuestion,
-	paperOnlineInfo,
 	structAdd,
 	structDelete,
 	structEmpty,
