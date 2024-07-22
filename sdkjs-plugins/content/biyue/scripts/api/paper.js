@@ -1,6 +1,9 @@
 import request from '../request.js'
 import authRequest from '../request_auth.js'
 
+// * 如果涉及到post类型的请求,需要告知接口是否需要使用application/json的方式来请求,避免因为特殊符号导致接口无法接收到参数 *
+// 属于正式在用的接口 start
+// ------------------------------START------------------------------------
 function getQuesType(paper_uuid, content_list) {
 	return request({
 		url: '/oodoc/get/ques_type',
@@ -55,16 +58,50 @@ function reqSaveQuestion(paper_uuid, question_uuid, content_type, content_number
 	})
 }
 
-function paperOnlineInfo(paper_uuid, enter) {
+
+/**
+ * 上传试卷预览图
+ * http://api.dcx.com/#/home/project/inside/api/detail?groupID=479&childGroupID=498&apiID=1931&projectName=%E7%AD%86%E6%9B%B0%20-%20%E9%A2%98%E5%BA%93&projectID=39
+ */
+function paperUploadPreview(data) {
+  return request({
+    url: '/paper/upload/preview',
+    method: 'post',
+    isFileData: true,
+    data: data
+  })
+}
+
+/**
+ * http://api.dcx.com/#/home/project/inside/api/detail?groupID=-1&apiID=6343&projectName=%E7%AD%86%E6%9B%B0%20-%20%E9%A2%98%E5%BA%93&projectID=39
+ * 保存试卷坐标--以 json 格式
+ */
+function paperSavePosition(paper_uuid, position, extra_info, comment_custom) {
+	position = position ? JSON.stringify(position) : ''
+	extra_info = extra_info ? JSON.stringify(extra_info) : ''
 	return request({
-		url: '/paper/online/info',
-		method: 'get',
-		params: {
+		url: '/paper/save/position/json',
+		method: 'post',
+		isJsonData: true,
+		headers: {
+			'Content-Type': 'application/json',
+		},
+		data: {
 			paper_uuid,
-			enter,
+			position,
+			extra_info,
+			comment_custom,
 		},
 	})
 }
+
+// 属于正式在用的接口 END
+// ------------------------------END------------------------------------
+
+
+
+
+// -----------------------下列属于实验测试用的旧接口----------------------
 
 /**
  * 创建试卷结构
@@ -267,29 +304,6 @@ function examPageUpload(data) {
 }
 
 /**
- * http://api.dcx.com/#/home/project/inside/api/detail?groupID=-1&apiID=6343&projectName=%E7%AD%86%E6%9B%B0%20-%20%E9%A2%98%E5%BA%93&projectID=39
- * 保存试卷坐标--以 json 格式
- */
-function paperSavePosition(paper_uuid, position, extra_info, comment_custom) {
-	position = position ? JSON.stringify(position) : ''
-	extra_info = extra_info ? JSON.stringify(extra_info) : ''
-	return request({
-		url: '/paper/save/position/json',
-		method: 'post',
-		isJsonData: true,
-		headers: {
-			'Content-Type': 'application/json',
-		},
-		data: {
-			paper_uuid,
-			position,
-			extra_info,
-			comment_custom,
-		},
-	})
-}
-
-/**
  * 步骤3：上传试卷切题信息
  * 链接：http://api.dcx.com/#/home/project/inside/api/detail?groupID=315&childGroupID=323&grandSonGroupID=475&apiID=1798&projectName=%E7%AD%86%E6%9B%B0&projectID=35
  */
@@ -322,19 +336,6 @@ function teacherExamPrintPaperSelections() {
 		url: '/teacher/exam/print_paper/selection',
 		method: 'get',
 	})
-}
-
-/**
- * 上传试卷预览图
- * http://api.dcx.com/#/home/project/inside/api/detail?groupID=479&childGroupID=498&apiID=1931&projectName=%E7%AD%86%E6%9B%B0%20-%20%E9%A2%98%E5%BA%93&projectID=39
- */
-function paperUploadPreview(data) {
-  return request({
-    url: '/paper/upload/preview',
-    method: 'post',
-    isFileData: true,
-    data: data
-  })
 }
 
 export {
