@@ -1410,7 +1410,7 @@ import {
 			console.log('StoreCustomData', window.BiyueCustomData)
 			StoreCustomData(() => {
 				console.log('store custom data done')
-				this.executeCommand('close', '')
+				window.Asc.plugin.executeCommand("close", '')
 			})
 			return
 		}
