@@ -1370,7 +1370,8 @@ function reqGetQuestionType() {
 			if (content_list && content_list.length) {
 				content_list.forEach(e => {
 					window.BiyueCustomData.question_map[e.id].question_type = e.question_type * 1
-					window.BiyueCustomData.question_map[e.id].question_type_name = e.question_type_name
+					// window.BiyueCustomData.question_map[e.id].question_type_name = e.question_type_name
+					// 存储时question_type_name莫名其妙变得很大，导致存储溢出，不再存储
 				})
 			}
 		}).catch(res => {
