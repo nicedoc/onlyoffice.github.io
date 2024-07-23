@@ -256,14 +256,24 @@ import { setXToken } from './auth.js'
 
   // 更新试卷切题信息
   function onUpdatePostions() {
+    let page_size = ''
+    if (paper_info && paper_info.workbook && paper_info.workbook.layout) {
+      page_size = paper_info.workbook.layout
+    } else {
+      alert('未获取到练习册配置的试卷尺寸')
+      return
+    }
+
     var evaluationPosition = {}
     let positions = getPositions()
     evaluationPosition.again_regional = getFieldsByZoneType('again')
     evaluationPosition.self_evaluation = getFieldsByZoneType('self_evaluation')
-    evaluationPosition.teacher_evaluation = getFieldsByZoneType('teather_evaluation')
+    evaluationPosition.teacher_evaluation = getFieldsByZoneType('teacher_evaluation')
     evaluationPosition.pass_regional = getFieldsByZoneType('pass')
     evaluationPosition.ignore_regional = getFieldsByZoneType('ignore')
     evaluationPosition.stat_regional = getFieldsByZoneType('statistics')
+    evaluationPosition['page_size'] = page_size
+    evaluationPosition['exam_type'] = 'exercise'
     console.log('positions and evaluationPosition:', positions, evaluationPosition)
 
     paperSavePosition(biyueCustomData.paper_uuid, positions, evaluationPosition, '')
@@ -282,12 +292,17 @@ import { setXToken } from './auth.js'
 
   function getFieldsByZoneType(zoneType) {
     // 遍历 feature_list 查找匹配的 zone_type
+    let result = zoneType === 'pass' ? {} : []
+
     for (const feature of questionPositions.feature_list) {
-      if (feature.zone_type === zoneType) {
+      if (zoneType === 'pass' && feature.zone_type === zoneType) {
+        // pass区域需要传对象的结构
+        return feature.fields && feature.fields.length > 0 ? feature.fields[0] : {}
+      } else if (feature.zone_type === zoneType) {
         return feature.fields
       }
     }
-    return []
+    return result
   }
 
   function getPositions () {

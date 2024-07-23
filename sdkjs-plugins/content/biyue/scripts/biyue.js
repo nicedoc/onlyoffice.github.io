@@ -135,6 +135,13 @@ import {
 				confirmLevelSet(message.levels)
 				window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
 				break
+      case 'changeQuestionMap': // 更新question_map
+        if (message.data){
+          window.BiyueCustomData.question_map = message.data
+          console.log('更新question_map', message.data)
+				  window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
+        }
+        break
 			default:
 				break
 		}
