@@ -1580,7 +1580,7 @@ function reqGetQuestionType(source) {
 			var content_list = res.data.content_list
 			if (content_list && content_list.length) {
 				content_list.forEach(e => {
-					window.BiyueCustomData.question_map[e.id].question_type = e.question_type
+					window.BiyueCustomData.question_map[e.id].question_type = e.question_type * 1
 					window.BiyueCustomData.question_map[e.id].question_type_name = e.question_type_name
 				})
 			}
@@ -1901,7 +1901,7 @@ function batchChangeQuesType(type) {
 		}
 		res.list.forEach(id => {
 			if (window.BiyueCustomData.question_map && window.BiyueCustomData.question_map[id]) {
-				window.BiyueCustomData.question_map[id].question_type = res.type
+				window.BiyueCustomData.question_map[id].question_type = res.type * 1
 			}
 		})
 		// 需要同步更新单题详情

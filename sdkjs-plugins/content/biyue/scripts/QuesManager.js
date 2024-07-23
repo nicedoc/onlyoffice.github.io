@@ -569,6 +569,8 @@ function updateRangeControlType(typeName) {
 				}
 			}
 
+			
+
 			var controlsInRange = []
 			var completeOverlapControl = null
 			var parentControls = []
@@ -1059,7 +1061,7 @@ function batchChangeQuesType(type) {
 		var question_map = window.BiyueCustomData.question_map
 		res.list.forEach(e => {
 			if (question_map && question_map[e.id]) {
-				question_map[e.id].question_type = type
+				question_map[e.id].question_type = type * 1
 			}
 		})
 		// 需要同步更新单题详情
@@ -1069,7 +1071,7 @@ function batchChangeQuesType(type) {
 					detail: {
 						list: res.list,
 						field: 'question_type',
-						value: type,
+						value: type * 1,
 					},
 				})
 			)
@@ -1367,7 +1369,7 @@ function reqGetQuestionType() {
 			var content_list = res.data.content_list
 			if (content_list && content_list.length) {
 				content_list.forEach(e => {
-					window.BiyueCustomData.question_map[e.id].question_type = e.question_type
+					window.BiyueCustomData.question_map[e.id].question_type = e.question_type * 1
 					window.BiyueCustomData.question_map[e.id].question_type_name = e.question_type_name
 				})
 			}
