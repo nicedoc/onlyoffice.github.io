@@ -974,7 +974,7 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
             console.log('StoreCustomData', window.BiyueCustomData)
             StoreCustomData(function () {
                 console.log("store custom data done");
-                this.executeCommand("close", '');
+                window.Asc.plugin.executeCommand("close", '');
             });
             return;
         }
