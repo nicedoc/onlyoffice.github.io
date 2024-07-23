@@ -256,15 +256,23 @@ import { setXToken } from './auth.js'
 
   // 更新试卷切题信息
   function onUpdatePostions() {
+    let page_size = ''
+    if (paper_info && paper_info.workbook && paper_info.workbook.layout) {
+      page_size = paper_info.workbook.layout
+    } else {
+      alert('未获取到练习册配置的试卷尺寸')
+      return
+    }
+
     var evaluationPosition = {}
     let positions = getPositions()
     evaluationPosition.again_regional = getFieldsByZoneType('again')
     evaluationPosition.self_evaluation = getFieldsByZoneType('self_evaluation')
-    evaluationPosition.teacher_evaluation = getFieldsByZoneType('teather_evaluation')
+    evaluationPosition.teacher_evaluation = getFieldsByZoneType('teacher_evaluation')
     evaluationPosition.pass_regional = getFieldsByZoneType('pass')
     evaluationPosition.ignore_regional = getFieldsByZoneType('ignore')
     evaluationPosition.stat_regional = getFieldsByZoneType('statistics')
-    evaluationPosition['page_size'] = 'printing_a4_standard' // 暂时固定一个尺寸 等接口提供了替换
+    evaluationPosition['page_size'] = page_size
     evaluationPosition['exam_type'] = 'exercise'
     console.log('positions and evaluationPosition:', positions, evaluationPosition)
 
