@@ -3790,7 +3790,7 @@ function getAllPositions() {
 						text: oControl.GetRange().GetText(), // 如果需要html, 请参考ExamTree.js的reqUploadTree
 						// content: `${text_data.data || ''}`,
 						title_region: [],
-						correct_region: correctPos.correct_region,
+						correct_region: correctPos.correct_region || {},
 						correct_ask_region: correctPos.correct_ask_region,
 						score: 0,
 						ask_num: 0,
