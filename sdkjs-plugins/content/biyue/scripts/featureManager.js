@@ -253,19 +253,96 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 				}
 			}
 		}
+		function getFirstParagraph(oControl) {
+			var paragraphs = oControl.GetAllParagraphs()
+			for (var i = 0; i < paragraphs.length; ++i) {
+				var oParagraph = paragraphs[i]
+				if (oParagraph) {
+					var parent1 = oParagraph.Paragraph.Parent
+					var parent2 = parent1.Parent
+					if (parent2 && parent2.Id == oControl.Sdt.GetId()) {
+						return oParagraph
+					}
+				}
+			}
+			return null
+		}
+		var handledNumbering = {}
+		function hideSimple(oParagraph) {
+			if (!oParagraph) {
+				return
+			}
+			var oNumberingLevel = oParagraph.GetNumbering()
+			if (!oNumberingLevel) {
+				return
+			}
+			var level = oNumberingLevel.Lvl
+			var oNum = oNumberingLevel.Num
+			var oNumberingLvl = oNum.GetLvl(level)
+			if (!oNumberingLvl) {
+				return
+			}
+			var LvlText = oNumberingLvl.LvlText || []
+			if (LvlText && LvlText.length) {
+				if (LvlText[0].Value!='\ue6a1') {
+					return
+				}
+			}
+			var key = `${oNum.Id}_${level}`
+			if (handledNumbering[key]) {
+				return
+			}
+			handledNumbering[key] = 1
+			var suffix = ''
+			if (LvlText.length > 1 && LvlText[LvlText.length - 1].Type == 1) {
+				suffix = LvlText[LvlText.length - 1].Value
+			}
+			var sType = 'decimal'
+			if (oNumberingLvl.Format == 8) {
+				sType = 'chineseCounting'
+			} else if (oNumberingLvl.Format == 9) {
+				sType = 'chineseCountingThousand'
+			} else if (oNumberingLvl.Format == 10) {
+				sType = 'chineseLegalSimplified'
+			} else if (oNumberingLvl.Format == 14) {
+				sType = 'decimalEnclosedCircle'
+			} else if (oNumberingLvl.Format == 15) {
+				sType = 'decimalEnclosedCircleChinese'
+			} else if (oNumberingLvl.Format == 21) {
+				sType = 'decimalZero'
+			} else if (oNumberingLvl.Format == 46) {
+				sType = 'lowerLetter'
+			} else if (oNumberingLvl.Format == 47) {
+				sType = 'lowerRoman'	
+			} else if (oNumberingLvl.Format == 60) {
+				sType = 'upperLetter'
+			} else if (oNumberingLvl.Format == 61) {
+				sType = 'upperRoman'
+			}
+			var bulletStr = ''
+			oNumberingLevel.SetTemplateType('bullet', bulletStr);
+			var str = ''
+			str += bulletStr
+			for (var i = 0; i < LvlText.length; ++i ) {
+				if (LvlText[i].Type == 2) {
+					str += `%${level+1}`
+				} else {
+					if (LvlText[i].Value != '\ue6a1') {
+						str += LvlText[i].Value
+					}
+				}
+			}
+			oNumberingLevel.SetCustomType(sType, str, "left")
+			var oTextPr = oNumberingLevel.GetTextPr();
+			oTextPr.SetFontFamily("iconfont");
+		}
 		var controls = oDocument.GetAllContentControls()
 		if (controls) {
 			for (var j = 0, jmax = controls.length; j < jmax; ++j) {
 				var oControl = controls[j]
 				if (oControl.GetClassType() == 'blockLvlSdt') {
-					var oParagraph = oControl.GetAllParagraphs()[0]
-					if (oParagraph) {
-						var run1 = oParagraph.GetElement(0)
-						var existSimple = run1 && run1.GetClassType() == 'run' && (run1.GetText() == '\u{e6a1}' || run1.GetText() == '▢') 
-						if (existSimple) {
-							oParagraph.RemoveElement(0)
-						}
-					}
+					var firstParagraph = getFirstParagraph(oControl)
+					hideSimple(firstParagraph)
 				}
 			}
 		}
@@ -743,6 +820,80 @@ function setInteraction(type, quesIds) {
 		if (!controls) {
 			return
 		}
+		var handledNumbering = {}
+		function showSimple(oParagraph, vshow) {
+			var oNumberingLevel = oParagraph.GetNumbering()
+			if (!oNumberingLevel) {
+				return
+			}
+			var level = oNumberingLevel.Lvl
+			var oNum = oNumberingLevel.Num
+			if (!oNum) {
+				return
+			}
+			var oNumberingLvl = oNum.GetLvl(level)
+			if (!oNumberingLvl) {
+				return
+			}
+			var LvlText = oNumberingLvl.LvlText || []
+			if (LvlText && LvlText.length) {
+				if (LvlText[0].Value=='\ue6a1') {
+					if (vshow) {
+						console.log('当前简单互动已显示')
+						return
+					}
+				} else {
+					if (!vshow) {
+						console.log('当前简单互动本就未显示')
+						return
+					}
+				}
+			}
+			var key = `${oNum.Id}_${level}`
+			if (handledNumbering[key]) {
+				return
+			}
+			handledNumbering[key] = 1
+			var sType = 'decimal'
+			if (oNumberingLvl.Format == 8) {
+				sType = 'chineseCounting'
+			} else if (oNumberingLvl.Format == 9) {
+				sType = 'chineseCountingThousand'
+			} else if (oNumberingLvl.Format == 10) {
+				sType = 'chineseLegalSimplified'
+			} else if (oNumberingLvl.Format == 14) {
+				sType = 'decimalEnclosedCircle'
+			} else if (oNumberingLvl.Format == 15) {
+				sType = 'decimalEnclosedCircleChinese'
+			} else if (oNumberingLvl.Format == 21) {
+				sType = 'decimalZero'
+			} else if (oNumberingLvl.Format == 46) {
+				sType = 'lowerLetter'
+			} else if (oNumberingLvl.Format == 47) {
+				sType = 'lowerRoman'	
+			} else if (oNumberingLvl.Format == 60) {
+				sType = 'upperLetter'
+			} else if (oNumberingLvl.Format == 61) {
+				sType = 'upperRoman'
+			}
+			var bulletStr = vshow ? '\ue6a1' : ''
+			oNumberingLevel.SetTemplateType('bullet', bulletStr);
+			var str = ''
+			str += bulletStr
+			for (var i = 0; i < LvlText.length; ++i ) {
+				if (LvlText[i].Type == 2) {
+					str += `%${level+1}`
+				} else {
+					if (LvlText[i].Value != '\ue6a1') {
+						str += LvlText[i].Value
+					}
+				}
+			}
+			oNumberingLevel.SetCustomType(sType, str, "left")
+			var oTextPr = oNumberingLevel.GetTextPr();
+			oTextPr.SetFontFamily("iconfont");
+		}
+
 		function getExistDrawing(draws, sub_type_list, write_id) {
 			var list = []
 			for (var i = 0; i < draws.length; ++i) {
@@ -773,16 +924,20 @@ function setInteraction(type, quesIds) {
 			if (paragraphs && paragraphs.length > 0) {
 				var pParagraph = paragraphs[0]
 				var oRun = Api.CreateRun()
+
+
+    
 				// oRun.AddText('▢')
-				oRun.SetFontFamily('iconfont')
-				oRun.AddText('\u{e6a1}')
+				// oRun.SetFontFamily('iconfont')
+				// var str = '\ue6a1'
+				// oRun.AddText(str)
 				
-				oRun.SetColor(153, 153, 153);
-				oRun.SetFontSize(24)
-				pParagraph.AddElement(
-					oRun,
-					0
-				)
+				// oRun.SetColor(153, 153, 153);
+				// oRun.SetFontSize(24)
+				// pParagraph.AddElement(
+				// 	oRun,
+				// 	0
+				// )
 				// oDrawing.SetWrappingStyle('tight')
 			}
 		}
@@ -849,6 +1004,7 @@ function setInteraction(type, quesIds) {
 			if (paragraphs && paragraphs.length > 0) {
 				var oRun = Api.CreateRun()
 				oRun.AddText(index + '')
+				// console.log('============================ addAskInteraction', askControl, index, write_id)
 				oRun.SetFontSize(22)
 				oRun.SetVertAlign('baseline')
 				paragraphs[0].AddElement(oRun, 0)
@@ -1047,6 +1203,21 @@ function setInteraction(type, quesIds) {
 			// 	console.warn('cannot find paragraph')
 			// }
 		}
+
+		function getFirstParagraph(oControl) {
+			var paragraphs = oControl.GetAllParagraphs()
+			for (var i = 0; i < paragraphs.length; ++i) {
+				var oParagraph = paragraphs[i]
+				if (oParagraph) {
+					var parent1 = oParagraph.Paragraph.Parent
+					var parent2 = parent1.Parent
+					if (parent2 && parent2.Id == oControl.Sdt.GetId()) {
+						return oParagraph
+					}
+				}
+			}
+			return null
+		}
 		function hasSimple(oControl) {
 			var paragraphs = oControl.GetAllParagraphs()
 			for (var i = 0; i < paragraphs.length; ++i) {
@@ -1089,30 +1260,13 @@ function setInteraction(type, quesIds) {
 				var allDraws = oControl.GetAllDrawingObjects()
 				// var simpleDrawings = getExistDrawing(allDraws, ['simple'])
 				var accurateDrawings = getExistDrawing(allDraws, ['accurate', 'ask_accurate'])
-				var simpleParagraph = hasSimple(oControl)
-				if (interaction_type == 'simple') {
-					if (!simpleParagraph) {
-						addSimple2(oControl)
-					}
-					if (accurateDrawings && accurateDrawings.length) {
-						for (var j = 0; j < accurateDrawings.length; ++j) {
-							accurateDrawings[j].Delete()
-						}
-					}
-				} else if (interaction_type == 'accurate') {
-					if (!simpleParagraph) {
-						addSimple2(oControl)
-					}
+				var firstParagraph = getFirstParagraph(oControl)
+				if (firstParagraph) {
+					showSimple(firstParagraph, interaction_type == 'simple' || interaction_type == 'accurate')
+				}
+				if (interaction_type == 'accurate') {
 					addAccurate(oControl)
-				} else if (interaction_type == 'none') {
-					if (simpleParagraph) {
-						simpleParagraph.RemoveElement(0)
-					}
-					// if (simpleDrawings && simpleDrawings.length) {
-					// 	for (var j = 0; j < simpleDrawings.length; ++j) {
-					// 		simpleDrawings[j].Delete()
-					// 	}
-					// }
+				} else {
 					if (accurateDrawings && accurateDrawings.length) {
 						for (var j = 0; j < accurateDrawings.length; ++j) {
 							accurateDrawings[j].Delete()

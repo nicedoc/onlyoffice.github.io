@@ -202,18 +202,28 @@ function initFeature() {
 }
 
 function changeAll(data) {
+	var vinteraction = 'none'
+	var extra_info = window.BiyueCustomData.workbook_info.parse_extra_data
+	if (extra_info.hidden_correct_region.checked == false) {
+		vinteraction = extra_info.start_interaction.checked ? 'accurate' : 'simple'
+	}
 	if (data.value == 'close') {
 		deleteAllFeatures()
 	} else {
-		drawExtroInfo([].concat(list_feature))
+		drawExtroInfo([].concat(list_feature)).then(res => {
+			setInteraction(vinteraction)
+		})
 	}
 	if (list_feature) {
 		list_feature.forEach(e => {
 			if (e.id == 'interaction') {
 				if (data.value == 'close') {
 					e.comSelect.setSelect('none')
+					updateAllInteraction('none')
+				} else {
+					e.comSelect.setSelect(vinteraction)
+					updateAllInteraction(vinteraction)
 				}
-				updateAllInteraction('none')
 			} else {
 				if (e.comSelect) {
 					e.comSelect.setSelect(data.value)
@@ -244,7 +254,7 @@ function changeItem(type, data, id) {
 		if (data.value == 'none') {
 			deleteAllFeatures(null, ['ques_interaction'])
 		} else {
-			setInteraction(data.value)
+			setInteraction(data.value)	
 		}
 		updateAllInteraction(data.value)
 	} else {

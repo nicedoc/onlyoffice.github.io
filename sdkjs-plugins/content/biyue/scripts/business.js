@@ -3642,42 +3642,42 @@ function getAllPositions() {
 						var parent1 = oParagraph.Paragraph.Parent
 						var parent2 = parent1.Parent
 						if (parent2 && parent2.Id == oControl.Sdt.GetId()) {
-							var run1 = oParagraph.GetElement(0)
-							var v =
-								run1 &&
-								run1.GetClassType() == 'run' &&
-								(run1.GetText() == '\u{e6a1}' || run1.GetText() == '▢')
-							if (v) {
-								var bounds = oParagraph.Paragraph.GetContentBounds(0)
-								var numberingWidth = 0
-								var Numbering = oParagraph.Paragraph.Numbering
-								if (Numbering) {
-									numberingWidth = Numbering.WidthVisible
+							var oNumberingLevel = oParagraph.GetNumbering()
+							if (!oNumberingLevel) {
+								return null
+							}
+							var level = oNumberingLevel.Lvl
+							var oNum = oNumberingLevel.Num
+							if (!oNum) {
+								return null
+							}
+							var oNumberingLvl = oNum.GetLvl(level)
+							if (!oNumberingLvl) {
+								return null
+							}
+							var LvlText = oNumberingLvl.LvlText || []
+							if (LvlText && LvlText.length && LvlText[0].Value=='\ue6a1') {
+								var paragraphX = oParagraph.Paragraph.X
+								var compiledPr = oParagraph.Paragraph.getCompiledPr()
+								var xleft = 0
+								if (compiledPr && compiledPr.ParaPr) {
+									var indLeft = compiledPr.ParaPr.Ind.Left || 0
+									var firstLine = compiledPr.ParaPr.Ind.FirstLine || 0
+									xleft = indLeft + firstLine
 								}
-
-								var g_oTextMeasurer = AscCommon.g_oTextMeasurer
-								var oRun = run1.Run
-								var oTextPr = oRun.Get_CompiledPr(false)
-								g_oTextMeasurer.SetTextPr(
-									oTextPr,
-									oParagraph.Paragraph.GetTheme()
-								)
-								g_oTextMeasurer.SetFontSlot(AscWord.fontslot_ASCII)
-								var nTextHeight = g_oTextMeasurer.GetHeight()
+								var Numbering = oParagraph.Paragraph.Numbering
 								return {
 									page: oParagraph.Paragraph.PageNum,
-									x: mmToPx(bounds.Left + numberingWidth),
-									y: mmToPx(bounds.Top),
-									w: mmToPx(oRun.Content[0].GetWidth()),
-									h: mmToPx(nTextHeight),
+									x: mmToPx(paragraphX + xleft),
+									y: mmToPx(oParagraph.Paragraph.Y),
+									w: mmToPx(Numbering.Height),
+									h: mmToPx(Numbering.Height),
 								}
-							} else {
-								return null
 							}
 						}
 					}
 				}
-				return false
+				return null
 			}
 			function GetCorrectRegion(oControl) {
 				var correct_ask_region = []
