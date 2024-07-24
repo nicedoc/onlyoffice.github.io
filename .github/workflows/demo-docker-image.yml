@@ -23,7 +23,7 @@ jobs:
     - name: Write Version to File
       uses: brettdorrans/write-version-to-file@v1.1.0            
       with:
-        file: sdkjs-plugins/content/biyue/scripts/ver.js
+        filename: sdkjs-plugins/content/biyue/scripts/ver.js
         placeholder: '${VERSION}'
 
     - name: Log in to the Container registry
