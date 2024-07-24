@@ -20,8 +20,8 @@ jobs:
     - name: Check out the repo
       uses: actions/checkout@v4
     
-    - name: Update versoin
-      uses: brettdorrans/writer-version-to-file@master
+    - name: Write Version to File
+      uses: brettdorrans/write-version-to-file@v1.1.0            
       with:
         file: sdkjs-plugins/content/biyue/scripts/ver.js
         placeholder: '${VERSION}'
