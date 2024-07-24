@@ -5,6 +5,7 @@ import {
 } from './business.js'
 import { toXml } from "./convert.js";
 import { biyueCallCommand, dispatchCommandResult } from "./command.js";
+import { getVersion } from "./ver.js"
 
 (function (window, undefined) {
     var styleEnable = false;
@@ -392,8 +393,8 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
             function () {
                 var id = Asc.scope.BiyueCustomId
                 var data = Asc.scope.BiyueCustomData;
-                Api.asc_SetBiyueCustomDataExt(id, data);
                 console.log("store custom data");
+                return Api.asc_SetBiyueCustomDataExt(id, data);                
             },
             false,
             false,
@@ -513,7 +514,10 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
                 range.Select()
                 
                 // 特殊处理，如果range的最后一个段落是DocumentContent的最后一个段落，创建ContentControl过程中会额外增加一个段落
-                // 需要在创建ContentControl之后，将DocumentContent的最后一个段落删除                
+                // 需要在创建ContentControl之后，将DocumentContent的最后一个段落删除
+                
+
+
                 var oResult = Api.asc_AddContentControl(e.controlType || 1, { "Tag": e.info ? JSON.stringify(e.info) : '' });
 
                 Api.asc_RemoveSelection();
@@ -948,6 +952,8 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
 
 
             }
+
+            document.getElementById("versionTag").innerHTML = getVersion();
         }
     });
 
@@ -962,9 +968,10 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
         }
         if (id == -1) {
             console.log('StoreCustomData', window.BiyueCustomData)
-            StoreCustomData(function () {
+            StoreCustomData(function (uuid) {
+                window.BiyueCustomId = id;
                 console.log("store custom data done");
-                this.executeCommand("close", '');
+                window.Asc.plugin.executeCommand("close", '');
             });
             return;
         }

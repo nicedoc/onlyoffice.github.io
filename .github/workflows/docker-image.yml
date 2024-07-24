@@ -19,6 +19,12 @@ jobs:
     steps:
     - name: Check out the repo
       uses: actions/checkout@v4
+    
+    - name: Update versoin
+      uses: brettdorrans/writer-version-to-file@master
+      with:
+        file: sdkjs-plugins/content/biyue/scripts/ver.js
+        placeholder: '${VERSION}'
 
     - name: Log in to the Container registry
       uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
