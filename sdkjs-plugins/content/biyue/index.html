@@ -200,6 +200,15 @@
             display: flex;
             flex-wrap: wrap;
         }
+        
+        .version-tag {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            background-color: #f1f1f1;
+            padding: 5px;
+            font-size: 12px;
+        }
 
      </style>
  </head>
@@ -294,6 +303,10 @@
         console.log('begin to load biyue');
     </script>
     <script type="module" src="scripts/biyue.js"></script>
+    <script src="scripts/ver.js"></script>
 
+    <div id="versionTag" class="version-tag">
+        draft
+    </div>
  </body>
  </html>

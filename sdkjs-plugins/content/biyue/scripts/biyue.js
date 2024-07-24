@@ -21,6 +21,7 @@ import {
 	getAllPositions
 } from './business.js'
 import { showQuesData, initListener } from './panelQuestionDetail.js'
+import { getVersion } from "./ver.js"
 import {
 	initFeature,
 	initExtroInfo,
@@ -871,6 +872,7 @@ import {
 				var endCellId = getCellId(range.EndPos)
 				var inCell = startCellId && endCellId && startCellId == endCellId
                 var oResult = Api.asc_AddContentControl(e.controlType || 1, { "Tag": e.info ? JSON.stringify(e.info) : '' });
+
                 Api.asc_RemoveSelection();
 				if (inCell) {
 					var oControl = Api.LookupObject(oResult.InternalId)
@@ -1061,6 +1063,8 @@ import {
 	}
 
 	$(document).ready(function () {
+		document.getElementById("versionTag").innerHTML = getVersion();
+		
 		// 获取文档描述信息
 		let btnGetDocInfo = document.getElementById('getDocInfo')
 		if (btnGetDocInfo) {
