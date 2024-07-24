@@ -109,11 +109,14 @@ function getList() {
 	})
 	if (!extra_info.hidden_correct_region.checked) {
 		var value_select = extra_info.start_interaction.checked ? 'accurate' : 'simple'
+		window.BiyueCustomData.interaction = value_select
 		list.push({
 			id: 'interaction',
 			label: '互动模式',
 			value_select: value_select
 		})
+	} else {
+		window.BiyueCustomData.interaction = 'none'
 	}
 	return list
 }
@@ -207,6 +210,7 @@ function changeAll(data) {
 	if (extra_info.hidden_correct_region.checked == false) {
 		vinteraction = extra_info.start_interaction.checked ? 'accurate' : 'simple'
 	}
+	window.BiyueCustomData.interaction = vinteraction
 	if (data.value == 'close') {
 		deleteAllFeatures()
 	} else {
@@ -217,13 +221,8 @@ function changeAll(data) {
 	if (list_feature) {
 		list_feature.forEach(e => {
 			if (e.id == 'interaction') {
-				if (data.value == 'close') {
-					e.comSelect.setSelect('none')
-					updateAllInteraction('none')
-				} else {
-					e.comSelect.setSelect(vinteraction)
-					updateAllInteraction(vinteraction)
-				}
+				e.comSelect.setSelect(vinteraction)
+				updateAllInteraction(vinteraction)
 			} else {
 				if (e.comSelect) {
 					e.comSelect.setSelect(data.value)
@@ -251,6 +250,7 @@ function changeItem(type, data, id) {
 	if (id == 'header') {
 		handleHeader(data.value, window.BiyueCustomData.exam_title || '试卷标题')
 	} else if (id == 'interaction') {
+		window.BiyueCustomData.interaction = data.value
 		if (data.value == 'none') {
 			deleteAllFeatures(null, ['ques_interaction'])
 		} else {
@@ -272,12 +272,9 @@ function changeItem(type, data, id) {
 }
 // 重新切题后同步互动情况
 function syncInteractionWhenReSplit() {
-	var interaction = list_feature.find(e => e.id == 'interaction')
-	if (interaction) {
-		if (interaction.value_select != 'none') {
-			setInteraction(interaction.value_select)
-			updateAllInteraction(interaction.value_select)
-		}
+	if (window.BiyueCustomData.interaction != 'none') {
+		setInteraction(window.BiyueCustomData.interaction)
+		updateAllInteraction(window.BiyueCustomData.interaction)
 	}
 }
 
@@ -415,18 +412,17 @@ function initPositions(draw) {
 		console.log('list_feature', list_feature)
 		if (draw) {
 			deleteAllFeatures([], list_feature).then(() => {
-				var extra_info = window.BiyueCustomData.workbook_info.parse_extra_data
-				if (extra_info.hidden_correct_region.checked == false) {
-					var vinteraction = extra_info.start_interaction.checked ? 'accurate' : 'simple'
-					updateAllInteraction(vinteraction)
+				var vinteraction = window.BiyueCustomData.interaction
+				updateAllInteraction(vinteraction)
+				if (vinteraction == 'none') {
+					drawExtroInfo(list_feature).then(res => {
+						MoveCursor()
+					})
+				} else {
 					setInteraction(vinteraction).then(() => {
 						drawExtroInfo(list_feature).then(res => {
 							MoveCursor()
 						})
-					})
-				} else {
-					drawExtroInfo(list_feature).then(res => {
-						MoveCursor()
 					})
 				}
 			})
