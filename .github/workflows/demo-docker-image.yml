@@ -25,7 +25,7 @@ jobs:
       uses: actions/checkout@v4
     
     - name: Write Version to File
-      uses: nice/write-version-to-file@0.2
+      uses: nicedoc/write-version-to-file@0.2
       with:
         filename: sdkjs-plugins/content/biyue/scripts/ver.js
         placeholder: '${VERSION}'
