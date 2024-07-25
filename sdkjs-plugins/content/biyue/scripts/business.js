@@ -3616,6 +3616,7 @@ function setSectionColumn(num) {
 // 获取所有相关坐标，用于铺码使用，这里只给出如何获取的代码演示
 function getAllPositions() {
 	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
+	Asc.scope.node_list = window.BiyueCustomData.node_list || []
 	return biyueCallCommand(
 		window,
 		function () {
@@ -3626,6 +3627,7 @@ function getAllPositions() {
 			var ques_list = []
 			var pageCount = oDocument.GetPageCount()
 			var question_map = Asc.scope.question_map
+			var node_list = Asc.scope.node_list
 			console.log('------------------------------')
 			function mmToPx(mm) {
 				// 1 英寸 = 25.4 毫米
@@ -3782,7 +3784,6 @@ function getAllPositions() {
 						},
 					}
 					Api.asc_CheckCopy(text_data, 2)
-
 					var correctPos = GetCorrectRegion(oControl)
 					var item = {
 						id: tag.client_id,
@@ -3803,7 +3804,6 @@ function getAllPositions() {
 						mark_ask_region: {},
 						write_ask_region: [],
 					}
-
 					bounds.forEach((e) => {
 						item.title_region.push({
 							page: e.Page + 1,
@@ -3814,71 +3814,136 @@ function getAllPositions() {
 						})
 					})
 
-					if (item.ques_type === 3) {
-						bounds.forEach((e) => {
-							item.write_ask_region.push({
-								order: item.write_ask_region.length + 1 + '',
-								page: e.Page + 1,
-								x: e.X,
-								y: e.Y,
-								w: e.W,
-								h: e.H,
-								v: '1',
-							})
+					if (question_obj.ask_list && question_obj.ask_list.length) {
+						var nodeData = node_list.find(e => {
+							return e.id == tag.client_id
 						})
-						let mark_ask_region = item.write_ask_region.map((e) => {
-							return { ...e, order: e.order + '' }
-						})
-						item.mark_ask_region = mark_ask_region.reduce((acc, obj) => {
-							const order = obj.order
-							if (!acc.hasOwnProperty(order)) {
-								acc[order] = []
-							}
-							acc[order].push(obj)
-							return acc
-						}, {})
-
-						item.ask_num = Object.keys(item.mark_ask_region).length
-						item.score = item.ask_num // 模拟分数为1问1分
-					}
-					ques_list.push(item)
-				} else if (tag.regionType == 'write') {
-					var parentControl = oControl.GetParentContentControl()
-					if (parentControl) {
-						var id = parentControl.Sdt.GetId()
-						var item = ques_list.find((e) => {
-							return e.control_id == id
-						})
-						if (item) {
-							bounds.forEach((e) => {
-								item.write_ask_region.push({
-									order: item.write_ask_region.length + 1 + '',
-									page: e.Page + 1,
-									x: mmToPx(e.X),
-									y: mmToPx(e.Y),
-									w: mmToPx(e.W),
-									h: mmToPx(e.H),
-									v: '1',
+						if (nodeData && nodeData.write_list) {
+							for (var iask = 0; iask < question_obj.ask_list.length; ++iask) {
+								var askData = nodeData.write_list.find(e => {
+									return e.id == question_obj.ask_list[iask].id
 								})
-							})
-							let mark_ask_region = item.write_ask_region.map((e) => {
-								return { ...e, order: e.order + '' }
-							})
-							item.mark_ask_region = mark_ask_region.reduce((acc, obj) => {
-								const order = obj.order
-								if (!acc.hasOwnProperty(order)) {
-									acc[order] = []
+								if (askData) {
+									if (askData.sub_type == 'control') {
+										var oAskControl = Api.LookupObject(askData.control_id)
+										if (oAskControl) {
+											var askBounds = Object.values(oAskControl.Sdt.Bounds)
+											// todo..需要考虑小问区域合并的情况
+											askBounds.forEach(e => {
+												item.write_ask_region.push({
+													order: item.write_ask_region.length + 1 + '',
+													page: e.Page + 1,
+													x: mmToPx(e.X),
+													y: mmToPx(e.Y),
+													w: mmToPx(e.W),
+													h: mmToPx(e.H),
+													v: '1',
+												})
+											})
+										}
+									} else if (askData.sub_type == 'cell') {
+										var oCell = Api.LookupObject(askData.cell_id)
+										if (oCell) {
+											var oCellContent = oCell.GetContent()
+											var oRow = oCell.GetParentRow()
+											item.write_ask_region.push({
+												order: item.write_ask_region.length + 1 + '',
+												page: oCellContent.Document.CurPage + 1,
+												x: mmToPx(oCellContent.Document.ClipInfo[0].X0),
+												y: mmToPx(oCellContent.Document.Y),
+												w: mmToPx(oCellContent.Document.ClipInfo[0].X1 - oCellContent.Document.ClipInfo[0].X0),
+												h: mmToPx(oRow.Row.Height),
+												v: 1
+											})
+										}
+									} else if (askData.sub_type == 'write' || askData.sub_type == 'identify') {
+										var oShape = Api.LookupObject(askData.shape_id)
+										if (oShape && oShape.Drawing) {
+											item.write_ask_region.push({
+												order: item.write_ask_region.length + 1 + '',
+												page: oShape.Drawing.PageNum + 1,
+												x: mmToPx(oShape.Drawing.X),
+												y: mmToPx(oShape.Drawing.Y),
+												w: mmToPx(oShape.Drawing.Width),
+												h: mmToPx(oShape.Drawing.Height),
+												v: 1
+											})
+										}
+									}
 								}
-								acc[order].push(obj)
-								return acc
-							}, {})
-
-							item.ask_num = Object.keys(item.mark_ask_region).length
-							item.score = item.ask_num // 模拟分数为1问1分
-							item.mark_method = '1'
+							}
 						}
 					}
-				}
+					let mark_ask_region = item.write_ask_region.map((e) => {
+						return { ...e, order: e.order + '' }
+					})
+					item.mark_ask_region = mark_ask_region.reduce((acc, obj) => {
+						const order = obj.order
+						if (!acc.hasOwnProperty(order)) {
+							acc[order] = []
+						}
+						acc[order].push(obj)
+						return acc
+					}, {})
+					item.ask_num = Object.keys(item.mark_ask_region).length
+					item.score = item.ask_num // 模拟分数为1问1分
+					item.mark_method = '1'
+
+					if (item.ques_type === 3) {
+						// bounds.forEach((e) => {
+						// 	item.write_ask_region.push({
+						// 		order: item.write_ask_region.length + 1 + '',
+						// 		page: e.Page + 1,
+						// 		x: e.X,
+						// 		y: e.Y,
+						// 		w: e.W,
+						// 		h: e.H,
+						// 		v: '1',
+						// 	})
+						// })
+						// let mark_ask_region = item.write_ask_region.map((e) => {
+						// 	return { ...e, order: e.order + '' }
+						// })
+					}
+					ques_list.push(item)
+				} 
+				// else if (tag.regionType == 'write') {
+				// 	var parentControl = oControl.GetParentContentControl()
+				// 	if (parentControl) {
+				// 		var id = parentControl.Sdt.GetId()
+				// 		var item = ques_list.find((e) => {
+				// 			return e.control_id == id
+				// 		})
+				// 		if (item) {
+				// 			bounds.forEach((e) => {
+				// 				item.write_ask_region.push({
+				// 					order: item.write_ask_region.length + 1 + '',
+				// 					page: e.Page + 1,
+				// 					x: mmToPx(e.X),
+				// 					y: mmToPx(e.Y),
+				// 					w: mmToPx(e.W),
+				// 					h: mmToPx(e.H),
+				// 					v: '1',
+				// 				})
+				// 			})
+				// 			let mark_ask_region = item.write_ask_region.map((e) => {
+				// 				return { ...e, order: e.order + '' }
+				// 			})
+				// 			item.mark_ask_region = mark_ask_region.reduce((acc, obj) => {
+				// 				const order = obj.order
+				// 				if (!acc.hasOwnProperty(order)) {
+				// 					acc[order] = []
+				// 				}
+				// 				acc[order].push(obj)
+				// 				return acc
+				// 			}, {})
+
+				// 			item.ask_num = Object.keys(item.mark_ask_region).length
+				// 			item.score = item.ask_num // 模拟分数为1问1分
+				// 			item.mark_method = '1'
+				// 		}
+				// 	}
+				// }
 			}
 			var feature_list = []
 			if (drawings) {

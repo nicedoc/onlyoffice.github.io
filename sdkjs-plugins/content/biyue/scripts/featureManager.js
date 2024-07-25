@@ -222,6 +222,22 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 		var drawings = oDocument.GetAllDrawingObjects()
 		var exceptList = Asc.scope.exceptList
 		var specifyFeatures = Asc.scope.specifyFeatures
+		function deleteAccurate(oDrawing) {
+			var run = oDrawing.Drawing.GetRun()
+			if (run) {
+				var paragraph = run.GetParagraph()
+				if (paragraph) {
+					var oParagraph = Api.LookupObject(paragraph.Id)
+					var ipos = run.GetPosInParent()
+					if (ipos >= 0) {
+						oDrawing.Delete()
+						oParagraph.RemoveElement(ipos)
+						return
+					}
+				}
+			}
+			oDrawing.Delete()
+		}
 		if (drawings) {
 			for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
 				var oDrawing = drawings[j]
@@ -243,10 +259,18 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 									return title.indexOf(e) >= 0
 								})
 								if (inSpecify) {
-									oDrawing.Delete()
+									if (titleObj.feature.sub_type == 'ask_accurate') {
+										deleteAccurate(oDrawing)
+									} else {
+										oDrawing.Delete()
+									}
 								}
 							} else {
-								oDrawing.Delete()
+								if (titleObj.feature.sub_type == 'ask_accurate') {
+									deleteAccurate(oDrawing)
+								} else {
+									oDrawing.Delete()
+								}
 							}
 						}
 					}
@@ -254,6 +278,9 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 			}
 		}
 		function getFirstParagraph(oControl) {
+			if (!oControl) {
+				return null
+			}
 			var paragraphs = oControl.GetAllParagraphs()
 			for (var i = 0; i < paragraphs.length; ++i) {
 				var oParagraph = paragraphs[i]
@@ -810,11 +837,13 @@ function setInteraction(type, quesIds) {
 	Asc.scope.interaction_type = type
 	Asc.scope.interaction_quesIds = quesIds
 	Asc.scope.question_map = window.BiyueCustomData.question_map
+	Asc.scope.node_list = window.BiyueCustomData.node_list
 	return biyueCallCommand(window, function() {
 		var interaction_type = Asc.scope.interaction_type
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls()
 		var question_map = Asc.scope.question_map || {}
+		var node_list = Asc.scope.node_list || []
 		var MM2TWIPS = 25.4 / 72 / 20
 		var quesIds = Asc.scope.interaction_quesIds
 		if (!controls) {
@@ -916,77 +945,7 @@ function setInteraction(type, quesIds) {
 			return list
 		}
 
-		function addSimple2(oControl) {
-			if (!oControl) {
-				return
-			}
-			var paragraphs = oControl.GetAllParagraphs()
-			if (paragraphs && paragraphs.length > 0) {
-				var pParagraph = paragraphs[0]
-				var oRun = Api.CreateRun()
-
-
-    
-				// oRun.AddText('▢')
-				// oRun.SetFontFamily('iconfont')
-				// var str = '\ue6a1'
-				// oRun.AddText(str)
-				
-				// oRun.SetColor(153, 153, 153);
-				// oRun.SetFontSize(24)
-				// pParagraph.AddElement(
-				// 	oRun,
-				// 	0
-				// )
-				// oDrawing.SetWrappingStyle('tight')
-			}
-		}
-
-		function addSimple(oControl) {
-			if (!oControl) {
-				return
-			}
-			var oFill = Api.CreateNoFill()
-			var oStroke = Api.CreateStroke(
-				3600,
-				Api.CreateSolidFill(Api.CreateRGBColor(225, 225, 225))
-			)
-			var oDrawing = Api.CreateShape(
-				'rect',
-				3.18 * 36e3,
-				3.18 * 36e3,
-				oFill,
-				oStroke
-			)
-			var titleobj = {
-				feature: {
-					zone_type: 'question',
-					type: 'ques_interaction',
-					sub_type: 'simple',
-					control_id: oControl.Sdt.GetId()
-				}
-			}
-			oDrawing.Drawing.Set_Props({
-				title: JSON.stringify(titleobj),
-			})
-			oDrawing.SetDistances(0, 0, 2 * 36e3, 0);
-			var paragraphs = oControl.GetAllParagraphs()
-			if (paragraphs && paragraphs.length > 0) {
-				var pParagraph = paragraphs[0]
-				var oRun = Api.CreateRun()
-				oRun.AddDrawing(oDrawing)
-				pParagraph.AddElement(
-					oRun,
-					1
-				)
-				oDrawing.SetWrappingStyle('tight')
-			}
-		}
-
-		function addAskInteraction(askControl, index, write_id) {
-			if (!askControl) {
-				return
-			}
+		function getAccurateDrawing(index, write_id) {
 			var oFill = Api.CreateNoFill()
 			var oStroke = Api.CreateStroke(
 				3600,
@@ -1004,7 +963,6 @@ function setInteraction(type, quesIds) {
 			if (paragraphs && paragraphs.length > 0) {
 				var oRun = Api.CreateRun()
 				oRun.AddText(index + '')
-				// console.log('============================ addAskInteraction', askControl, index, write_id)
 				oRun.SetFontSize(22)
 				oRun.SetVertAlign('baseline')
 				paragraphs[0].AddElement(oRun, 0)
@@ -1018,24 +976,66 @@ function setInteraction(type, quesIds) {
 					zone_type: 'question',
 					type: 'ques_interaction',
 					sub_type: 'ask_accurate',
-					control_id: askControl.Sdt.GetId(),
 					write_id: write_id
 				}
 			}
 			oDrawing.Drawing.Set_Props({
 				title: JSON.stringify(titleobj),
 			})
-			if (askControl.GetClassType() == 'inlineLvlSdt') {
-				var elementCount = askControl.GetElementsCount()
-				if (elementCount > 0) {
-					var oRun = Api.CreateRun();
-					oRun.AddDrawing(oDrawing)
-					askControl.AddElement(oRun, 0)
+			return oDrawing
+		}
+
+		function addAskInteraction(oControl, askData, index, write_id) {
+			var oDrawing = getAccurateDrawing(index, write_id)
+			if (askData.sub_type == 'control') {
+				var askControl = Api.LookupObject(askData.control_id)
+				if (askControl.GetClassType() == 'inlineLvlSdt') {
+					var elementCount = askControl.GetElementsCount()
+					if (elementCount > 0) {
+						var oRun = Api.CreateRun();
+						oRun.AddDrawing(oDrawing)
+						askControl.AddElement(oRun, 0)
+					}
+				} else if (askControl.GetClassType() == 'blockLvlSdt') {
+					var paragraphs2 = askControl.GetAllParagraphs()
+					if (paragraphs2 && paragraphs2.length > 0) {
+						var pParagraph = paragraphs2[0]
+						var oRun = Api.CreateRun()
+						oRun.AddDrawing(oDrawing)
+						pParagraph.AddElement(
+							oRun,
+							0
+						)
+						oDrawing.SetWrappingStyle('inline')
+					}
 				}
-			} else if (askControl.GetClassType() == 'blockLvlSdt') {
-				var paragraphs2 = askControl.GetAllParagraphs()
-				if (paragraphs2 && paragraphs2.length > 0) {
-					var pParagraph = paragraphs2[0]
+			} else if (askData.sub_type == 'write') {
+				if (askData.shape_id) {
+					var oShape = Api.LookupObject(askData.shape_id)
+					if (oShape) {
+						var shapeContent = oShape.GetContent()
+						if (shapeContent) {
+							var paragraphs3 = shapeContent.GetAllParagraphs()
+							if (paragraphs3 && paragraphs3.length) {
+								var pParagraph = paragraphs3[0]
+								pParagraph.SetJc('left')
+								var oRun = Api.CreateRun()
+								oRun.AddDrawing(oDrawing)
+								pParagraph.AddElement(
+									oRun,
+									0
+								)
+								oDrawing.SetWrappingStyle('inline')
+							}
+						}
+					}
+				}
+			} else if (askData.sub_type == 'cell') {
+				var oCell = Api.LookupObject(askData.cell_id)
+				var paragraphs3 = oCell.GetContent().GetAllParagraphs()
+				if (paragraphs3 && paragraphs3.length) {
+					var pParagraph = paragraphs3[0]
+					pParagraph.SetJc('left')
 					var oRun = Api.CreateRun()
 					oRun.AddDrawing(oDrawing)
 					pParagraph.AddElement(
@@ -1044,167 +1044,56 @@ function setInteraction(type, quesIds) {
 					)
 					oDrawing.SetWrappingStyle('inline')
 				}
+			} else if (askData.sub_type == 'identify') {
+				// todo..
 			}
 		}
-		function addAccurate(oControl) {
+
+		function handleAccurate(oControl, ask_list, write_list) {
 			if (!oControl) {
 				return
 			}
-			var control_id = oControl.Sdt.GetId()
-			var childControls = oControl.GetAllContentControls()
+			if (!write_list || !ask_list) {
+				return
+			}
 			var drawings = oControl.GetAllDrawingObjects()
-			var write_list = []
-			if (childControls) {
-				for (var i = 0; i < childControls.length; ++i) {
-					var parentControl = childControls[i].GetParentContentControl()
-					if (!parentControl || parentControl.Sdt.GetId() != control_id) {
-						continue
+			for (var i = 0; i < ask_list.length; ++i) {
+				var askData = write_list.find(e => {
+					return e.id == ask_list[i].id
+				})
+				if (!askData) {
+					continue
+				}
+				var dlist = getExistDrawing(drawings, ['ask_accurate'], ask_list[i].id)
+				if (interaction_type == 'accurate') {
+					if (!dlist || dlist.length == 0) {
+						addAskInteraction(oControl, askData, i + 1, ask_list[i].id)
 					}
-					var tag = JSON.parse(childControls[i].GetTag() || '{}')
-					if (tag.regionType == 'write') {
-						var dlist = getExistDrawing(drawings, ['ask_accurate'], tag.client_id)
-						if (!dlist || dlist.length == 0) {
-							addAskInteraction(childControls[i], write_list.length + 1, tag.client_id)
+				} else {
+					for (var j = 0; j < dlist.length; ++j) {
+						var run = dlist[j].Drawing.GetRun()
+						if (run) {
+							var paragraph = run.GetParagraph()
+							if (paragraph) {
+								var oParagraph = Api.LookupObject(paragraph.Id)
+								var ipos = run.GetPosInParent()
+								if (ipos >= 0) {
+									dlist[j].Delete()
+									oParagraph.RemoveElement(ipos)
+									continue
+								}
+							}
 						}
-						write_list.push(childControls[i])
+						dlist[j].Delete()
 					}
 				}
 			}
-			// var num = write_list.length
-			// if (num == 0) {
-			// 	return
-			// }
-			// var rect = Api.asc_GetContentControlBoundingRect(control_id, true)
-			// var newRect = {
-			// 	Left: rect.X0,
-			// 	Right: rect.X1,
-			// 	Top: rect.Y0,
-			// 	Bottom: rect.Y1,
-			// }
-			// var controlContent = oControl.GetContent()
-			// if (controlContent) {
-			// 	var pageIndex = 0
-			// 	if (
-			// 		controlContent.Document &&
-			// 		controlContent.Document.Pages &&
-			// 		controlContent.Document.Pages.length > 1
-			// 	) {
-			// 		for (var p = 0; p < controlContent.Document.Pages.length; ++p) {
-			// 			if (!oControl.Sdt.IsEmptyPage(p)) {
-			// 				pageIndex = p
-			// 				break
-			// 			}
-			// 		}
-			// 	}
-			// 	var pagebounds = controlContent.Document.Get_PageBounds(pageIndex)
-			// 	if (pagebounds) {
-			// 		newRect.Right = Math.max(pagebounds.Right, newRect.Right)
-			// 	}
-			// }
-			// var width = newRect.Right - newRect.Left
-			// var oTable = Api.CreateTable(num, 1)
-			// var oTableStyle = oDocument.CreateStyle('CustomTableStyle', 'table')
-			// var oTableStylePr = oTableStyle.GetConditionalTableStyle('wholeTable')
-			// oTable.SetTableLook(true, true, true, true, true, true)
-			// oTableStylePr.GetTableRowPr().SetHeight('atLeast', 8 / MM2TWIPS) // 高度至少多少trips
-			// var oTableCellPr = oTableStyle.GetTableCellPr()
-			// oTableCellPr.SetVerticalAlign('center')
-			// oTable.SetWrappingStyle(true)
-			// oTable.SetStyle(oTableStyle)
-			// oTable.SetCellSpacing(150)
-			// oTable.SetTableBorderTop('single', 1, 0.1, 255, 255, 255)
-			// oTable.SetTableBorderBottom('single', 1, 0.1, 255, 255, 255)
-			// oTable.SetTableBorderLeft('single', 1, 0.1, 255, 255, 255)
-			// oTable.SetTableBorderRight('single', 1, 0.1, 255, 255, 255)
-			// var Props = {
-			// 	CellSelect: true,
-			// 	Locked: false,
-			// 	PositionV: {
-			// 		Align: 1,
-			// 		RelativeFrom: 2,
-			// 		UseAlign: true,
-			// 		Value: 0,
-			// 	},
-			// 	PositionH: {
-			// 		Align: 4,
-			// 		RelativeFrom: 0,
-			// 		UseAlign: true,
-			// 		Value: 0,
-			// 	},
-			// 	TableDefaultMargins: {
-			// 		Bottom: 0,
-			// 		Left: 0,
-			// 		Right: 0,
-			// 		Top: 0,
-			// 	},
-			// }
-			// oTable.Table.Set_Props(Props)
-			// for (var i = 0; i < num; ++i) {
-			// 	var cell = oTable.GetCell(0, i)
-			// 	if (cell) {
-			// 		var cellcontent = cell.GetContent()
-			// 		if (cellcontent) {
-			// 			var oCellPara = cellcontent.GetElement(0)
-			// 			if (oCellPara) {
-			// 				oCellPara.AddText(`${i + 1}`)
-			// 				cell.SetWidth('twips', 8 / MM2TWIPS)
-			// 				oCellPara.SetJc('center')
-			// 				oCellPara.SetColor(0, 0, 0, false)
-			// 				oCellPara.SetFontSize(16)
-			// 			} else {
-			// 				console.log('oCellPra is null')
-			// 			}
-			// 		} else {
-			// 			console.log('cellcontent is null')
-			// 		}
-			// 	}
-			// }
-
-			// var shapew = num * 12
-			// var oDrawing = Api.CreateShape(
-			// 	'rect',
-			// 	shapew * 36e3,
-			// 	(8 + 4) * 36e3,
-			// 	Api.CreateNoFill(),
-			// 	Api.CreateStroke(0, Api.CreateNoFill())
-			// )
-			// var titleobj = {
-			// 	feature: {
-			// 		zone_type: 'question',
-			// 		type: 'ques_interaction',
-			// 		sub_type: 'accurate',
-			// 		control_id: control_id
-			// 	}
-			// }
-			// oDrawing.Drawing.Set_Props({
-			// 	title: JSON.stringify(titleobj),
-			// })
-			// oDrawing.SetPaddings(0, 0, 0, 0)
-			// var drawDocument = oDrawing.GetContent()
-			// drawDocument.AddElement(0, oTable)
-			// oDrawing.SetWrappingStyle('square')
-			// oDrawing.SetHorPosition('column', (width - shapew) * 36e3)
-			// var oRun = Api.CreateRun()
-			// oRun.AddDrawing(oDrawing)
-			// var paragraphs = oControl.GetContent().GetAllParagraphs()
-			// var find = false
-			// if (paragraphs && paragraphs.length > 0) {
-			// 	for (var p = 0; p < paragraphs.length; ++p) {
-			// 		var paragraphParent = paragraphs[p].GetParentContentControl()
-			// 		if (paragraphParent && paragraphParent.Sdt.GetId() == oControl.Sdt.GetId()) {
-			// 			paragraphs[p].AddElement(oRun, 0)
-			// 			find = true
-			// 			console.log('add accurate success', oControl.Sdt.GetId())
-			// 			break
-			// 		}
-			// 	}
-			// }
-			// if (!find) {
-			// 	console.warn('cannot find paragraph')
-			// }
 		}
 
 		function getFirstParagraph(oControl) {
+			if (!oControl) {
+				return null
+			}
 			var paragraphs = oControl.GetAllParagraphs()
 			for (var i = 0; i < paragraphs.length; ++i) {
 				var oParagraph = paragraphs[i]
@@ -1217,28 +1106,6 @@ function setInteraction(type, quesIds) {
 				}
 			}
 			return null
-		}
-		function hasSimple(oControl) {
-			var paragraphs = oControl.GetAllParagraphs()
-			for (var i = 0; i < paragraphs.length; ++i) {
-				var oParagraph = paragraphs[i]
-				if (oParagraph) {
-					var parent1 = oParagraph.Paragraph.Parent
-					var parent2 = parent1.Parent
-					if (parent2) {
-						if (parent2.Id == oControl.Sdt.GetId()) {
-							var run1 = oParagraph.GetElement(0)
-							var v = run1 && run1.GetClassType() == 'run' && (run1.GetText() == '\u{e6a1}' || run1.GetText() == '▢') 
-							if (v) {
-								return oParagraph
-							} else {
-								return null
-							}
-						}
-					}
-				}
-			}
-			return false
 		}
 		for (var i = 0, imax = controls.length; i < imax; ++i) {
 			var oControl = controls[i]
@@ -1257,22 +1124,19 @@ function setInteraction(type, quesIds) {
 						continue
 					}
 				}
-				var allDraws = oControl.GetAllDrawingObjects()
+				var ask_list = question_map[tag.client_id].ask_list
+				var nodeData = node_list.find(e => {
+					return e.id == tag.client_id
+				})
+				var write_list = nodeData ? (nodeData.write_list || []) : []
+				// var allDraws = oControl.GetAllDrawingObjects()
 				// var simpleDrawings = getExistDrawing(allDraws, ['simple'])
-				var accurateDrawings = getExistDrawing(allDraws, ['accurate', 'ask_accurate'])
+				// var accurateDrawings = getExistDrawing(allDraws, ['accurate', 'ask_accurate'])
 				var firstParagraph = getFirstParagraph(oControl)
 				if (firstParagraph) {
 					showSimple(firstParagraph, interaction_type == 'simple' || interaction_type == 'accurate')
 				}
-				if (interaction_type == 'accurate') {
-					addAccurate(oControl)
-				} else {
-					if (accurateDrawings && accurateDrawings.length) {
-						for (var j = 0; j < accurateDrawings.length; ++j) {
-							accurateDrawings[j].Delete()
-						}
-					}
-				}
+				handleAccurate(oControl, ask_list, write_list)
 			}
 		}
 
