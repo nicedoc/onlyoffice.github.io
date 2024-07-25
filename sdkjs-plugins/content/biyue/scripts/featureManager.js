@@ -1032,6 +1032,7 @@ function setInteraction(type, quesIds) {
 				}
 			} else if (askData.sub_type == 'cell') {
 				var oCell = Api.LookupObject(askData.cell_id)
+				oCell.SetCellMarginLeft(0)
 				var paragraphs3 = oCell.GetContent().GetAllParagraphs()
 				if (paragraphs3 && paragraphs3.length) {
 					var pParagraph = paragraphs3[0]
@@ -1042,7 +1043,9 @@ function setInteraction(type, quesIds) {
 						oRun,
 						0
 					)
-					oDrawing.SetWrappingStyle('inline')
+					oDrawing.SetVerPosition("paragraph", 0);
+					oDrawing.SetHorAlign('column', 'left');
+					oDrawing.SetWrappingStyle('inFront')
 				}
 			} else if (askData.sub_type == 'identify') {
 				// todo..
