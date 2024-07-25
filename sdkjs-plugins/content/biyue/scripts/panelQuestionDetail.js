@@ -2,7 +2,7 @@ import ComponentSelect from '../components/Select.js'
 import NumberInput from '../components/NumberInput.js'
 import { reqSaveQuestion } from './api/paper.js'
 import { setInteraction } from './featureManager.js'
-import { changeProportion } from './QuesManager.js'
+import { changeProportion, deleteAsks, focusAsk } from './QuesManager.js'
 // 单题详情
 var proportionTypes = [
 	{ value: '1', label: '默认' },
@@ -121,7 +121,19 @@ function initElements() {
 	inited = true
 }
 
+function resetEvent() {
+	if (list_ask) {
+		for (var i = 0; i < list_ask.length; ++i) {
+			var btnDelete = $(`#ask${i}_delete`)
+			if (btnDelete) {
+				btnDelete.off('click')
+			}
+		}
+	}
+}
+
 function updateElements(quesData, hint) {
+	resetEvent()
 	if (!inited) {
 		initElements()
 	}
@@ -159,7 +171,7 @@ function updateElements(quesData, hint) {
 		quesData.ask_list.forEach((ask, index) => {
 			content += `<div class="item"><span class="asklabel">(${
 				index + 1
-			})</span><div id="ask${index}"></div></div>`
+			})</span><div id="ask${index}"></div><i class="iconfont icon-shanchu clicked" id="ask${index}_delete"></i></div>`
 		})
 		content += '</div>'
 		$('#panelQuesAsks').html(content)
@@ -174,13 +186,19 @@ function updateElements(quesData, hint) {
 					change: (id, data) => {
 						changeScore(id, data)
 					},
+					focus: (id) => {
+						onFocusAsk(id)
+					}
 				})
 				list_ask.push(askInput)
 				askInput.setValue((ask.score || 0) + '')
 			}
+			$(`#ask${index}_delete`).on('click', () => {
+				deleteAsk(index)
+			})
 		})
 		if (list_ask && list_ask.length > askcount) {
-			for (var i = askcount; i < list_ask.length; i++) {
+			for (var i = list_ask.length - 1; i >= askcount; --i) {
 				delete list_ask[i]
 			}
 			list_ask.splice(askcount, list_ask.length - askcount)
@@ -189,9 +207,9 @@ function updateElements(quesData, hint) {
 		$('#panelQuesAsks').html(
 			'<div style="text-align:center;color:#bbb">暂无小问</div>'
 		)
-		list_ask.forEach((e, index) => {
-			delete list_ask[index]
-		})
+		for (var j = list_ask.length - 1; j >= 0; --j) {
+			delete list_ask[j]
+		}
 		list_ask = []
 	}
 }
@@ -372,6 +390,31 @@ function autoSave() {
 	}).catch(err => {
 		console.warn(err)
 	})
+}
+
+function deleteAsk(index) {
+	var quesData = window.BiyueCustomData.question_map[g_ques_id]
+	deleteAsks([{
+		ques_id: g_ques_id,
+		ask_id: quesData.ask_list[index].id
+	}])
+}
+
+function onFocusAsk(id) {
+	var index = id.replace('ask', '') * 1
+	var quesData = window.BiyueCustomData.question_map[g_ques_id]
+	if (!quesData || !quesData.ask_list || index >= quesData.ask_list.length) {
+		return
+	}
+	var nodeData = window.BiyueCustomData.node_list.find(e => {
+		return e.id == g_ques_id
+	})
+	if (nodeData && nodeData.write_list) {
+		var writeData = nodeData.write_list.find(e => {
+			return e.id == quesData.ask_list[index].id
+		})
+		focusAsk(writeData)
+	}
 }
 
 export { showQuesData, initListener }

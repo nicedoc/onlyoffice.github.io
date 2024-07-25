@@ -2259,7 +2259,7 @@ import {
 					if (!window.BiyueCustomData.client_node_id) {
 						window.BiyueCustomData.client_node_id = 1
 					}
-
+					console.log('BiyueCustomData', window.BiyueCustomData)
 					initPaperInfo().then((res2) => {
 						console.log('initPaperInfo', res2)
 						updatePageSizeMargins().then(() => {

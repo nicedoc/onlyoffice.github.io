@@ -18,6 +18,7 @@ class NumberInput{
 	var input = $(`#${this.id} input`)
 	if (input) {
 		input.off('input')
+		input.off('focus')
 	}
   }
   render() {
@@ -45,6 +46,11 @@ class NumberInput{
     $(`#${this.id} input`).on('input', () => {
       this.valueChange($(`#${this.id} input`).val())
     })
+	$(`#${this.id} input`).on('focus', () => {
+		if (this.options.focus) {
+			this.options.focus(this.id)
+		  }
+	})
   }
 
   hide() {

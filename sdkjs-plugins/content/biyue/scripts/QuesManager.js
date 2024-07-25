@@ -328,12 +328,14 @@ function getNodeList() {
 function updateRangeControlType(typeName) {
 	Asc.scope.typename = typeName
 	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
+	Asc.scope.question_map = window.BiyueCustomData.question_map
 	console.log('updateRangeControlType begin:', typeName)
 	return biyueCallCommand(window, function() {
 		var typeName = Asc.scope.typename
 		var oDocument = Api.GetDocument()
 		var oRange = oDocument.GetRangeBySelect()
 		var client_node_id = Asc.scope.client_node_id
+		var question_map = Asc.scope.question_map || {}
 		var change_list = []
 		var result = {
 			client_node_id: client_node_id,
@@ -388,7 +390,9 @@ function updateRangeControlType(typeName) {
 						if (parentBlock && parentBlock.Sdt.GetId() == oControl.Sdt.GetId()) {
 							children.push({
 								id: tag.client_id,
-								regionType: tag.regionType
+								regionType: tag.regionType,
+								control_id: childControl.Sdt.GetId(),
+								sub_type: 'control'
 							})
 						}
 					}
@@ -614,6 +618,15 @@ function updateRangeControlType(typeName) {
 		}
 
 		function setCellType(oCell, parent_id, table_id) {
+			if (typeName == 'write') {
+				if (!parent_id || !question_map[parent_id] || question_map[parent_id].level_type != 'question') {
+					result = {
+						code: 0,
+						message: '未处于题目中',
+					}
+					return
+				}
+			}
 			if (!oCell) {
 				return
 			}
@@ -1043,9 +1056,15 @@ function updateRangeControlType(typeName) {
 		return result
 	}, false, true).then(res1 => {
 		console.log('handleChangeType result', res1)
-		getNodeList().then(res2 => {
-			handleChangeType(res1, res2)	
-		})
+		if (res1) {
+			if (res1.message && res1.message != '') {
+				alert(res1.message)
+			} else {
+				getNodeList().then(res2 => {
+					handleChangeType(res1, res2)	
+				})
+			}
+		}
 	})
 }
 
@@ -1581,6 +1600,7 @@ function confirmLevelSet(levels) {
 							parentNode.write_list.push({
 								id: id,
 								control_id: oControl.Sdt.GetId(),
+								sub_type: 'control'
 							})
 							questionMap[parent_tagInfo.client_id].ask_list.push({
 								id: id
@@ -1968,6 +1988,7 @@ function handleIdentifyBox(cmdType) {
 							res.ques_id = tag.client_id
 							if (cmdType == 'add') {
 								client_node_id += 1
+								res.write_id = client_node_id
 								var oDrawing = createDrawing(paraentControl.Sdt.GetId(), tag.client_id)
 								if (runIdx >= 0) {
 									res.drawing_id = oDrawing.Drawing.Id
@@ -2912,6 +2933,198 @@ function changeProportion(idList, proportion) {
 	})
 }
 
+function deleteAsks(askList) {
+	if (!askList || askList.length == 0) {
+		return
+	}
+	Asc.scope.question_map = window.BiyueCustomData.question_map
+	Asc.scope.node_list = window.BiyueCustomData.node_list
+	Asc.scope.delete_ask_list = askList
+	return biyueCallCommand(window, function() {
+		var node_list = Asc.scope.node_list
+		var question_map = Asc.scope.question_map
+		var delete_ask_list = Asc.scope.delete_ask_list
+		var oDocument = Api.GetDocument()
+		var drawings = oDocument.GetAllDrawingObjects()
+		function clearQuesInteraction(oControl) {
+			if (!oControl) {
+				return
+			}
+			if (oControl.GetClassType() == 'inlineLvlSdt') {
+				var elementCount = oControl.GetElementsCount()
+				for (var idx = 0; idx < elementCount; ++idx) {
+					var oRun = oControl.GetElement(idx)
+					if (oRun &&
+						oRun.Run &&
+						oRun.Run.Content &&
+						oRun.Run.Content[0] &&
+						oRun.Run.Content[0].docPr) {
+						var title = oRun.Run.Content[0].docPr.title || "{}"
+						var titleObj = JSON.parse(title)
+						if (titleObj.feature && titleObj.feature.sub_type == 'ask_accurate') {
+							oRun.Delete()
+							break
+						}
+					}
+				}
+			} else {
+				var drawings = oControlContent.GetAllDrawingObjects()
+				if (drawings) {
+					for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
+						var oDrawing = drawings[j]
+						if (oDrawing.Drawing.docPr) {
+							var title = oDrawing.Drawing.docPr.title || "{}"
+							var titleObj = JSON.parse(title)
+							if (titleObj.feature && titleObj.feature.zone_type == 'question') {
+								oDrawing.Delete()
+							}
+						}
+					}
+				}
+			}
+		}
+		function removeCellInteraction(oCell) {
+			if (!oCell) {
+				return
+			}
+			oCell.SetBackgroundColor(204, 255, 255, true)
+			var cellContent = oCell.GetContent()
+			var paragraphs = cellContent.GetAllParagraphs()
+			paragraphs.forEach(oParagraph => {
+				var childCount = oParagraph.GetElementsCount()
+				for (var i = 0; i < childCount; ++i) {
+					var oRun = oParagraph.GetElement(i)
+					if (oRun &&
+						oRun.Run &&
+						oRun.Run.Content &&
+						oRun.Run.Content[0] &&
+						oRun.Run.Content[0].docPr) {
+						var title = oRun.Run.Content[0].docPr.title || '{}'
+						var titleObj = JSON.parse(title)
+						if (titleObj.feature && titleObj.feature.sub_type == 'ask_accurate') {
+							oRun.Delete()
+							break
+						}
+					}
+				}
+			})
+		}
+		for (var i = 0, imax = delete_ask_list.length; i < imax; ++i) {
+			var qid = delete_ask_list[i].ques_id
+			var aid = delete_ask_list[i].ask_id
+			if (question_map[qid]) {
+				var askIndex = question_map[qid].ask_list.findIndex(e => e.id == aid)
+				if (askIndex >= 0) {
+					question_map[qid].ask_list.splice(askIndex, 1)
+				}
+			}
+			var nodeData = node_list.find(e => {
+				return e.id == qid
+			})
+			if (!nodeData || !nodeData.write_list) {
+				continue
+			}
+			var writeIndex = nodeData.write_list.findIndex(e => {
+				return e.id == aid
+			})
+			if (writeIndex == -1) {
+				continue
+			}
+			var writeData = nodeData.write_list[writeIndex]
+			if (!writeData) {
+				continue
+			}
+			nodeData.write_list.splice(writeIndex, 1)
+			if (writeData.sub_type == 'control') {
+				var oControl = Api.LookupObject(writeData.control_id)
+				clearQuesInteraction(oControl)
+				Api.asc_RemoveContentControlWrapper(writeData.control_id)
+			} else if (writeData.sub_type == 'cell') {
+				var oCell = Api.LookupObject(writeData.cell_id)
+				removeCellInteraction(oCell)
+			} else if (writeData.sub_type == 'write' || writeData.sub_type == 'identify') {
+				if (writeData.shape_id) {
+					var oDrawing = drawings.find(e => {
+						return writeData.drawing_id == e.Drawing.Id
+					})
+					if (oDrawing) {
+						if (writeData.sub_type == 'identify') {
+							oDrawing.Delete()
+						} else {
+							var run = oDrawing.Drawing.GetRun()
+							if (run) {
+								var paragraph = run.GetParagraph()
+								if (paragraph) {
+									var oParagraph = Api.LookupObject(paragraph.Id)
+									var ipos = run.GetPosInParent()
+									if (ipos >= 0) {
+										oDrawing.Delete()
+										oParagraph.RemoveElement(ipos)
+									}
+								}
+							}
+						}	
+					}
+				}
+			}
+		}
+		return {
+			question_map: question_map,
+			node_list: node_list,
+			ques_id: delete_ask_list[delete_ask_list.length - 1].ques_id
+		}
+	}, false, true).then(res => {
+		if (res) {
+			window.BiyueCustomData.question_map = res.question_map
+			window.BiyueCustomData.node_list = res.node_list
+			document.dispatchEvent(new CustomEvent('updateQuesData', {
+				detail: {
+					client_id: res.ques_id
+				}
+			}))
+		}
+	})
+}
+
+function focusAsk(writeData) {
+	if (!writeData) {
+		return
+	}
+	Asc.scope.write_data = writeData
+	return biyueCallCommand(window, function() {
+		var write_data = Asc.scope.write_data
+		var oDocument = Api.GetDocument()
+		var drawings = oDocument.GetAllDrawingObjects() || []
+		if (write_data.sub_type == 'control') {
+			if (write_data.control_id) {
+				var oControl = Api.LookupObject(write_data.control_id)
+				if (oControl) {
+					oDocument.Document.MoveCursorToContentControl(write_data.control_id, true)
+				}
+			}
+		} else if (write_data.sub_type == 'cell') {
+			if (write_data.cell_id) {
+				var oCell = Api.LookupObject(write_data.cell_id)
+				if (oCell) {
+					var cellContent = oCell.GetContent()
+					if (cellContent) {
+						cellContent.GetRange().Select()
+					}
+				}
+			}
+		} else if (write_data.sub_type == 'write' || write_data.sub_type == 'identify') {
+			if (write_data.shape_id) {
+				var oDrawing = drawings.find(e => {
+					return e.Drawing.Id == write_data.drawing_id
+				})
+				if (oDrawing) {
+					oDrawing.Select()
+				}
+			}
+		}
+	}, false, false)
+}
+
 export {
 	handleDocClick,
 	handleContextMenuShow,
@@ -2929,5 +3142,7 @@ export {
 	handleWrite,
 	handleIdentifyBox,
 	handleAllWrite,
-	changeProportion
+	changeProportion,
+	deleteAsks,
+	focusAsk
 }
