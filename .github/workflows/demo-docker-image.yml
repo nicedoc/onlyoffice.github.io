@@ -17,14 +17,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Get Current date
+      id: date
+      run: echo "::set-output name=date::$(date +'%Y-%m-%d-%H%M%S')"
+
     - name: Check out the repo
       uses: actions/checkout@v4
     
-    # - name: Write Version to File
-    #   uses: brettdorrans/write-version-to-file@v1.1.0            
-    #   with:
-    #     filename: sdkjs-plugins/content/biyue/scripts/ver.js
-    #     placeholder: '${VERSION}'
+    - name: Write Version to File
+      uses: nicedoc/write-version-to-file@0.2
+      with:
+        filename: sdkjs-plugins/content/biyue/scripts/ver.js
+        placeholder: '${VERSION}'
+        version: ${{ steps.date.outputs.date }}
 
     - name: Log in to the Container registry
       uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
