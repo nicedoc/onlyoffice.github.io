@@ -24,7 +24,6 @@ jobs:
     - name: Check out the repo
       uses: actions/checkout@v4
     
-<<<<<<< HEAD
     - name: Write Version to File
       uses: nicedoc/write-version-to-file@0.2
       with:
@@ -32,14 +31,6 @@ jobs:
         placeholder: '${VERSION}'
         version: ${{ steps.date.outputs.date }}
         
-=======
-    - name: Update versoin
-      uses: brettdorrans/writer-version-to-file@master
-      with:
-        file: sdkjs-plugins/content/biyue/scripts/ver.js
-        placeholder: '${VERSION}'
-
->>>>>>> feature/version-tag
     - name: Log in to the Container registry
       uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
       with:
