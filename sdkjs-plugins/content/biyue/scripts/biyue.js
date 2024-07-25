@@ -43,7 +43,8 @@ import {
 	handleContextMenuShow,
 	handleWrite,
 	handleIdentifyBox,
-	handleAllWrite
+	handleAllWrite,
+	showAskCells
 } from './QuesManager.js'
 
 ;(function (window, undefined) {
@@ -1156,7 +1157,12 @@ import {
 			$('#writeSelect').on('change', function() {
 				var selectedValue = $('#writeSelect').val()
 				console.log('writeSelect', selectedValue)
-				handleAllWrite(selectedValue)
+				handleAllWrite(selectedValue).then(() => {
+					if (selectedValue != 'del') {
+						showAskCells(selectedValue)
+					}
+				})
+				
 			})
 		}
 	})

@@ -1789,6 +1789,39 @@ function handleAllWrite(cmdType) {
 		}
 	})
 }
+// 显示或隐藏所有单元格小问
+function showAskCells(cmdType) {
+	Asc.scope.question_map = window.BiyueCustomData.question_map
+	Asc.scope.node_list = window.BiyueCustomData.node_list
+	Asc.scope.cmdType = cmdType
+	return biyueCallCommand(window, function() {
+		var question_map = Asc.scope.question_map || {}
+		var node_list = Asc.scope.node_list || []
+		var cmdType = Asc.scope.cmdType
+		Object.keys(question_map).forEach(id => {
+			if (question_map[id].level_type == 'question') {
+				var nodeData = node_list.find(item => {
+					return item.id == id
+				})
+				if (nodeData && nodeData.write_list) {
+					if (question_map[id].ask_list) {
+						question_map[id].ask_list.forEach(ask => {
+							var writeData = nodeData.write_list.find(w => {
+								return w.id == ask.id
+							})
+							if (writeData && writeData.sub_type == 'cell' && writeData.cell_id) {
+								var oCell = Api.LookupObject(writeData.cell_id)
+								if (oCell) {
+									oCell.SetBackgroundColor(204, 255, 255, cmdType == 'show' ? false : true)
+								}
+							}
+						})
+					}
+				}
+			}	
+		})
+	}, false, true)
+}
 
 function handleWrite(cmdType) {
 	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
@@ -3144,5 +3177,6 @@ export {
 	handleAllWrite,
 	changeProportion,
 	deleteAsks,
-	focusAsk
+	focusAsk,
+	showAskCells
 }
