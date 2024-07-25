@@ -222,6 +222,22 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 		var drawings = oDocument.GetAllDrawingObjects()
 		var exceptList = Asc.scope.exceptList
 		var specifyFeatures = Asc.scope.specifyFeatures
+		function deleteAccurate(oDrawing) {
+			var run = oDrawing.Drawing.GetRun()
+			if (run) {
+				var paragraph = run.GetParagraph()
+				if (paragraph) {
+					var oParagraph = Api.LookupObject(paragraph.Id)
+					var ipos = run.GetPosInParent()
+					if (ipos >= 0) {
+						oDrawing.Delete()
+						oParagraph.RemoveElement(ipos)
+						return
+					}
+				}
+			}
+			oDrawing.Delete()
+		}
 		if (drawings) {
 			for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
 				var oDrawing = drawings[j]
@@ -243,10 +259,18 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 									return title.indexOf(e) >= 0
 								})
 								if (inSpecify) {
-									oDrawing.Delete()
+									if (titleObj.feature.sub_type == 'ask_accurate') {
+										deleteAccurate(oDrawing)
+									} else {
+										oDrawing.Delete()
+									}
 								}
 							} else {
-								oDrawing.Delete()
+								if (titleObj.feature.sub_type == 'ask_accurate') {
+									deleteAccurate(oDrawing)
+								} else {
+									oDrawing.Delete()
+								}
 							}
 						}
 					}
@@ -1029,6 +1053,9 @@ function setInteraction(type, quesIds) {
 			if (!oControl) {
 				return
 			}
+			if (!write_list || !ask_list) {
+				return
+			}
 			var drawings = oControl.GetAllDrawingObjects()
 			for (var i = 0; i < ask_list.length; ++i) {
 				var askData = write_list.find(e => {
@@ -1043,9 +1070,22 @@ function setInteraction(type, quesIds) {
 						addAskInteraction(oControl, askData, i + 1, ask_list[i].id)
 					}
 				} else {
-					dlist.forEach(e => {
-						e.Delete()
-					})
+					for (var j = 0; j < dlist.length; ++j) {
+						var run = dlist[j].Drawing.GetRun()
+						if (run) {
+							var paragraph = run.GetParagraph()
+							if (paragraph) {
+								var oParagraph = Api.LookupObject(paragraph.Id)
+								var ipos = run.GetPosInParent()
+								if (ipos >= 0) {
+									dlist[j].Delete()
+									oParagraph.RemoveElement(ipos)
+									continue
+								}
+							}
+						}
+						dlist[j].Delete()
+					}
 				}
 			}
 		}

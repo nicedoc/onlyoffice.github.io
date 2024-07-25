@@ -397,6 +397,24 @@ function updateRangeControlType(typeName) {
 			}
 			return null
 		}
+
+		function getDirectParentCell(oDrawing) {
+			var drawingParentParagraph = oDrawing.GetParentParagraph()
+			if (drawingParentParagraph) {
+				var p2 = drawingParentParagraph.Paragraph.GetParent()
+				if (p2) {
+					var oP2 = Api.LookupObject(p2.Id)
+					if (oP2.GetClassType() == 'documentContent') {
+						var p3 = p2.GetParent()
+						var oP3 = Api.LookupObject(p3.Id)
+						if (oP3.GetClassType() == 'tableCell') {
+							return oP3
+						}
+					}
+				}
+			}
+			return null
+		}
 		// 删除题目互动
 		function clearQuesInteraction(oControl) {
 			if (!oControl) {
@@ -442,7 +460,16 @@ function updateRangeControlType(typeName) {
 								if (title && title.indexOf('feature') >= 0) {
 									var titleObj = JSON.parse(title)
 									if (titleObj.feature && titleObj.feature.zone_type == 'question') {
-										oDrawing.Delete()
+										if (titleObj.feature.sub_type == 'ask_accurate') {
+											var cellParent = getDirectParentCell(oDrawing)
+											if (cellParent) {
+												removeCellInteraction(cellParent)
+											} else {
+												oDrawing.Delete()
+											}
+										} else {
+											oDrawing.Delete()
+										}
 									}
 								}
 							}
@@ -451,7 +478,12 @@ function updateRangeControlType(typeName) {
 				}
 			}
 		}
-		function removeCellInteraction(cellContent) {
+		function removeCellInteraction(oCell) {
+			if (!oCell) {
+				return
+			}
+			oCell.SetBackgroundColor(204, 255, 255, true)
+			var cellContent = oCell.GetContent()
 			var paragraphs = cellContent.GetAllParagraphs()
 			paragraphs.forEach(oParagraph => {
 				var childCount = oParagraph.GetElementsCount()
@@ -598,8 +630,7 @@ function updateRangeControlType(typeName) {
 					})
 				}
 			} else if (typeName == 'clear' || typeName == 'clearAll') {
-				oCell.SetBackgroundColor(204, 255, 255, true)
-				removeCellInteraction(cellContent)
+				removeCellInteraction(oCell)
 				result.change_list.push({
 					parent_id: parent_id,
 					table_id: table_id,
@@ -1213,7 +1244,6 @@ function handleChangeType(res, res2) {
 
 	window.BiyueCustomData.node_list = node_list
 	window.BiyueCustomData.question_map = question_map
-	console.log('============== addIds', addIds, level_type)
 	if (addIds && addIds.length) {
 		if (level_type == 'write') {
 			setInteraction(question_map[addIds[0]].interaction, addIds)
@@ -1781,6 +1811,7 @@ function handleWrite(cmdType) {
 				})
 				oDrawing.SetWrappingStyle('inFront')
 				oDrawing.SetDistances(0, 0, 2 * 36e3, 0);
+				oDrawing.SetPaddings(0, 0, 0, 0)
 				var paragraphs = oControl.GetAllParagraphs()
 				if (paragraphs && paragraphs.length > 0) {
 					var paragraphs = oControl.GetAllParagraphs()
