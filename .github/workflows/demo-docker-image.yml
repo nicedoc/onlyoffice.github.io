@@ -24,12 +24,20 @@ jobs:
     - name: Check out the repo
       uses: actions/checkout@v4
     
+<<<<<<< HEAD
     - name: Write Version to File
       uses: nicedoc/write-version-to-file@0.2
       with:
         filename: sdkjs-plugins/content/biyue/scripts/ver.js
         placeholder: '${VERSION}'
         version: ${{ steps.date.outputs.date }}
+=======
+    - name: Update versoin
+      uses: brettdorrans/writer-version-to-file@master
+      with:
+        file: sdkjs-plugins/content/biyue/scripts/ver.js
+        placeholder: '${VERSION}'
+>>>>>>> feature/version-tag
 
     - name: Log in to the Container registry
       uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
@@ -45,7 +53,15 @@ jobs:
         images: |
          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} 
 
+<<<<<<< HEAD
    
+=======
+    
+    - name: Setup Version Tag
+      id: version
+      run: echo ::set-output name=tags::${GITHUB_SHA::8}
+    
+>>>>>>> feature/version-tag
     - name: Build and push Docker image
       id: push
       uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
