@@ -19,7 +19,7 @@ jobs:
     steps:
     - name: Get Current date
       id: date
-      run: echo "::set-output name=date::$(date +'%Y-%m-%d-%H%M%S')"
+      run: echo "::set-output name=date::$(TZ=Asia/Shanghai date +'%Y-%m-%d-%H%M%S')"
 
     - name: Check out the repo
       uses: actions/checkout@v4
