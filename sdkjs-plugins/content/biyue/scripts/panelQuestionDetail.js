@@ -27,6 +27,7 @@ var select_interaction = null // 互动
 var input_score = null // 分数/权重
 var list_ask = [] // 小问
 var inited = false
+var timeout_save = null
 
 function initElements() {
 	console.log('====================================================== panelquestiondetail initElements')
@@ -287,14 +288,18 @@ function changeQuestionType(data) {
 }
 // 修改占比
 function onChangeProportion(data) {
-	changeProportion([g_ques_id], data.value)
+	changeProportion([g_ques_id], data.value).then(() => {
+		window.biyue.StoreCustomData()
+	})
 }
 // 修改互动
 function chagneInteraction(data) {
 	console.log('chagneInteraction', data)
 	if (window.BiyueCustomData.question_map[g_ques_id]) {
-		setInteraction(data.value, [g_ques_id])
-		window.BiyueCustomData.question_map[g_ques_id].interaction = data.value
+		setInteraction(data.value, [g_ques_id]).then(() => {
+			window.BiyueCustomData.question_map[g_ques_id].interaction = data.value
+			window.biyue.StoreCustomData()
+		})
 	}
 }
 
@@ -366,6 +371,10 @@ function autoSave() {
 	if (!quesData || !quesData.uuid) {
 		return
 	}
+	clearTimeout(timeout_save)
+	timeout_save = setTimeout(() => {
+		window.biyue.StoreCustomData()
+	}, 500)
 	var scores = []
 	var qname = quesData.ques_name || quesData.ques_default_name
 	if (quesData.question_type != 6) {

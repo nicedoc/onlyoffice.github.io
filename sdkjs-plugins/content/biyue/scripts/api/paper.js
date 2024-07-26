@@ -47,12 +47,16 @@ function reqPaperInfo(paper_uuid) {
 function reqSaveQuestion(paper_uuid, question_uuid, content_type, content_number, scores) {
 	return request({
 		url: '/oodoc/save/question',
-		method: 'post',
+		method: 'POST',
+		isJsonData: true,
+		headers: {
+			'Content-Type': 'application/json;charset=UTF-8',
+		},
 		data: {
-			paper_uuid, //	试卷UUID
-			question_uuid, //	题目UUID
-			content_type, //	题目类型
-			content_number, //	题号（题型为6时非必填
+			paper_uuid,	// 试卷UUID	是	[string]	933f5fa3-3f1c-4020-887f-206d67d6741f	查看
+			question_uuid,	// 题目UUID	是	[string]	8bd18eee-478e-4d0b-975b-d4d224443d92	查看
+			content_type,	// 题型	是	[int]	2	查看
+			content_number, //	题号（题型为6时非必填）		[string]	a	查看
 			scores
 		},
 	})

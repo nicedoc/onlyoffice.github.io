@@ -1265,11 +1265,13 @@ function handleChangeType(res, res2) {
 	window.BiyueCustomData.question_map = question_map
 	if (addIds && addIds.length) {
 		if (level_type == 'write') {
-			setInteraction(question_map[addIds[0]].interaction, addIds)
+			setInteraction(question_map[addIds[0]].interaction, addIds).then(() => window.biyue.StoreCustomData())
 		} else if (targetLevel == 'question') {
-			setInteraction(window.BiyueCustomData.interaction, addIds)
+			setInteraction(window.BiyueCustomData.interaction, addIds).then(() => window.biyue.StoreCustomData())
 		}
 		update_node_id = addIds[0]
+	} else {
+		window.biyue.StoreCustomData()
 	}
 	console.log('handleChangeType end', node_list, 'g_click_value', g_click_value, 'update_node_id', update_node_id)
 	document.dispatchEvent(
@@ -1400,6 +1402,7 @@ function batchChangeQuesType(type) {
 				})
 			)
 		}
+		window.biyue.StoreCustomData()
 	})
 }
 // 批量设置互动
@@ -1414,7 +1417,9 @@ function batchChangeInteraction(type) {
 				question_map[e.id].interaction = type
 			}
 		})
-		return setInteraction(type, res.list.map(e => e.id))
+		setInteraction(type, res.list.map(e => e.id)).then(() => {
+			return window.biyue.StoreCustomData()
+		})
 	})
 }
 // 切题完成
@@ -2151,6 +2156,7 @@ function handleWriteResult(res) {
 			})
 		)
 	}
+	window.biyue.StoreCustomData()
 }
 function setBtnLoading(elementId, isLoading) {
 	var element = $(`#${elementId}`)
@@ -2408,7 +2414,9 @@ function batchChangeProportion(proportion) {
 				question_map[e.id].proportion = proportion
 			}
 		})
-		return batchProportion(res.list, proportion)
+		batchProportion(res.list, proportion).then(() => {
+			return window.biyue.StoreCustomData()
+		})
 	})
 }
 
