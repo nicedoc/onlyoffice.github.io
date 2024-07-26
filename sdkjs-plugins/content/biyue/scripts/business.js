@@ -3853,7 +3853,7 @@ function getAllPositions() {
 												y: mmToPx(oCellContent.Document.Y),
 												w: mmToPx(oCellContent.Document.ClipInfo[0].X1 - oCellContent.Document.ClipInfo[0].X0),
 												h: mmToPx(oRow.Row.Height),
-												v: 1
+												v: '1'
 											})
 										}
 									} else if (askData.sub_type == 'write' || askData.sub_type == 'identify') {
@@ -3866,7 +3866,7 @@ function getAllPositions() {
 												y: mmToPx(oShape.Drawing.Y),
 												w: mmToPx(oShape.Drawing.Width),
 												h: mmToPx(oShape.Drawing.Height),
-												v: 1
+												v: '1'
 											})
 										}
 									}
@@ -3906,7 +3906,7 @@ function getAllPositions() {
 						// })
 					}
 					ques_list.push(item)
-				} 
+				}
 				// else if (tag.regionType == 'write') {
 				// 	var parentControl = oControl.GetParentContentControl()
 				// 	if (parentControl) {
