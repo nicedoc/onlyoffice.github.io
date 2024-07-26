@@ -1065,7 +1065,7 @@ import {
 
 	$(document).ready(function () {
 		document.getElementById("versionTag").innerHTML = getVersion();
-		
+
 		// 获取文档描述信息
 		let btnGetDocInfo = document.getElementById('getDocInfo')
 		if (btnGetDocInfo) {
@@ -1162,7 +1162,7 @@ import {
 						showAskCells(selectedValue)
 					}
 				})
-				
+
 			})
 		}
 	})
@@ -2331,7 +2331,7 @@ import {
 	function importExam() {
     getAllPositions().then(res=>{
       questionPositions = res
-      showDialog(exportExamWindow, '上传试卷', 'examExport.html', 592, 400)
+      showDialog(exportExamWindow, '上传试卷', 'examExport.html', 1000, 800)
     })
 	}
   function onBatchScoreSet() {

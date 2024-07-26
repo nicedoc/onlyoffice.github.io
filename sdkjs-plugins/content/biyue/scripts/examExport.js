@@ -16,6 +16,7 @@ import { setXToken } from './auth.js'
   let exam_import_res = {}
   let questionPositions = {}
   let biyueCustomData = {}
+  let img_file_list = []
   window.Asc.plugin.init = function () {
     console.log('examExport init')
     window.Asc.plugin.sendToPlugin('onWindowMessage', { type: 'PaperMessage' })
@@ -44,23 +45,24 @@ import { setXToken } from './auth.js'
       fileInput = document.getElementById('fileInput')
       preview = document.getElementById('preview')
     }
-
-    fileInput.addEventListener('change', () => {
-      if (preview) {
-        preview.innerHTML = '' // 清空预览区域
-      }
-      const files = fileInput.files
-      Array.from(files).forEach((file) => {
-        const reader = new FileReader()
-        reader.onload = () => {
-          const img = document.createElement('img')
-          img.src = reader.result
-          img.style.maxWidth = '100px' // 设置预览图片的最大宽度
-          preview.appendChild(img)
+    if (fileInput){
+      fileInput.addEventListener('change', () => {
+        if (preview) {
+          preview.innerHTML = '' // 清空预览区域
         }
-        reader.readAsDataURL(file)
+        const files = fileInput.files
+        Array.from(files).forEach((file) => {
+          const reader = new FileReader()
+          reader.onload = () => {
+            const img = document.createElement('img')
+            img.src = reader.result
+            img.style.maxWidth = '100px' // 设置预览图片的最大宽度
+            preview.appendChild(img)
+          }
+          reader.readAsDataURL(file)
+        })
       })
-    })
+    }
   }
 
   function confirmPaper() {
@@ -226,13 +228,12 @@ import { setXToken } from './auth.js'
   // 上传试卷预览图
   async function uploadPreview() {
     console.log('uploadPreview')
-    const fileInput = document.getElementById('workbook_fileInput')
-    if (!fileInput) {
+    const file_list = img_file_list || []
+    if (!file_list) {
       return
     }
     var pid = 1
-    console.log('fileInput:', fileInput)
-    for (var file of fileInput.files) {
+    for (var file of file_list) {
       console.log('file', file)
       const data = new FormData()
 
@@ -286,6 +287,9 @@ import { setXToken } from './auth.js'
       })
     })
     .catch((error) => {
+      if (error.message) {
+        alert('上传失败:', error.message)
+      }
       console.log(error)
     })
   }
@@ -322,6 +326,66 @@ import { setXToken } from './auth.js'
     return positions
   }
 
+  function initImg() {
+    window.Asc.plugin.executeMethod("GetFileToDownload", ["PNG"], res=> {
+      console.log(res)
+      const zipUrl = res;
+      let preview = document.getElementById('workbook_preview')
+      $('#workbookImgLoading').show()
+      if (preview) {
+        preview.innerHTML = '' // 清空预览区域
+      }
+
+      img_file_list = []  // 清空上传用的file
+
+      fetch(zipUrl).then(response => {
+        if (!response.ok) {
+          throw new Error('Failed to fetch zip file');
+        }
+        return response.arrayBuffer();
+      }).then(arrayBuffer => {
+        return JSZip.loadAsync(arrayBuffer); // 使用 JSZip 加载 ArrayBuffer
+      }).then(async zip => {
+        try {
+          for (const [filename, file] of Object.entries(zip.files)) {
+            if (!file.dir) { // 只处理文件，忽略文件夹
+              // 读取文件内容为 Blob
+              const fileBlob = await file.async('blob');
+
+              // 创建一个新的 File 对象并将其存储到数组中 用于后续上传
+              const fileObj = new File([fileBlob], filename, { type: fileBlob.type });
+              img_file_list.push(fileObj)
+
+              // 使用 FileReader 将 Blob 转换为 Data URL
+              const reader = new FileReader()
+              reader.onloadend = function () {
+                // 创建并添加 img 元素到页面
+                const img = document.createElement('img');
+                img.src = reader.result;
+                img.style.maxWidth = '500px' // 设置预览图片的最大宽度
+                preview.appendChild(img)
+              }
+
+              if (fileBlob instanceof Blob) {
+                reader.readAsDataURL(fileBlob);
+              } else {
+                console.error('fileBlob 不是有效的 Blob 对象');
+              }
+            }
+          }
+          if (img_file_list && img_file_list.length > 0) {
+            // 显示上传按钮
+            $('#uploadPreview').show()
+            $('#workbookImgLoading').hide()
+          }
+        } catch (error) {
+          console.error('Error fetching or processing ZIP file:', error);
+        }
+      })
+
+    })
+  }
+
   window.Asc.plugin.attachEvent('initPaper', function (message) {
     console.log('examExport 接收的消息', message)
     setXToken(message.xtoken)
@@ -329,8 +393,8 @@ import { setXToken } from './auth.js'
     source_data = message
     biyueCustomData = message.biyueCustomData
     questionPositions = message.questionPositions || {}
-
     console.log('questionPositions---->', questionPositions, getPositions())
     init()
+    initImg()
   })
 })(window, undefined)

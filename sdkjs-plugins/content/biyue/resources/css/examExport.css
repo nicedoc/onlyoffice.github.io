@@ -75,6 +75,9 @@ input {
 
   .workbook_preview {
     margin-top: 10px;
+    max-height: 600px;
+    white-space: nowrap;
+    overflow-x: auto;
     img {
      margin: 5px;
     }
@@ -95,5 +98,30 @@ input {
 
   .uploadPreview:hover {
     background-color: #45a049;
+  }
+
+  .footer {
+    position: fixed;
+    bottom: 0;
+    text-align: center;
+    left: 0;
+    right: 0;
+  }
+}
+.loading {
+  text-align: center;
+  margin-top: 50px;
+  .loading-spinner {
+    margin: 0 auto;
+    display: block;
+    width: 24px;
+    height: 24px;
+    background-image: url(data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMCAyMCI+PGNpcmNsZSBjeD0iMTAiIGN5PSIxMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNDQ0IiBzdHJva2Utd2lkdGg9IjEuNSIgcj0iNy4yNSIgc3Ryb2tlLWRhc2hhcnJheT0iMTYwJSwgNDAlIiAvPjwvc3ZnPg==);
+    background-color: transparent;
+    opacity: .5;
+    animation-duration: .8s;
+    animation-name: rotation;
+    animation-iteration-count: infinite;
+    animation-timing-function: linear
   }
 }
