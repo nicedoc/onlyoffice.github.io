@@ -1634,21 +1634,21 @@ function confirmLevelSet(levels) {
 		}
 	}, false, false).then(res => {
 		console.log('===== confirmLevelSet res', res)
-		return new Promise((resolve, reject) => {
-			if (res) {
-				window.BiyueCustomData.client_node_id = res.client_node_id
-				window.BiyueCustomData.node_list = res.nodeList
-				Object.keys(res.questionMap).forEach(key => {
-					var qdata = res.questionMap[key]
-					res.questionMap[key].ques_default_name = qdata.numbing_text ? qdata.numbing_text : GetDefaultName(qdata.level_type, qdata.text)
-				})
-				window.BiyueCustomData.question_map = res.questionMap
-			}
-			resolve()
-			initExtroInfo()
-		})
-	}).then(() => {
-		reqGetQuestionType()
+		if (res) {
+			window.BiyueCustomData.client_node_id = res.client_node_id
+			window.BiyueCustomData.node_list = res.nodeList
+			Object.keys(res.questionMap).forEach(key => {
+				var qdata = res.questionMap[key]
+				res.questionMap[key].ques_default_name = qdata.numbing_text ? qdata.numbing_text : GetDefaultName(qdata.level_type, qdata.text)
+			})
+			window.BiyueCustomData.question_map = res.questionMap
+		}
+		return initExtroInfo()
+	})
+	.then(() => reqGetQuestionType())
+	.then(() => {
+		console.log("================================ StoreCustomData")
+		window.biyue.StoreCustomData()
 	})
 }
 
@@ -1702,21 +1702,26 @@ function reqGetQuestionType() {
 		return target_list
 	}, false, false).then(control_list => {
 		console.log('[reqGetQuestionType] control_list', control_list)
-		if (!window.BiyueCustomData.paper_uuid || !control_list || control_list.length == 0) {
-			return
-		}
-		getQuesType(window.BiyueCustomData.paper_uuid, control_list).then(res => {
-			console.log('getQuesType success ', res)
-			var content_list = res.data.content_list
-			if (content_list && content_list.length) {
-				content_list.forEach(e => {
-					window.BiyueCustomData.question_map[e.id].question_type = e.question_type * 1
-					// window.BiyueCustomData.question_map[e.id].question_type_name = e.question_type_name
-					// 存储时question_type_name莫名其妙变得很大，不再存储
-				})
+		return new Promise((resolve, reject) => {
+			if (!window.BiyueCustomData.paper_uuid || !control_list || control_list.length == 0) {
+				resolve()
+				return
 			}
-		}).catch(res => {
-			console.log('getQuesType fail ', res)
+			getQuesType(window.BiyueCustomData.paper_uuid, control_list).then(res => {
+				console.log('getQuesType success ', res)
+				var content_list = res.data.content_list
+				if (content_list && content_list.length) {
+					content_list.forEach(e => {
+						window.BiyueCustomData.question_map[e.id].question_type = e.question_type * 1
+						// window.BiyueCustomData.question_map[e.id].question_type_name = e.question_type_name
+						// 存储时question_type_name莫名其妙变得很大，不再存储
+					})
+				}
+				resolve()
+			}).catch(res => {
+				console.log('getQuesType fail ', res)
+				resolve()
+			})
 		})
 	})
 }

@@ -42,7 +42,10 @@ function handleFeature(options) {
 		console.log('loading...')
 		return
 	}
-	drawList([options])
+	drawList([options]).then(() => {
+		setLoading(false)
+		handleNext()
+	})
 }
 
 function drawExtroInfo(list) {
@@ -73,36 +76,34 @@ function addCommand(options) {
 }
 
 function handleNext() {
-	loading = false
-	return new Promise((resolve, reject) => {
-		if (list_wait_command && list_wait_command.length > 0) {
-			var newlist = []
-			var type = list_wait_command[0].type
-			newlist.push(Object.assign({}, list_wait_command[0]))
-			var end = -1
-			for (var i = 1; i < list_wait_command.length; ++i) {
-				if (list_wait_command[i].type != type) {
-					list_wait_command.splice(0, i)
-					end = i
-					break
-				}
-				newlist.push(Object.assign({}, list_wait_command[i]))
+	setLoading(false)
+	if (list_wait_command && list_wait_command.length > 0) {
+		var newlist = []
+		var type = list_wait_command[0].type
+		newlist.push(Object.assign({}, list_wait_command[0]))
+		var end = -1
+		for (var i = 1; i < list_wait_command.length; ++i) {
+			if (list_wait_command[i].type != type) {
+				list_wait_command.splice(0, i)
+				end = i
+				break
 			}
-			if (end == -1) {
-				list_wait_command = []
-			}
-			if (type == 'feature') {
-				return drawList(newlist)
-			} else if (type == 'header') {
-				return drawHeader(
-					newlist[newlist.length - 1].cmd,
-					newlist[newlist.length - 1].title
-				)
-			}
-		} else {
-			resolve()
+			newlist.push(Object.assign({}, list_wait_command[i]))
 		}
-	})
+		if (end == -1) {
+			list_wait_command = []
+		}
+		if (type == 'feature') {
+			drawList(newlist).then(() => {
+				handleNext()
+			})
+		} else if (type == 'header') {
+			drawHeader(
+				newlist[newlist.length - 1].cmd,
+				newlist[newlist.length - 1].title
+			)
+		}
+	}
 }
 
 function handleHeader(cmdType, examTitle) {
@@ -379,7 +380,7 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 }
 
 function drawList(list) {
-	loading = true
+	setLoading(true)
 	Asc.scope.feature_wait_handle = list
 	Asc.scope.ZONE_TYPE = ZONE_TYPE
 	return biyueCallCommand(window, function() {
@@ -800,37 +801,11 @@ function drawList(list) {
 			res.list.push(result)
 		})
 		return res
-	}, false, true).then(res => {
-		loading = false
-		console.log('drawList result:', res)
-		// if (res && res.list) {
-		// 	var pos_list = window.BiyueCustomData.pos_list || []
-		// 	res.list.forEach((result) => {
-		// 		var index = pos_list.findIndex((e) => {
-		// 			return e.zone_type == result.zone_type && e.v == result.v
-		// 		})
-		// 		if (index >= 0) {
-		// 			if (result.cmd == 'close') {
-		// 				pos_list[index].drawing_id = null
-		// 			} else {
-		// 				pos_list[index].drawing_id = result.drawing_id
-		// 				pos_list[index].x = result.x
-		// 				pos_list[index].y = result.y
-		// 			}
-		// 		} else if (result.cmd == 'open') {
-		// 			pos_list.push({
-		// 				zone_type: result.zone_type,
-		// 				v: result.v,
-		// 				drawing_id: result.drawing_id,
-		// 				x: result.x,
-		// 				y: result.y,
-		// 			})
-		// 		}
-		// 	})
-		// 	window.BiyueCustomData.pos_list = pos_list
-		// }
-		return handleNext()
-	})
+	}, false, true)
+}
+
+function setLoading(v) {
+	loading = v
 }
 
 function setInteraction(type, quesIds) {
@@ -1148,4 +1123,4 @@ function setInteraction(type, quesIds) {
 	})
 }
 
-export { handleFeature, handleHeader, drawExtroInfo, deleteAllFeatures, setInteraction }
+export { handleFeature, handleHeader, drawExtroInfo, setLoading, deleteAllFeatures, setInteraction }

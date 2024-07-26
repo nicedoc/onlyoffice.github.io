@@ -1,14 +1,14 @@
 import ComponentSelect from '../components/Select.js'
 import NumberInput from '../components/NumberInput.js'
 import { ZONE_SIZE, ZONE_TYPE, ZONE_TYPE_NAME } from './model/feature.js'
-import { handleFeature, handleHeader, drawExtroInfo, deleteAllFeatures, setInteraction } from './featureManager.js'
+import { handleFeature, handleHeader, drawExtroInfo, setLoading, deleteAllFeatures, setInteraction } from './featureManager.js'
 import { biyueCallCommand, dispatchCommandResult } from "./command.js";
 var list_feature = []
 var timeout_pos = null
 
 function initExtroInfo() {
 	list_feature = getList()
-	initPositions(true)
+	return initPositions1()
 }
 
 function getValue(v1, v2) {
@@ -201,7 +201,7 @@ function initFeature() {
 		}
 	})
 	list_feature = list
-	initPositions()
+	initPositions2()
 }
 
 function changeAll(data) {
@@ -215,6 +215,7 @@ function changeAll(data) {
 		deleteAllFeatures()
 	} else {
 		drawExtroInfo([].concat(list_feature)).then(res => {
+			setLoading(false)
 			setInteraction(vinteraction)
 		})
 	}
@@ -261,7 +262,9 @@ function changeItem(type, data, id) {
 		if (id == ZONE_TYPE_NAME[ZONE_TYPE.STATISTICS]) {
 			drawExtroInfo([Object.assign({}, fdata, {
 				cmd:data.value
-			})])
+			})]).then(() => {
+				setLoading(false)
+			})
 		} else {
 			handleFeature(Object.assign({}, fdata, {
 				cmd: data.value,
@@ -314,9 +317,9 @@ function setXY(index, p, x, y, size) {
 	}
 }
 
-function initPositions(draw) {
+function getPageData() {
 	Asc.scope.workbook = window.BiyueCustomData.workbook_info
-	biyueCallCommand(window, function () {
+	return biyueCallCommand(window, function () {
 		var workbook = Asc.scope.workbook
 		var oDocument = Api.GetDocument()
 		var sections = oDocument.GetSections()
@@ -339,94 +342,102 @@ function initPositions(draw) {
 			}
 		}
 		return null
-	},
-	false,
-	false
-	).then(res => {
-		console.log('initPositions result:', res, window.BiyueCustomData.workbook_extra_info)
-		if (res) {
-			var Num = res.Num
-			var PageSize = res.PageSize
-			var PageMargins = res.PageMargins
-			var bottom = 6
-			// 后端给的坐标是基于页面尺寸 816*1100 的
-			var lastleft = ((Num - 1) * PageSize.W) / Num
-			var evaluationX = Num > 1 ? lastleft : PageMargins.Left
-			console.log('evaluationX', evaluationX)
-			list_feature.forEach((e, index) => {
-				var x = e.ox != undefined ? e.ox : 0
-				var y = e.oy != undefined ? e.oy : 0
-				var size = {}
-				if (e.ow != undefined && e.oh != undefined) {
-					size.w = e.ow
-					size.h = e.oh
-				}
-				var page_num = res.pageNum - 1
-				if (e.zone_type == ZONE_TYPE.QRCODE) {
-					size.imgSize = size.w - 3
-					page_num = 0
-				} else if (e.zone_type == ZONE_TYPE.AGAIN) {
-					page_num = 0
-				} else if (e.zone_type == ZONE_TYPE.SELF_EVALUATION) {
-					x = evaluationX
-					y = PageSize.H - PageMargins.Bottom
-				} else if (e.zone_type == ZONE_TYPE.THER_EVALUATION) {
-					x = evaluationX + 60
-					y = PageSize.H - PageMargins.Bottom
-				} else if (e.zone_type == ZONE_TYPE.PASS || e.zone_type == ZONE_TYPE.END) {
-					x = PageSize.W - PageMargins.Right - ZONE_SIZE[ZONE_TYPE.IGNORE].w - 4 - ZONE_SIZE[ZONE_TYPE.PASS].w
-					y = PageSize.H - PageMargins.Bottom
-				} else if (e.zone_type == ZONE_TYPE.IGNORE) {
-					x = PageSize.W - PageMargins.Right - ZONE_SIZE[ZONE_TYPE.IGNORE].w
-					y = PageSize.H - PageMargins.Bottom
-				} else if (e.zone_type == ZONE_TYPE.STATISTICS) {
-					x = PageSize.W - PageMargins.Right
-					y = PageSize.H - PageMargins.Bottom
-					page_num = e.p
-				}
-				setXY(
-					index,
-					page_num,
-					x,
-					y,
-					size
-				)
-			})
-			if (res.hasHeader) {
-				var headerIndex = list_feature.findIndex((e) => e.id == 'header')
-				if (headerIndex >= 0) {
-					list_feature[headerIndex].comSelect.setSelect('open')
-				}
+	},false,false)
+}
+
+function updateFeatureList(res) {
+	if (res) {
+		var Num = res.Num
+		var PageSize = res.PageSize
+		var PageMargins = res.PageMargins
+		var bottom = 6
+		// 后端给的坐标是基于页面尺寸 816*1100 的
+		var lastleft = ((Num - 1) * PageSize.W) / Num
+		var evaluationX = Num > 1 ? lastleft : PageMargins.Left
+		console.log('evaluationX', evaluationX)
+		list_feature.forEach((e, index) => {
+			var x = e.ox != undefined ? e.ox : 0
+			var y = e.oy != undefined ? e.oy : 0
+			var size = {}
+			if (e.ow != undefined && e.oh != undefined) {
+				size.w = e.ow
+				size.h = e.oh
 			}
-		}
-		list_feature.forEach((e) => {
-			var pos = $(`#${e.id}Pos`)
-			if (pos && e.comSelect) {
-				if (e.comSelect.getValue() == 'open') {
-					pos.show()
-				} else {
-					pos.hide()
-				}
+			var page_num = res.pageNum - 1
+			if (e.zone_type == ZONE_TYPE.QRCODE) {
+				size.imgSize = size.w - 3
+				page_num = 0
+			} else if (e.zone_type == ZONE_TYPE.AGAIN) {
+				page_num = 0
+			} else if (e.zone_type == ZONE_TYPE.SELF_EVALUATION) {
+				x = evaluationX
+				y = PageSize.H - PageMargins.Bottom
+			} else if (e.zone_type == ZONE_TYPE.THER_EVALUATION) {
+				x = evaluationX + 60
+				y = PageSize.H - PageMargins.Bottom
+			} else if (e.zone_type == ZONE_TYPE.PASS || e.zone_type == ZONE_TYPE.END) {
+				x = PageSize.W - PageMargins.Right - ZONE_SIZE[ZONE_TYPE.IGNORE].w - 4 - ZONE_SIZE[ZONE_TYPE.PASS].w
+				y = PageSize.H - PageMargins.Bottom
+			} else if (e.zone_type == ZONE_TYPE.IGNORE) {
+				x = PageSize.W - PageMargins.Right - ZONE_SIZE[ZONE_TYPE.IGNORE].w
+				y = PageSize.H - PageMargins.Bottom
+			} else if (e.zone_type == ZONE_TYPE.STATISTICS) {
+				x = PageSize.W - PageMargins.Right
+				y = PageSize.H - PageMargins.Bottom
+				page_num = e.p
 			}
+			setXY(
+				index,
+				page_num,
+				x,
+				y,
+				size
+			)
 		})
-		console.log('list_feature', list_feature)
-		if (draw) {
-			deleteAllFeatures([], list_feature).then(() => {
-				var vinteraction = window.BiyueCustomData.interaction
-				updateAllInteraction(vinteraction)
-				if (vinteraction == 'none') {
-					drawExtroInfo(list_feature).then(res => {
-						MoveCursor()
-					})
-				} else {
-					setInteraction(vinteraction).then(() => {
-						drawExtroInfo(list_feature).then(res => {
-							MoveCursor()
-						})
-					})
-				}
+		if (res.hasHeader) {
+			var headerIndex = list_feature.findIndex((e) => e.id == 'header')
+			if (headerIndex >= 0) {
+				list_feature[headerIndex].comSelect.setSelect('open')
+			}
+		}
+	}
+	list_feature.forEach((e) => {
+		var pos = $(`#${e.id}Pos`)
+		if (pos && e.comSelect) {
+			if (e.comSelect.getValue() == 'open') {
+				pos.show()
+			} else {
+				pos.hide()
+			}
+		}
+	})
+}
+
+function initPositions1() {
+	return getPageData().then(res => {
+		updateFeatureList(res)
+		deleteAllFeatures([], list_feature)
+	}).then(res => {
+		var vinteraction = window.BiyueCustomData.interaction
+		updateAllInteraction(vinteraction)
+		if (vinteraction != 'none') {
+			return setInteraction(vinteraction)
+		} else {
+			return new Promise((resolve, reject) => {
+				resolve()
 			})
 		}
+	}).then(() => {
+		return drawExtroInfo(list_feature)
+	}).then(() => {
+		setLoading(false)
+		return MoveCursor()
+	})		
+}
+
+function initPositions2() {
+	return getPageData().then(res => {
+		updateFeatureList(res)
 	})
 }
 

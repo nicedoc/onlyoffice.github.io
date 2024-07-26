@@ -2462,6 +2462,7 @@ import {
 	}
 
 	window.biyue = {
-		showDialog: showDialog
+		showDialog: showDialog,
+		StoreCustomData: StoreCustomData
 	}
 })(window, undefined)
