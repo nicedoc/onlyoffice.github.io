@@ -777,7 +777,9 @@ function drawList(list) {
 										drawing.Set_PositionV(5, false, options.y, false);
 										drawing.Set_DrawingType(2);
 										if (lastParagraph && paragraph.Id == lastParagraph.Paragraph.Id) {
+											// lastParagraph.Paragraph.AddToParagraph(drawing)
 											lastParagraph.AddDrawing(oDrawing)
+											oDrawing.Drawing.Set_Parent(lastParagraph.Paragraph)
 										} else {
 											paragraph.AddToParagraph(drawing);
 										}
@@ -800,6 +802,7 @@ function drawList(list) {
 			}
 			res.list.push(result)
 		})
+		console.log('=====================drawList end ')
 		return res
 	}, false, true)
 }
