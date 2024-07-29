@@ -232,7 +232,7 @@ function showQuesData(params) {
 		console.log('nodeData', nodeData)
 		if (nodeData) {
 			if (nodeData.level_type == 'struct') {
-				updateElements(null, `当前选中为题组：${quesData ? quesData.ques_default_name : ''}`)
+				updateElements(null, `当前选中为题组`)
 				return
 			} else if (nodeData.level_type == 'text') {
 				updateElements(null, `当前选中为待处理文本`)

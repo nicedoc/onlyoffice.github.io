@@ -960,10 +960,31 @@ function setInteraction(type, quesIds) {
 			return oDrawing
 		}
 
+		function deleteAccurateRun(oRun) {
+			if (oRun &&
+				oRun.Run &&
+				oRun.Run.Content &&
+				oRun.Run.Content[0] &&
+				oRun.Run.Content[0].docPr) {
+				var title = oRun.Run.Content[0].docPr.title
+				if (title) {
+					var titleObj = JSON.parse(title)
+					if (titleObj.feature && titleObj.feature.sub_type == 'ask_accurate') {
+						oRun.Delete()
+						return true
+					}
+				}
+			}
+			return false
+		}
+
 		function addAskInteraction(oControl, askData, index, write_id) {
 			var oDrawing = getAccurateDrawing(index, write_id)
 			if (askData.sub_type == 'control') {
 				var askControl = Api.LookupObject(askData.control_id)
+				if(!askControl) {
+					return
+				}
 				if (askControl.GetClassType() == 'inlineLvlSdt') {
 					var elementCount = askControl.GetElementsCount()
 					if (elementCount > 0) {
@@ -1051,6 +1072,21 @@ function setInteraction(type, quesIds) {
 					for (var j = 0; j < dlist.length; ++j) {
 						var run = dlist[j].Drawing.GetRun()
 						if (run) {
+							var runParent = run.GetParent()
+							if (runParent) {
+								var oParent = Api.LookupObject(runParent.Id)
+								if (oParent && oParent.GetClassType() == 'inlineLvlSdt') {
+									var count = oParent.GetElementsCount()
+									for (var c = 0; c < count; ++c) {
+										var child = oParent.GetElement(c)
+										if (child.GetClassType() == 'run' && child.Run.Id == run.Id) {
+											deleteAccurateRun(child)
+											break
+										}
+									}
+									continue
+								}
+							}
 							var paragraph = run.GetParagraph()
 							if (paragraph) {
 								var oParagraph = Api.LookupObject(paragraph.Id)
