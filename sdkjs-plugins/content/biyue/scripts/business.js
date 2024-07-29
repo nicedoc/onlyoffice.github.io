@@ -3793,7 +3793,7 @@ function getAllPositions() {
 						title_region: [],
 						correct_region: correctPos.correct_region || {},
 						correct_ask_region: correctPos.correct_ask_region,
-						score: 0,
+						score: question_obj.score || 0,
 						ask_num: 0,
 						additional: false, // 是否为附加题
 						answer: '',
@@ -3824,6 +3824,7 @@ function getAllPositions() {
 									return e.id == question_obj.ask_list[iask].id
 								})
 								if (askData) {
+                  var ask_score = question_obj.ask_list[iask].score || ''
 									if (askData.sub_type == 'control') {
 										var oAskControl = Api.LookupObject(askData.control_id)
 										if (oAskControl) {
@@ -3837,7 +3838,7 @@ function getAllPositions() {
 													y: mmToPx(e.Y),
 													w: mmToPx(e.W),
 													h: mmToPx(e.H),
-													v: '1',
+													v: ask_score + '',
 												})
 											})
 										}
@@ -3853,7 +3854,7 @@ function getAllPositions() {
 												y: mmToPx(oCellContent.Document.Y),
 												w: mmToPx(oCellContent.Document.ClipInfo[0].X1 - oCellContent.Document.ClipInfo[0].X0),
 												h: mmToPx(oRow.Row.Height),
-												v: '1'
+												v: ask_score + ''
 											})
 										}
 									} else if (askData.sub_type == 'write' || askData.sub_type == 'identify') {
@@ -3866,7 +3867,7 @@ function getAllPositions() {
 												y: mmToPx(oShape.Drawing.Y),
 												w: mmToPx(oShape.Drawing.Width),
 												h: mmToPx(oShape.Drawing.Height),
-												v: '1'
+												v: ask_score + ''
 											})
 										}
 									}
@@ -3886,7 +3887,6 @@ function getAllPositions() {
 						return acc
 					}, {})
 					item.ask_num = Object.keys(item.mark_ask_region).length
-					item.score = item.ask_num // 模拟分数为1问1分
 					item.mark_method = '1'
 
 					if (item.ques_type === 3) {
