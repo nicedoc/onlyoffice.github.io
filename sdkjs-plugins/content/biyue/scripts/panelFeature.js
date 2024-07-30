@@ -385,6 +385,7 @@ function updateFeatureList(res) {
 				x = PageSize.W - PageMargins.Right
 				y = PageSize.H - PageMargins.Bottom
 				page_num = e.p
+				size.pagination_ver_pos = window.BiyueCustomData.workbook_info.parse_extra_data.pagination_margin_bottom * 1 - PageMargins.Bottom
 			}
 			setXY(
 				index,

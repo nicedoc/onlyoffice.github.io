@@ -3975,7 +3975,7 @@ function getAllPositions() {
 									zone_type: titleObj.feature.zone_type,
 									fields: [],
 								}
-								if (titleObj.feature.zone_type == 'statistics') {
+								if (titleObj.feature.zone_type == 'statistics' || titleObj.feature.zone_type == 'pagination') {
 									let statistics_arr = []
 									for (var p = 0; p < pageCount; ++p) {
 										statistics_arr.push({

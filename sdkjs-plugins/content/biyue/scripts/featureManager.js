@@ -533,6 +533,41 @@ function drawList(list) {
 			}
 			return null
 		}
+
+		function getPageNumberDrawing(shapeWidth, shapeHeight, pagination_ver_pos = 0) {
+			var oFill = Api.CreateNoFill()
+			var oStroke = Api.CreateStroke(0, Api.CreateNoFill())
+			var oDrawing = Api.CreateShape(
+				'rect',
+				shapeWidth * 36e3,
+				shapeHeight * 36e3,
+				oFill,
+				oStroke
+			)
+			var drawDocument = oDrawing.GetContent()
+			var paragraphs = drawDocument.GetAllParagraphs()
+			if (paragraphs && paragraphs.length > 0) {
+				paragraphs[0].AddPageNumber()
+				paragraphs[0].SetJc('center')
+				paragraphs[0].SetColor(3, 3, 3, false)
+				paragraphs[0].SetFontSize(14)
+				paragraphs[0].SetSpacingAfter(0)
+				oDrawing.SetPaddings(0, 0, 0, 0)
+			}
+			oDrawing.SetVerticalTextAlign('center')
+			oDrawing.SetWrappingStyle('inFront')
+			oDrawing.SetHorAlign('page', 'center')
+			oDrawing.SetVerPosition('bottomMargin', pagination_ver_pos * 36e3)
+			var titleobj = {
+				feature: {
+					zone_type: 'pagination'
+				}
+			}
+			oDrawing.Drawing.Set_Props({
+				title: JSON.stringify(titleobj),
+			})
+			return oDrawing
+		}
 		feature_wait_handle.forEach((options) => {
 			var props_title = JSON.stringify({
 				feature: {
@@ -732,6 +767,7 @@ function drawList(list) {
 								title: props_title,
 							})
 							if (options.zone_type == ZONE_TYPE.STATISTICS) {
+								var numberDrawing = getPageNumberDrawing(20, 5, options.size.pagination_ver_pos)
 								oSections.forEach((section, index) => {
 									var oFooter = section.GetFooter("default", false)
 									if (!oFooter) {
@@ -740,28 +776,32 @@ function drawList(list) {
 										section.SetFooterDistance(bottom / (25.4 / 72 / 20));
 									}
 									var elementCount = oFooter.GetElementsCount()
-									if (elementCount > 1) {
+									if (elementCount > 2) {
 										for(var i = elementCount - 1; i > 0; i--) {
 											oFooter.RemoveElement(i)
 										}
 									}
 									var paragraph = oFooter.GetElement(0)
 									var drawing
+									var oAddNum = null
 									var oAdd = null
 									if (index > 0) {
 										oAdd = oDrawing.Copy()
 										drawing = oAdd.Drawing
+										oAddNum = numberDrawing.Copy()
 									} else {
 										drawing = oDrawing.Drawing
 										oAdd = oDrawing
+										oAddNum = numberDrawing
 									}
-										drawing.Set_PositionH(7, false, - 4, false);
-										drawing.Set_PositionV(0, false, 7.5, false)
-										drawing.Set_DrawingType(2);
+									drawing.Set_PositionH(7, false, - 4, false);
+									drawing.Set_PositionV(0, false, 7.5, false)
+									drawing.Set_DrawingType(2);
 									// todo.. 在页脚显示页数
 									// paragraph.AddPageNumber();
 									paragraph.SetJc('center')
 									paragraph.AddDrawing(oAdd)
+									paragraph.AddDrawing(oAddNum)
 									// paragraph.Paragraph.AddToParagraph(drawing);
 								})
 								
