@@ -3826,7 +3826,7 @@ function getAllPositions() {
                   var ask_score = question_obj.ask_list[iask].score || ''
 									if (askData.sub_type == 'control') {
 										var oAskControl = Api.LookupObject(askData.control_id)
-										if (oAskControl) {
+										if (oAskControl && oAskControl.Sdt) {
 											var askBounds = Object.values(oAskControl.Sdt.Bounds)
 											// todo..需要考虑小问区域合并的情况
 											askBounds.forEach(e => {
