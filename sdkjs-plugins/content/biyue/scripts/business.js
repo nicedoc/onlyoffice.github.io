@@ -28,20 +28,19 @@ function initPaperInfo() {
 				}
 				const { paper, workbook } = res.data
 				if (workbook) {
-					$('#school').text(
-						`${workbook.school_id ? workbook.school_name : '内部练习册'}#${
-							workbook.id
-						}`
+					$('#workbookName').text(
+						`${workbook.school_id ? workbook.school_name : '内部练习册'}`
 					)
+					$('#workbookId').text(`#${workbook.id}`)
 					window.BiyueCustomData.workbook_info = workbook
 				}
 				if (paper) {
 					$('#exam_title').text(`《${paper.title}》`)
 					window.BiyueCustomData.exam_title = paper.title
 					$('#grade_data').text(
-						`${paper.period_name}${paper.subject_name}/${
+						`${paper.period_name}${paper.subject_name} / ${
 							paper.edition_name || ''
-						}/${paper.phase_name || ''}`
+						} / ${paper.phase_name || ''}`
 					)
 				}
 				var options = res.data.options || {}

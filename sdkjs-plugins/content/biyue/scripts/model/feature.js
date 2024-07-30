@@ -9,6 +9,7 @@ var ZONE_TYPE = {
 	CHECK: 28, // 检查区
 	SEALING_LINE: 100, // 密封线
 	QRCODE: 200, // 二维码
+	PAGINATION: 201, // 页码
 }
 
 var ZONE_TYPE_NAME = {
@@ -22,6 +23,7 @@ var ZONE_TYPE_NAME = {
 	[`${ZONE_TYPE.CHECK}`]: 'check',
 	[`${ZONE_TYPE.SEALING_LINE}`]: 'sealing_line',
 	[`${ZONE_TYPE.QRCODE}`]: 'qr_code',
+	[`${ZONE_TYPE.PAGINATION}`]: 'pagination',
 }
 
 var ZONE_SIZE = {

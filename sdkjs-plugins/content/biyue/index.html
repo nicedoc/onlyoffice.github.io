@@ -136,14 +136,51 @@
       flex-direction: row;
       justify-content: space-around;
       border-bottom: 1px solid #bbb;
+	  font-weight: 400;
       .tabitem {
         padding: 8px;
-        color: #969997;
+        color: #999;
       }
       .selected {
-        color: #2D3330;
+        color: #555555;
+		font-weight: 700;
       }
     }
+	#panelList {
+		font-size: 12px;
+		color: #555555;
+		.wrapper {
+			border-bottom: 1px solid #ccc;
+		}
+		.row-title {
+			font-weight: 700;
+		}
+		.btns {
+			display: flex;
+			flex-wrap: wrap;
+			padding: 8px;
+			div {
+				width: calc(33.3% - 12px);
+				margin: 4px 6px;
+			}
+			.btn-dange {
+				border: 1px solid #ff0000 !important;
+				color: #ff0000 !important;
+			}
+		}
+		.btn-normal {
+			border-radius: 2px;
+			background-color: #D9D9D9;
+			text-align: center;
+			color: #555;
+			padding: 6px 0;
+			border: 1px solid #D9D9D9;
+		}
+		#importExam {
+			width: calc(100% - 26px);
+			margin: 2px 13px;
+		}
+	}
     #panelQues {
       padding: 12px;
       .padding-small {
@@ -204,7 +241,10 @@
         .version-tag {
             position: fixed;
             bottom: 0;
+			left: 0;
             right: 0;
+			text-align: center;
+			color: #ccc;
             background-color: #f1f1f1;
             padding: 5px;
             font-size: 12px;
@@ -215,32 +255,43 @@
  <body id="body" style="left:0px; top:0px; margin:0px; padding:0px;">
      <div id="iframe_parent" style="width:100%; height:100%;margin:0;padding:0;overflow-y: auto;">
         <div class="tabs font-14">
-          <div class="tabitem clicked" id="tabList">题目列表</div>
+          <div class="tabitem clicked" id="tabList">课时信息</div>
           <div class="tabitem clicked" id="tabQues">单题详情</div>
           <div class="tabitem clicked" id="tabFeature">智批元素</div>
         </div>
         <div class="list" id="panelList">
           <div class="wrapper font-14">
-            <div class="font-16">试卷信息</div>
-            <div id="school">学校名称学校名称学校名称学校名称</div>
-            <div id="exam_title"></div>
-            <div id="grade_data">年级信息年级信息年级信息年级信息</div>
+			<div>
+				<span class="row-title">校本：</span>
+				<span id="workbookName"></span>
+				<span id="workbookId"></span>
+			</div>
+			<div>
+				<span class="row-title">课时：</span>
+				<span id="exam_title"></span>
+			</div>
+			<div>
+				<span class="row-title">版本：</span>
+				<span id="grade_data"></span>
+			</div>
           </div>
-		  <div class="btn-text-default" style="padding: 4px;" id="getQuesType">向后端请求题型</div>
-		  <div class="btn-text-default" style="margin-top: 4px;padding: 4px;" id="uploadTree">
-			向后端同步，全量更新
+		  <div class="btns">
+			<div id="viewQuesType" class="clicked btn-normal">展示题型</div>
+			<div id="getQuesType" class="clicked btn-normal">获取题型</div>
+			<div id="reSplitQuestionBtn" class="clicked btn-normal btn-dange">重新切题</div>
+			<div id="batchScoreSet" class="clicked btn-normal">批量分数</div>
+			<div id="batchQuesType" class="clicked btn-normal">批量题型</div>
+			<div id="uploadTree" class="clicked btn-normal">全量更新</div>
 		  </div>
-          <div class="ques-title font-16">
-            <div id="queslist">题目列表</div>
-            <div class="clicked" id="reSplitQuestionBtn">重新切题</div>
-          </div>
-		  <select id="writeSelect">
+		  <div id="importExam" class="btn-normal clicked">上传卷面</div>
+		  
+		  <!-- <select id="writeSelect">
 			<option value="show">显示所有书写区</option>
 			<option value="hide">隐藏所有书写区</option>
 			<option value="del">删除所有书写区</option>
 		  </select>
           <div class="ques-list font-12" id="treeRoot">
-          </div>
+          </div> -->
         </div>
         <div id="panelQues">
         </div>
@@ -249,7 +300,7 @@
           <div class="button_wrapper">
             <!-- <div id="getDocInfo" class="btn-text-default">获取文档信息</div> -->
             <!-- <div id="splitQuestionBtn" class="btn-text-default">切题</div>         -->
-            <div class="btn-text-default" id="importExam">准备上传</div>
+            <!-- <div class="btn-text-default" id="importExam">准备上传</div>
             <div class="btn-text-default" style="margin-bottom: 4px;padding: 4px;" id="batchScoreSet">批量设分</div>
             <div class="btn-text-default" id="getAllPositions">获取所有坐标</div>
             <div id="clearControl" class="btn-text-default">删除所有控件 </div>
@@ -265,13 +316,13 @@
             <div id="showMultiPagePos" class="btn-text-default">获取空间在多个页面位置 </div>
             <div id="insertDrawingObject" class="btn-text-default">插入绘图对象</div>
             <div id="toTableColumn" class="btn-text-default">一行多题处理</div>
-            <div id="normalizeDoc" class="btn-text-default">规范化文档</div>
+            <div id="normalizeDoc" class="btn-text-default">规范化文档</div> -->
             <!-- <div id="jsonPathSplitQuestionBtn" class="btn-text-default">JSONPath切题</div> -->
-            <div id="selectionToHtml" class="btn-text-default">将Selection输出为html</div>
+            <!-- <div id="selectionToHtml" class="btn-text-default">将Selection输出为html</div>
             <div id="selectionToXml" class="btn-text-default">将Selection输出为xml</div>
-            <div id="insertAsHtml" class="btn-text-default">将文本以html格式插入当前位置</div>
+            <div id="insertAsHtml" class="btn-text-default">将文本以html格式插入当前位置</div> -->
         </div>
-        <div id="controlPostion">
+        <!-- <div id="controlPostion">
             <table align="center" border="1" width="100px">
                 <tr>
                     <td>p</td><td id="p-value" class="pos-value">0</td>
@@ -289,7 +340,7 @@
                     <td>h</td><td id="h-value" class="pos-value"></td>
                 </tr>
             </table>
-        </div>
+        </div> -->
       </div>
     </div>
     <script type="module" src="scripts/auth.js"></script>
@@ -305,8 +356,9 @@
     <script type="module" src="scripts/biyue.js"></script>
     <script src="scripts/ver.js"></script>
 
-    <div id="versionTag" class="version-tag">
-        draft
+    <div class="version-tag">
+		<span>version:</span>
+		<span id="versionTag"></span>
     </div>
  </body>
  </html>
