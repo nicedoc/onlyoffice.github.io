@@ -53,11 +53,12 @@ import {
 	let activeQuesItem = ''
 	let scoreSetWindow = null
 	let exportExamWindow = null
-  let batchSettingScoresWindow = null
+  	let batchSettingScoresWindow = null
 	let fieldsWindow = null
 	let timeout_controlchange = null
 	let contextMenu_options = null
-  let questionPositions = {}
+  	let questionPositions = {}
+	let messageBoxWindow = null
 
 	function NewDefaultCustomData() {
 		return {
@@ -79,13 +80,13 @@ import {
 				modal.command('initPaper', {
 					paper_info: getPaperInfo(),
 					xtoken: getToken(),
-          questionPositions: questionPositions,
-          biyueCustomData: window.BiyueCustomData,
+          			questionPositions: questionPositions,
+          			biyueCustomData: window.BiyueCustomData,
 				})
 				break
-      case 'positionSaveSuccess':
+      		case 'positionSaveSuccess':
 				window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
-        alert('上传成功')
+        		alert('上传成功')
 				break
 			case 'scoreSetSuccess': // 分数设置成功
 				if (message.data.control_list) {
@@ -137,13 +138,26 @@ import {
 				confirmLevelSet(message.levels)
 				window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
 				break
-      case 'changeQuestionMap': // 更新question_map
-        if (message.data){
-          window.BiyueCustomData.question_map = message.data
-          console.log('更新question_map', message.data)
-				  window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
-        }
-        break
+      		case 'changeQuestionMap': // 更新question_map
+        		if (message.data){
+          			window.BiyueCustomData.question_map = message.data
+          			console.log('更新question_map', message.data)
+				  	window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
+        		}
+        		break
+			case 'showMessageBox':
+				modal.command('initMessageBox', Asc.scope.messageData)
+				break
+			case 'onMessageDialog':
+				window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
+				if (message.cmd == 'confirm' && message.extra_data) {
+					if (message.extra_data.func) {
+						if (window.biyue[message.extra_data.func]) {
+							window.biyue[message.extra_data.func](message.extra_data.args)
+						}
+					}
+				}
+				break
 			default:
 				break
 		}
@@ -1132,7 +1146,15 @@ import {
 
 		// 上面为测试按钮
 		// 下面为新增的页面按钮
-		addBtnClickEvent('reSplitQuestionBtn', reSplitQustion)
+		addBtnClickEvent('reSplitQuestionBtn', () => {
+			showMessageBox({
+				title: '提示',
+				content: '确定要重新切题吗？',
+				extra_data: {
+					func: 'reSplitQustion'
+				}
+			})
+		})
 		window.tab_select = 'tabList'
 		$('#' + window.tab_select).addClass('selected')
 		$('.tabitem').on('click', changeTab)
@@ -2461,8 +2483,14 @@ import {
 		}
 	}
 
+	function showMessageBox(params) {
+		Asc.scope.messageData = params
+		showDialog(messageBoxWindow, params.title, 'message.html', 200, 100)
+	}
+
 	window.biyue = {
 		showDialog: showDialog,
-		StoreCustomData: StoreCustomData
+		StoreCustomData: StoreCustomData,
+		reSplitQustion: reSplitQustion
 	}
 })(window, undefined)
