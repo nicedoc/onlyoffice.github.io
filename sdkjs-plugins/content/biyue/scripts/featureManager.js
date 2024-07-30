@@ -901,7 +901,7 @@ function setInteraction(type, quesIds) {
 			oTextPr.SetFontFamily("iconfont");
 		}
 
-		function getExistDrawing(draws, sub_type_list, write_id) {
+		function getExistDrawing(draws, sub_type_list, write_id, index) {
 			var list = []
 			for (var i = 0; i < draws.length; ++i) {
 				var title = draws[i].Drawing.docPr.title
@@ -979,6 +979,42 @@ function setInteraction(type, quesIds) {
 				}
 			}
 			return false
+		}
+
+		function deleShape(oShape) {
+			if (!oShape) {
+				return
+			}
+			var run = oShape.Drawing.GetRun()
+			if (run) {
+				var runParent = run.GetParent()
+				if (runParent) {
+					var oParent = Api.LookupObject(runParent.Id)
+					if (oParent && oParent.GetClassType() == 'inlineLvlSdt') {
+						var count = oParent.GetElementsCount()
+						for (var c = 0; c < count; ++c) {
+							var child = oParent.GetElement(c)
+							if (child.GetClassType() == 'run' && child.Run.Id == run.Id) {
+								deleteAccurateRun(child)
+								break
+							}
+						}
+						return true
+					}
+				}
+				var paragraph = run.GetParagraph()
+				if (paragraph) {
+					var oParagraph = Api.LookupObject(paragraph.Id)
+					var ipos = run.GetPosInParent()
+					if (ipos >= 0) {
+						oShape.Delete()
+						oParagraph.RemoveElement(ipos)
+						return true
+					}
+				}
+			}
+			oShape.Delete()
+			return true
 		}
 
 		function addAskInteraction(oControl, askData, index, write_id) {
@@ -1070,38 +1106,25 @@ function setInteraction(type, quesIds) {
 				if (interaction_type == 'accurate') {
 					if (!dlist || dlist.length == 0) {
 						addAskInteraction(oControl, askData, i + 1, ask_list[i].id)
-					}
-				} else {
-					for (var j = 0; j < dlist.length; ++j) {
-						var run = dlist[j].Drawing.GetRun()
-						if (run) {
-							var runParent = run.GetParent()
-							if (runParent) {
-								var oParent = Api.LookupObject(runParent.Id)
-								if (oParent && oParent.GetClassType() == 'inlineLvlSdt') {
-									var count = oParent.GetElementsCount()
-									for (var c = 0; c < count; ++c) {
-										var child = oParent.GetElement(c)
-										if (child.GetClassType() == 'run' && child.Run.Id == run.Id) {
-											deleteAccurateRun(child)
-											break
-										}
+					} else {
+						var content = dlist[0].Drawing.GraphicObj.textBoxContent // shapeContent
+						if (content && content.Content && content.Content.length) {
+							var paragraph = content.Content[0]
+							if (paragraph && paragraph.GetElementsCount()) {
+								var run = paragraph.GetElement(0)
+								if (run) {
+									if (run.GetText() * 1 != i + 1) { // 序号run
+										paragraph.ReplaceCurrentWord(0, `${i+1}`)
 									}
-									continue
-								}
-							}
-							var paragraph = run.GetParagraph()
-							if (paragraph) {
-								var oParagraph = Api.LookupObject(paragraph.Id)
-								var ipos = run.GetPosInParent()
-								if (ipos >= 0) {
-									dlist[j].Delete()
-									oParagraph.RemoveElement(ipos)
-									continue
 								}
 							}
 						}
-						dlist[j].Delete()
+						
+
+					}
+				} else {
+					for (var j = 0; j < dlist.length; ++j) {
+						deleShape(dlist[j])
 					}
 				}
 			}

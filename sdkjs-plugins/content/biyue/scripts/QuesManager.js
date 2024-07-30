@@ -607,13 +607,6 @@ function updateRangeControlType(typeName) {
 				return
 			}
 			var tagRemove = JSON.parse(oRemove.GetTag() || '{}')
-			if (!result.remove_interaction_controls) {
-				result.remove_interaction_controls = []
-			}
-			result.remove_interaction_controls.push({
-				control_id: oRemove.Sdt.GetId(),
-				regionType: tagRemove.regionType
-			})
 			clearQuesInteraction(oRemove)
 			result.change_list.push({
 				control_id: oRemove.Sdt.GetId(),
@@ -1095,13 +1088,6 @@ function updateRangeControlType(typeName) {
 							clearBig(container)
 						} else if (typeName == 'struct') {
 							// 需要清除小问及互动
-							if (!result.remove_interaction_controls) {
-								result.remove_interaction_controls = []
-							}
-							result.remove_interaction_controls.push({
-								control_id: container.Sdt.GetId(),
-								regionType: 'question'
-							})
 							clearQuesInteraction(container)
 							var childControls = container.GetAllContentControls() || []
 							for (var i = 0; i < childControls.length; ++i) {
@@ -1510,6 +1496,7 @@ function handleChangeType(res, res2) {
 					if (ask_index >= 0) {
 						question_map[item.parent_id].ask_list.splice(ask_index, 1)
 					}
+					addIds.push(item.parent_id)
 				}
 			}
 		}
@@ -1518,7 +1505,7 @@ function handleChangeType(res, res2) {
 	window.BiyueCustomData.node_list = node_list
 	window.BiyueCustomData.question_map = question_map
 	if (addIds && addIds.length) {
-		if (level_type == 'write') {
+		if (level_type == 'write' || level_type == 'clear' || level_type == 'clearAll') {
 			setInteraction(question_map[addIds[0]].interaction, addIds).then(() => window.biyue.StoreCustomData())
 		} else if (targetLevel == 'question') {
 			setInteraction(window.BiyueCustomData.interaction, addIds).then(() => window.biyue.StoreCustomData())
@@ -3393,13 +3380,6 @@ function deleteAsks(askList) {
 			nodeData.write_list.splice(writeIndex, 1)
 			if (writeData.sub_type == 'control') {
 				var oControl = Api.LookupObject(writeData.control_id)
-				if (!result.remove_interaction_controls) {
-					result.remove_interaction_controls = []
-				}
-				result.remove_interaction_controls.push({
-					control_id: writeData.control_id,
-					regionType: 'write'
-				})
 				clearQuesInteraction(oControl)
 				Api.asc_RemoveContentControlWrapper(writeData.control_id)
 			} else if (writeData.sub_type == 'cell') {
@@ -3440,6 +3420,9 @@ function deleteAsks(askList) {
 		if (res) {
 			window.BiyueCustomData.question_map = res.question_map
 			window.BiyueCustomData.node_list = res.node_list
+			if (res.question_map[res.ques_id].interaction == 'accurate') {
+				setInteraction('accurate', [res.ques_id])
+			}
 			document.dispatchEvent(new CustomEvent('updateQuesData', {
 				detail: {
 					client_id: res.ques_id
