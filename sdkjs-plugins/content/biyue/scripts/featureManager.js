@@ -347,16 +347,20 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 			} else if (oNumberingLvl.Format == 61) {
 				sType = 'upperRoman'
 			}
-			var bulletStr = ''
-			oNumberingLevel.SetTemplateType('bullet', bulletStr);
+			oNumberingLevel.SetTemplateType('bullet', '');
 			var str = ''
-			str += bulletStr
-			for (var i = 0; i < LvlText.length; ++i ) {
+			var find = false
+			for (var i = 0; i < LvlText.length; ++i) {
 				if (LvlText[i].Type == 2) {
 					str += `%${level+1}`
 				} else {
-					if (LvlText[i].Value != '\ue6a1') {
+					if (LvlText[i].Value == ' ') {
+						if (find) {
+							str += LvlText[i].Value
+						}
+					} else if (LvlText[i].Value != '\ue6a1') {
 						str += LvlText[i].Value
+						find = true
 					}
 				}
 			}
@@ -883,16 +887,34 @@ function setInteraction(type, quesIds) {
 			} else if (oNumberingLvl.Format == 61) {
 				sType = 'upperRoman'
 			}
-			var bulletStr = vshow ? '\ue6a1' : ''
+			var bulletStr = vshow ? '\ue6a1 ' : ''
 			oNumberingLevel.SetTemplateType('bullet', bulletStr);
 			var str = ''
 			str += bulletStr
-			for (var i = 0; i < LvlText.length; ++i ) {
-				if (LvlText[i].Type == 2) {
-					str += `%${level+1}`
-				} else {
-					if (LvlText[i].Value != '\ue6a1') {
-						str += LvlText[i].Value
+			if (vshow) {
+				for (var i = 0; i < LvlText.length; ++i) {
+					if (LvlText[i].Type == 2) {
+						str += `%${level+1}`
+					} else {
+						if (LvlText[i].Value != '\ue6a1') {
+							str += LvlText[i].Value
+						}	
+					}
+				} 
+			} else {
+				var find = false
+				for (var i = 0; i < LvlText.length; ++i) {
+					if (LvlText[i].Type == 2) {
+						str += `%${level+1}`
+					} else {
+						if (LvlText[i].Value == ' ') {
+							if (find) {
+								str += LvlText[i].Value
+							}
+						} else if (LvlText[i].Value != '\ue6a1') {
+							str += LvlText[i].Value
+							find = true
+						}
 					}
 				}
 			}
