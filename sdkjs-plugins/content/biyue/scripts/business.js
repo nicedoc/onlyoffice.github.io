@@ -3847,15 +3847,28 @@ function getAllPositions() {
 										if (oCell) {
 											var oCellContent = oCell.GetContent()
 											var oRow = oCell.GetParentRow()
-											item.write_ask_region.push({
-												order: item.write_ask_region.length + 1 + '',
-												page: oCellContent.Document.CurPage + 1,
-												x: mmToPx(oCellContent.Document.ClipInfo[0].X0),
-												y: mmToPx(oCellContent.Document.Y),
-												w: mmToPx(oCellContent.Document.ClipInfo[0].X1 - oCellContent.Document.ClipInfo[0].X0),
-												h: mmToPx(oRow.Row.Height),
-												v: ask_score + ''
-											})
+											var oTable = oCell.GetParentTable()
+											var pageCount = oTable.Table.getPageCount()
+											var startPage = oCell.Cell.Get_StartPage_Absolute()
+											for (var p = 0; p < pageCount; ++p) {
+												var npage = startPage + p
+												var pagebounds = oCell.Cell.GetPageBounds(startPage + p)
+												if (!pagebounds) {
+													continue
+												}
+												if (pagebounds.Right == 0 && pagebounds.Left == 0) {
+													continue
+												}
+												item.write_ask_region.push({
+													order: item.write_ask_region.length + 1 + '',
+													page: npage + 1,
+													x: mmToPx(pagebounds.Left),
+													y: mmToPx(pagebounds.Top),
+													w: mmToPx(pagebounds.Right - pagebounds.Left),
+													h: mmToPx(pagebounds.Bottom - pagebounds.Top),
+													v: ask_score + ''
+												})
+											}
 										}
 									} else if (askData.sub_type == 'write' || askData.sub_type == 'identify') {
 										var oShape = Api.LookupObject(askData.shape_id)
