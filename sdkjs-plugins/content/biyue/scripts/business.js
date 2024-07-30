@@ -70,7 +70,7 @@ function updatePageSizeMargins() {
 	return biyueCallCommand(
 		window,
 		function () {
-			var workbook = Asc.scope.workbook
+			var workbook = Asc.scope.workbook || {}
 			var oDocument = Api.GetDocument()
 			var sections = oDocument.GetSections()
 			function MM2Twips(mm) {

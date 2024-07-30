@@ -205,6 +205,9 @@ function initFeature() {
 }
 
 function changeAll(data) {
+	if (!window.BiyueCustomData.workbook_info) {
+		return
+	}
 	var vinteraction = 'none'
 	var extra_info = window.BiyueCustomData.workbook_info.parse_extra_data
 	if (extra_info.hidden_correct_region.checked == false) {
@@ -320,7 +323,7 @@ function setXY(index, p, x, y, size) {
 function getPageData() {
 	Asc.scope.workbook = window.BiyueCustomData.workbook_info
 	return biyueCallCommand(window, function () {
-		var workbook = Asc.scope.workbook
+		var workbook = Asc.scope.workbook || {}
 		var oDocument = Api.GetDocument()
 		var sections = oDocument.GetSections()
 		function MM2Twips(mm) {
