@@ -239,6 +239,15 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 			}
 			oDrawing.Delete()
 		}
+		function deleteDrawing(titleObj, oDrawing) {
+			if (titleObj.feature.sub_type == 'ask_accurate' ||
+			titleObj.feature.zone_type == 'pagination' ||
+			titleObj.feature.zone_type == 'statistics') {
+				deleteAccurate(oDrawing)
+			} else {
+				oDrawing.Delete()
+			}
+		}
 		if (drawings) {
 			for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
 				var oDrawing = drawings[j]
@@ -260,18 +269,10 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 									return title.indexOf(e) >= 0
 								})
 								if (inSpecify) {
-									if (titleObj.feature.sub_type == 'ask_accurate') {
-										deleteAccurate(oDrawing)
-									} else {
-										oDrawing.Delete()
-									}
+									deleteDrawing(titleObj, oDrawing)
 								}
 							} else {
-								if (titleObj.feature.sub_type == 'ask_accurate') {
-									deleteAccurate(oDrawing)
-								} else {
-									oDrawing.Delete()
-								}
+								deleteDrawing(titleObj, oDrawing)
 							}
 						}
 					}
@@ -550,7 +551,7 @@ function drawList(list) {
 				paragraphs[0].AddPageNumber()
 				paragraphs[0].SetJc('center')
 				paragraphs[0].SetColor(3, 3, 3, false)
-				paragraphs[0].SetFontSize(14)
+				paragraphs[0].SetFontSize(12)
 				paragraphs[0].SetSpacingAfter(0)
 				oDrawing.SetPaddings(0, 0, 0, 0)
 			}
@@ -567,6 +568,43 @@ function drawList(list) {
 				title: JSON.stringify(titleobj),
 			})
 			return oDrawing
+		}
+		function getTypeDrawing(oParagraph, zone_type) {
+			if (!oParagraph) {
+				return false
+			}
+			var count = oParagraph.GetElementsCount()
+			for (var i = 0; i < count; ++i) {
+				var oRun = oParagraph.GetElement(i)
+				if (oRun && oRun.GetClassType() == 'run') {
+					for (var j = 0, jmax = oRun.Run.Content.length; j < jmax; ++j) {
+						if (oRun.Run.Content[j].GetType && oRun.Run.Content[j].GetType() == 22) {
+							var title = oRun.Run.Content[j].docPr.title || '{}'
+							var titleObj = JSON.parse(title)
+							if (titleObj.feature && titleObj.feature.zone_type == zone_type) {
+								return oRun.Run.Content[j]
+							}
+						}
+					}
+				}
+			}
+			return null
+		}
+		function deleteDrawing(oDrawing) {
+			var run = oDrawing.Drawing.GetRun()
+			if (run) {
+				var paragraph = run.GetParagraph()
+				if (paragraph) {
+					var oParagraph = Api.LookupObject(paragraph.Id)
+					var ipos = run.GetPosInParent()
+					if (ipos >= 0) {
+						oDrawing.Delete()
+						oParagraph.RemoveElement(ipos)
+						return
+					}
+				}
+			}
+			oDrawing.Delete()
 		}
 		feature_wait_handle.forEach((options) => {
 			var props_title = JSON.stringify({
@@ -585,11 +623,35 @@ function drawList(list) {
 				v: options.v,
 				cmd: options.cmd,
 			}
-			if (options.cmd == 'close') {
-				// 关闭
+			if (options.cmd == 'close') {	// 关闭
 				if (oDrawing) {
 					result.code = 1
-					oDrawing.Delete()
+					if (options.type_name == 'statistics') {
+						var statisticsList = objs.filter(e => {
+							return e.Drawing && e.Drawing.docPr && e.Drawing.docPr.title == props_title
+						})
+						if (statisticsList) {
+							statisticsList.forEach(e => {
+								deleteDrawing(e)
+							})
+						}
+						var props_title2 = JSON.stringify({
+							feature: {
+								zone_type: 'pagination',
+								v: options.v
+							}
+						})
+						var findList2 = objs.filter(e => {
+							return e.Drawing && e.Drawing.docPr && e.Drawing.docPr.title == props_title2
+						})
+						if (findList2) {
+							findList2.forEach(e => {
+								deleteDrawing(e)
+							})
+						}
+					} else {
+						oDrawing.Delete()
+					}
 				} else {
 					result.code = 2
 					result.message = '未找到该区域'
@@ -767,44 +829,74 @@ function drawList(list) {
 								title: props_title,
 							})
 							if (options.zone_type == ZONE_TYPE.STATISTICS) {
-								var numberDrawing = getPageNumberDrawing(20, 5, options.size.pagination_ver_pos)
+								var numberDrawing = getPageNumberDrawing(20, 8.46, options.size.pagination_ver_pos)
 								oSections.forEach((section, index) => {
-									var oFooter = section.GetFooter("default", false)
-									if (!oFooter) {
-										oFooter = section.GetFooter("default", true)
+									var footerList = []
+									var oTitleFooter = section.GetFooter("title", false)
+									if (oTitleFooter) {
+										footerList.push(oTitleFooter)
+									} else {
+										var oTitleHeader = section.GetHeader('title', false)
+										if (oTitleHeader) { // 存在首页页眉
+											oTitleFooter = section.GetFooter('title', true);
+											footerList.push(oTitleFooter)
+											var bottom = section.Section.PageMargins.Bottom - 13
+											section.SetFooterDistance(bottom / (25.4 / 72 / 20));
+										}
+									}
+									var oDefaultFooter = section.GetFooter("default", false)
+									if (!oDefaultFooter) {
+										oDefaultFooter = section.GetFooter("default", true)
 										var bottom = section.Section.PageMargins.Bottom - 13
 										section.SetFooterDistance(bottom / (25.4 / 72 / 20));
 									}
-									var elementCount = oFooter.GetElementsCount()
-									if (elementCount > 2) {
-										for(var i = elementCount - 1; i > 0; i--) {
-											oFooter.RemoveElement(i)
+									footerList.push(oDefaultFooter)
+									footerList.forEach((oFooter) => {
+										var elementCount = oFooter.GetElementsCount()
+										if (elementCount > 2) {
+											for(var i = elementCount - 1; i > 0; i--) {
+												oFooter.RemoveElement(i)
+											}
 										}
-									}
-									var paragraph = oFooter.GetElement(0)
-									var drawing
-									var oAddNum = null
-									var oAdd = null
-									if (index > 0) {
-										oAdd = oDrawing.Copy()
-										drawing = oAdd.Drawing
-										oAddNum = numberDrawing.Copy()
-									} else {
-										drawing = oDrawing.Drawing
-										oAdd = oDrawing
-										oAddNum = numberDrawing
-									}
-									drawing.Set_PositionH(7, false, - 4, false);
-									drawing.Set_PositionV(0, false, 7.5, false)
-									drawing.Set_DrawingType(2);
-									// todo.. 在页脚显示页数
-									// paragraph.AddPageNumber();
-									paragraph.SetJc('center')
-									paragraph.AddDrawing(oAdd)
-									paragraph.AddDrawing(oAddNum)
-									// paragraph.Paragraph.AddToParagraph(drawing);
-								})
-								
+										var oParagraph = oFooter.GetElement(0)
+										if (!getTypeDrawing(oParagraph, 'pagination')) {
+											var oAddNum = numberDrawing.Copy()
+											var titleobj = {
+												feature: {
+													zone_type: 'pagination',
+													v: options.v
+												}
+											}
+											oAddNum.Drawing.Set_Props({
+												title: JSON.stringify(titleobj),
+											})
+											oParagraph.AddDrawing(oAddNum)
+										}
+										var typeDrawing = getTypeDrawing(oParagraph, options.type_name)
+										if (typeDrawing) {
+											typeDrawing.Set_PositionH(7, false, - 4, false);
+											typeDrawing.Set_PositionV(0, false, 7.5, false)
+											typeDrawing.Set_DrawingType(2);
+										} else {
+											var oAdd = oDrawing.Copy()
+											var drawing = oAdd.Drawing
+											drawing.Set_PositionH(7, false, - 4, false);
+											drawing.Set_PositionV(0, false, 7.5, false)
+											drawing.Set_DrawingType(2);
+											oParagraph.SetJc('center')
+											var titleobj = {
+												feature: {
+													zone_type: options.type_name,
+													v: options.v
+												}
+											}
+											oAdd.Drawing.Set_Props({
+												title: JSON.stringify(titleobj),
+											})
+											oParagraph.AddDrawing(oAdd)
+										}
+									})									
+								})								
 							} else {
 								var page_num = options.page_num || options.p
 								if (options.zone_type == ZONE_TYPE.THER_EVALUATION ||
@@ -834,7 +926,7 @@ function drawList(list) {
 						}
 					}
 				} else {
-					if (oDrawing) {
+					if (oDrawing && options.zone_type != ZONE_TYPE.STATISTICS) {
 						oDrawing.SetHorPosition('page', options.x * 36e3)
 						oDrawing.SetVerPosition('page', options.y * 36e3)
 					}

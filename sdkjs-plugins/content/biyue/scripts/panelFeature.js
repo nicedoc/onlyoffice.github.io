@@ -153,7 +153,7 @@ function initFeature() {
 	list.forEach((e, index) => {
 		if (!e.hidden) {
 			var str = `<tr><td colspan="2"><label class="header">${e.label}</label></td></tr><tr><td class="padding-small" width="100%"><div id=${e.id}></div></td></tr>`
-			if (e.id != 'header') {
+			if (e.id != 'header' && e.id != 'statistics') {
 				str += `<tr id="${e.id}Pos"><td class="padding-small" width="50%"><label class="input-label">X坐标</label><div id="${e.id}X"></div></td><td class="padding-small" width="50%"><label class="input-label">Y坐标</label><div id="${e.id}Y"></div></td></tr>`
 			}
 			content += str
