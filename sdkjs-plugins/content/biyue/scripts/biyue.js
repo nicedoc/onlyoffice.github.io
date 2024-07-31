@@ -587,162 +587,6 @@ import {
 		)
 	}
 
-	function getContextMenuItems() {
-		console.log('getContextMenuItems', activeQuesItem)
-		console.log('contextMenu_options', contextMenu_options)
-		var splitType = {
-			separator: true,
-			//icons: "resources/light/icon.png",
-			icons:
-				'resources/%theme-type%(light|dark)/%state%(normal)icon%scale%(100|200).%extension%(png)',
-			id: 'updateControlType',
-			text: '划分类型',
-			items: [
-				{
-					icons:
-						'resources/%theme-type%(img)/%state%(normal)x%scale%(50).%extension%(png)',
-					id: 'updateControlType_examtitle',
-					text: '设置为 - 试卷标题',
-				},
-				{
-					id: 'updateControlType_struct',
-					text: '设置为 - 题组结构',
-				},
-				{
-					id: 'updateControlType_question',
-					text: '设置为 - 题目',
-				},
-				{
-					id: 'updateControlType_sub-question',
-					text: '设置为 - 小题',
-				},
-				{
-					id: 'updateControlType_write',
-					text: '设置为 - 小问',
-				},
-				{
-					id: 'updateControlType_clear',
-					text: '清除控制',
-				},
-				{
-					id: 'updateControlType_clearAll',
-					text: '清除范围内所有控制',
-				},
-			],
-		}
-		let settings = {
-			guid: window.Asc.plugin.guid,
-			items: [splitType],
-		}
-		settings.items.push({
-			id: 'sectionColumn',
-			text: '分栏',
-			items: [
-				{
-					id: 'setSectionColumn_1',
-					text: '1列',
-				},
-				{
-					id: 'setSectionColumn_2',
-					text: '2列',
-				},
-			],
-		})
-		if (contextMenu_options) {
-			if (contextMenu_options.type == 'Selection') {
-				var questypes = window.BiyueCustomData.paper_options.question_type
-				var itemsQuesType = questypes.map((e) => {
-					return {
-						id: `batchChangeQuesType_${e.value}`,
-						text: e.label,
-					}
-				})
-				var itemsProportion = []
-				for (var i = 1; i <= 8; ++i) {
-					itemsProportion.push({
-						id: `batchChangeProportion_${i}`,
-						text: `${i}/8`,
-					})
-				}
-				settings.items.push({
-					id: 'batchCmd',
-					text: '批量操作',
-					items: [
-						{
-							id: 'batchChangeQuesType',
-							text: '修改题型',
-							items: itemsQuesType,
-						},
-						{
-							id: 'batchChangeScore',
-							text: '修改分数',
-						},
-						{
-							id: 'batchChangeProportion',
-							text: '修改占比',
-							items: itemsProportion,
-						},
-						{
-							id: 'batchChangeInteraction',
-							text: '修改互动模式',
-							items: [
-								{
-									id: 'batchChangeInteraction_simple',
-									text: '简单互动',
-								},
-								{
-									id: 'batchChangeInteraction_accurate',
-									text: '精准互动',
-								},
-							],
-						},
-					],
-				})
-			} else if (contextMenu_options.type == 'Target') {
-				settings.items.push({
-					id: 'identify',
-					text: '识别框',
-					items: [
-						{
-							id: 'handleIdentifyBox_1',
-							text: '添加',
-						},
-						{
-							id: 'handleIdentifyBox_0',
-							text: '删除',
-						},
-					],
-				})
-				let tagObj = ''
-				if (activeQuesItem) {
-					var controlTag = activeQuesItem ? activeQuesItem.Tag : ''
-					if (controlTag != '') {
-						try {
-							tagObj = JSON.parse(controlTag)
-							if (tagObj.group !== undefined && tagObj.group !== '') {
-								settings.items.push({
-									id: 'onDismissGroup',
-									icons:
-										'resources/%theme-type%(light|dark)/%state%(normal)icon%scale%(100|200).%extension%(png)',
-									text: '解除分组',
-								})
-							}
-							if (tagObj.regionType == 'question') {
-								settings.items.push({
-									id: 'onSettingDialog',
-									text: '设置题目信息',
-								})
-							}
-						} catch (error) {
-							console.log(error)
-						}
-					}
-				}
-			}
-		}
-		return settings
-	}
-
 	window.Asc.plugin.attachEvent('onContextMenuShow', function (options) {
 		console.log(options)
 		handleContextMenuShow(options)
@@ -1122,9 +966,6 @@ import {
 		addBtnClickEvent('toTableColumnBtn', function () {
 			toTableColumn(window)
 		})
-		addBtnClickEvent('getQuestionPositionsBtn', function () {
-			getQuestionPositions(window)
-		})
 		addBtnClickEvent('jsonPathSplitQuestionBtn', onJsonPathSplit)
 		addBtnClickEvent('normalizeDoc', onNormalizeDoc)
 		addBtnClickEvent('selectionToHtml', function () {
@@ -1491,67 +1332,6 @@ import {
 		)
 	}
 
-	function onGetTag(tag) {
-		console.log('onGetTag', tag)
-	}
-
-	// 获取当前控件的tag
-	function getCurrentTag(window) {
-		window.Asc.plugin.callCommand(
-			function () {
-				var prop = Api.asc_GetContentControlProperties()
-				return prop.Tag
-			},
-			false,
-			false,
-			function (tag) {
-				console.log('tag=>', tag)
-			}
-		)
-	}
-
-	// 设置当前控件的tag
-	function setCurrentTag(window, tag) {
-		Asc.scope.tag = tag
-		window.Asc.plugin.executeMethod('GetCurrentContentControl')
-		window.Asc.plugin.onMethodReturn = function (returnValue) {
-			if (window.Asc.plugin.info.methodName == 'GetCurrentContentControl') {
-				if (returnValue) {
-					Asc.scope.controlId = returnValue
-					window.Asc.plugin.callCommand(
-						function () {
-							var controls = Api.GetDocument().GetAllContentControls()
-							for (var i = 0; i < controls.length; i++) {
-								var control = controls[i]
-								console.log('control', control, Asc.scope.controlId)
-								if (control.Sdt.GetId() === Asc.scope.controlId) {
-									control.SetTag(Asc.scope.tag)
-								}
-							}
-						},
-						false,
-						true,
-						undefined
-					)
-				}
-			}
-		}
-	}
-
-	function showAllContent() {
-		Asc.scope.styleEnable = !Asc.scope.styleEnable
-		window.Asc.plugin.callCommand(
-			function () {
-				const styleEnable = Asc.scope.styleEnable
-				// 设置控件的高亮颜色
-				Api.asc_SetGlobalContentControlShowHighlight(styleEnable, 255, 204, 204)
-			},
-			false,
-			false,
-			undefined
-		)
-	}
-
 	function getSelection() {
 		// [类型]: 1为block的 2的为inline
 		// window.Asc.plugin.executeMethod ("AddContentControl", [1]);
@@ -1633,21 +1413,6 @@ import {
 		)
 	}
 
-	// 获取当前控件的tag
-	function getTag(window) {
-		window.Asc.plugin.callCommand(
-			function () {
-				var prop = Api.asc_GetContentControlProperties()
-				return prop.Tag
-			},
-			false,
-			false,
-			function (tag) {
-				console.log('tag=>', tag)
-			}
-		)
-	}
-
 	// 设置当前控件的tag
 	function setTag(window, tag) {
 		Asc.scope.tag = tag
@@ -1675,10 +1440,6 @@ import {
 			}
 		}
 	}
-
-	window.test = {}
-	window.test['setCurrentTag'] = setCurrentTag
-	window.test['getCurrentTag'] = getCurrentTag
 
 	window.prevControl = undefined
 
@@ -2155,112 +1916,6 @@ import {
 			undefined
 		)
 	}
-
-	function getQuestionPositions(window) {
-		window.Asc.plugin.callCommand(
-			function () {
-				var oDocument = Api.GetDocument()
-				let controls = oDocument.GetAllContentControls()
-				let positions = []
-				let inline_rect_map = {}
-				const isPageCoord = true
-				let ques_no = 1
-
-				let mmToPx = function (mm) {
-					// 1 英寸 = 25.4 毫米
-					// 1 英寸 = 96 像素（常见的屏幕分辨率）
-					// 因此，1 毫米 = (96 / 25.4) 像素
-					const pixelsPerMillimeter = 96 / 25.4
-					return Math.floor(mm * pixelsPerMillimeter)
-				}
-
-				controls.forEach((element) => {
-					console.log(element.GetClassType())
-					let tagObj = JSON.parse(element.Sdt.Pr.Tag)
-
-					if (
-						element.GetClassType() === 'inlineLvlSdt' &&
-						tagObj &&
-						tagObj.regionType === 'write'
-					) {
-						let parentContentControl = element.GetParentContentControl()
-						if (parentContentControl) {
-							let controlId = parentContentControl.Sdt.GetId() || ''
-							if (!inline_rect_map[controlId] && controlId !== '') {
-								inline_rect_map[controlId] = []
-							}
-							let rect = Api.asc_GetContentControlBoundingRect(
-								element.Sdt.Id,
-								isPageCoord
-							)
-							let rect_format = {}
-
-							rect_format.page = rect.Page ? rect.Page + 1 : 1
-							rect_format.x = mmToPx(rect.X0)
-							rect_format.y = mmToPx(rect.Y0)
-							rect_format.w = mmToPx(rect.X1 - rect.X0)
-							rect_format.h = mmToPx(rect.Y1 - rect.Y0)
-
-							inline_rect_map[controlId].push(rect_format)
-						}
-					} else if (
-						element.GetClassType() === 'blockLvlSdt' &&
-						tagObj &&
-						tagObj.regionType === 'question'
-					) {
-						let rect = Api.asc_GetContentControlBoundingRect(
-							element.Sdt.Id,
-							isPageCoord
-						)
-						let questionItem = {}
-						let rect_format = {}
-						let controlId = element.Sdt.GetId() || ''
-
-						rect_format.page = rect.Page ? rect.Page + 1 : 1
-						rect_format.x = mmToPx(rect.X0)
-						rect_format.y = mmToPx(rect.Y0)
-						rect_format.w = mmToPx(rect.X1 - rect.X0)
-						rect_format.h = mmToPx(rect.Y1 - rect.Y0)
-
-						questionItem = {
-							control_id: controlId,
-							ques_no: ques_no,
-							ques_type: tagObj.mode,
-							score: tagObj.score || 0,
-							content: '', // 需要是题目的html
-							mark_ask_region: {},
-							title_region: [],
-						}
-
-						questionItem.title_region.push(rect_format)
-						positions.push(questionItem)
-						ques_no++
-					}
-				})
-
-				let arrayToObject = function (arr) {
-					let obj = {}
-					arr.forEach((item, index) => {
-						obj[index + 1] = item
-					})
-					return obj
-				}
-
-				positions = positions.map(function (item) {
-					item.mark_ask_region = arrayToObject(
-						inline_rect_map[item.control_id] || []
-					)
-					return item
-				})
-				return positions
-			},
-			false,
-			false,
-			function (positions) {
-				console.log('positions:', positions)
-			}
-		)
-	}
 	function execModify(ranges) {}
 
 	function GetDocInfo() {
@@ -2346,10 +2001,6 @@ import {
 		return win
 	}
 
-	function showScoreSetDialog() {
-		showDialog(scoreSetWindow, '分数设置', 'scoreSet.html', 592, 400)
-	}
-
 	function importExam() {
     getAllPositions().then(res=>{
       questionPositions = res
@@ -2359,10 +2010,7 @@ import {
   function onBatchScoreSet() {
     showDialog(batchSettingScoresWindow, '批量设置分数', 'batchSettingScores.html', 592, 450)
   }
-	// 切换功能区窗口
-	function showPositionsDialog() {
-		showDialog(fieldsWindow, '功能区管理', 'examPositions.html', 592, 400)
-	}
+
 	window.insertHtml = insertHtml
 
 	function onContentControlChange(res) {
@@ -2402,6 +2050,27 @@ import {
 				controls.forEach((e) => {
 					Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
 				})
+				// 重置单元格颜色
+				var tables = oDocument.GetAllTables()
+				for (var t = 0, tmax = tables.length; t < tmax; ++t) {
+					var oTable = tables[t]
+					var rowcount = oTable.GetRowsCount()
+					for (var r = 0; r < rowcount; ++r) {
+						var oRow = oTable.GetRow(r)
+						var cellcount = oRow.GetCellsCount()
+						for (var c = 0; c < cellcount; ++c) {
+							var oCell = oRow.GetCell(c)
+							var shd = oCell.Cell.Get_Shd()
+							if (shd) {
+								var fill = shd.Fill
+								if (fill && fill.r == 204 && fill.g == 255 && fill.b == 255) {
+									oCell.SetBackgroundColor(204, 255, 255, true)					
+								}
+							}
+						}
+					}
+				}
+				
 				var text_all =
 					oDocument
 						.GetRange()
@@ -2485,12 +2154,13 @@ import {
 
 	function showMessageBox(params) {
 		Asc.scope.messageData = params
-		showDialog(messageBoxWindow, params.title, 'message.html', 200, 100)
+		showDialog(messageBoxWindow, params.title || '提示', 'message.html', 200, 100)
 	}
 
 	window.biyue = {
 		showDialog: showDialog,
 		StoreCustomData: StoreCustomData,
-		reSplitQustion: reSplitQustion
+		reSplitQustion: reSplitQustion,
+		showMessageBox: showMessageBox
 	}
 })(window, undefined)

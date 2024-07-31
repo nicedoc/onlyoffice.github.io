@@ -1482,11 +1482,33 @@ function handleChangeType(res, res2) {
 								control_id: item.control_id,
 								regionType: item.regionType
 							})
+							writeIndex = 0
+						}
+						if (question_map[parent_id] && question_map[parent_id].ask_list) {
+							// 先判断是否已在qmap中
+							var index2 = question_map[parent_id].ask_list.findIndex(e => {
+								return e.id == item.client_id
+							})
+							if (index2 < 0) {
+								var toIndex = 0
+								for (var i1 = writeIndex - 1; i1 >= 0; --i1) {
+									var index1 = question_map[parent_id].ask_list.findIndex(e => {
+										return e.id == ndata.write_list[i1].id
+									})
+									if (index1 >= 0) {
+										toIndex = index1 + 1
+										break
+									}
+								}
+								question_map[parent_id].ask_list.splice(toIndex, 0, {
+									id: item.client_id,
+									score: 0
+								})
+							}
 						}
 					}
 					if (ndata) {
 						parentNode.write_list = ndata.write_list
-						updateAskList(parent_id, ndata.write_list)
 					}
 				}
 			}
@@ -2707,12 +2729,18 @@ function generateTreeForUpload(control_list) {
 			})
 		}
 		setBtnLoading('uploadTree', false)
-		alert('全量更新成功')
+		window.biyue.showMessageBox({
+			content: '全量更新成功',
+			showCancel: false
+		})
 	}).catch(res => {
 		console.log('reqComplete fail', res)
 		console.log('[reqUploadTree end]', Date.now())
 		setBtnLoading('uploadTree', false)
-		alert('全量更新失败')
+		window.biyue.showMessageBox({
+			content: '全量更新失败',
+			showCancel: false
+		})
 	})
 	console.log(tree)
 }
