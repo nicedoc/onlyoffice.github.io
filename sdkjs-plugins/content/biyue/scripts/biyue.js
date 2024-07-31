@@ -2011,7 +2011,7 @@ import {
     })
 	}
   function onBatchScoreSet() {
-    showDialog(batchSettingScoresWindow, '批量设置分数', 'batchSettingScores.html', 592, 450)
+    showDialog(batchSettingScoresWindow, '批量设置分数', 'batchSettingScores.html', 800, 600)
   }
 
 	window.insertHtml = insertHtml
