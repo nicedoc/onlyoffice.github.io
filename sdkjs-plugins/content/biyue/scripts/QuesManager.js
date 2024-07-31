@@ -3449,7 +3449,9 @@ function deleteAsks(askList) {
 									var ipos = run.GetPosInParent()
 									if (ipos >= 0) {
 										oDrawing.Delete()
-										oParagraph.RemoveElement(ipos)
+										if (oParagraph) {
+											oParagraph.RemoveElement(ipos)
+										}
 									}
 								}
 							}

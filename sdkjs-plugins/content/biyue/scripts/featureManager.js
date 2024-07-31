@@ -232,7 +232,9 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 					var ipos = run.GetPosInParent()
 					if (ipos >= 0) {
 						oDrawing.Delete()
-						oParagraph.RemoveElement(ipos)
+						if (oParagraph) {
+							oParagraph.RemoveElement(ipos)
+						}
 						return
 					}
 				}
@@ -535,7 +537,7 @@ function drawList(list) {
 			return null
 		}
 
-		function getPageNumberDrawing(shapeWidth, shapeHeight, pagination_ver_pos = 0) {
+		function getPageNumberDrawing(shapeWidth, shapeHeight) {
 			var oFill = Api.CreateNoFill()
 			var oStroke = Api.CreateStroke(0, Api.CreateNoFill())
 			var oDrawing = Api.CreateShape(
@@ -551,14 +553,13 @@ function drawList(list) {
 				paragraphs[0].AddPageNumber()
 				paragraphs[0].SetJc('center')
 				paragraphs[0].SetColor(3, 3, 3, false)
-				paragraphs[0].SetFontSize(12)
+				var twips = shapeHeight / (25.4 / 72 / 20)
+				paragraphs[0].SetFontSize(twips / 10)
 				paragraphs[0].SetSpacingAfter(0)
 				oDrawing.SetPaddings(0, 0, 0, 0)
 			}
 			oDrawing.SetVerticalTextAlign('center')
 			oDrawing.SetWrappingStyle('inFront')
-			oDrawing.SetHorAlign('page', 'center')
-			oDrawing.SetVerPosition('bottomMargin', pagination_ver_pos * 36e3)
 			var titleobj = {
 				feature: {
 					zone_type: 'pagination'
@@ -568,6 +569,23 @@ function drawList(list) {
 				title: JSON.stringify(titleobj),
 			})
 			return oDrawing
+		}
+		function setPaginationAlign(oDrawing, align, PageMargins, margin) {
+			if (!oDrawing) {
+				return
+			}
+			if (align == 'center') {
+				oDrawing.SetHorAlign('page', align)
+			} else if (align == 'left') {
+				oDrawing.SetHorPosition('leftMargin', margin * 36e3)
+			} else if (align == 'right') {
+				oDrawing.SetHorPosition('rightMargin', (0 - margin) * 36e3)
+			}
+			var drawDocument = oDrawing.GetContent()
+			var paragraphs = drawDocument.GetAllParagraphs()
+			if (paragraphs && paragraphs.length > 0) {
+				paragraphs[0].SetJc(align)
+			}
 		}
 		function getTypeDrawing(oParagraph, zone_type) {
 			if (!oParagraph) {
@@ -599,7 +617,9 @@ function drawList(list) {
 					var ipos = run.GetPosInParent()
 					if (ipos >= 0) {
 						oDrawing.Delete()
-						oParagraph.RemoveElement(ipos)
+						if (oParagraph) {
+							oParagraph.RemoveElement(ipos)
+						}
 						return
 					}
 				}
@@ -661,13 +681,6 @@ function drawList(list) {
 					if (options.size) {
 						var shapeWidth = options.size.w
 						var shapeHeight = options.size.h
-						// if (options.zone_type == ZONE_TYPE.AGAIN) {
-						//   var firstSection = oSections[0]
-						//   var oHeader = firstSection.GetHeader("default", true);
-						//   var oParagraph = oHeader.GetElement(0);
-						//   console.log('oHeader', oHeader)
-						//   console.log('oHeader', oParagraph)
-						// }
 						if (options.zone_type == ZONE_TYPE.QRCODE) {
 							var showtext = options.texts && options.texts.length
 							if (showtext) {
@@ -829,59 +842,67 @@ function drawList(list) {
 								title: props_title,
 							})
 							if (options.zone_type == ZONE_TYPE.STATISTICS) {
-								var numberDrawing = getPageNumberDrawing(20, 8.46, options.size.pagination_ver_pos)
+								var numberDrawing = getPageNumberDrawing(20, options.size.pagination.font_size)
+								var pstyle = options.size.pagination.align_style
+								oDocument.SetEvenAndOddHdrFtr(pstyle != 'center');
 								oSections.forEach((section, index) => {
 									var footerList = []
+									// 首页
 									var oTitleFooter = section.GetFooter("title", false)
 									if (oTitleFooter) {
-										footerList.push(oTitleFooter)
+										footerList.push({
+											type: 'title',
+											oFooter: oTitleFooter
+										})
 									} else {
 										var oTitleHeader = section.GetHeader('title', false)
 										if (oTitleHeader) { // 存在首页页眉
 											oTitleFooter = section.GetFooter('title', true);
-											footerList.push(oTitleFooter)
-											var bottom = section.Section.PageMargins.Bottom - 13
-											section.SetFooterDistance(bottom / (25.4 / 72 / 20));
+											footerList.push({
+												type: 'title',
+												oFooter: oTitleFooter
+											})
 										}
+									}
+									if (pstyle != 'center') {
+										var evenFooter = section.GetFooter('even', false)
+										if (!evenFooter) {
+											evenFooter = section.GetFooter('even', true)
+										}
+										footerList.push({
+											type: 'even',
+											oFooter: evenFooter
+										})
 									}
 									var oDefaultFooter = section.GetFooter("default", false)
 									if (!oDefaultFooter) {
 										oDefaultFooter = section.GetFooter("default", true)
-										var bottom = section.Section.PageMargins.Bottom - 13
-										section.SetFooterDistance(bottom / (25.4 / 72 / 20));
 									}
-									footerList.push(oDefaultFooter)
-									footerList.forEach((oFooter) => {
+									footerList.push({
+										type: 'default',
+										oFooter: oDefaultFooter
+									})
+									footerList.forEach((footerObj) => {
+										var oFooter = footerObj.oFooter
 										var elementCount = oFooter.GetElementsCount()
 										if (elementCount > 2) {
 											for(var i = elementCount - 1; i > 0; i--) {
 												oFooter.RemoveElement(i)
 											}
 										}
+										var PageMargins = section.Section.PageMargins
 										var oParagraph = oFooter.GetElement(0)
-										if (!getTypeDrawing(oParagraph, 'pagination')) {
-											var oAddNum = numberDrawing.Copy()
-											var titleobj = {
-												feature: {
-													zone_type: 'pagination',
-													v: options.v
-												}
-											}
-											oAddNum.Drawing.Set_Props({
-												title: JSON.stringify(titleobj),
-											})
-											oParagraph.AddDrawing(oAddNum)
-										}
+										// 统计
 										var typeDrawing = getTypeDrawing(oParagraph, options.type_name)
 										if (typeDrawing) {
-											typeDrawing.Set_PositionH(7, false, - 4, false);
-											typeDrawing.Set_PositionV(0, false, 7.5, false)
+											typeDrawing.Set_PositionH(7, false, PageMargins.Right - options.size.right - options.size.w, false);
+											typeDrawing.Set_PositionV(0, false, PageMargins.Bottom - options.size.bottom - options.size.h, false)
 											typeDrawing.Set_DrawingType(2);
 										} else {
 											var oAdd = oDrawing.Copy()
 											var drawing = oAdd.Drawing
-											drawing.Set_PositionH(7, false, - 4, false);
-											drawing.Set_PositionV(0, false, 7.5, false)
+											drawing.Set_PositionH(7, false, PageMargins.Right - options.size.right - options.size.w, false);
+											drawing.Set_PositionV(0, false, PageMargins.Bottom - options.size.bottom - options.size.h, false)
 											drawing.Set_DrawingType(2);
 											oParagraph.SetJc('center')
 											var titleobj = {
@@ -894,6 +915,36 @@ function drawList(list) {
 												title: JSON.stringify(titleobj),
 											})
 											oParagraph.AddDrawing(oAdd)
+										}
+										// 页码
+										var oAddNum = getTypeDrawing(oParagraph, 'pagination')
+										var needAdd = false
+										if (!oAddNum) {
+											oAddNum = numberDrawing.Copy()
+											needAdd = true
+										}
+										if (oAddNum) {
+											oAddNum = numberDrawing.Copy()
+											var titleobj = {
+												feature: {
+													zone_type: 'pagination',
+													v: options.v
+												}
+											}
+											oAddNum.Drawing.Set_Props({
+												title: JSON.stringify(titleobj)
+											})
+											var align = 'center'
+											if (pstyle == 'oddLeftEvenRight') {
+												align = footerObj.type == 'even' ? 'right' : 'left'
+											} else if (pstyle == 'oddRightEvenLeft') {
+												align = footerObj.type == 'even' ? 'left' : 'right'
+											}
+											setPaginationAlign(oAddNum, align, PageMargins, options.size.pagination.margin)
+											oAddNum.SetVerPosition('bottomMargin', (PageMargins.Bottom - options.size.pagination.bottom - options.size.pagination.font_size) * 36e3)
+											if (needAdd) {
+												oParagraph.AddDrawing(oAddNum)
+											}
 										}
 									})									
 								})								
@@ -1162,7 +1213,9 @@ function setInteraction(type, quesIds) {
 					var ipos = run.GetPosInParent()
 					if (ipos >= 0) {
 						oShape.Delete()
-						oParagraph.RemoveElement(ipos)
+						if (oParagraph) {
+							oParagraph.RemoveElement(ipos)
+						}
 						return true
 					}
 				}

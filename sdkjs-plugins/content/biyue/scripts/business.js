@@ -96,6 +96,7 @@ function updatePageSizeMargins() {
 						oSection.SetHeaderDistance(MM2Twips(workbook.margin.top))
 					}
 					oSection.RemoveFooter('default')
+					oSection.RemoveFooter('even')
 					oSection.RemoveHeader('default')
 				})
 			}

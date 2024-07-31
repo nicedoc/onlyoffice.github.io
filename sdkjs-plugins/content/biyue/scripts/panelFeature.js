@@ -385,10 +385,17 @@ function updateFeatureList(res) {
 				x = PageSize.W - PageMargins.Right - ZONE_SIZE[ZONE_TYPE.IGNORE].w
 				y = PageSize.H - PageMargins.Bottom
 			} else if (e.zone_type == ZONE_TYPE.STATISTICS) {
-				x = PageSize.W - PageMargins.Right
-				y = PageSize.H - PageMargins.Bottom
 				page_num = e.p
-				size.pagination_ver_pos = PageMargins.Bottom - window.BiyueCustomData.workbook_info.parse_extra_data.pagination_margin_bottom * 1
+				var onlyoffice_options = window.BiyueCustomData.workbook_info.parse_extra_data.onlyoffice_options
+				if (onlyoffice_options) {
+					if (onlyoffice_options.statis) {
+						size.right = onlyoffice_options.statis.right
+						size.bottom = onlyoffice_options.statis.bottom
+					}
+					if (onlyoffice_options.pagination) {
+						size.pagination = onlyoffice_options.pagination
+					}
+				}
 			}
 			setXY(
 				index,
@@ -420,7 +427,11 @@ function updateFeatureList(res) {
 function initPositions1() {
 	return getPageData().then(res => {
 		updateFeatureList(res)
-		deleteAllFeatures([], list_feature)
+		var specifyFeatures = list_feature.map(e => {
+			return ZONE_TYPE_NAME[e.zone_type]
+		})
+		specifyFeatures.push(ZONE_TYPE_NAME[ZONE_TYPE.PAGINATION])
+		deleteAllFeatures([], specifyFeatures)
 	}).then(res => {
 		var vinteraction = window.BiyueCustomData.interaction
 		updateAllInteraction(vinteraction)
