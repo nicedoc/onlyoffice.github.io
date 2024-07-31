@@ -644,6 +644,7 @@ function updateRangeControlType(typeName) {
 				parent_id: getParentId(oRemove),
 				regionType: tagRemove.regionType
 			})
+			oRemove.Sdt.GetLogicDocument().PreventPreDelete = true
 			Api.asc_RemoveContentControlWrapper(oRemove.Sdt.GetId())
 		}
 		function getNewNodeList() {
@@ -1484,8 +1485,10 @@ function handleChangeType(res, res2) {
 							})
 							writeIndex = 0
 						}
-						if (question_map[parent_id] && question_map[parent_id].ask_list) {
-							// 先判断是否已在qmap中
+						if (question_map[parent_id]) {
+							if (!question_map[parent_id].ask_list) {
+								question_map[parent_id].ask_list = []
+							}
 							var index2 = question_map[parent_id].ask_list.findIndex(e => {
 								return e.id == item.client_id
 							})
@@ -2816,6 +2819,7 @@ function batchProportion(idList, proportion) {
 		var oSection = sections[0]
 		var PageSize = oSection.Section.PageSize
 		var PageMargins = oSection.Section.PageMargins
+		// console.log('============== ++++++++ 17', PageSize)
 		var tw = PageSize.W - PageMargins.Left - PageMargins.Right
 		function isTableEmpty(tableId) {
 			var oTable = Api.LookupObject(tableId)
@@ -2938,6 +2942,7 @@ function batchProportion(idList, proportion) {
 						icell: tables[iTable].cells.length,
 						W: newW
 					})
+					// console.log('============== ++++++++ 18', tables[iTable], newW)
 					tables[iTable].W += newW
 				}
 				wBefore += newW
@@ -2979,8 +2984,10 @@ function batchProportion(idList, proportion) {
 				oTable.SetCellSpacing(0)
 				oTable.SetTableTitle(TABLE_TITLE)
 			}
+			// console.log('============== ++++++++ 19', tables[i])
 			oTable.SetWidth('percent', tables[i].W)
 			tables[i].cells.forEach((cell, cidx) => {
+				// console.log('============== ++++++++ 20', cell)
 				oTable.GetCell(0, cell.icell).SetWidth('percent', cell.W)
 				AddControlToCell2(templist[count].content, oTable.GetCell(0, cell.icell))
 				count++
@@ -3112,6 +3119,7 @@ function changeProportion(idList, proportion) {
 								icell: tables[iTable].cells.length,
 								W: newW
 							})
+							// console.log('============== ++++++++ 11', tables[iTable], newW)
 							tables[iTable].W += newW
 							wBefore += newW
 						}
@@ -3131,7 +3139,15 @@ function changeProportion(idList, proportion) {
 				var cellsCount = oTableRow.GetCellsCount()
 				for (var icell = 0; icell < cellsCount; ++icell) {
 					var oCell = oTableRow.GetCell(icell)
-					var W = oCell.CellPr.TableCellW.W
+					// console.log('============== ++++++++ 10', oCell)
+					var TableCellW = oCell.CellPr.TableCellW
+					if (!TableCellW) {
+						TableCellW = oCell.Cell.CompiledPr.Pr.TableCellW
+					}
+					if (!TableCellW) {
+						continue
+					}
+					var W = TableCellW.W
 					var cellContent = oCell.GetContent()
 					var contents = []
 					var elementcount = cellContent.GetElementsCount()
@@ -3159,6 +3175,7 @@ function changeProportion(idList, proportion) {
 									icell: tables[iTable].cells.length,
 									W: W
 								})
+								// console.log('============== ++++++++ 9', tables[iTable], W)
 								tables[iTable].W += W
 							}
 							wBefore += W
@@ -3182,6 +3199,7 @@ function changeProportion(idList, proportion) {
 										icell: tables[iTable].cells.length,
 										W: W2
 									})
+									// console.log('============== ++++++++ 8', tables[iTable], W2)
 									tables[iTable].W += W2
 									wBefore += W2
 								}
@@ -3211,8 +3229,10 @@ function changeProportion(idList, proportion) {
 								icell: tables[iTable].cells.length,
 								W: W
 							})
+							// console.log('============== ++++++++ 7', tables[iTable], W)
 							tables[iTable].W += W
 						}
+						// console.log('============== ++++++++ 6', W)
 						wBefore += W
 					}
 				}
@@ -3246,10 +3266,12 @@ function changeProportion(idList, proportion) {
 					oTable.SetCellSpacing(0)
 					oTable.SetTableTitle(TABLE_TITLE)
 				}
+				// console.log('============== ++++++++ 5', tables[i])
 				oTable.SetWidth('percent', tables[i].W)
 				tables[i].cells.forEach((cell, cidx) => {
 					AddControlToCell2(templist[count].content, oTable.GetCell(0, cell.icell))
 					count++
+					// console.log('============== ++++++++ 4', cell)
 					var twips = oTable.Table.CalculatedTableW * (100 / cell.W)
 					oTable.GetCell(0, cell.icell).SetWidth('twips', twips)
 					// oTable.GetCell(0, cell.icell).SetWidth('percent', cell.W)
@@ -3287,6 +3309,7 @@ function changeProportion(idList, proportion) {
 				if (posinparent) {
 					var previousElement = oParent.GetElement(posinparent - 1)
 					if (previousElement && previousElement.GetClassType() == 'table' && previousElement.GetTableTitle() == TABLE_TITLE) {
+						// console.log('============== ++++++++ 3', previousElement)
 						var TableW = previousElement.TablePr.TableW.W
 						if (TableW + newW <= 100) {
 							preTable = previousElement
@@ -3301,6 +3324,7 @@ function changeProportion(idList, proportion) {
 						var tableParent = Api.LookupObject(oTable.Table.Parent.Id)
 						var pre = tableParent.GetElement(tablepos - 1)
 						if (pre.GetClassType() == 'table' && pre.GetTableTitle() == TABLE_TITLE) {
+							// console.log('============== ++++++++ 2', pre)
 							var TableW = pre.TablePr.TableW.W
 							if(TableW + newW <= 100 ) {
 								preTable = pre
@@ -3318,7 +3342,12 @@ function changeProportion(idList, proportion) {
 				var nextTable = oParent.GetElement(posinparent + 1)
 				if (nextTable && nextTable.GetClassType() == 'table' && nextTable.GetTableTitle() == TABLE_TITLE) {
 					var firstCell = nextTable.GetRow(0).GetCell(0)
-					var firstCellW = firstCell.CellPr.TableCellW.W
+					// console.log('============== ++++++++ 1', firstCell)
+					var TableCellW = firstCell.CellPr.TableCellW
+					if (!TableCellW) {
+						TableCellW = firstCell.Cell.CompiledPr.Pr.TableCellW
+					}
+					var firstCellW = TableCellW ? TableCellW.W : 100
 					if (firstCellW + newW <= 100) {
 						addToNextTable = true
 						func1(nextTable, oControl)
@@ -3497,7 +3526,7 @@ function deleteAsks(askList) {
 		if (res) {
 			window.BiyueCustomData.question_map = res.question_map
 			window.BiyueCustomData.node_list = res.node_list
-			if (res.question_map[res.ques_id].interaction == 'accurate') {
+			if (res.question_map[res.ques_id] && res.question_map[res.ques_id].interaction == 'accurate') {
 				setInteraction('accurate', [res.ques_id])
 			}
 			document.dispatchEvent(new CustomEvent('updateQuesData', {

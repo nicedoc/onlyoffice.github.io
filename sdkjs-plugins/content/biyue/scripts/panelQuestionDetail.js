@@ -276,8 +276,9 @@ function showQuesData(params) {
 	} else if (quesData.level_type == 'struct') {
 		updateElements(null, `当前选中为题组：${quesData ? quesData.ques_default_name : ''}`)
 		return
+	} else {
+		updateElements(null)
 	}
-	
 }
 
 function changeQuestionType(data) {

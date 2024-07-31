@@ -1317,17 +1317,23 @@ function setInteraction(type, quesIds) {
 						var content = dlist[0].Drawing.GraphicObj.textBoxContent // shapeContent
 						if (content && content.Content && content.Content.length) {
 							var paragraph = content.Content[0]
-							if (paragraph && paragraph.GetElementsCount()) {
-								var run = paragraph.GetElement(0)
-								if (run) {
-									if (run.GetText() * 1 != i + 1) { // 序号run
-										paragraph.ReplaceCurrentWord(0, `${i+1}`)
+							if (paragraph) {
+								if (paragraph.GetElementsCount()) {
+									var run = paragraph.GetElement(0)
+									if (run) {
+										if (run.GetText() * 1 != i + 1) { // 序号run
+											paragraph.ReplaceCurrentWord(0, `${i+1}`)
+										}
 									}
+								} else {
+									var oPara = Api.LookupObject(paragraph.Id)
+									oPara.AddText(`${i+1}`)
+									oPara.SetColor(153, 153, 153, false)
+									oPara.SetJc('center')
+									oPara.SetSpacingAfter(0)
 								}
 							}
 						}
-						
-
 					}
 				} else {
 					for (var j = 0; j < dlist.length; ++j) {
