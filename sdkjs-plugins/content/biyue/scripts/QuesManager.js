@@ -261,6 +261,60 @@ function getNodeList() {
 			}
 			return parent_id
 		}
+		function getParagraphWriteList(oElement, write_list) {
+			if (!oElement || !oElement.GetClassType || oElement.GetClassType() != 'paragraph') {
+				return
+			}
+			var childCount = oElement.GetElementsCount()
+			for (var k = 0; k < childCount; ++k) {
+				var oChild = oElement.GetElement(k)
+				var childType = oChild.GetClassType()
+				if (childType == 'run') {
+					var childCount1 = oChild.Run.GetElementsCount()
+					for (var k2 = 0; k2 < childCount1; ++k2) {
+						var oChild2 = oChild.Run.GetElement(k2)
+						if (oChild2.GetType && oChild2.GetType() == 22) {
+							if (oChild2.docPr) {
+								var title = oChild2.docPr.title
+								if (title) {
+									var titleObj = JSON.parse(title)
+									if (titleObj.feature && (titleObj.feature.sub_type == 'write' || titleObj.feature.sub_type == 'identify')) {
+										write_list.push({
+											id: titleObj.client_id,
+											sub_type: titleObj.feature.sub_type,
+											drawing_id: oChild2.Id,
+											shape_id: oChild2.GraphicObj.Id
+										})
+									}
+								}
+							}
+						}
+					}
+				} else if (childType == 'inlineLvlSdt') {
+					var childTag = JSON.parse(oChild.GetTag() || '{}')
+					if (childTag.regionType == 'write') {
+						write_list.push({
+							id: childTag.client_id,
+							sub_type: 'control',
+							control_id: oChild.Sdt.GetId()
+						})	
+					}
+				}
+			}
+		}
+		function getBlockWriteList(oElement, write_list) {
+			if (!oElement || !oElement.GetClassType || oElement.GetClassType() != 'blockLvlSdt') {
+				return
+			}
+			var childTag = JSON.parse(oElement.GetTag() || '{}')
+			if (childTag.regionType == 'write') {
+				write_list.push({
+					id: childTag.client_id,
+					sub_type: 'control',
+					control_id: oElement.Sdt.GetId()
+				})
+			}
+		}
 		for (var i = 0, imax = controls.length; i < imax; ++i) {
 			var oControl = controls[i]
 			var tagInfo = JSON.parse(oControl.GetTag() || '{}')
@@ -272,51 +326,9 @@ function getNodeList() {
 				for (var j = 0; j < elementCount; ++j) {
 					var oElement = controlContent.GetElement(j)
 					if (oElement.GetClassType() == 'paragraph') {
-						var childCount = oElement.GetElementsCount()
-						for (var k = 0; k < childCount; ++k) {
-							var oChild = oElement.GetElement(k)
-							var childType = oChild.GetClassType()
-							if (childType == 'run') {
-								var childCount1 = oChild.Run.GetElementsCount()
-								for (var k2 = 0; k2 < childCount1; ++k2) {
-									var oChild2 = oChild.Run.GetElement(k2)
-									if (oChild2.GetType && oChild2.GetType() == 22) {
-										if (oChild2.docPr) {
-											var title = oChild2.docPr.title
-											if (title) {
-												var titleObj = JSON.parse(title)
-												if (titleObj.feature && (titleObj.feature.sub_type == 'write' || titleObj.feature.sub_type == 'identify')) {
-													write_list.push({
-														id: titleObj.client_id,
-														sub_type: titleObj.feature.sub_type,
-														drawing_id: oChild2.Id,
-														shape_id: oChild2.GraphicObj.Id
-													})
-												}
-											}
-										}
-									}
-								}
-							} else if (childType == 'inlineLvlSdt') {
-								var childTag = JSON.parse(oChild.GetTag() || '{}')
-								if (childTag.regionType == 'write') {
-									write_list.push({
-										id: childTag.client_id,
-										sub_type: 'control',
-										control_id: oChild.Sdt.GetId()
-									})	
-								}
-							}
-						}
+						getParagraphWriteList(oElement, write_list)
 					} else if (oElement.GetClassType() == 'blockLvlSdt') {
-						var childTag = JSON.parse(oElement.GetTag() || '{}')
-						if (childTag.regionType == 'write') {
-							write_list.push({
-								id: childTag.client_id,
-								sub_type: 'control',
-								control_id: oElement.Sdt.GetId()
-							})
-						}
+						getBlockWriteList(oElement, write_list)
 					} else if (oElement.GetClassType() == 'table') {
 						var rows = oElement.GetRowsCount()
 						for (var i1 = 0; i1 < rows; ++i1) {
@@ -333,6 +345,20 @@ function getNodeList() {
 										table_id: oElement.Table.Id,
 										cell_id: oCell.Cell.Id
 									})
+								} else {
+									var oCellContent = oCell.GetContent()
+									var cnt1 = oCellContent.GetElementsCount()
+									for (var i3 = 0; i3 < cnt1; ++i3) {
+										var oElement2 = oCellContent.GetElement(i3)
+										if (!oElement2) {
+											continue
+										}
+										if (oElement2.GetClassType() == 'paragraph') {
+											getParagraphWriteList(oElement2, write_list)	
+										} else if (oElement2.GetClassType() == 'blockLvlSdt') {
+											getBlockWriteList(oElement2, write_list)
+										}
+									}
 								}
 							}
 						}
@@ -996,6 +1022,11 @@ function updateRangeControlType(typeName) {
 									client_id: 'c_' + container.Cell.Id,
 									regionType: 'write'
 								})
+							} else {
+								var secondContainer = getFirstElement(elementData.list, containerIndex - 1)
+								if (secondContainer && secondContainer.container_type == 'blockLvlSdt') {
+									removeControl(secondContainer.container)
+								}
 							}
 						} else {
 							if (container_type == 'blockLvlSdt' && typeName == 'clearAll') {
@@ -1441,6 +1472,18 @@ function handleChangeType(res, res2) {
 					var ndata = res2.find(e => {
 						return e.id == parent_id
 					})
+					if (ndata.write_list) {
+						var writeIndex = ndata.write_list.findIndex(e => {
+							return e.id == item.client_id
+						})
+						if (writeIndex == -1) {
+							ndata.write_list.push({
+								id: item.client_id,
+								control_id: item.control_id,
+								regionType: item.regionType
+							})
+						}
+					}
 					if (ndata) {
 						parentNode.write_list = ndata.write_list
 						updateAskList(parent_id, ndata.write_list)
