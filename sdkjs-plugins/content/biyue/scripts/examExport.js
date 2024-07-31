@@ -333,6 +333,7 @@ import { setXToken } from './auth.js'
     preQuestionPositions = getPositions()
     if (Object.keys(preQuestionPositions).length === 0) {
         $('#error_message').html('没有符合条件的题目，请先进行全量更新!')
+        return
     }
     const haveError = checkPositions(preQuestionPositions)
     if (haveError) {
