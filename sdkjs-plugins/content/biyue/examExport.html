@@ -37,9 +37,10 @@
       <div style="color: #2D3330;font-weight: bold;text-align:center;font-size: 16px;">练习册试卷上传</div>
       <div class="label-title">标题：<span class="paper-title"></span></div>
       <!-- <input type="file" id="workbook_fileInput" accept="image/*" multiple> -->
-      <div class="label-title">预览图：</div>
+      <div id="preview-label" class="label-title" style="display: none;">预览图：</div>
       <div id="workbook_preview" class="workbook_preview"></div>
-      <div id="workbookImgLoading" class="loading">
+      <div id="error_message" class="error_message"></div>
+      <div id="workbookImgLoading" style="display: none;" class="loading">
         <div class="loading-spinner"></div>
         <p>正在生成当前页面的图片...</p>
       </div>

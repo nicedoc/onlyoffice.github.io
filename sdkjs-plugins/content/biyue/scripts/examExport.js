@@ -15,6 +15,7 @@ import { setXToken } from './auth.js'
   let print_paper_type = ''
   let exam_import_res = {}
   let questionPositions = {}
+  let preQuestionPositions = {} // 准备上传的题目坐标
   let biyueCustomData = {}
   let img_file_list = []
   window.Asc.plugin.init = function () {
@@ -39,6 +40,7 @@ import { setXToken } from './auth.js'
 
       fileInput = document.getElementById('workbook_fileInput')
       preview = document.getElementById('workbook_preview')
+      onCheckPositions()
     } else {
       getGradeSelections()
       getPrintSelections()
@@ -266,7 +268,8 @@ import { setXToken } from './auth.js'
     }
 
     var evaluationPosition = {}
-    let positions = getPositions()
+    let positions = preQuestionPositions
+
     evaluationPosition.again_regional = getFieldsByZoneType('again')
     evaluationPosition.self_evaluation = getFieldsByZoneType('self_evaluation')
     evaluationPosition.teacher_evaluation = getFieldsByZoneType('teacher_evaluation')
@@ -326,12 +329,158 @@ import { setXToken } from './auth.js'
     return positions
   }
 
+  function onCheckPositions() {
+    preQuestionPositions = getPositions()
+    if (Object.keys(preQuestionPositions).length === 0) {
+        $('#error_message').html('没有符合条件的题目，请先进行全量更新!')
+    }
+    const haveError = checkPositions(preQuestionPositions)
+    if (haveError) {
+        return
+    }
+    console.log('检查通过')
+    initImg()
+  }
+
+  function checkPositions(postions) {
+    let error = false
+    let error_message = ''
+    const title_region_err = []
+    const write_ask_region_err = []
+    const correct_ask_region_err = []
+    const need_update = false
+    const ques_score_err = []
+    const ask_score_err = []
+    const ques_type_err = []
+
+    for (const key in postions) {
+      if (!postions[key].ref_id) {
+        need_update = true
+      }
+      let score = parseFloat(postions[key].score) || 0
+      if (!score) {
+        ques_score_err.push(postions[key].ques_name)
+      }
+      if (!postions[key].ques_type) {
+        ques_type_err.push(postions[key].ques_name)
+      }
+      if (checkRegionEmpty(postions[key], 'title_region')) {
+        title_region_err.push(postions[key].ques_name)
+      }
+      if (checkRegionEmpty(postions[key], 'write_ask_region', true)) {
+        write_ask_region_err.push(postions[key].ques_name)
+      }
+      if (checkRegionEmpty(postions[key], 'correct_ask_region', true)) {
+        correct_ask_region_err.push(postions[key].ques_name)
+      }
+      if (postions[key].mark_method === '4') {
+        postions[key].ask_num = 1
+      } else if (postions[key].mark_ask_region && postions[key].mark_method !== '4') {
+        const mark_ask_region = postions[key].mark_ask_region || {}
+        postions[key].ask_num = Object.keys(mark_ask_region).length
+
+        if (postions[key].ask_num > 1) {
+          const question_ask = {}
+          if (postions[key].mark_method === '2') {
+            // 主观题
+          } else {
+            const positionsObj = postions[key].mark_ask_region
+            let ask_score = 0
+            for (const k in positionsObj) {
+              if (positionsObj[k] && positionsObj[k][0]) {
+                question_ask[positionsObj[k][0].order] = {
+                  order: positionsObj[k][0].order + '',
+                  score: positionsObj[k][0].v
+                }
+                if (postions[key].score) {
+                    //  检查小问的分数和题目的分数是否一致
+                    ask_score += parseFloat(positionsObj[k][0].v) || 0
+                }
+              }
+            }
+            if (ask_score * 1 !== postions[key].score * 1 && postions[key].score) {
+                //  小问分数和题目分数不一致
+                ask_score_err.push(postions[key].ques_name)
+            }
+            postions[key].question_ask = question_ask
+          }
+        }
+      }
+    }
+    let message = ''
+
+    if (ques_score_err.length > 0) {
+        if (message !== '') {
+          message += `<br/><br/>`
+        }
+        message += `有题目未设置分数,请检查题目:` + ques_score_err.join(',')
+    }
+    if (ask_score_err.length > 0) {
+        if (message !== '') {
+          message += `<br/><br/>`
+        }
+        message += `有题目小问分数和题目分数不一致,请检查题目:` + ask_score_err.join(',')
+    }
+
+    if (ques_type_err.length > 0) {
+        if (message !== '') {
+            message += `<br/><br/>`
+        }
+        message += `有题目未设置题目类型,请检查题目:` + ques_type_err.join(',')
+    }
+
+    if (title_region_err.length > 0) {
+        message = `有题干区域未设置,请检查题目:` + title_region_err.join(',')
+    }
+    if (write_ask_region_err.length > 0) {
+        if (message !== '') {
+            message += `<br/><br/>`
+        }
+        message += `有作答区域未设置,请检查题目:` + write_ask_region_err.join(',')
+    }
+    if (correct_ask_region_err.length > 0) {
+        if (message !== '') {
+            message += `<br/><br/>`
+        }
+        message += `有小问订正框区域未设置,请检查题目:` + correct_ask_region_err.join(',')
+    }
+
+
+    if (need_update) {
+        message = '有题目没有分配uuid，请先进行全量更新。'
+    }
+    if (message) {
+        error = true
+        error_message = message
+        $('#error_message').html(error_message)
+    }
+    return error
+  }
+
+
+  function checkRegionEmpty(postions, name, checkValue) {
+    const ret = false
+    if (!postions[name]) {
+      return true
+    }
+    const arr = postions[name] || []
+    for (const key in arr) {
+      const w = arr[key].w || 0
+      const h = arr[key].h || 0
+      const v = arr[key].h || 0
+      if (w * 1 + h * 1 === 0 || checkValue && v * 1 === 0) {
+        return true
+      }
+    }
+    return ret
+  }
+
   function initImg() {
+    $('#workbookImgLoading').show()
     window.Asc.plugin.executeMethod("GetFileToDownload", ["PNG"], res=> {
       console.log(res)
       const zipUrl = res;
       let preview = document.getElementById('workbook_preview')
-      $('#workbookImgLoading').show()
       if (preview) {
         preview.innerHTML = '' // 清空预览区域
       }
@@ -375,6 +524,7 @@ import { setXToken } from './auth.js'
           }
           if (img_file_list && img_file_list.length > 0) {
             // 显示上传按钮
+            $('#preview-label').show()
             $('#uploadPreview').show()
             $('#workbookImgLoading').hide()
           }
@@ -395,6 +545,5 @@ import { setXToken } from './auth.js'
     questionPositions = message.questionPositions || {}
     console.log('questionPositions---->', questionPositions, getPositions())
     init()
-    initImg()
   })
 })(window, undefined)
