@@ -82,6 +82,9 @@ input {
      margin: 5px;
     }
   }
+  .error_message {
+    color: #E6A23C;
+  }
 
   .uploadPreview {
     background-color: #4CAF50;

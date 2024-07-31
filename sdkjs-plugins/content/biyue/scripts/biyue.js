@@ -142,7 +142,10 @@ import {
         		if (message.data){
           			window.BiyueCustomData.question_map = message.data
           			console.log('更新question_map', message.data)
-				  	window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
+                    StoreCustomData(() => {
+                        window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
+                        console.log('store custom data done')
+                    })
         		}
         		break
 			case 'showMessageBox':
