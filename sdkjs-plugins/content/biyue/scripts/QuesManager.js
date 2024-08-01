@@ -473,9 +473,45 @@ function updateRangeControlType(typeName) {
 			return children
 		}
 
+		function inRun(oRun, drawingId) {
+			if (!oRun || !oRun.Run) {
+				return false
+			}
+			var cnt = oRun.Run.GetElementsCount()
+			for (var i = 0; i < cnt; ++i) {
+				var oChild = oRun.Run.GetElement(i)
+				if (oChild && oChild.Id == drawingId) {
+					return true
+				}
+			}
+			return false
+		}
+
 		function getDirectParentCell(oDrawing) {
 			var drawingParentParagraph = oDrawing.GetParentParagraph()
 			if (drawingParentParagraph) {
+				var pcount = drawingParentParagraph.GetElementsCount()
+				for (var i = 0; i < pcount; ++i) {
+					var oChild = drawingParentParagraph.GetElement(i)
+					if (oChild.GetClassType) {
+						var childType = oChild.GetClassType()
+						if (childType == 'run') {
+							if (inRun(oChild, oDrawing.Drawing.Id)) {
+								break
+							}
+						} else if (childType == 'inlineLvlSdt') {
+							var cnt3 = oChild.GetElementsCount()
+							for (var i3 = 0; i3 < cnt3; ++i3) {
+								var oChild3 = oChild.GetElement(i3)
+								if (oChild3.GetClassType() == 'run') {
+									if (inRun(oChild3, oDrawing.Drawing.Id)) {
+										return null
+									}
+								}
+							}
+						}
+					}
+				}
 				var p2 = drawingParentParagraph.Paragraph.GetParent()
 				if (p2) {
 					var oP2 = Api.LookupObject(p2.Id)
@@ -827,14 +863,24 @@ function updateRangeControlType(typeName) {
 		}
 		function getQuestion(list, index) {
 			for (var i = index - 1; i >= 0; --i) {
-				if (list[i].container_type == 'blockLvlSdt') {
-					var oControl = list[i].container
-					var tag = JSON.parse(oControl.GetTag() || '{}')
-					if (tag.client_id && question_map[tag.client_id] && question_map[tag.client_id].level_type == 'question') {
-						return {
-							id: tag.client_id,
-							quesControl: oControl
-						}
+				var oControl = null
+				if (list[i].container_type) {
+					if (list[i].container_type == 'blockLvlSdt') {
+						oControl = list[i].container
+					}
+				} else if (list[i].GetClassType) {
+					if (list[i].GetClassType() == 'blockLvlSdt') {
+						oControl = list[i]
+					}
+				}
+				if (!oControl) {
+					continue
+				}
+				var tag = JSON.parse(oControl.GetTag() || '{}')
+				if (tag.client_id && question_map[tag.client_id] && question_map[tag.client_id].level_type == 'question') {
+					return {
+						id: tag.client_id,
+						quesControl: oControl
 					}
 				}
 			}
@@ -1182,6 +1228,49 @@ function updateRangeControlType(typeName) {
 			}
 			var startData = getOElements(oRange.StartPos)
 			var endData = getOElements(oRange.EndPos)
+			// 通过双击选中的范围，其实是inlinecontrol
+			function isSelectInlineControl(control) {
+				if (!startData || !startData.list || startData.list.length <= 2 || !endData || !endData.list || endData.list.length <= 2) {
+					return false
+				}
+				// 判断startPos是否一致
+				var startEndData = startData.list[startData.list.length - 1]
+				var pre = startData.list[startData.list.length - 2]
+				if (pre.classType == 'inlineLvlSdt') {
+					if (pre.oElement.Sdt.GetId() != control.Sdt.GetId()) {
+						return false
+					}
+					if (startEndData.Position != 0) {
+						return false
+					}
+				} else if (pre.classType == 'paragraph') {
+					if (startEndData.classType != 'run') {
+						return false
+					}
+					var a = pre.oElement.GetElement(pre.Position + 1)
+					if (a.GetClassType() != 'inlineLvlSdt' || a.Sdt.GetId() != control.Sdt.GetId()) {
+						return false
+					}
+					var p = Math.min(startEndData.oElement.Run.GetElementsCount() - 1, startEndData.Position)
+					if (p != 0) {
+						return false
+					}
+				}
+				// 判断endPos是否一致
+				var endEndData = endData.list[endData.list.length - 1]
+				var endPre = endData.list[endData.list.length - 2]
+				if (endPre.classType == 'paragraph' && endPre.Position > 0 && endEndData.Position == 0) {
+					var pre2 = endPre.oElement.GetElement(endPre.Position - 1)
+					if (pre2.GetClassType() == 'inlineLvlSdt' && pre2.Sdt.GetId() == control.Sdt.GetId()) {
+						return true
+					}
+				} else if (endPre.classType == 'inlineLvlSdt' && endPre.Sdt.GetId() == control.Sdt.GetId()) {
+					if (endEndData.Position == endPre.GetElementsCount() - 1) {
+						return true
+					}
+				}
+				return false
+			}
 			console.log('startData', startData, endData)
 			// 暂时只支持选中多个单元格设置小问和清除区域
 			if ((typeName == 'write' || typeName == 'clear' || typeName == 'clearAll') &&
@@ -1244,7 +1333,11 @@ function updateRangeControlType(typeName) {
 					if (relation == 2) {
 						parentControls.push(e)
 					} else if (relation == 3) {
-						containControls.push(e)
+						if (isSelectInlineControl(e)) {
+							completeOverlapControl = e
+						} else {
+							containControls.push(e)
+						}
 					} else if (relation == 4) {
 						intersectControls.push(e)
 					}
@@ -1268,22 +1361,48 @@ function updateRangeControlType(typeName) {
 				} else {
 					// 若存在完全重叠的区域，只修改tag
 					if (completeOverlapControl) {
-						var tag = JSON.parse(completeOverlapControl.GetTag() || {})
-						var regionType = typeName == 'write' ? 'write' : 'question'
-						if (tag.regionType != regionType) {
-							tag.regionType = regionType
-							// 这里需要考虑互动.. todo..
-							completeOverlapControl.SetTag(JSON.stringify(tag));
+						if (typeName == 'write') {
+							var elementData = getOElements(completeOverlapControl.GetRange().StartPos)
+							var containerData = getFirstElement(elementData.list, elementData.list.length - 1)
+							var pQuestion = getQuestion(elementData.list, containerData.index)
+							if (!pQuestion) {
+								return {
+									code: 0,
+									message: '未处于题目中，不可设为小问'
+								}
+							}
+							updateControlTag(completeOverlapControl, 'write', pQuestion.id)
+						} else if (completeOverlapControl.GetClassType() == 'blockLvlSdt') {
+							if (typeName == 'setBig') {
+								setBig(completeOverlapControl)
+							} else if (typeName == 'clearBig') {
+								clearBig(completeOverlapControl)
+							} else if (typeName == 'struct') {
+								// 需要清除小问及互动
+								clearQuesInteraction(completeOverlapControl)
+								var childControls = completeOverlapControl.GetAllContentControls() || []
+								for (var i = 0; i < childControls.length; ++i) {
+									Api.asc_RemoveContentControlWrapper(childControls[i].Sdt.GetId())
+								}
+							}
+							updateControlTag(completeOverlapControl, typeName, getParentId(completeOverlapControl))
 						}
-						result.change_list.push({
-							client_id: tag.client_id
-						})
 					} else {
 						// 不存在完全重叠的区域，新增一个control，对其下的原本的control并不进行拆分修改 todo..
-						if (typeName == 'write' && controlsInRange.length == 0) {
-							return {
-								code: 0,
-								message: '未处于题目中',
+						if (typeName == 'write') {
+							if (controlsInRange.length == 0 || parentControls.length == 0) {
+								return {
+									code: 0,
+									message: '未处于题目中',
+								}	
+							} else if (parentControls.length > 0) {
+								var pQuestion = getQuestion(parentControls, parentControls.length - 1)
+								if (!pQuestion) {
+									return {
+										code: 0,
+										message: '未处于题目中',
+									}
+								}
 							}
 						}
 						var isInCell = false
@@ -1316,6 +1435,15 @@ function updateRangeControlType(typeName) {
 							regionType: regionType,
 							lvl: level
 						}
+						// 设置小问时，先移除包含或交叉的control
+						if (type == 2) {
+							containControls.forEach(e => {
+								removeControl(e)
+							})
+							intersectControls.forEach(e => {
+								removeControl(e)
+							})
+						}
 						var oResult = Api.asc_AddContentControl(type, {
 							Tag: JSON.stringify(tag)
 						})
@@ -1331,7 +1459,7 @@ function updateRangeControlType(typeName) {
 								regionType: regionType
 							})
 							// 若是在单元格里添加control后，会多出一行需要删除
-							if (isInCell) {
+							if (type == 1 && isInCell) {
 								var oCell = Api.LookupObject(oResult.InternalId).GetParentTableCell()
 								if (oCell) {
 									if (oCell.GetContent().GetElementsCount() == 2) {

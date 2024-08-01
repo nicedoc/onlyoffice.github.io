@@ -225,7 +225,9 @@ function changeAll(data) {
 	if (list_feature) {
 		list_feature.forEach(e => {
 			if (e.id == 'interaction') {
-				e.comSelect.setSelect(vinteraction)
+				if (e.comSelect) {
+					e.comSelect.setSelect(vinteraction)
+				}
 				updateAllInteraction(vinteraction)
 			} else {
 				if (e.comSelect) {
@@ -407,7 +409,7 @@ function updateFeatureList(res) {
 		})
 		if (res.hasHeader) {
 			var headerIndex = list_feature.findIndex((e) => e.id == 'header')
-			if (headerIndex >= 0) {
+			if (headerIndex >= 0 && list_feature[headerIndex].comSelect) {
 				list_feature[headerIndex].comSelect.setSelect('open')
 			}
 		}

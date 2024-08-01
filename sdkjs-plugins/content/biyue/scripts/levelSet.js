@@ -18,8 +18,8 @@
 				<option value="question">题目</option>
 				<option value="struct">结构</option>
 			`;
-			if (i < 2) {
-				select.value == 'struct'
+			if (i < 1) {
+				select.value = 'struct'
 			} else {
 				select.value = 'question'
 			}
