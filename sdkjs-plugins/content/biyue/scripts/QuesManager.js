@@ -1330,15 +1330,15 @@ function updateRangeControlType(typeName) {
 								parent_id: getParentId(oControl),
 								regionType: regionType
 							})
-						}
-						// 若是在单元格里添加control后，会多出一行需要删除
-						if (isInCell) {
-							var oCell = Api.LookupObject(oResult.InternalId).GetParentTableCell()
-							if (oCell) {
-								if (oCell.GetContent().GetElementsCount() == 2) {
-									var oElement2 = oCell.GetContent().GetElement(1)
-									if (oElement2.GetClassType() == 'paragraph' && oElement2.Paragraph.Bounds.Bottom == 0 && oElement2.Paragraph.Bounds.Top == 0) {
-										oCell.GetContent().RemoveElement(1)
+							// 若是在单元格里添加control后，会多出一行需要删除
+							if (isInCell) {
+								var oCell = Api.LookupObject(oResult.InternalId).GetParentTableCell()
+								if (oCell) {
+									if (oCell.GetContent().GetElementsCount() == 2) {
+										var oElement2 = oCell.GetContent().GetElement(1)
+										if (oElement2.GetClassType() == 'paragraph' && oElement2.Paragraph.Bounds.Bottom == 0 && oElement2.Paragraph.Bounds.Top == 0) {
+											oCell.GetContent().RemoveElement(1)
+										}
 									}
 								}
 							}
