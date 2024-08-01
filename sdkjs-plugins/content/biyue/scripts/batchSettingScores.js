@@ -87,7 +87,7 @@
 
     for (const key in tree_map) {
         if (tree_map[key].length > 0) {
-            // 有题的结构 增加批量设置分数的输入框
+            // 对有题的结构增加批量设置分数的输入框
             let dom = document.querySelector('#group-id-' + key)
             if (dom) {
                 let html = dom.innerHTML // 取出当前的题组内容
