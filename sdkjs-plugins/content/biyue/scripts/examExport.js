@@ -399,7 +399,7 @@ import { setXToken } from './auth.js'
                 }
               }
             }
-            if (ask_score * 1 !== postions[key].score * 1 && postions[key].score) {
+            if ((ask_score * 1 !== postions[key].score * 1) && postions[key].score) {
                 //  小问分数和题目分数不一致
                 ask_score_err.push(postions[key].ques_name)
             }

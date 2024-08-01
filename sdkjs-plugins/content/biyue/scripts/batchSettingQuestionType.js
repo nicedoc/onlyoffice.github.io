@@ -194,7 +194,7 @@
   }
 
   function changeQuestionType({id, question_type}) {
-    question_map[id].question_type = question_type
+    question_map[id].question_type = parseFloat(question_type) || 0
   }
 
   window.Asc.plugin.attachEvent('initPaper', function (message) {
