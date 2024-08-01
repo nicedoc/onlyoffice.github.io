@@ -44,7 +44,8 @@ import {
 	handleWrite,
 	handleIdentifyBox,
 	handleAllWrite,
-	showAskCells
+	showAskCells,
+	handleImageIgnore
 } from './QuesManager.js'
 
 ;(function (window, undefined) {
@@ -633,6 +634,9 @@ import {
 					break
 				case 'handleWrite':
 					handleWrite(strs[1])
+					break
+				case 'handleImageIgnore':
+					handleImageIgnore(strs[1])
 					break
 				default:
 					break
@@ -1834,7 +1838,7 @@ import {
 					var oTableCellPr = oTableStyle.GetTableCellPr()
 					oTableCellPr.SetWidth('percent', 100 / max_cols)
 					oTable.SetStyle(oTableStyle)
-
+					oTable.SetTableTitle('questionTable')
 					// todo set table no border
 
 					// split text
@@ -2074,7 +2078,7 @@ import {
 							if (shd) {
 								var fill = shd.Fill
 								if (fill && fill.r == 204 && fill.g == 255 && fill.b == 255) {
-									oCell.SetBackgroundColor(204, 255, 255, true)
+									oCell.SetBackgroundColor(204, 255, 255, true)					
 								}
 							}
 						}
@@ -2090,7 +2094,7 @@ import {
 							TableRowSeparator: '\u24E1',
 						}) || ''
 				var text_json = oDocument.ToJSON(false, false, false, false, true, true)
-
+				
 				return { text_all, text_json }
 			},
 			false,

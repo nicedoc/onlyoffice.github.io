@@ -3959,6 +3959,7 @@ function getAllPositions() {
 				// }
 			}
 			var feature_list = []
+			var partical_no_dot_list = []
 			if (drawings) {
 				for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
 					var oDrawing = drawings[j]
@@ -4036,6 +4037,14 @@ function getAllPositions() {
 									feature_list.push(featureObj)
 								}
 							}
+						} else if (title && title.indexOf('partical_no_dot') >= 0) {
+							partical_no_dot_list.push({
+								page: oDrawing.Drawing.PageNum + 1,
+								x: mmToPx(oDrawing.Drawing.X),
+								y: mmToPx(oDrawing.Drawing.Y),
+								w: mmToPx(oDrawing.Drawing.Width),
+								h: mmToPx(oDrawing.Drawing.Height),
+							})
 						}
 					}
 				}
@@ -4045,10 +4054,12 @@ function getAllPositions() {
 			}
 			console.log('ques_list', ques_list)
 			console.log('feature_list', feature_list)
+			console.log('partical_no_dot_list', partical_no_dot_list)
 			return {
 				ques_list,
 				feature_list,
 				paper_info,
+				partical_no_dot_list
 			}
 		},
 		false,

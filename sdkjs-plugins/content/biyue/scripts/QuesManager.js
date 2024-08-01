@@ -45,9 +45,7 @@ function handleContextMenuShow(options) {
 			return
 		}
 		window.Asc.plugin.executeMethod('AddContextMenuItem', [getContextMenuItems(options.type)])
-	} else if (options.type == 'Selection') { // 选中范围，针对所选范围处理
-		window.Asc.plugin.executeMethod('AddContextMenuItem', [getContextMenuItems(options.type)])
-	} else if (options.type == 'Shape') {
+	} else if (options.type == 'Selection' || options.type == 'Shape' || options.type == 'Image') { // 选中范围，针对所选范围处理
 		window.Asc.plugin.executeMethod('AddContextMenuItem', [getContextMenuItems(options.type)])
 	}
 }
@@ -62,7 +60,20 @@ function getContextMenuItems(type) {
 				text: '删除作答区'
 			}],
 		}
+	} else if (type == 'Image') {
+		return {
+			guid: window.Asc.plugin.guid,
+			items: [{
+				separator: true,
+				id: 'handleImageIgnore_add',
+				text: '开启局部不铺码'
+			}, {
+				id: 'handleImageIgnore_del',
+				text: '关闭局部不铺码'
+			}],
+		}
 	}
+
 	var nodeData = null
 	var currentType = ''
 	if (type == 'Target') {
@@ -3764,6 +3775,29 @@ function focusAsk(writeData) {
 	}, false, false)
 }
 
+function handleImageIgnore(cmdType) {
+	Asc.scope.cmdType = cmdType
+	return biyueCallCommand(window, function() {
+		var cmdType = Asc.scope.cmdType
+		console.log('handleImageIgnore', cmdType)
+		var oDocument = Api.GetDocument()
+		var drawings = oDocument.GetAllDrawingObjects() || []
+		drawings.forEach(oDrawing => {
+			var GraphicObj = oDrawing.Drawing.GraphicObj
+			if (GraphicObj && GraphicObj.selected) {
+				var tag = {
+					partical_no_dot: 1
+				}
+				oDrawing.Drawing.Set_Props({
+					title: cmdType == 'add' ? JSON.stringify(tag) : '',
+				})
+				var oStroke = Api.CreateStroke(10000, Api.CreateSolidFill(cmdType == 'add' ? Api.CreateRGBColor(255, 111, 61) : Api.CreateRGBColor(255, 255, 255)));
+				oDrawing.SetOutLine(oStroke);
+			}
+		})
+	}, false, false)
+}
+
 export {
 	handleDocClick,
 	handleContextMenuShow,
@@ -3784,5 +3818,6 @@ export {
 	changeProportion,
 	deleteAsks,
 	focusAsk,
-	showAskCells
+	showAskCells,
+	handleImageIgnore
 }
