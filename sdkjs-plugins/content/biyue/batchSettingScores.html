@@ -11,11 +11,19 @@
     <script type="text/javascript" src="scripts/batchSettingScores.js"></script>
 </head>
 <body>
+    <div class="batch-setting-score-header">
+        <div>
+          <div style="display: inline-block;margin: 8px 0;">当前试卷总分：<span id="score_sum">0</span> 分</div>
+          <div style="margin: 8px 0;" class="bat-score-set">将当前未设置分数的题目设置为<input type="text" id="bat-score-group-all">分<span class="bat-score-set-btn" id="bat-score-set-btn-all">设置</span></div>
+        </div>
+        <div>分数预览</div>
+    </div>
 	<div class="batch-setting-score-info">
     <!-- <div class="group">一、选择题</div>
     <span class="question">1.<input type="text" class="score"><input type="text" class="score"></span> -->
 	</div>
   <div class="confirm-wrapper">
+    <label class="hidden_empty_struct" for="hidden_empty_struct"><input type="checkbox" id="hidden_empty_struct">隐藏无题目结构</label>
     <div id="confirm" class="btn-confirm">确定</div>
   </div>
 </body>
