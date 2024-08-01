@@ -10,6 +10,7 @@ body {
 .batch-setting-score-info {
   padding: 0 15px 5px;
   overflow-y: auto;
+  max-height: 476px;
   .group {
     font-size: 14px;
     margin-bottom: 8px;
