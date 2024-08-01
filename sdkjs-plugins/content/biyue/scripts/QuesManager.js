@@ -1585,7 +1585,9 @@ function handleChangeType(res, res2) {
 	window.BiyueCustomData.question_map = question_map
 	if (addIds && addIds.length) {
 		if (level_type == 'write' || level_type == 'clear' || level_type == 'clearAll') {
-			setInteraction(question_map[addIds[0]].interaction, addIds).then(() => window.biyue.StoreCustomData())
+			if (question_map[addIds[0]]) {
+				setInteraction(question_map[addIds[0]].interaction, addIds).then(() => window.biyue.StoreCustomData())
+			}
 		} else if (targetLevel == 'question') {
 			setInteraction(window.BiyueCustomData.interaction, addIds).then(() => window.biyue.StoreCustomData())
 		}
