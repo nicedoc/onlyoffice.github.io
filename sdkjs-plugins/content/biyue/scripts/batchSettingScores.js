@@ -27,7 +27,7 @@
       if (node_list[key].level_type == 'question') {
         if (item && item.question_type !== 6) {
           html += `<span class="question">${(item.ques_default_name ? item.ques_default_name : '')}`
-          if (item.ask_list.length > 0) {
+          if (item.ask_list && item.ask_list.length > 0) {
             for (const ask_k in item.ask_list) {
               html += `<input type="text" class="score ques-${ node_list[key].id } ask-index-${ask_k} ask-${item.ask_list[ask_k].id}" value="${item.ask_list[ask_k].score || 0}">`
             }
@@ -164,7 +164,7 @@
         for (const k in tree_map[key]) {
           // 题目的id
           let id = tree_map[key][k]
-          if (question_map[id].ask_list.length > 0) {
+          if (question_map[id] && question_map[id].ask_list && question_map[id].ask_list.length > 0) {
             let ask_list = question_map[id].ask_list || []
             let sum = 0
             let hasChange = false
