@@ -96,14 +96,21 @@ function getContextMenuItems(type) {
 	
 	var splitType = {
 		separator: true,
-		icons:
-			'resources/%theme-type%(light|dark)/%state%(normal)icon%scale%(100|200).%extension%(png)',
 		id: 'updateControlType',
 		text: '划分类型' + currentType,
 		items: []
 	}
 	var list = ["question", 'struct', 'setBig', 'write', 'clearBig', 'clear', 'clearAll']
 	var names = ['设置为 - 题目', '设置为 - 题组(结构)', '设置为 - 大题', '设置为 - 小问', '清除 - 大题', '清除 - 选中区域', '清除 - 选中区域(含子级)']
+	var icons = [
+		'rect',
+		'struct',
+		'rect',
+		'rect',
+		'clear',
+		'clear',
+		'clear'
+	]
 	var valueMap = {}
 	list.forEach(e => {
 		valueMap[e] = 1
@@ -136,7 +143,7 @@ function getContextMenuItems(type) {
 	list.forEach((e, index) => {
 		if (valueMap[e]) {
 			items.push({
-				icons: 'resources/%theme-type%(img)/%state%(normal)x%scale%(50).%extension%(png)',
+				icons: `resources/%theme-type%(light|dark)/%state%(normal)${icons[index]}%scale%(100|200).%extension%(png)`,
 				id: `updateControlType_${e}`,
 				text: names[index]
 			})
@@ -1947,6 +1954,53 @@ function confirmLevelSet(levels) {
 			}
 			return null
 		}
+		function getProportion(oControl) {
+			if (!oControl) {
+				return 1
+			}
+			var oCell = oControl.GetParentTableCell()
+			if (!oCell) {
+				return 1
+			}
+			var cellContent = oCell.GetContent()
+			if (!cellContent) {
+				return 1
+			}
+			var oTable = oControl.GetParentTable()
+			var tableWidth = 100
+			if (oTable) {
+				var tableBounds = oTable.Table.Bounds
+				tableWidth = tableBounds.Right - tableBounds.Left
+			}
+			var cnt1 = cellContent.GetElementsCount()
+			for (var i = 0; i < cnt1; ++i) {
+				var oElement = cellContent.GetElement(i)
+				if (oElement && oElement.GetClassType && oElement.GetClassType() == 'blockLvlSdt') {
+					if (oElement.Sdt.GetId() == oControl.Sdt.GetId()) {
+						var TableCellW = oCell.CellPr.TableCellW
+						if (!TableCellW) {
+							TableCellW = oCell.Cell.CompiledPr.Pr.TableCellW
+						}
+						console.log('============= getProportion', TableCellW)
+						if (TableCellW && TableCellW.W) {
+							if (TableCellW.Type == 3) {
+								console.log('=========== 33333 ', TableCellW.W)
+								return Math.ceil(100 / TableCellW.W)
+							} else if (TableCellW.Type == 1) {
+								console.log('=========== 11111 ', TableCellW.W, tableWidth, tableWidth / TableCellW.W)
+								return Math.ceil(tableWidth / TableCellW.W)
+							} else {
+								console.log('8888888888888', TableCellW)
+							}
+						} else {
+							console.log('7777777777', TableCellW)
+						}
+					}
+				}
+			}
+			// todo..
+			return 1
+		}
 		controls.forEach((oControl) => {
 			var tagInfo = JSON.parse(oControl.GetTag() || '{}')
 			 if (tagInfo.regionType == 'question' || tagInfo.regionType == 'write') {
@@ -1980,14 +2034,17 @@ function confirmLevelSet(levels) {
 						}
 					}
 				} else {
+					var proportion = getProportion(oControl)
 					var text = oControl.GetRange().GetText()
 					var level_type = levelmap[tagInfo.lvl]
 					nodeData.level_type = level_type
+					nodeData.proportion = proportion
 					var detail = {
 						text: text,
 						ask_list: [],
 						level_type: level_type,
-						numbing_text: GetNumberingValue(oControl)
+						numbing_text: GetNumberingValue(oControl),
+						proportion: proportion
 					}
 					if (tagInfo.regionType == 'question') {
 						nodeData.write_list = []
@@ -3271,7 +3328,7 @@ function changeProportion(idList, proportion) {
 				tables[i].cells.forEach((cell, cidx) => {
 					AddControlToCell2(templist[count].content, oTable.GetCell(0, cell.icell))
 					count++
-					// console.log('============== ++++++++ 4', cell)
+					// console.log('============== ++++++++ 4', cell, oTable.Table.CalculatedTableW)
 					var twips = oTable.Table.CalculatedTableW * (100 / cell.W)
 					oTable.GetCell(0, cell.icell).SetWidth('twips', twips)
 					// oTable.GetCell(0, cell.icell).SetWidth('percent', cell.W)
