@@ -1407,7 +1407,7 @@ function updateRangeControlType(typeName) {
 									message: '未处于题目中',
 								}	
 							} else if (parentControls.length > 0) {
-								var pQuestion = getQuestion(parentControls, parentControls.length - 1)
+								var pQuestion = getQuestion(parentControls, parentControls.length)
 								if (!pQuestion) {
 									return {
 										code: 0,
