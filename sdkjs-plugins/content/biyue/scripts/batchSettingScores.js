@@ -11,7 +11,6 @@
 
   function init() {
     renderData()
-    getScoreSum()
     $('#confirm').on('click', onConfirm)
     $('#hidden_empty_struct').on('click', onSwitchStruct)
   }
@@ -108,11 +107,13 @@
                       let id = btnDom.dataset.id || ''
                       let inputDom = document.querySelector(`#bat-score-group-${ id }`)
                       batchSetStructScore(id, inputDom.value || 0)
+                      getScoreSum()
                   })
                 }
             }
         }
     }
+    getScoreSum()
   }
 
   function checkInputValue(val = '', max) {
@@ -193,7 +194,15 @@
       let id = questionList[key]
       let doms = document.querySelectorAll('.ques-' + id) || []
       doms.forEach(function(dom) {
-        score_sum += parseFloat(dom.value) || 0
+        let val = parseFloat(dom.value) || 0
+        if (val == 0) {
+          dom.value = 0
+          dom.style.color='#ff0000'
+        } else {
+          dom.style.color=''
+          dom.value = val * 1
+        }
+        score_sum += val
       })
     }
 

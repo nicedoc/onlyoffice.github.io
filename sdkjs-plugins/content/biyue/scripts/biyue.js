@@ -2011,7 +2011,7 @@ import {
     })
 	}
   function onBatchScoreSet() {
-    showDialog(batchSettingScoresWindow, '批量设置分数', 'batchSettingScores.html', 800, 600)
+    showDialog(batchSettingScoresWindow, '批量操作 - 修改分数', 'batchSettingScores.html', 800, 600)
   }
 
 	window.insertHtml = insertHtml
@@ -2067,13 +2067,13 @@ import {
 							if (shd) {
 								var fill = shd.Fill
 								if (fill && fill.r == 204 && fill.g == 255 && fill.b == 255) {
-									oCell.SetBackgroundColor(204, 255, 255, true)					
+									oCell.SetBackgroundColor(204, 255, 255, true)
 								}
 							}
 						}
 					}
 				}
-				
+
 				var text_all =
 					oDocument
 						.GetRange()
