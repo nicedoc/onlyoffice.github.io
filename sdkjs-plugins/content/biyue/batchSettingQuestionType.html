@@ -2,27 +2,26 @@
 <html>
 <head>
     <meta charset="UTF-8" />
-    <title>batchSettingScores</title>
+    <title>batchSettingQuestionType</title>
     <script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.js"></script>
     <script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins-ui.js"></script>
     <link rel="stylesheet" href="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.css">
-    <link rel="stylesheet" href="resources/css/batchSettingScores.css">
+    <link rel="stylesheet" href="resources/css/batchSettingQuestionType.css">
     <script src="vendor/jQuery-2.2.2-min/jquery-v2.2.2-min.js"></script>
-    <script type="text/javascript" src="scripts/batchSettingScores.js"></script>
+    <script type="text/javascript" src="scripts/batchSettingQuestionType.js"></script>
 </head>
 <body>
-
   <div class="window-body">
-    <div class="batch-setting-score-header">
-        <div>
-          <div style="display: inline-block;margin: 8px 0;">当前试卷总分：<span id="score_sum">0</span> 分</div>
-          <div style="margin: 8px 0;" class="bat-score-set">将当前未设置分数的题目设置为<input type="text" id="bat-score-group-all">分<span class="bat-score-set-btn" id="bat-score-set-btn-all">设置</span></div>
+    <div class="batch-setting-type-header">
+      <div>
+        <div style="display: flex ;margin: 8px 0;">
+          <div style="min-width: 70px;">当前试卷：</div>
+          <div id="getQuestionTypeNum"></div>
         </div>
-        <div>分数预览</div>
       </div>
-    <div class="batch-setting-score-info">
-      <!-- <div class="group">一、选择题</div>
-      <span class="question">1.<input type="text" class="score"><input type="text" class="score"></span> -->
+      <div>题型预览</div>
+    </div>
+    <div class="batch-setting-type-info">
     </div>
   </div>
   <div class="confirm-wrapper">

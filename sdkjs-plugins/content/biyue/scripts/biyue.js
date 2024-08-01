@@ -53,12 +53,14 @@ import {
 	let activeQuesItem = ''
 	let scoreSetWindow = null
 	let exportExamWindow = null
-  	let batchSettingScoresWindow = null
+  let batchSettingScoresWindow = null
+  let batchSettingQuestionTypeWindow = null
 	let fieldsWindow = null
 	let timeout_controlchange = null
 	let contextMenu_options = null
   	let questionPositions = {}
 	let messageBoxWindow = null
+
 
 	function NewDefaultCustomData() {
 		return {
@@ -1019,6 +1021,7 @@ import {
 		addBtnClickEvent('queslist', showLevelSetDialog)
 		addBtnClickEvent('importExam', importExam)
 		addBtnClickEvent('batchScoreSet', onBatchScoreSet)
+		addBtnClickEvent('batchQuesType', onBatchQuesTypeSet)
 		if ($('#writeSelect')) {
 			$('#writeSelect').on('change', function() {
 				var selectedValue = $('#writeSelect').val()
@@ -2012,6 +2015,10 @@ import {
 	}
   function onBatchScoreSet() {
     showDialog(batchSettingScoresWindow, '批量操作 - 修改分数', 'batchSettingScores.html', 800, 600)
+  }
+
+  function onBatchQuesTypeSet() {
+    showDialog(batchSettingQuestionTypeWindow, '批量操作 - 修改题型', 'batchSettingQuestionType.html', 800, 600)
   }
 
 	window.insertHtml = insertHtml
