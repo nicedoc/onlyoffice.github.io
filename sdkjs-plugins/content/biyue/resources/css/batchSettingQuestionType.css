@@ -2,13 +2,13 @@
   height: calc(100vh - 70px);
   overflow-y: auto;
 }
-.batch-setting-score-header {
+.batch-setting-type-header {
     border-bottom: 1px solid #ddd;
     line-height: 1.5em;
     font-size: 14px;
     padding: 0 5px;
 }
-.batch-setting-score-info {
+.batch-setting-type-info {
   padding: 0 15px 5px;
   .group {
     font-size: 14px;
@@ -20,7 +20,7 @@
     font-size: 14px;
     display: inline-block;
     margin: 3px 0;
-    .score {
+    .type-item {
       background-color: transparent;
       background-image: none;
       box-sizing: border-box;
@@ -28,11 +28,11 @@
       font-size: inherit;
       outline: none;
       padding: 0 5px;
-      width: 60px;
+      width: 80px;
       border: none;
       height: 1.5em;
       min-width: 40px;
-      max-width: 60px;
+      max-width: 80px;
       display: inline-block;
       text-align: center;
       border-bottom: 1px solid #ccc;
@@ -44,17 +44,17 @@
 }
 
 
-.bat-score-set {
+.bat-type-set {
   float: right;
   font-weight: normal;
-  font-size: 12px;
+  font-size: 14px;
   user-select: none;
-  .bat-score-set-btn {
+  .bat-type-set-btn {
     color: #4CAF50;
     cursor: pointer;
     margin-left: 5px;
   }
-  input {
+  select {
     background-color: transparent;
     background-image: none;
     box-sizing: border-box;
@@ -62,11 +62,11 @@
     font-size: inherit;
     outline: none;
     padding: 0 5px;
-    width: 60px;
+    width: 80px;
     border: none;
     height: 1.5em;
     min-width: 40px;
-    max-width: 60px;
+    max-width: 80px;
     display: inline-block;
     text-align: center;
     border-bottom: 1px solid #ccc;
