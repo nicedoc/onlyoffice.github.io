@@ -374,6 +374,7 @@ import { setXToken } from './auth.js'
       if (checkRegionEmpty(postions[key], 'correct_ask_region', true)) {
         correct_ask_region_err.push(postions[key].ques_name)
       }
+      postions[key].score = parseFloat(postions[key].score) || 0
       if (postions[key].mark_method === '4') {
         postions[key].ask_num = 1
       } else if (postions[key].mark_ask_region && postions[key].mark_method !== '4') {
@@ -391,7 +392,7 @@ import { setXToken } from './auth.js'
               if (positionsObj[k] && positionsObj[k][0]) {
                 question_ask[positionsObj[k][0].order] = {
                   order: positionsObj[k][0].order + '',
-                  score: positionsObj[k][0].v
+                  score: positionsObj[k][0].v * 1
                 }
                 if (postions[key].score) {
                     //  检查小问的分数和题目的分数是否一致

@@ -665,7 +665,7 @@ function savePositons() {
 					ques_no: e.ques_no,
 					ques_name: e.ques_name,
 					content: encodeURIComponent(e.text), // 网络请求时提示（无法将值解码），改成'111'后，接口可以正常调用
-					score: e.score,
+					score: parseFloat(e.score) || 0,
 					ref_id: e.uuid,
 					answer: '',
 					additional: false,
@@ -985,7 +985,7 @@ function addQuesScore(score = 10) {
 function addScoreField(score, mode, layout, posall) {
 	Asc.scope.control_list = window.BiyueCustomData.control_list
 	Asc.scope.params = {
-		score: score,
+		score: parseFloat(score) || 0,
 		mode: mode,
 		layout: layout,
 		scores: getScores(score, mode),
@@ -1211,7 +1211,7 @@ function addScoreField(score, mode, layout, posall) {
 						res = {
 							control_id: control.Sdt.GetId(),
 							add: true,
-							score: score,
+							score: parseFloat(score) || 0,
 							score_options: {
 								paragraph_id: paragraph ? paragraph.Paragraph.Id : 0,
 								table_id: oTable.Table.Id,
@@ -3793,7 +3793,7 @@ function getAllPositions() {
 						title_region: [],
 						correct_region: correctPos.correct_region || {},
 						correct_ask_region: correctPos.correct_ask_region,
-						score: question_obj.score || 0,
+						score: parseFloat(question_obj.score) || 0,
 						ask_num: 0,
 						additional: false, // 是否为附加题
 						answer: '',
