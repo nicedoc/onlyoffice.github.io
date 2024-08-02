@@ -342,6 +342,26 @@ function teacherExamPrintPaperSelections() {
 	})
 }
 
+/**
+ * http://api.dcx.com/#/home/project/inside/api/detail?groupID=-1&apiID=6156&projectName=%E7%AD%86%E6%9B%B0&projectID=35
+ * 验证切图信息
+ */
+function paperValidatePosition(ques_workbook_id, paper_uuid, position, extra_info) {
+  position = position ? JSON.stringify(position) : ''
+  extra_info = extra_info ? JSON.stringify(extra_info) : ''
+  return authRequest({
+    url: '/quesbank/exam/validate/position',
+    method: 'post',
+    data: {
+      ques_workbook_id,
+      paper_uuid,
+      position,
+      extra_info
+    }
+  })
+}
+
+
 export {
 	getQuesType,
 	reqComplete,
@@ -362,5 +382,6 @@ export {
 	examQuestionsUpdate,
 	teacherClassMyGradePrint,
 	teacherExamPrintPaperSelections,
-  paperUploadPreview
+  paperUploadPreview,
+  paperValidatePosition
 }

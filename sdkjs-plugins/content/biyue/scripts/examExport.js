@@ -6,6 +6,7 @@ import {
   examPageUpload,
   paperUploadPreview,
   paperSavePosition
+  // paperValidatePosition
 } from './api/paper.js'
 import { setXToken } from './auth.js'
 ;(function (window, undefined) {
@@ -16,8 +17,12 @@ import { setXToken } from './auth.js'
   let exam_import_res = {}
   let questionPositions = {}
   let preQuestionPositions = {} // 准备上传的题目坐标
+  let preEvaluationPosition = {} // 准备上传的元素坐标
   let biyueCustomData = {}
   let img_file_list = []
+  let page_size = ''
+  let numericFields = ['x', 'y', 'w', 'h', 'page']
+
   window.Asc.plugin.init = function () {
     console.log('examExport init')
     window.Asc.plugin.sendToPlugin('onWindowMessage', { type: 'PaperMessage' })
@@ -259,27 +264,10 @@ import { setXToken } from './auth.js'
 
   // 更新试卷切题信息
   function onUpdatePostions() {
-    let page_size = ''
-    if (paper_info && paper_info.workbook && paper_info.workbook.layout) {
-      page_size = paper_info.workbook.layout
-    } else {
-      alert('未获取到练习册配置的试卷尺寸')
-      return
-    }
-
-    var evaluationPosition = {}
     let positions = preQuestionPositions
+    var evaluationPosition = preEvaluationPosition
 
-    evaluationPosition.again_regional = getFieldsByZoneType('again')
-    evaluationPosition.self_evaluation = getFieldsByZoneType('self_evaluation')
-    evaluationPosition.teacher_evaluation = getFieldsByZoneType('teacher_evaluation')
-    evaluationPosition.pass_regional = getFieldsByZoneType('pass')
-    evaluationPosition.ignore_regional = getFieldsByZoneType('ignore')
-    evaluationPosition.stat_regional = getFieldsByZoneType('statistics')
-    evaluationPosition['page_size'] = page_size
-    evaluationPosition['exam_type'] = 'exercise'
     console.log('positions and evaluationPosition:', positions, evaluationPosition)
-
     paperSavePosition(biyueCustomData.paper_uuid, positions, evaluationPosition, '')
     .then((res) => {
       console.log('保存位置成功')
@@ -330,7 +318,16 @@ import { setXToken } from './auth.js'
   }
 
   function onCheckPositions() {
+    page_size = ''
+    if (paper_info && paper_info.workbook && paper_info.workbook.layout) {
+      page_size = paper_info.workbook.layout
+    } else {
+      alert('未获取到练习册配置的尺寸')
+      return
+    }
+
     preQuestionPositions = getPositions()
+    preEvaluationPosition = getEvaluationPosition()
     if (Object.keys(preQuestionPositions).length === 0) {
         $('#error_message').html('没有符合条件的题目，请先进行全量更新!')
         return
@@ -339,8 +336,66 @@ import { setXToken } from './auth.js'
     if (haveError) {
         return
     }
-    console.log('检查通过')
+    // 过滤题目选区里的字段类型,如果是数值类型则还会去除小数位
+    const need_formatted = ['title_region', 'write_ask_region', 'mark_ask_region', 'correct_region', 'correct_ask_region']
+    formattedPositions(preQuestionPositions, need_formatted)
+
+    console.log('本地检查通过')
+    // console.log('开始进行服务端检查...')
+    // onPaperValidatePosition()
     initImg()
+  }
+
+  function formattedPositions(positions, fieldsToCheck) {
+    for (const key in positions) {
+      const item = positions[key]
+      fieldsToCheck.forEach(field => {
+        if (field in item) {
+          positions[key][field] = convertDataToNumber(positions[key][field], numericFields)
+        }
+      })
+    }
+  }
+
+  function convertDataToNumber(data, numericFields) {
+    // 判断是否为数字的函数
+    const isNumber = (value) => !isNaN(parseFloat(value)) && isFinite(value)
+
+    // 转换对象数组中的数据类型
+    const convertObjectArray = (arr) => {
+      arr.forEach(item => {
+        for (const prop in item) {
+          if (numericFields.includes(prop)) {
+            item[prop] = isNumber(item[prop]) && item[prop] > 0 ? Math.floor(item[prop]) : 0
+          } else {
+            item[prop] = String(item[prop])
+          }
+        }
+      })
+    }
+
+      // 遍历数据对象或数组
+    const convert = (item) => {
+      for (const key in item) {
+        if (Array.isArray(item[key]) && item[key].length > 0 && typeof item[key][0] === 'object') {
+          convertObjectArray(item[key])
+        } else {
+          if (numericFields.includes(key)) {
+            item[key] = isNumber(item[key]) && item[key] > 0 ? Math.floor(item[key]) : 0
+          } else {
+            item[key] = String(item[key])
+          }
+        }
+      }
+    }
+
+    if (Array.isArray(data)) {
+      data.forEach(item => convert(item))
+    } else {
+      convert(data)
+    }
+
+    return data
   }
 
   function checkPositions(postions) {
@@ -392,7 +447,7 @@ import { setXToken } from './auth.js'
               if (positionsObj[k] && positionsObj[k][0]) {
                 question_ask[positionsObj[k][0].order] = {
                   order: positionsObj[k][0].order + '',
-                  score: positionsObj[k][0].v * 1
+                  score: positionsObj[k][0].v + '' // 因为以前的历史原因 小问的分数需要字符串类型
                 }
                 if (postions[key].score) {
                     //  检查小问的分数和题目的分数是否一致
@@ -459,6 +514,46 @@ import { setXToken } from './auth.js'
     return error
   }
 
+  function onPaperValidatePosition() {
+    // 服务端的坐标检查
+    var questionPositions = preQuestionPositions
+    var evaluationPosition = preEvaluationPosition
+    let error_message = ''
+
+    // 由于需要避免特殊符号导致的服务端获取不到内容的问题，接口需要使用application/json的方式传暂时跳过服务端的检查步骤
+
+    // paperValidatePosition(paper_info.workbook.id, paper_info.paper.paper_uuid, questionPositions, evaluationPosition).then(res => {
+    //   const data = res.data || {}
+    //   if (res.code === 1 && !data.error) {
+    //     // 检查通过 继续下一步去上传
+    //   } else {
+    //     error_message = '【服务端检查未通过】' + (data.error || '')
+    //   }
+    // }).catch(err => {
+    //   console.log(err.message)
+    //   error_message = '【服务端检查未通过】' + (err.message || '')
+    // })
+  }
+
+  function getEvaluationPosition() {
+    var evaluationPosition = {
+      self_evaluation: getFieldsByZoneType('self_evaluation'),
+      teacher_evaluation: getFieldsByZoneType('teacher_evaluation'),
+      pass_regional: getFieldsByZoneType('pass'),
+      ignore_region: getFieldsByZoneType('ignore'),
+      end_regional: getFieldsByZoneType('end'),
+      again_regional: getFieldsByZoneType('again'),
+      partial_no_dot_regional: questionPositions.partical_no_dot_list || []
+    }
+    // 处理选区的数据类型
+    for (const key in evaluationPosition) {
+      evaluationPosition[key] = convertDataToNumber(evaluationPosition[key], numericFields)
+    }
+
+    evaluationPosition['page_size'] = page_size
+    evaluationPosition['exam_type'] = 'exercise'
+    return evaluationPosition
+  }
 
   function checkRegionEmpty(postions, name, checkValue) {
     const ret = false
