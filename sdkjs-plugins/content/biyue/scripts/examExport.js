@@ -368,7 +368,7 @@ import { setXToken } from './auth.js'
       if (checkRegionEmpty(postions[key], 'title_region')) {
         title_region_err.push(postions[key].ques_name)
       }
-      if (checkRegionEmpty(postions[key], 'write_ask_region', true)) {
+      if (checkRegionEmpty(postions[key], 'write_ask_region', true) || !postions[key]['write_ask_region'] || postions[key]['write_ask_region'].length === 0) {
         write_ask_region_err.push(postions[key].ques_name)
       }
       if (checkRegionEmpty(postions[key], 'correct_ask_region', true)) {

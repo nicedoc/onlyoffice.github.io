@@ -3881,18 +3881,36 @@ function getAllPositions() {
 								}
 							}
 						}
-					}
-					let mark_ask_region = item.write_ask_region.map((e) => {
-						return { ...e, order: e.order + '' }
-					})
-					item.mark_ask_region = mark_ask_region.reduce((acc, obj) => {
-						const order = obj.order
-						if (!acc.hasOwnProperty(order)) {
-							acc[order] = []
-						}
-						acc[order].push(obj)
-						return acc
-					}, {})
+            // 在先不考虑出现有小问跨页的情况下，一个书写区算做一个小问批改区
+            let mark_ask_region = item.write_ask_region.map((e) => {
+              return { ...e, order: e.order + '' }
+            })
+            item.mark_ask_region = mark_ask_region.reduce((acc, obj) => {
+              const order = obj.order
+              if (!acc.hasOwnProperty(order)) {
+                acc[order] = []
+              }
+              acc[order].push(obj)
+              return acc
+            }, {})
+					} else {
+            // 没有小问的题目 暂时使用当前的题干区域作为批改和作答区 同时如果存在多个题干区，也只算作一个题目的批改区
+            bounds.forEach((e) => {
+              item.write_ask_region.push({
+                page: e.Page + 1,
+                order: item.write_ask_region.length + 1 + '',
+                v: item.score + '',
+                x: e.X,
+                y: e.Y,
+                w: e.W,
+                h: e.H,
+              })
+            })
+            let mark_ask_region = {}
+            mark_ask_region['1'] = item.write_ask_region
+            item.mark_ask_region = mark_ask_region
+          }
+
 					item.ask_num = Object.keys(item.mark_ask_region).length
 					item.mark_method = '1'
 
