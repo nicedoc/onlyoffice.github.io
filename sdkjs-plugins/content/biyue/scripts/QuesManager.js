@@ -249,6 +249,43 @@ function getContextMenuItems(type) {
 	return settings
 }
 
+function onContextMenuClick(id) {
+	var strs = id.split('_')
+	if (strs && strs.length > 0) {
+		var funcName = strs[0]
+		switch (funcName) {
+			case 'updateControlType':
+				updateRangeControlType(strs[1])
+				break
+			case 'batchChangeQuesType':
+				batchChangeQuesType(strs[1])
+				break
+			case 'batchChangeProportion':
+				batchChangeProportion(strs[1])
+				break
+			case 'batchChangeInteraction':
+				batchChangeInteraction(strs[1])
+				break
+			case 'handleIdentifyBox':
+				handleIdentifyBox(strs[1])
+				break
+			case 'setSectionColumn': // 分栏
+				// var columnCount = strs[1] * 1
+				// setSectionColumn(columnCount)
+				// todo..
+				break
+			case 'handleWrite':
+				handleWrite(strs[1])
+				break
+			case 'handleImageIgnore':
+				handleImageIgnore(strs[1])
+				break
+			default:
+				break
+		}
+	}
+}
+
 function getNodeList() {
 	return biyueCallCommand(window, function() {
 		var oDocument = Api.GetDocument()
@@ -2939,7 +2976,7 @@ function generateTreeForUpload(control_list) {
 		console.log('[reqUploadTree end]', Date.now())
 		setBtnLoading('uploadTree', false)
 		window.biyue.showMessageBox({
-			content: '全量更新失败',
+			content: res && res.message && res.message != '' ? res.message : '全量更新失败',
 			showCancel: false
 		})
 	})
@@ -3802,22 +3839,16 @@ export {
 	handleDocClick,
 	handleContextMenuShow,
 	initExamTree,
-	updateRangeControlType,
 	reqGetQuestionType,
 	reqUploadTree,
-	batchChangeQuesType,
-	batchChangeInteraction,
-	batchChangeProportion,
 	splitEnd,
 	showLevelSetDialog,
 	confirmLevelSet,
 	initControls,
-	handleWrite,
-	handleIdentifyBox,
 	handleAllWrite,
 	changeProportion,
 	deleteAsks,
 	focusAsk,
 	showAskCells,
-	handleImageIgnore
+	onContextMenuClick
 }

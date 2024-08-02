@@ -3548,12 +3548,6 @@ function deletePositions(list) {
 		}
 	})
 }
-// 批量设置占比
-function batchChangeProportion(type) {
-	// todo..
-}
-// 批量设置互动
-function batchChangeInteraction(type) {}
 // 分栏
 function setSectionColumn(num) {
 	Asc.scope.column_num = num
@@ -4096,7 +4090,5 @@ export {
 	drawPositions,
 	deletePositions,
 	setSectionColumn,
-	batchChangeInteraction,
-	batchChangeProportion,
 	getAllPositions,
 }

@@ -29,23 +29,17 @@ import {
 } from './panelFeature.js'
 import { biyueCallCommand, dispatchCommandResult } from './command.js'
 import {
-	updateRangeControlType,
 	reqGetQuestionType,
 	reqUploadTree,
-	batchChangeQuesType,
-	batchChangeInteraction,
-	batchChangeProportion,
 	splitEnd,
 	showLevelSetDialog,
 	confirmLevelSet,
 	initControls,
 	handleDocClick,
 	handleContextMenuShow,
-	handleWrite,
-	handleIdentifyBox,
 	handleAllWrite,
 	showAskCells,
-	handleImageIgnore
+	onContextMenuClick
 } from './QuesManager.js'
 
 ;(function (window, undefined) {
@@ -600,48 +594,7 @@ import {
 
 	window.Asc.plugin.event_onContextMenuClick = function (id) {
 		console.log('event_onContextMenuClick', id)
-		var strs = id.split('_')
-		if (strs && strs.length > 0) {
-			var funcName = strs[0]
-			switch (funcName) {
-				case 'updateControlType':
-					updateRangeControlType(strs[1])
-					break
-				case 'batchChangeQuesType':
-					batchChangeQuesType(strs[1])
-					break
-				case 'batchChangeProportion':
-					batchChangeProportion(strs[1])
-					break
-				case 'batchChangeInteraction':
-					batchChangeInteraction(strs[1])
-					break
-				case 'handleIdentifyBox':
-					handleIdentifyBox(strs[1])
-					break
-				case 'onDismissGroup':
-					onDismissGroup()
-					break
-				case 'onSettingDialog':
-					onSettingDialog()
-					break
-				case 'onMakeGroup':
-					onMakeGroup()
-					break
-				case 'setSectionColumn': // 分栏
-					var columnCount = strs[1] * 1
-					setSectionColumn(columnCount)
-					break
-				case 'handleWrite':
-					handleWrite(strs[1])
-					break
-				case 'handleImageIgnore':
-					handleImageIgnore(strs[1])
-					break
-				default:
-					break
-			}
-		}
+		onContextMenuClick(id)
 	}
 	function onGetPos(rect) {
         if (rect === undefined) {
@@ -1020,7 +973,14 @@ import {
 		initListener()
 		changeTabPanel('tabList')
 		addBtnClickEvent('getQuesType', reqGetQuestionType)
-		addBtnClickEvent('uploadTree', reqUploadTree)
+		addBtnClickEvent('uploadTree', () => {
+			showMessageBox({
+				content: '确定要全量更新吗？',
+				extra_data: {
+					func: 'reqUploadTree'
+				}
+			})
+		})
 		addBtnClickEvent('getAllPositions', getAllPositions)
 		addBtnClickEvent('queslist', showLevelSetDialog)
 		addBtnClickEvent('importExam', importExam)
@@ -2175,6 +2135,7 @@ import {
 		showDialog: showDialog,
 		StoreCustomData: StoreCustomData,
 		reSplitQustion: reSplitQustion,
-		showMessageBox: showMessageBox
+		showMessageBox: showMessageBox,
+		reqUploadTree: reqUploadTree
 	}
 })(window, undefined)
