@@ -42,9 +42,10 @@ import {
 	onContextMenuClick
 } from './QuesManager.js'
 
+import { initView } from './pageView.js'
+
 ;(function (window, undefined) {
 	var styleEnable = false
-	var settingsWindow = null
 	let activeQuesItem = ''
 	let scoreSetWindow = null
 	let exportExamWindow = null
@@ -949,55 +950,11 @@ import {
 
 		// 上面为测试按钮
 		// 下面为新增的页面按钮
-		addBtnClickEvent('reSplitQuestionBtn', () => {
-			showMessageBox({
-				title: '提示',
-				content: '确定要重新切题吗？',
-				extra_data: {
-					func: 'reSplitQustion'
-				}
-			})
-		})
-		window.tab_select = 'tabList'
-		$('#' + window.tab_select).addClass('selected')
-		$('.tabitem').on('click', changeTab)
-		document.addEventListener('clickSingleQues', function (event) {
-			console.log('clickSingleQues', event)
-			// if (event && event.detail) {
-			// 	updateTreeRenderWhenClick(event.detail)
-			// }
-			if (window.tab_select != 'tabQues') {
-				changeTabPanel('tabQues')
-			}
-		})
-		initListener()
-		changeTabPanel('tabList')
-		addBtnClickEvent('getQuesType', reqGetQuestionType)
-		addBtnClickEvent('uploadTree', () => {
-			showMessageBox({
-				content: '确定要全量更新吗？',
-				extra_data: {
-					func: 'reqUploadTree'
-				}
-			})
-		})
+		initView()
 		addBtnClickEvent('getAllPositions', getAllPositions)
-		addBtnClickEvent('queslist', showLevelSetDialog)
 		addBtnClickEvent('importExam', importExam)
 		addBtnClickEvent('batchScoreSet', onBatchScoreSet)
-		addBtnClickEvent('batchQuesType', onBatchQuesTypeSet)
-		if ($('#writeSelect')) {
-			$('#writeSelect').on('change', function() {
-				var selectedValue = $('#writeSelect').val()
-				console.log('writeSelect', selectedValue)
-				handleAllWrite(selectedValue).then(() => {
-					if (selectedValue != 'del') {
-						showAskCells(selectedValue)
-					}
-				})
-
-			})
-		}
+		addBtnClickEvent('batchQuesType', onBatchQuesTypeSet)		
 	})
 
 	function addBtnClickEvent(btnName, func) {
@@ -1541,55 +1498,6 @@ import {
 			{ InternalId: curControl.InternalId, tag: curTag },
 		])
 	}
-	let SettingDialog = function () {
-		// 题目设置信息窗口
-		let location = window.location
-		let start = location.pathname.lastIndexOf('/') + 1
-		let file = location.pathname.substring(start)
-
-		let variation = {
-			url: location.href.replace(file, 'settings.html'),
-			description: window.Asc.plugin.tr('题目设置'),
-			isVisual: true,
-			isModal: true,
-			isViewer: true,
-			buttons: [
-				{
-					text: window.Asc.plugin.tr('确定'),
-					primary: true,
-				},
-				{
-					text: window.Asc.plugin.tr('取消'),
-					primary: false,
-				},
-			],
-			EditorsSupport: ['word'],
-			size: [592, 200],
-		}
-
-		if (!settingsWindow) {
-			settingsWindow = new window.Asc.PluginWindow()
-			settingsWindow.attachEvent('onBiyueMessage', function (message) {
-				settingsWindow.command('onParams', activeQuesItem)
-			})
-			settingsWindow.attachEvent('getSettingsMessage', function (params) {
-				console.log('getSettingsMessage:', params)
-				let Tag = ''
-				if (params && params.activeQuesItem && params.form) {
-					let form = params.form || {}
-					let itemObj = JSON.parse(params.activeQuesItem.Tag) || {}
-					itemObj.score = form.score || 0
-					itemObj.mode = form.mode || 0
-					Tag = JSON.stringify(itemObj)
-				}
-
-				settingsWindow.close()
-				settingsWindow = null
-				setTag(window, Tag)
-			})
-		}
-		settingsWindow.show(variation)
-	}
 
 	window.Asc.plugin.event_onFocusContentControl = function (control) {
 		biyueCallCommand(
@@ -1617,17 +1525,6 @@ import {
 	window.Asc.plugin.event_onClick = function (isSelectionUse) {
 		console.log('event click', isSelectionUse)
 		handleDocClick(isSelectionUse)
-		// showPosition(window, function (data) {
-		// 	onGetPos(data)
-		// 	biyueCallCommand(
-		// 		window,
-		// 		function () {
-		// 			Api.GetDocument().Document.Recalculate(true)
-		// 		},
-		// 		false,
-		// 		true
-		// 	)
-		// })
 	}
 
 	// 将一行多题目的控件转为表格
@@ -1913,40 +1810,44 @@ import {
 						window.BiyueCustomData.client_node_id = 1
 					}
 					console.log('BiyueCustomData', window.BiyueCustomData)
-					initPaperInfo().then((res2) => {
-						console.log('initPaperInfo', res2)
-						updatePageSizeMargins().then(() => {
-							// 是否初次导入
-							var isFirstLoad =
-								!window.BiyueCustomData.node_list ||
-								!window.BiyueCustomData.node_list.length
-							if (!isFirstLoad) {
-								var find = window.BiyueCustomData.node_list.find((e) => {
-									return e.regionType == 'question' || e.regionType == 'struct'
-								})
-								// 无切题信息，需要重新切题，当初次导入处理
-								if (!find) {
-									isFirstLoad = true
-								}
-							}
-							if (isFirstLoad) {
-								Asc.scope.split_getdoc = true
-								reSplitQustion()
-							} else {
-								initControls().then(() => {
-									Asc.scope.split_getdoc = false
-									initExtroInfo()
-								})
-							}
-						})
-					})
+					handleInit()
 					return params
 				}
 			}
 		)
 	}
 
-	function showDialog(win, name, url, width, height) {
+	function handleInit() {
+		initPaperInfo().then((res2) => {
+			console.log('initPaperInfo', res2)
+			updatePageSizeMargins().then(() => {
+				// 是否初次导入
+				var isFirstLoad =
+					!window.BiyueCustomData.node_list ||
+					!window.BiyueCustomData.node_list.length
+				if (!isFirstLoad) {
+					var find = window.BiyueCustomData.node_list.find((e) => {
+						return e.regionType == 'question' || e.regionType == 'struct'
+					})
+					// 无切题信息，需要重新切题，当初次导入处理
+					if (!find) {
+						isFirstLoad = true
+					}
+				}
+				if (isFirstLoad) {
+					Asc.scope.split_getdoc = true
+					reSplitQustion()
+				} else {
+					initControls().then(() => {
+						Asc.scope.split_getdoc = false
+						initExtroInfo()
+					})
+				}
+			})
+		})
+	}
+
+	function showDialog(win, name, url, width, height, isModal = false) {
 		let location = window.location
 		let start = location.pathname.lastIndexOf('/') + 1
 		let file = location.pathname.substring(start)
@@ -1955,11 +1856,11 @@ import {
 			url: location.href.replace(file, url),
 			description: window.Asc.plugin.tr(name),
 			isVisual: true,
-			isModal: true,
+			isModal: isModal,
 			isViewer: true,
 			buttons: [],
-			EditorsSupport: ['word'],
-			size: [width, height],
+			EditorsSupport:[ "word", "cell", "slide" ],
+			size: [width, height]
 		}
 		if (!win) {
 			win = new window.Asc.PluginWindow()
@@ -1972,10 +1873,10 @@ import {
 	}
 
 	function importExam() {
-    getAllPositions().then(res=>{
-      questionPositions = res
-      showDialog(exportExamWindow, '上传试卷', 'examExport.html', 1000, 800)
-    })
+		getAllPositions().then(res=>{
+			questionPositions = res
+			showDialog(exportExamWindow, '上传试卷', 'examExport.html', 1000, 800, true)
+		})
 	}
   function onBatchScoreSet() {
     showDialog(batchSettingScoresWindow, '批量操作 - 修改分数', 'batchSettingScores.html', 800, 600)
@@ -2090,45 +1991,9 @@ import {
 			})
 	}
 
-	function changeTab(e) {
-		var id
-		if (e.target && e.target.id && e.target.id != '') {
-			id = e.target.id
-		} else if (e.currentTarget) {
-			id = e.currentTarget.id
-		}
-		changeTabPanel(id)
-	}
-
-	function changeTabPanel(id) {
-		var tabs = ['tabList', 'tabQues', 'tabFeature']
-		tabs.forEach((tab) => {
-			if (tab == window.tab_select && tab != id) {
-				$('#' + tab).removeClass('selected')
-			} else if (tab == id) {
-				$('#' + tab).addClass('selected')
-			}
-		})
-		window.tab_select = id
-		var targetPanel = id.replace('tab', 'panel')
-		var panels = ['panelList', 'panelQues', 'panelFeature']
-		panels.forEach((panel) => {
-			if (panel == targetPanel) {
-				$('#' + panel).show()
-			} else {
-				$('#' + panel).hide()
-			}
-		})
-		if (id == 'tabFeature') {
-			initFeature()
-		} else if (id == 'tabQues') {
-			showQuesData()
-		}
-	}
-
 	function showMessageBox(params) {
 		Asc.scope.messageData = params
-		showDialog(messageBoxWindow, params.title || '提示', 'message.html', 200, 100)
+		showDialog(messageBoxWindow, params.title || '提示', 'message.html', 200, 100, true)
 	}
 
 	window.biyue = {
@@ -2136,6 +2001,7 @@ import {
 		StoreCustomData: StoreCustomData,
 		reSplitQustion: reSplitQustion,
 		showMessageBox: showMessageBox,
-		reqUploadTree: reqUploadTree
+		reqUploadTree: reqUploadTree,
+		handleInit: handleInit
 	}
 })(window, undefined)
