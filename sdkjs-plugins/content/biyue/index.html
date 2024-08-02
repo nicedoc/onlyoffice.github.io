@@ -57,6 +57,25 @@
         cursor: pointer;
       }
     }
+	#initloading {
+		width: 100%;
+		margin: 24px auto;
+		text-align: center;
+	}
+	#hint1 {
+		padding: 24px;
+		#retry {
+			border-radius: 2px;
+			background-color: #D9D9D9;
+			color: #555;
+			padding: 4px 16px;
+			border: 1px solid #D9D9D9;
+			display: flex;
+			flex-direction: row;
+			justify-content: center;
+			margin-top: 8px;
+		}
+	}
     .ques-title {
       border-top: 1px solid #bbb;
       border-bottom: 1px solid #bbb;
@@ -254,6 +273,11 @@
  </head>
  <body id="body" style="left:0px; top:0px; margin:0px; padding:0px;">
      <div id="iframe_parent" style="width:100%; height:100%;margin:0;padding:0;overflow-y: auto;">
+		<div id="initloading">加载中, 请稍候...</div>
+		<div id="hint1" class="column-center">
+			<div id="message" style="color: #ff0000;"></div>
+			<div id="retry" class="btn-normal clicked">点击重新请求</div>
+		</div>
         <div class="tabs font-14">
           <div class="tabitem clicked" id="tabList">课时信息</div>
           <div class="tabitem clicked" id="tabQues">单题详情</div>
@@ -275,6 +299,7 @@
 				<span id="grade_data"></span>
 			</div>
           </div>
+		  <div id="hint"></div>
 		  <div class="btns">
 			<div id="viewQuesType" class="clicked btn-normal">展示题型</div>
 			<div id="getQuesType" class="clicked btn-normal">获取题型</div>
@@ -284,7 +309,7 @@
 			<div id="uploadTree" class="clicked btn-normal">全量更新</div>
 		  </div>
 		  <div id="importExam" class="btn-normal clicked">上传卷面</div>
-		  <div class="btn-text-default" id="getAllPositions">获取所有坐标</div>
+		  <!-- <div class="btn-text-default" id="getAllPositions">获取所有坐标</div> -->
 		  <!-- <select id="writeSelect">
 			<option value="show">显示所有书写区</option>
 			<option value="hide">隐藏所有书写区</option>

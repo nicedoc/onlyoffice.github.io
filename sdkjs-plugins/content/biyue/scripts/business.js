@@ -14,6 +14,7 @@ import {
 import { getBase64, map_base64 } from '../resources/list_base64.js'
 import { biyueCallCommand } from './command.js'
 import { initExamTree } from './QuesManager.js'
+import { handlePaperInfoResult } from './pageView.js'
 let paper_info = {} // 从后端返回的试卷信息
 let select_ques_ids = []
 const MM2EMU = 36000 // 1mm = 36000EMU
@@ -22,6 +23,7 @@ function initPaperInfo() {
 	return new Promise((resolve, reject) => {
 		reqPaperInfo(window.BiyueCustomData.paper_uuid)
 			.then((res) => {
+				handlePaperInfoResult(true, res)
 				paper_info = res.data
 				if (!paper_info) {
 					return
@@ -59,7 +61,8 @@ function initPaperInfo() {
 				resolve(res)
 			})
 			.catch((res) => {
-				resolve(res)
+				handlePaperInfoResult(false, res)
+				reject(res)
 				console.log('catch', res)
 			})
 	})
