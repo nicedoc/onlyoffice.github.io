@@ -1,10 +1,35 @@
 import ComponentSelect from '../components/Select.js'
 import NumberInput from '../components/NumberInput.js'
 import { ZONE_SIZE, ZONE_TYPE, ZONE_TYPE_NAME } from './model/feature.js'
-import { handleFeature, handleHeader, drawExtroInfo, setLoading, deleteAllFeatures, setInteraction } from './featureManager.js'
+import { handleFeature, handleHeader, drawExtroInfo, setLoading, deleteAllFeatures, setInteraction, updateChoice } from './featureManager.js'
 import { biyueCallCommand, dispatchCommandResult } from "./command.js";
+import { showCom } from './model/util.js'
+import { updateAllChoice } from './QuesManager.js'
 var list_feature = []
 var timeout_pos = null
+var choiceStyles = [
+	{
+		value: 'brackets_choice_region',
+		label: '括号识别'
+	}, {
+		value: 'show_choice_region',
+		label: '集中作答区'
+	}
+]
+var choiceAreas = [
+	{
+	  value: false,
+	  label: '作答区前置'
+	},
+	{
+	  value: true,
+	  label: '作答区后置'
+	}
+]
+var select_choice_style = null
+var select_choice_area = null
+var input_choice_num = null
+var timeout_change_choice_num = null
 
 function initExtroInfo() {
 	list_feature = getList()
@@ -28,6 +53,24 @@ function getList() {
 	if (workbook.extra_info && workbook.extra_info.length > 0) {
 		extra_info = JSON.parse(workbook.extra_info)
 		window.BiyueCustomData.workbook_info.parse_extra_data = extra_info
+		console.log('【extra_info】', extra_info)
+		var choice_display = Object.assign({
+			num_row: 10,
+			area: false,
+			style: 'brackets_choice_region'
+		}, window.BiyueCustomData.choice_display || {})
+		if (extra_info.show_choice_region_bottom != undefined) {
+			choice_display.area = extra_info.show_choice_region_bottom.checked
+		}
+		if (extra_info.brackets_choice_region) {
+			if (extra_info.brackets_choice_region.checked) {
+				choice_display.style = 'brackets_choice_region'
+			} else {
+				choice_display.style = 'show_choice_region'
+				choice_display.num_row = extra_info.show_choice_region.content
+			}
+		}
+		window.BiyueCustomData.choice_display = choice_display
 	}
 	if (workbook.practise_again) {
 		extra_info.practise_again = workbook.practise_again
@@ -163,6 +206,11 @@ function initFeature() {
 			}
 		}
 	})
+	// 添加选择题集中作答区
+	var choice_display = window.BiyueCustomData.choice_display
+	content += '<tr><td class="padding-small" colspan="2"><div class="separator horizontal"></div></td></tr>'
+	content += `<tr><td><label class="header">选择题作答区</label></td></tr><tr><td class="padding-small" width="100%"><div id='select_choice_style'></div></td></tr>`
+	content += `<tr id="choiceGather"><td class="padding-small" width="40%"><label class="input-label">每行数量</label><div id="input_choice_num"></div></td><td class="padding-small" width="60%"><label class="input-label">作答区位置</label><div id="select_choice_area"></div></td></tr>`
 	content += '</tbody></table>'
 	$('#panelFeature').html(content)
 	var allComSelect = new ComponentSelect({
@@ -201,6 +249,35 @@ function initFeature() {
 		}
 	})
 	list_feature = list
+
+	select_choice_style = new ComponentSelect({
+		id: 'select_choice_style',
+		options: choiceStyles,
+		value_select: choice_display.style,
+		callback_item: (data) => {
+			changeChoiceStyle(data)
+		},
+		width: '100%',
+	})
+	select_choice_area = new ComponentSelect({
+		id: 'select_choice_area',
+		options: choiceAreas,
+		value_select: choice_display.area,
+		callback_item: (data) => {
+			changeChoiceArea(data)
+		},
+		width: '100px',
+	})
+	input_choice_num = new NumberInput('input_choice_num', {
+		width: '100px',
+		change: (id, data) => {
+			changeChoiceNum(id, data)
+		},
+	})
+	if (input_choice_num) {
+		input_choice_num.setValue(choice_display.num_row + '')
+	}
+	showCom('#choiceGather', choice_display.style != 'brackets_choice_region')
 	initPositions2()
 }
 
@@ -449,7 +526,9 @@ function initPositions1() {
 	}).then(() => {
 		setLoading(false)
 		return MoveCursor()
-	})		
+	}).then(() => {
+		return updateAllChoice()
+	})
 }
 
 function initPositions2() {
@@ -475,6 +554,27 @@ function updateAllInteraction(vinteraction) {
 	Object.keys(question_map).forEach(e => {
 		question_map[e].interaction = vinteraction
 	})
+}
+
+// 切换选择题作答区样式
+function changeChoiceStyle(data) {
+	if (data) {
+		window.BiyueCustomData.choice_display.style = data.value
+	}
+	updateChoice()
+}
+// 切换选择题作答区位置
+function changeChoiceArea(data) {
+	window.BiyueCustomData.choice_display.area = data.value
+	updateChoice()
+}
+
+function changeChoiceNum(id, data) {
+	clearTimeout(timeout_change_choice_num)
+	timeout_change_choice_num = setTimeout(() => {
+		window.BiyueCustomData.choice_display.num_row = data
+		updateChoice()
+	}, 400);
 }
 
 export { initFeature, initExtroInfo, syncInteractionWhenReSplit }

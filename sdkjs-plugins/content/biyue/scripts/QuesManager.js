@@ -1,7 +1,7 @@
 
 import { biyueCallCommand, dispatchCommandResult } from "./command.js";
 import { getQuesType, reqComplete } from '../scripts/api/paper.js'
-import { setInteraction } from "./featureManager.js";
+import { setInteraction, updateChoice } from "./featureManager.js";
 import { initExtroInfo } from "./panelFeature.js";
 var levelSetWindow = null
 var level_map = {}
@@ -41,9 +41,9 @@ function handleContextMenuShow(options) {
 	console.log('handleContextMenuShow', options)
 	if (options.type == 'Target') { // 只是点击，未选中范围，处理g_click_value
 		console.log('g_click_value', g_click_value)
-		if (!g_click_value) {
-			return
-		}
+		// if (!g_click_value) {
+		// 	return
+		// }
 		window.Asc.plugin.executeMethod('AddContextMenuItem', [getContextMenuItems(options.type)])
 	} else if (options.type == 'Selection' || options.type == 'Shape' || options.type == 'Image') { // 选中范围，针对所选范围处理
 		window.Asc.plugin.executeMethod('AddContextMenuItem', [getContextMenuItems(options.type)])
@@ -72,11 +72,23 @@ function getContextMenuItems(type) {
 				text: '关闭局部不铺码'
 			}],
 		}
+	} else if (type == 'Target' && !g_click_value) {
+		return {
+			guid: window.Asc.plugin.guid,
+			items: [{
+				separator: true,
+				id: 'setSectionColumn_2',
+				text: '分为2栏'
+			}, {
+				id: 'setSectionColumn_1',
+				text: '取消分栏'
+			}]
+		}
 	}
 
 	var nodeData = null
 	var currentType = ''
-	if (type == 'Target') {
+	if (type == 'Target' && g_click_value) {
 		var client_id = g_click_value.Tag.client_id
 		var node_list = window.BiyueCustomData.node_list || []
 		nodeData = node_list.find(e => {
@@ -161,9 +173,18 @@ function getContextMenuItems(type) {
 		}
 	})
 	splitType.items = items
+	var settingItems = [splitType]
+	settingItems.push({
+		id: 'setSectionColumn_2',
+		text: '分为2栏'
+	})
+	settingItems.push({
+		id: 'setSectionColumn_1',
+		text: '取消分栏'
+	})
 	let settings = {
 		guid: window.Asc.plugin.guid,
-		items: [splitType],
+		items: settingItems,
 	}
 	if (canBatch) {
 		var questypes = window.BiyueCustomData.paper_options.question_type
@@ -270,9 +291,7 @@ function onContextMenuClick(id) {
 				handleIdentifyBox(strs[1])
 				break
 			case 'setSectionColumn': // 分栏
-				// var columnCount = strs[1] * 1
-				// setSectionColumn(columnCount)
-				// todo..
+				setSectionColumn(strs[1] * 1)
 				break
 			case 'handleWrite':
 				handleWrite(strs[1])
@@ -1762,13 +1781,20 @@ function handleChangeType(res, res2) {
 	if (addIds && addIds.length) {
 		if (level_type == 'write' || level_type == 'clear' || level_type == 'clearAll') {
 			if (question_map[addIds[0]]) {
-				setInteraction(question_map[addIds[0]].interaction, addIds).then(() => window.biyue.StoreCustomData())
+				setInteraction(question_map[addIds[0]].interaction, addIds).then(() => window.biyue.StoreCustomData()).then(() => {
+					updateAllChoice()
+				})
+			} else {
+				updateAllChoice()
 			}
 		} else if (targetLevel == 'question') {
-			setInteraction(window.BiyueCustomData.interaction, addIds).then(() => window.biyue.StoreCustomData())
+			setInteraction(window.BiyueCustomData.interaction, addIds).then(() => window.biyue.StoreCustomData()).then(() => {
+				updateAllChoice()
+			})
 		}
 		update_node_id = addIds[0]
 	} else {
+		updateAllChoice()
 		window.biyue.StoreCustomData()
 	}
 	console.log('handleChangeType end', node_list, 'g_click_value', g_click_value, 'update_node_id', update_node_id)
@@ -1779,6 +1805,16 @@ function handleChangeType(res, res2) {
 			}
 		})
 	)
+}
+
+function updateAllChoice() {
+	if (window.BiyueCustomData.choice_display && window.BiyueCustomData.choice_display.style != 'brackets_choice_region') {
+		return updateChoice()	
+	} else {
+		return new Promise((resolve, reject) => {
+			resolve()
+		})
+	}
 }
 // 获取批量操作列表
 function getBatchList() {
@@ -1901,6 +1937,8 @@ function batchChangeQuesType(type) {
 			)
 		}
 		window.biyue.StoreCustomData()
+	}).then(() => {
+		updateAllChoice()
 	})
 }
 // 批量设置互动
@@ -2268,8 +2306,22 @@ function GetDefaultName(level_type, text) {
 		return result ? result[0] : null
 	} else if (level_type == 'question')  {
 		const regex = /^([^.．、]*)/
-		const match = text.match(regex)
-		return match ? match[1] : ''
+		var match = text.match(regex)
+		if (match && match[1]) {
+			var str = match[1]
+			if (str.indexOf('(') >= 0) {
+				const regex2 = /\(? *\b(\d+)\b *\)?\.?/g;
+				match = str.match(regex2)
+			}
+		}
+		if (match) {
+			if (match[1]) {
+				return match[1]
+			} else if (match[0]) {
+				return match[0]
+			}
+		}
+		return ''
 	}
 	return ''
 }
@@ -3834,6 +3886,34 @@ function handleImageIgnore(cmdType) {
 		})
 	}, false, false)
 }
+// todo。。分栏需要考虑的因素很多，需要之后再考虑
+function setSectionColumn(column) {
+	Asc.scope.column = column
+	return biyueCallCommand(window, function() {
+		var column = Asc.scope.column
+		var oDocument = Api.GetDocument()
+		Api.pluginMethod_MoveCursorToStart()
+		var paragraph = oDocument.Document.GetCurrentParagraph()
+		if (!paragraph) {
+			return
+		}
+		var oParagraph = Api.LookupObject(paragraph.Id)
+		var pageCount = oParagraph.Paragraph.getPageCount()
+		if (pageCount > 1) {
+
+		}
+		var oSection = oParagraph.GetSection()
+		var column_num =  oSection.Section.GetColumnsCount()
+		if (column == column_num) {
+			return
+		} else {
+			oSection.Section.Set_Columns_EqualWidth(true);
+            oSection.Section.Set_Columns_Num(column);
+            oSection.Section.Set_Columns_Space((25.4 / 72 / 20) * 200)
+			oSection.Section.Set_Columns_Sep(true)
+		}
+	}, false, true)
+}
 
 export {
 	handleDocClick,
@@ -3850,5 +3930,7 @@ export {
 	deleteAsks,
 	focusAsk,
 	showAskCells,
-	onContextMenuClick
+	onContextMenuClick,
+	g_click_value,
+	updateAllChoice
 }

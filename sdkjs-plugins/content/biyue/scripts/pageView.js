@@ -8,9 +8,10 @@ import { showQuesData, initListener } from './panelQuestionDetail.js'
 import {
 	reqGetQuestionType,
 	handleAllWrite,
-	showAskCells
+	showAskCells,
+	g_click_value
 } from './QuesManager.js'
-
+import { showCom, updateText, addClickEvent } from './model/util.js'
 function initView() {
 	showCom('#initloading', true)
 	showCom('#hint1', false)
@@ -37,7 +38,6 @@ function initView() {
 					showAskCells(selectedValue)
 				}
 			})
-
 		})
 	}
 	addClickEvent('#reSplitQuestionBtn', () => {
@@ -75,34 +75,6 @@ function handlePaperInfoResult(success, res) {
 	}
 }
 
-function showCom(comname, v) {
-	var com = $(comname)
-	if (!com) {
-		return
-	}
-	if (v) {
-		com.show()
-	} else {
-		com.hide()
-	}
-}
-
-function updateText(comname, v) {
-	var com = $(comname)
-	if (!com) {
-		return
-	}
-	com.html(v)
-}
-
-function addClickEvent(comname, func) {
-	var com = $(comname)
-	if (!com) {
-		return
-	}
-	com.on('click', func)
-}
-
 function changeTab(e) {
 	var id
 	if (e.target && e.target.id && e.target.id != '') {
@@ -135,7 +107,14 @@ function changeTabPanel(id) {
 	if (id == 'tabFeature') {
 		initFeature()
 	} else if (id == 'tabQues') {
-		showQuesData()
+		if (g_click_value) {
+			showQuesData(Object.assign({}, g_click_value.Tag, {
+				InternalId: g_click_value.InternalId,
+				Appearance: g_click_value.Appearance,
+			}))
+		} else {
+			showQuesData()
+		}
 	}
 }
 

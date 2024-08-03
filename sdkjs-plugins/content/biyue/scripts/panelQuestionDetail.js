@@ -2,7 +2,7 @@ import ComponentSelect from '../components/Select.js'
 import NumberInput from '../components/NumberInput.js'
 import { reqSaveQuestion } from './api/paper.js'
 import { setInteraction } from './featureManager.js'
-import { changeProportion, deleteAsks, focusAsk } from './QuesManager.js'
+import { changeProportion, deleteAsks, focusAsk, updateAllChoice } from './QuesManager.js'
 // 单题详情
 var proportionTypes = [
 	{ value: '1', label: '默认' },
@@ -283,8 +283,15 @@ function showQuesData(params) {
 
 function changeQuestionType(data) {
 	if (window.BiyueCustomData.question_map[g_ques_id]) {
+		var oldvalue = window.BiyueCustomData.question_map[g_ques_id].question_type
 		window.BiyueCustomData.question_map[g_ques_id].question_type = data.value * 1
-		autoSave()
+		if (data.value == 1 || oldvalue == 1) {
+			updateAllChoice().then(res => {
+				autoSave()
+			})
+		} else {
+			autoSave()
+		}
 	}
 }
 // 修改占比

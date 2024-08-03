@@ -842,6 +842,14 @@ function drawList(list) {
 								title: props_title,
 							})
 							if (options.zone_type == ZONE_TYPE.STATISTICS) {
+								if (!options.size.pagination) {
+									options.size.pagination = {
+										font_size: 2.71,
+										align_style: 'center',
+										margin: 0,
+										bottom: 0
+									}
+								}
 								var numberDrawing = getPageNumberDrawing(20, options.size.pagination.font_size)
 								var pstyle = options.size.pagination.align_style
 								oDocument.SetEvenAndOddHdrFtr(pstyle != 'center');
@@ -1398,4 +1406,184 @@ function setInteraction(type, quesIds) {
 	})
 }
 
-export { handleFeature, handleHeader, drawExtroInfo, setLoading, deleteAllFeatures, setInteraction }
+function updateChoice() {
+	Asc.scope.node_list = window.BiyueCustomData.node_list || []
+	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
+	Asc.scope.choice_params = window.BiyueCustomData.choice_display
+	console.log('Asc.scope.choice_params', Asc.scope.choice_params)
+	return biyueCallCommand(window, function() {
+		var oDocument = Api.GetDocument()
+		var oTables = oDocument.GetAllTables() || []
+		for (var i1 = oTables.length - 1; i1 >= 0; --i1) {
+			var tableTitle = oTables[i1].GetTableTitle()
+			if (tableTitle.indexOf('choiceGather') >= 0) {
+				var pos = oTables[i1].GetPosInParent()
+				var parent = oTables[i1].Table.GetParent()
+				if (parent) {
+					var oParent = Api.LookupObject(parent.Id)
+					oParent.RemoveElement(pos)
+				}
+			}
+		}
+		var choice_params = Asc.scope.choice_params
+		if (choice_params.style == 'brackets_choice_region') {
+			return
+		}
+
+		var node_list = Asc.scope.node_list
+		var question_map = Asc.scope.question_map
+		var num_row = choice_params.num_row || 10
+		var structs = []
+		function AddItem(id) {
+			if (question_map[id]) {
+				if (question_map[id].question_type == 1) {
+					structs[structs.length - 1].items.push({
+						id: question_map[id].id,
+						control_id: oControl.Sdt.GetId(),
+						name: question_map[id].ques_name || question_map[id].ques_default_name || ''
+					})
+				}
+			}
+		}
+		var elementcount = oDocument.GetElementsCount()
+		for (var i = 0; i < elementcount; ++i) {
+			var oControl = oDocument.GetElement(i)
+			if (oControl.GetClassType() != 'blockLvlSdt') {
+				continue
+			}
+			var tag = JSON.parse(oControl.GetTag() || '{}')
+			if (!tag.client_id) {
+				control_id
+			}
+			var nodeData = node_list.find(e => {
+				return e.id == tag.client_id
+			})
+			if (!nodeData) {
+				continue
+			}
+			if (nodeData.level_type == 'struct') {
+				if (structs.length) {
+					structs[structs.length - 1].last_pos = i - 1
+				}
+				structs.push({
+					struct_id: nodeData.id,
+					control_id: oControl.Sdt.GetId(),
+					pos: i,
+					last_pos: i,
+					items: []
+				})
+			} else {
+				// 没有题组时，自己就是题组
+				if (structs.length == 0) {
+					structs.push({
+						struct_id: 0,
+						control_id: oControl.Sdt.GetId(),
+						pos: i - 1,
+						last_pos: i,
+						items: []
+					})
+				}
+				if (nodeData.level_type == 'question') {
+					AddItem(nodeData.id)
+					var childControls = oControl.GetAllContentControls()
+					if (childControls && childControls.length) {
+						childControls.forEach((oChildControl) => {
+							if (oChildControl.GetClassType() == 'blockLvlSdt') {
+								var childtag = JSON.parse(oChildControl.GetTag() || '{}')
+								if (childtag.client_id) {
+									var nodeData2 = node_list.find(e => {
+										return e.id == childtag.client_id
+									})
+									if (nodeData2 && nodeData2.level_type == 'question') {
+										AddItem(childtag.client_id)
+									}
+								}
+							}
+						})
+					}
+					structs[structs.length - 1].last_pos = i
+				}
+			}
+		}
+		if (structs.length) {
+			structs[structs.length - 1].last_pos = elementcount - 1
+			var lastelement = oDocument.GetElement(elementcount - 1)
+			if (lastelement.GetClassType() == 'paragraph') { // 有段落时，最后一行不算
+				var text = lastelement.GetText()
+				if (lastelement.GetElementsCount() == 0 || text == '' || text == '\r\n') {
+					structs[structs.length - 1].last_pos = elementcount - 2
+				}
+			}
+		}
+		for (var s = 0; s < structs.length; ++s) {
+			var queslist = structs[s].items
+			if (!queslist || queslist.length == 0) {
+				continue
+			}
+			var cellnum = num_row
+			var rows = Math.ceil(queslist.length / cellnum)
+			rows = rows * 2
+			var oTable = null
+			var titleObj = {
+				choiceGather: {
+					struct_id: structs[s].struct_id,
+				}
+			}
+
+			var oTable = Api.CreateTable(cellnum, rows)
+			var oTableStyle = oDocument.CreateStyle('CustomTableStyle', 'table')
+			var oTableCellPr = oTableStyle.GetTableCellPr();
+			oTableCellPr.SetCellBorderTop("single", 1, 0, 153, 153, 153);
+			oTableCellPr.SetCellBorderBottom("single", 1, 0, 153, 153, 153);
+			oTableCellPr.SetCellBorderLeft("single", 1, 0, 153, 153, 153);
+			oTableCellPr.SetCellBorderRight("single", 1, 0, 153, 153, 153);
+			oTable.SetStyle(oTableStyle)
+			oTable.SetWidth('percent', 100)
+			oTable.SetTableTitle(JSON.stringify(titleObj))
+			for (var i = 0; i < rows; ++i) {
+				var oRow = oTable.GetRow(i)
+				oRow.SetHeight("atLeast", i % 2 == 0 ? 360 : 720);
+				var rowno = Math.floor(i / 2)
+				var mergeCells = []
+				for (var j = 0; j < cellnum; ++j) {
+					var oCell = oRow.GetCell(j)
+					oCell.SetWidth('percent', 100 / cellnum)
+					var oCellContent = oCell.GetContent()
+					if (rowno * cellnum + j >= queslist.length) {
+						mergeCells.push(oCell)
+						continue
+					}
+					if (i % 2 == 0) {
+						var oParagraph = oCellContent.GetElement(0)
+						if (oParagraph && oParagraph.GetClassType() == 'paragraph') {
+							oParagraph.AddText(queslist[rowno * cellnum + j].name)
+							question_map[queslist[rowno * cellnum + j].id].gather_cell_id = oCell.Cell.Id // 用于上传坐标时反向追溯
+							oParagraph.SetJc('center')
+							oParagraph.SetColor(0, 0, 0, false)
+							oParagraph.SetFontSize(16)
+						}
+					} else {
+						// oCell.SetBackgroundColor(204, 255, 255, false)
+					}
+				}
+				if (mergeCells.length) {
+					oTable.MergeCells(mergeCells)
+				}
+			}
+			if (choice_params.area) {
+				oDocument.AddElement(structs[s].last_pos + 1, oTable)
+			} else {
+				oDocument.AddElement(structs[s].pos + 1, oTable)
+			}
+		}
+		return question_map
+	}, false, true).then(res => {
+		return new Promise((resolve, reject) => {
+			if (res) {
+				window.BiyueCustomData.question_map = res
+			}	
+		})
+	})
+}
+
+export { handleFeature, handleHeader, drawExtroInfo, setLoading, deleteAllFeatures, setInteraction, updateChoice }

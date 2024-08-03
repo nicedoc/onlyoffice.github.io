@@ -65,6 +65,10 @@ class NumberInput{
     $(`#${this.id} input`).val(value)
   }
 
+  getValue() {
+	return $(`#${this.id} input`).val()
+  }
+
   onInputBtn(offset) {
     var inputEl = $(`#${this.id} input`)
     var v = inputEl.val()

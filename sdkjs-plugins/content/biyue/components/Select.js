@@ -25,7 +25,6 @@ class ComponentSelect {
       strOptions += `<li id="${this.id}_${item.value}" data-value=${item.value} class="${item.value==this.value_select?'selected':''}"><a tabindex="-1" type="menuitem">${item.label}</a></li>`
     })
     content = `
-    <div id=${this.id} style="width: ${this.width}">
       <span id="${this.id}_span" class="input-group combobox input-group-nr">
         <input id="${this.id}_input" type="text" class="form-control" spellcheck="false" placeholder="" data-hint="1" data-hint-direction="bottom" data-hint-offset="big" readonly="readonly" data-can-copy="false">
         <button id="${this.id}_button" type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-expanded="true">
@@ -33,8 +32,10 @@ class ComponentSelect {
         </button>
         <ul id="${this.id}_ul" class="dropdown-menu ps-container oo" style="min-width: ${this.width}; max-height: 774px;" role="menu">${strOptions}</ul>
       </span>
-    </div>`
+    `
+	$(`#${this.id}`).css('width', `${this.width}`)
     $(`#${this.id}`).html(content)
+
     $(`#${this.id}_span`).on('click', () => {
       this.toggleOptions()
     })
