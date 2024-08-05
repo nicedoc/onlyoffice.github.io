@@ -3954,7 +3954,7 @@ function setSectionColumn(column) {
 		} else {
 			oSection.Section.Set_Columns_EqualWidth(true);
             oSection.Section.Set_Columns_Num(column);
-            oSection.Section.Set_Columns_Space((25.4 / 72 / 20) * 200)
+            oSection.Section.Set_Columns_Space((25.4 / 72 / 20) * 640)
 			oSection.Section.Set_Columns_Sep(true)
 		}
 	}, false, true)

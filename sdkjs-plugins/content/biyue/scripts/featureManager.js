@@ -232,7 +232,8 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 					var ipos = run.GetPosInParent()
 					if (ipos >= 0) {
 						oDrawing.Delete()
-						if (oParagraph) {
+						var element2 = oParagraph.GetElement(ipos)
+						if (element2 && element2.GetClassType() == 'run' && element2.Run.Id == run.Id) {
 							oParagraph.RemoveElement(ipos)
 						}
 						return
@@ -316,11 +317,15 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 			var LvlText = oNumberingLvl.LvlText || []
 			if (LvlText && LvlText.length) {
 				if (LvlText[0].Value!='\ue6a1') {
+					var targetInd = oParagraph.GetParentTableCell() ? 280 : 0
+					oParagraph.SetIndLeft(targetInd)
 					return
 				}
 			}
 			var key = `${oNum.Id}_${level}`
 			if (handledNumbering[key]) {
+				var targetInd = oParagraph.GetParentTableCell() ? 280 : 0
+				oParagraph.SetIndLeft(targetInd)
 				return
 			}
 			handledNumbering[key] = 1
@@ -370,6 +375,8 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 			oNumberingLevel.SetCustomType(sType, str, "left")
 			var oTextPr = oNumberingLevel.GetTextPr();
 			oTextPr.SetFontFamily("iconfont");
+			var targetInd = oParagraph.GetParentTableCell() ? 280 : 0
+			oParagraph.SetIndLeft(targetInd)
 		}
 		var controls = oDocument.GetAllContentControls()
 		if (controls) {
@@ -1019,10 +1026,35 @@ function setInteraction(type, quesIds) {
 		var node_list = Asc.scope.node_list || []
 		var MM2TWIPS = 25.4 / 72 / 20
 		var quesIds = Asc.scope.interaction_quesIds
+		var allParagraphs = oDocument.GetAllParagraphs()
 		if (!controls) {
 			return
 		}
 		var handledNumbering = {}
+		var SIMPLE_CHAR = '\ue6a1'
+		var vInd = 280
+		
+		function updateParagraphInd(oParagraph, vshow) {
+			var targetInd = 0
+			if (oParagraph.GetParentTableCell()) {
+				targetInd = vshow ? 0 : vInd
+			} else {
+				targetInd = vshow ? (0 - vInd) : 0
+			}
+			oParagraph.SetIndLeft(targetInd)
+		}
+		function syncSameParagraph(numbering, oParagraph, vshow) {
+			allParagraphs.forEach(e => {
+				if (e.Paragraph.Id != oParagraph.Paragraph.Id) {
+					var n = e.GetNumbering()
+					if (n) {
+						if (n.Lvl == numbering.Lvl && n.Num && n.Num.Id == numbering.Num.Id) {
+							updateParagraphInd(e, vshow)
+						}
+					}
+				}
+			})
+		}
 		function showSimple(oParagraph, vshow) {
 			var oNumberingLevel = oParagraph.GetNumbering()
 			if (!oNumberingLevel) {
@@ -1037,22 +1069,26 @@ function setInteraction(type, quesIds) {
 			if (!oNumberingLvl) {
 				return
 			}
+			var indleft = vshow ? (0 - vInd) : 0
 			var LvlText = oNumberingLvl.LvlText || []
 			if (LvlText && LvlText.length) {
-				if (LvlText[0].Value=='\ue6a1') {
+				if (LvlText[0].Value==SIMPLE_CHAR) {
 					if (vshow) {
-						console.log('当前简单互动已显示')
+						console.log('当前简单互动已显示', oParagraph.GetText(), indleft)
+						updateParagraphInd(oParagraph, vshow)
 						return
 					}
 				} else {
 					if (!vshow) {
-						console.log('当前简单互动本就未显示')
+						console.log('当前简单互动本就未显示', oParagraph.GetText())
+						updateParagraphInd(oParagraph, vshow)
 						return
 					}
 				}
 			}
 			var key = `${oNum.Id}_${level}`
 			if (handledNumbering[key]) {
+				updateParagraphInd(oParagraph, vshow)
 				return
 			}
 			handledNumbering[key] = 1
@@ -1078,7 +1114,7 @@ function setInteraction(type, quesIds) {
 			} else if (oNumberingLvl.Format == 61) {
 				sType = 'upperRoman'
 			}
-			var bulletStr = vshow ? '\ue6a1 ' : ''
+			var bulletStr = vshow ? `${SIMPLE_CHAR} ` : ''
 			oNumberingLevel.SetTemplateType('bullet', bulletStr);
 			var str = ''
 			str += bulletStr
@@ -1110,8 +1146,12 @@ function setInteraction(type, quesIds) {
 				}
 			}
 			oNumberingLevel.SetCustomType(sType, str, "left")
+
 			var oTextPr = oNumberingLevel.GetTextPr();
 			oTextPr.SetFontFamily("iconfont");
+			updateParagraphInd(oParagraph, vshow)
+			var numbering = oParagraph.GetNumbering()
+			syncSameParagraph(numbering, oParagraph, vshow)
 		}
 
 		function getExistDrawing(draws, sub_type_list, write_id) {
