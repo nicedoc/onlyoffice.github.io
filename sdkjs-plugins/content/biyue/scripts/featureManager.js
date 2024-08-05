@@ -1462,22 +1462,20 @@ function updateChoice(recalc = true) {
 		var question_map = Asc.scope.question_map
 		var num_row = choice_params.num_row || 10
 		var structs = []
-		function AddItem(id) {
+		function AddItem(id, control_id) {
 			if (question_map[id]) {
 				if (question_map[id].question_type == 1) {
 					structs[structs.length - 1].items.push({
 						id: id,
-						control_id: oControl.Sdt.GetId(),
+						control_id: control_id,
 						name: question_map[id].ques_name || question_map[id].ques_default_name || ''
 					})
 				}
 			}
 		}
-		var elementcount = oDocument.GetElementsCount()
-		for (var i = 0; i < elementcount; ++i) {
-			var oControl = oDocument.GetElement(i)
-			if (oControl.GetClassType() != 'blockLvlSdt') {
-				continue
+		function handleControl(oControl, i) {
+			if (!oControl) {
+				return
 			}
 			var tag = JSON.parse(oControl.GetTag() || '{}')
 			if (!tag.client_id) {
@@ -1487,7 +1485,7 @@ function updateChoice(recalc = true) {
 				return e.id == tag.client_id
 			})
 			if (!nodeData) {
-				continue
+				return
 			}
 			if (nodeData.level_type == 'struct') {
 				if (structs.length) {
@@ -1512,7 +1510,7 @@ function updateChoice(recalc = true) {
 					})
 				}
 				if (nodeData.level_type == 'question') {
-					AddItem(nodeData.id)
+					AddItem(nodeData.id, oControl.Sdt.GetId())
 					var childControls = oControl.GetAllContentControls()
 					if (childControls && childControls.length) {
 						childControls.forEach((oChildControl) => {
@@ -1523,7 +1521,7 @@ function updateChoice(recalc = true) {
 										return e.id == childtag.client_id
 									})
 									if (nodeData2 && nodeData2.level_type == 'question') {
-										AddItem(childtag.client_id)
+										AddItem(childtag.client_id, oControl.Sdt.GetId())
 									}
 								}
 							}
@@ -1531,6 +1529,33 @@ function updateChoice(recalc = true) {
 					}
 					structs[structs.length - 1].last_pos = i
 				}
+			}
+		}
+		var elementcount = oDocument.GetElementsCount()
+		for (var i = 0; i < elementcount; ++i) {
+			var oElement = oDocument.GetElement(i)
+			if (oElement.GetClassType() == 'table') {
+				var rows = oElement.GetRowsCount()
+				for (var i1 = 0; i1 < rows; ++i1) {
+					var oRow = oElement.GetRow(i1)
+					var cells = oRow.GetCellsCount()
+					for (var i2 = 0; i2 < cells; ++i2) {
+						var oCell = oRow.GetCell(i2)
+						var oCellContent = oCell.GetContent()
+						var cnt1 = oCellContent.GetElementsCount()
+						for (var i3 = 0; i3 < cnt1; ++i3) {
+							var oElement2 = oCellContent.GetElement(i3)
+							if (!oElement2) {
+								continue
+							}
+							if (oElement2.GetClassType() == 'blockLvlSdt') {
+								handleControl(oElement2, i)
+							}
+						}
+					}
+				}
+			} else if (oElement.GetClassType() == 'blockLvlSdt') {
+				handleControl(oElement, i)
 			}
 		}
 		if (structs.length) {

@@ -192,7 +192,7 @@ function initFeature() {
 	var content = '<table><tbody>'
 	content += `<tr><td colspan="2"><label class="header">全部</label></td></tr><tr><td class="padding-small" width="100%"><div id='all'></div></td></tr>`
 	content += '<tr><td class="padding-small" colspan="2"><div class="separator horizontal"></div></td></tr>'
-	var list = getList()
+	var list = list_feature || getList()
 	list.forEach((e, index) => {
 		if (!e.hidden) {
 			var str = `<tr><td colspan="2"><label class="header">${e.label}</label></td></tr><tr><td class="padding-small" width="100%"><div id=${e.id}></div></td></tr>`
