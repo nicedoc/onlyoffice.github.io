@@ -287,7 +287,7 @@ function changeAll(data) {
 	}
 	var vinteraction = 'none'
 	var extra_info = window.BiyueCustomData.workbook_info.parse_extra_data
-	if (extra_info.hidden_correct_region.checked == false) {
+	if (data.value != 'close' && extra_info.hidden_correct_region.checked == false) {
 		vinteraction = extra_info.start_interaction.checked ? 'accurate' : 'simple'
 	}
 	window.BiyueCustomData.interaction = vinteraction
@@ -305,6 +305,7 @@ function changeAll(data) {
 				if (e.comSelect) {
 					e.comSelect.setSelect(vinteraction)
 				}
+				e.value_select = vinteraction
 				updateAllInteraction(vinteraction)
 			} else {
 				if (e.comSelect) {

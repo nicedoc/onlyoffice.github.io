@@ -506,6 +506,28 @@ function updateRangeControlType(typeName) {
 			}
 			return parent_id
 		}
+		function GetNumberingValue(oControl) {
+			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
+				return null
+			}
+			var paragraphs = oControl.GetAllParagraphs()
+			for (var i = 0; i < paragraphs.length; ++i) {
+				var oParagraph = paragraphs[i]
+				if (oParagraph) {
+					var parent1 = oParagraph.Paragraph.Parent
+					var parent2 = parent1.Parent
+					if (parent2) {
+						if (parent2.Id == oControl.Sdt.GetId()) {
+							if (oParagraph.Paragraph.HaveNumbering()) {
+								return oParagraph.Paragraph.GetNumberingText()
+							}
+							return null
+						}
+					}
+				}
+			}
+			return null
+		}
 		function getChildControls(oControl) {
 			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
 				return null
@@ -972,6 +994,7 @@ function updateRangeControlType(typeName) {
 			obj.parent_id = parent_id
 			obj.control_id = oControl.Sdt.GetId()
 			obj.regionType = regionType
+			obj.numbing_text = GetNumberingValue(oControl)
 			if (regionType == 'write') {
 				obj.sub_type = 'control'
 			} else {
@@ -1207,7 +1230,8 @@ function updateRangeControlType(typeName) {
 											text: cellRange.GetText(),
 											children: [],
 											parent_id: getParentId(oControl),
-											regionType: 'question'
+											regionType: 'question',
+											numbing_text: GetNumberingValue(oControl)
 										})
 									}
 								}
@@ -1523,7 +1547,8 @@ function updateRangeControlType(typeName) {
 								text: oRange.GetText(),
 								children: oControl && oControl.GetClassType() == 'blockLvlSdt' ? getChildControls(oControl) : [],
 								parent_id: getParentId(oControl),
-								regionType: regionType
+								regionType: regionType,
+								numbing_text: GetNumberingValue(oControl)
 							})
 							// 若是在单元格里添加control后，会多出一行需要删除
 							if (type == 1 && isInCell) {
@@ -1560,6 +1585,7 @@ function updateRangeControlType(typeName) {
 
 function handleChangeType(res, res2) {
 	console.log('handleChangeType', res, res2)
+	console.log('========== interaction', window.BiyueCustomData.interaction)
 	if (!res) {
 		return
 	}
@@ -1641,7 +1667,7 @@ function handleChangeType(res, res2) {
 					question_map[item.client_id] = {
 						text: item.text,
 						level_type: targetLevel,
-						ques_default_name: GetDefaultName(targetLevel, item.text),
+						ques_default_name: item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(targetLevel, item.text),
 						interaction: window.BiyueCustomData.interaction,
 						ask_list: write_list.map(e => {
 							return {
@@ -1653,7 +1679,7 @@ function handleChangeType(res, res2) {
 					updateAskList(item.client_id, ask_list)
 					if (level_type == 'setBig' || level_type == 'clearBig') {
 						question_map[item.client_id].text = item.text
-						question_map[item.client_id].ques_default_name = GetDefaultName(targetLevel, item.text)
+						question_map[item.client_id].ques_default_name = item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(targetLevel, item.text)
 						question_map[item.client_id].level_type = targetLevel
 					} else {
 						question_map[item.client_id].level_type = targetLevel
@@ -1742,7 +1768,7 @@ function handleChangeType(res, res2) {
 				question_map[item.client_id] = {
 					text: item.text,
 					level_type: targetLevel,
-					ques_default_name: GetDefaultName(targetLevel, item.text)
+					ques_default_name: item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(targetLevel, item.text)
 				}
 				if (targetLevel == 'question') {
 					question_map[item.client_id].ask_list = ask_list
@@ -2092,7 +2118,7 @@ function initControls() {
 				nodeList.forEach(node => {
 					if (question_map[node.id]) {
 						question_map[node.id].text = node.text
-						question_map[node.id].ques_default_name = node.numbing_text ? node.numbing_text : GetDefaultName(question_map[node.id].level_type, node.text)
+						question_map[node.id].ques_default_name = node.numbing_text ? getNumberingText(node.numbing_text) : GetDefaultName(question_map[node.id].level_type, node.text)
 					}
 				})
 				for (var i = 0, imax = node_list.length; i < imax; ++i) {
@@ -2294,7 +2320,7 @@ function confirmLevelSet(levels) {
 			window.BiyueCustomData.node_list = res.nodeList
 			Object.keys(res.questionMap).forEach(key => {
 				var qdata = res.questionMap[key]
-				res.questionMap[key].ques_default_name = qdata.numbing_text ? qdata.numbing_text : GetDefaultName(qdata.level_type, qdata.text)
+				res.questionMap[key].ques_default_name = qdata.numbing_text ? getNumberingText(qdata.numbing_text) : GetDefaultName(qdata.level_type, qdata.text)
 			})
 			window.BiyueCustomData.question_map = res.questionMap
 		}
@@ -2307,7 +2333,15 @@ function confirmLevelSet(levels) {
 	})
 }
 
+function getNumberingText(text) {
+	if (text.length && text[0] == '\ue6a1') {
+		return text.substring(1)
+	}
+	return text
+}
+
 function GetDefaultName(level_type, text) {
+	console.log('====GetDefaultName text', text)
 	if (!text) {
 		return ''
 	}

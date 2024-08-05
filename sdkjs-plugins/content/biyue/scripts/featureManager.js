@@ -1405,7 +1405,7 @@ function setInteraction(type, quesIds) {
 				var type = nodeData.use_gather ? 'none' : interaction_type
 				var firstParagraph = getFirstParagraph(oControl)
 				if (firstParagraph) {
-					showSimple(firstParagraph, type)
+					showSimple(firstParagraph, type != 'none')
 				}
 				if (nodeData.use_gather && nodeData.gather_cell_id) {
 					// 在集中作答区添加互动
