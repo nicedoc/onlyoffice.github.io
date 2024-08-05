@@ -38,6 +38,7 @@
         if (item && item.question_type !== 6) {
           html += `<span class="question">${(item.ques_default_name ? item.ques_default_name : '')}`
           html += `<select class="type-item ques-${ node_list[key].id }">`
+          html += `<option value="" style="display:none;"></option>`
           for (const key in question_type_options) {
             let selected = item.question_type * 1 === question_type_options[key].value * 1 ? 'selected' : ''
             html += `<option value="${question_type_options[key].value}" ${selected}>${question_type_options[key].label}</option>`
