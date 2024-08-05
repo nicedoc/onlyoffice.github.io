@@ -1438,7 +1438,7 @@ function updateChoice() {
 			if (question_map[id]) {
 				if (question_map[id].question_type == 1) {
 					structs[structs.length - 1].items.push({
-						id: question_map[id].id,
+						id: id,
 						control_id: oControl.Sdt.GetId(),
 						name: question_map[id].ques_name || question_map[id].ques_default_name || ''
 					})
@@ -1554,13 +1554,17 @@ function updateChoice() {
 						continue
 					}
 					if (i % 2 == 0) {
-						var oParagraph = oCellContent.GetElement(0)
-						if (oParagraph && oParagraph.GetClassType() == 'paragraph') {
-							oParagraph.AddText(queslist[rowno * cellnum + j].name)
-							question_map[queslist[rowno * cellnum + j].id].gather_cell_id = oCell.Cell.Id // 用于上传坐标时反向追溯
-							oParagraph.SetJc('center')
-							oParagraph.SetColor(0, 0, 0, false)
-							oParagraph.SetFontSize(16)
+						if (queslist[rowno * cellnum + j] && queslist[rowno * cellnum + j].id && question_map[queslist[rowno * cellnum + j].id]) {
+							var oParagraph = oCellContent.GetElement(0)
+							if (oParagraph && oParagraph.GetClassType() == 'paragraph') {
+								oParagraph.AddText(queslist[rowno * cellnum + j].name)
+								question_map[queslist[rowno * cellnum + j].id].gather_cell_id = oCell.Cell.Id // 用于上传坐标时反向追溯
+								oParagraph.SetJc('center')
+								oParagraph.SetColor(0, 0, 0, false)
+								oParagraph.SetFontSize(16)
+							}
+						} else {
+							console.log(queslist[rowno * cellnum + j], question_map)
 						}
 					} else {
 						// oCell.SetBackgroundColor(204, 255, 255, false)
