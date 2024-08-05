@@ -1114,7 +1114,7 @@ function setInteraction(type, quesIds) {
 			oTextPr.SetFontFamily("iconfont");
 		}
 
-		function getExistDrawing(draws, sub_type_list, write_id, index) {
+		function getExistDrawing(draws, sub_type_list, write_id) {
 			var list = []
 			for (var i = 0; i < draws.length; ++i) {
 				var title = draws[i].Drawing.docPr.title
@@ -1136,7 +1136,7 @@ function setInteraction(type, quesIds) {
 			return list
 		}
 
-		function getAccurateDrawing(index, write_id) {
+		function getAccurateDrawing(index, write_id, width = 6, height = 4) {
 			var oFill = Api.CreateNoFill()
 			var oStroke = Api.CreateStroke(
 				3600,
@@ -1144,20 +1144,22 @@ function setInteraction(type, quesIds) {
 			)
 			var oDrawing = Api.CreateShape(
 				'rect',
-				6 * 36e3,
-				4 * 36e3,
+				width * 36e3,
+				height * 36e3,
 				oFill,
 				oStroke
 			)
 			var drawDocument = oDrawing.GetContent()
 			var paragraphs = drawDocument.GetAllParagraphs()
 			if (paragraphs && paragraphs.length > 0) {
-				var oRun = Api.CreateRun()
-				oRun.AddText(index + '')
-				oRun.SetFontSize(22)
-				oRun.SetVertAlign('baseline')
-				paragraphs[0].AddElement(oRun, 0)
-				paragraphs[0].SetColor(153, 153, 153, false)
+				if (index > 0) {
+					var oRun = Api.CreateRun()
+					oRun.AddText(index + '')
+					oRun.SetFontSize(22)
+					oRun.SetVertAlign('baseline')
+					paragraphs[0].AddElement(oRun, 0)
+					paragraphs[0].SetColor(153, 153, 153, false)
+				}
 				paragraphs[0].SetJc('center')
 				paragraphs[0].SetSpacingAfter(0)
 				oDrawing.SetPaddings(0, 0, 0, 0)
@@ -1232,6 +1234,28 @@ function setInteraction(type, quesIds) {
 			return true
 		}
 
+		function addCellInteraction(cell_id, oDrawing) {
+			var oCell = Api.LookupObject(cell_id)
+			if (!oCell || oCell.GetClassType() != 'tableCell') {
+				return
+			}
+			oCell.SetCellMarginLeft(0)
+			var paragraphs3 = oCell.GetContent().GetAllParagraphs()
+			if (paragraphs3 && paragraphs3.length) {
+				var pParagraph = paragraphs3[0]
+				pParagraph.SetJc('left')
+				var oRun = Api.CreateRun()
+				oRun.AddDrawing(oDrawing)
+				pParagraph.AddElement(
+					oRun,
+					0
+				)
+				oDrawing.SetVerPosition("paragraph", 0);
+				oDrawing.SetHorAlign('column', 'left');
+				oDrawing.SetWrappingStyle('inFront')
+			}
+		}
+
 		function addAskInteraction(oControl, askData, index, write_id) {
 			var oDrawing = getAccurateDrawing(index, write_id)
 			if (askData.sub_type == 'control') {
@@ -1281,28 +1305,13 @@ function setInteraction(type, quesIds) {
 					}
 				}
 			} else if (askData.sub_type == 'cell') {
-				var oCell = Api.LookupObject(askData.cell_id)
-				oCell.SetCellMarginLeft(0)
-				var paragraphs3 = oCell.GetContent().GetAllParagraphs()
-				if (paragraphs3 && paragraphs3.length) {
-					var pParagraph = paragraphs3[0]
-					pParagraph.SetJc('left')
-					var oRun = Api.CreateRun()
-					oRun.AddDrawing(oDrawing)
-					pParagraph.AddElement(
-						oRun,
-						0
-					)
-					oDrawing.SetVerPosition("paragraph", 0);
-					oDrawing.SetHorAlign('column', 'left');
-					oDrawing.SetWrappingStyle('inFront')
-				}
+				addCellInteraction(askData.cell_id, oDrawing)
 			} else if (askData.sub_type == 'identify') {
 				// todo..
 			}
 		}
 
-		function handleAccurate(oControl, ask_list, write_list) {
+		function handleControlAccurate(oControl, ask_list, write_list, type) {
 			if (!oControl) {
 				return
 			}
@@ -1318,7 +1327,7 @@ function setInteraction(type, quesIds) {
 					continue
 				}
 				var dlist = getExistDrawing(drawings, ['ask_accurate'], ask_list[i].id)
-				if (interaction_type == 'accurate') {
+				if (type == 'accurate') {
 					if (!dlist || dlist.length == 0) {
 						addAskInteraction(oControl, askData, i + 1, ask_list[i].id)
 					} else {
@@ -1393,11 +1402,28 @@ function setInteraction(type, quesIds) {
 				// var allDraws = oControl.GetAllDrawingObjects()
 				// var simpleDrawings = getExistDrawing(allDraws, ['simple'])
 				// var accurateDrawings = getExistDrawing(allDraws, ['accurate', 'ask_accurate'])
+				var type = nodeData.use_gather ? 'none' : interaction_type
 				var firstParagraph = getFirstParagraph(oControl)
 				if (firstParagraph) {
-					showSimple(firstParagraph, interaction_type == 'simple' || interaction_type == 'accurate')
+					showSimple(firstParagraph, type)
 				}
-				handleAccurate(oControl, ask_list, write_list)
+				if (nodeData.use_gather && nodeData.gather_cell_id) {
+					// 在集中作答区添加互动
+					var oCell = Api.LookupObject(nodeData.gather_cell_id)
+					if (oCell && oCell.GetClassType() == 'tableCell') {
+						var drawings = oCell.GetContent().GetAllDrawingObjects()
+						var dlist = getExistDrawing(drawings, ['ask_accurate'], nodeData.id)
+						if (!dlist || dlist.length == 0) {
+							if (interaction_type != 'none') {
+								var oDrawing = getAccurateDrawing(0, nodeData.id, 4, 2.5)
+								addCellInteraction(nodeData.gather_cell_id, oDrawing)
+							}
+						} else if (interaction_type == 'none') {
+							deleShape(dlist[0])
+						}	
+					}
+				}
+				handleControlAccurate(oControl, ask_list, write_list, type)
 			}
 		}
 
@@ -1406,12 +1432,13 @@ function setInteraction(type, quesIds) {
 	})
 }
 
-function updateChoice() {
+function updateChoice(recalc = true) {
 	Asc.scope.node_list = window.BiyueCustomData.node_list || []
 	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
 	Asc.scope.choice_params = window.BiyueCustomData.choice_display
 	console.log('Asc.scope.choice_params', Asc.scope.choice_params)
 	return biyueCallCommand(window, function() {
+		var node_list = Asc.scope.node_list
 		var oDocument = Api.GetDocument()
 		var oTables = oDocument.GetAllTables() || []
 		for (var i1 = oTables.length - 1; i1 >= 0; --i1) {
@@ -1427,10 +1454,11 @@ function updateChoice() {
 		}
 		var choice_params = Asc.scope.choice_params
 		if (choice_params.style == 'brackets_choice_region') {
-			return
+			node_list.forEach(e => {
+				e.use_gather = false
+			})
+			return node_list
 		}
-
-		var node_list = Asc.scope.node_list
 		var question_map = Asc.scope.question_map
 		var num_row = choice_params.num_row || 10
 		var structs = []
@@ -1527,7 +1555,8 @@ function updateChoice() {
 			var titleObj = {
 				choiceGather: {
 					struct_id: structs[s].struct_id,
-				}
+				},
+				items: []
 			}
 
 			var oTable = Api.CreateTable(cellnum, rows)
@@ -1539,7 +1568,6 @@ function updateChoice() {
 			oTableCellPr.SetCellBorderRight("single", 1, 0, 153, 153, 153);
 			oTable.SetStyle(oTableStyle)
 			oTable.SetWidth('percent', 100)
-			oTable.SetTableTitle(JSON.stringify(titleObj))
 			for (var i = 0; i < rows; ++i) {
 				var oRow = oTable.GetRow(i)
 				oRow.SetHeight("atLeast", i % 2 == 0 ? 360 : 720);
@@ -1558,7 +1586,20 @@ function updateChoice() {
 							var oParagraph = oCellContent.GetElement(0)
 							if (oParagraph && oParagraph.GetClassType() == 'paragraph') {
 								oParagraph.AddText(queslist[rowno * cellnum + j].name)
-								question_map[queslist[rowno * cellnum + j].id].gather_cell_id = oCell.Cell.Id // 用于上传坐标时反向追溯
+								var nodeData = node_list.find(e => {
+									return e.id == queslist[rowno * cellnum + j].id
+								})
+								if (nodeData) {
+									nodeData.use_gather = true
+									var oCell2 = oTable.GetCell(i + 1, j)
+									if (oCell2) {
+										nodeData.gather_cell_id = oCell2.Cell.Id // 用于上传坐标时反向追溯
+										titleObj.items.push({
+											ques_id: nodeData.id,
+											cell_id: oCell2.Cell.Id
+										})
+									}
+								}
 								oParagraph.SetJc('center')
 								oParagraph.SetColor(0, 0, 0, false)
 								oParagraph.SetFontSize(16)
@@ -1574,20 +1615,27 @@ function updateChoice() {
 					oTable.MergeCells(mergeCells)
 				}
 			}
+			oTable.SetTableTitle(JSON.stringify(titleObj))
 			if (choice_params.area) {
 				oDocument.AddElement(structs[s].last_pos + 1, oTable)
 			} else {
 				oDocument.AddElement(structs[s].pos + 1, oTable)
 			}
 		}
-		return question_map
-	}, false, true).then(res => {
-		return new Promise((resolve, reject) => {
-			if (res) {
-				window.BiyueCustomData.question_map = res
-			}	
-		})
+		return node_list
+	}, false, recalc)
+}
+
+function handleChoiceUpdateResult(res) {
+	if (res) {
+		window.BiyueCustomData.node_list = res
+		if (window.BiyueCustomData.interaction != 'none') {
+			return setInteraction(window.BiyueCustomData.interaction)
+		}
+	}
+	return new Promise((resolve, reject) => {
+		resolve()
 	})
 }
 
-export { handleFeature, handleHeader, drawExtroInfo, setLoading, deleteAllFeatures, setInteraction, updateChoice }
+export { handleFeature, handleHeader, drawExtroInfo, setLoading, deleteAllFeatures, setInteraction, updateChoice, handleChoiceUpdateResult }

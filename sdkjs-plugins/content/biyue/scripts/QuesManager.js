@@ -1,7 +1,7 @@
 
 import { biyueCallCommand, dispatchCommandResult } from "./command.js";
 import { getQuesType, reqComplete } from '../scripts/api/paper.js'
-import { setInteraction, updateChoice } from "./featureManager.js";
+import { handleChoiceUpdateResult, setInteraction, updateChoice } from "./featureManager.js";
 import { initExtroInfo } from "./panelFeature.js";
 var levelSetWindow = null
 var level_map = {}
@@ -1778,24 +1778,32 @@ function handleChangeType(res, res2) {
 
 	window.BiyueCustomData.node_list = node_list
 	window.BiyueCustomData.question_map = question_map
+	var interaction = window.BiyueCustomData.interaction
+	var updateinteraction = false
 	if (addIds && addIds.length) {
 		if (level_type == 'write' || level_type == 'clear' || level_type == 'clearAll') {
 			if (question_map[addIds[0]]) {
-				setInteraction(question_map[addIds[0]].interaction, addIds).then(() => window.biyue.StoreCustomData()).then(() => {
-					updateAllChoice()
-				})
-			} else {
-				updateAllChoice()
+				interaction = question_map[addIds[0]].interaction
+				updateinteraction = true
 			}
 		} else if (targetLevel == 'question') {
-			setInteraction(window.BiyueCustomData.interaction, addIds).then(() => window.biyue.StoreCustomData()).then(() => {
-				updateAllChoice()
-			})
+			updateinteraction = true
 		}
 		update_node_id = addIds[0]
+	}
+	var use_gather = window.BiyueCustomData.choice_display && window.BiyueCustomData.choice_display.style != 'brackets_choice_region'
+	if (use_gather) {
+		updateChoice().then(res => {
+			return handleChoiceUpdateResult(res)
+		}).then(() => {
+			window.biyue.StoreCustomData()
+		})
 	} else {
-		updateAllChoice()
-		window.biyue.StoreCustomData()
+		if (updateinteraction) {
+			setInteraction(interaction, addIds).then(() => window.biyue.StoreCustomData())
+		} else {
+			window.biyue.StoreCustomData()
+		}
 	}
 	console.log('handleChangeType end', node_list, 'g_click_value', g_click_value, 'update_node_id', update_node_id)
 	document.dispatchEvent(
@@ -1809,7 +1817,9 @@ function handleChangeType(res, res2) {
 
 function updateAllChoice() {
 	if (window.BiyueCustomData.choice_display && window.BiyueCustomData.choice_display.style != 'brackets_choice_region') {
-		return updateChoice()	
+		return updateChoice().then(res => {
+			return handleChoiceUpdateResult(res)
+		})
 	} else {
 		return new Promise((resolve, reject) => {
 			resolve()
@@ -1936,9 +1946,10 @@ function batchChangeQuesType(type) {
 				})
 			)
 		}
-		window.biyue.StoreCustomData()
 	}).then(() => {
-		updateAllChoice()
+		return updateAllChoice()
+	}).then (() => {
+		window.biyue.StoreCustomData()
 	})
 }
 // 批量设置互动

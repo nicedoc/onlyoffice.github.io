@@ -286,7 +286,7 @@ function changeQuestionType(data) {
 		var oldvalue = window.BiyueCustomData.question_map[g_ques_id].question_type
 		window.BiyueCustomData.question_map[g_ques_id].question_type = data.value * 1
 		if (data.value == 1 || oldvalue == 1) {
-			updateAllChoice().then(res => {
+			updateAllChoice().then(() => {
 				autoSave()
 			})
 		} else {

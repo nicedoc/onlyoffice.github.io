@@ -1,10 +1,10 @@
 import ComponentSelect from '../components/Select.js'
 import NumberInput from '../components/NumberInput.js'
 import { ZONE_SIZE, ZONE_TYPE, ZONE_TYPE_NAME } from './model/feature.js'
-import { handleFeature, handleHeader, drawExtroInfo, setLoading, deleteAllFeatures, setInteraction, updateChoice } from './featureManager.js'
+import { handleFeature, handleHeader, drawExtroInfo, setLoading, deleteAllFeatures, setInteraction, updateChoice, handleChoiceUpdateResult } from './featureManager.js'
 import { biyueCallCommand, dispatchCommandResult } from "./command.js";
 import { showCom } from './model/util.js'
-import { updateAllChoice } from './QuesManager.js'
+import { updateAllChoice } from './QuesManager.js';
 var list_feature = []
 var timeout_pos = null
 var choiceStyles = [
@@ -504,6 +504,7 @@ function updateFeatureList(res) {
 }
 
 function initPositions1() {
+	console.log('==================== initPositions1')
 	return getPageData().then(res => {
 		updateFeatureList(res)
 		var specifyFeatures = list_feature.map(e => {
@@ -511,7 +512,15 @@ function initPositions1() {
 		})
 		specifyFeatures.push(ZONE_TYPE_NAME[ZONE_TYPE.PAGINATION])
 		deleteAllFeatures([], specifyFeatures)
-	}).then(res => {
+	})
+	.then(() => {
+		updateChoice(false)
+	})
+	.then(res => {
+		console.log('============ initPositions1 ', res)
+		if (res) {
+			window.BiyueCustomData.node_list = res
+		}
 		var vinteraction = window.BiyueCustomData.interaction
 		updateAllInteraction(vinteraction)
 		if (vinteraction != 'none') {
@@ -526,12 +535,11 @@ function initPositions1() {
 	}).then(() => {
 		setLoading(false)
 		return MoveCursor()
-	}).then(() => {
-		return updateAllChoice()
 	})
 }
 
 function initPositions2() {
+	console.log('=============== initPositions2')
 	return getPageData().then(res => {
 		updateFeatureList(res)
 	})
@@ -560,20 +568,27 @@ function updateAllInteraction(vinteraction) {
 function changeChoiceStyle(data) {
 	if (data) {
 		window.BiyueCustomData.choice_display.style = data.value
+		showCom('#choiceGather', data.value != 'brackets_choice_region')
 	}
-	updateChoice()
+	return updateChoice(true).then(res => {
+		return handleChoiceUpdateResult(res)
+	})
 }
 // 切换选择题作答区位置
 function changeChoiceArea(data) {
 	window.BiyueCustomData.choice_display.area = data.value
-	updateChoice()
+	return updateChoice(true).then(res => {
+		return handleChoiceUpdateResult(res)
+	})
 }
 
 function changeChoiceNum(id, data) {
 	clearTimeout(timeout_change_choice_num)
 	timeout_change_choice_num = setTimeout(() => {
 		window.BiyueCustomData.choice_display.num_row = data
-		updateChoice()
+		updateChoice(true).then(res => {
+			return handleChoiceUpdateResult(res)
+		})
 	}, 400);
 }
 

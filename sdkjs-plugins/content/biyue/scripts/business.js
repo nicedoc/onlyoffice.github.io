@@ -3633,6 +3633,35 @@ function getAllPositions() {
 				const pixelsPerMillimeter = 96 / 25.4
 				return Math.floor(mm * pixelsPerMillimeter) >>> 0
 			}
+			function getCellBounds(oCell, ask_score) {
+				if (!oCell) {
+					return []
+				}
+				var bounds = []
+				var oTable = oCell.GetParentTable()
+				var pageCount = oTable.Table.getPageCount()
+				var startPage = oCell.Cell.Get_StartPage_Absolute()
+				for (var p = 0; p < pageCount; ++p) {
+					var npage = startPage + p
+					var pagebounds = oCell.Cell.GetPageBounds(startPage + p)
+					if (!pagebounds) {
+						continue
+					}
+					if (pagebounds.Right == 0 && pagebounds.Left == 0) {
+						continue
+					}
+					bounds.push({
+						order: item.write_ask_region.length + 1 + '',
+						page: npage + 1,
+						x: mmToPx(pagebounds.Left),
+						y: mmToPx(pagebounds.Top),
+						w: mmToPx(pagebounds.Right - pagebounds.Left),
+						h: mmToPx(pagebounds.Bottom - pagebounds.Top),
+						v: ask_score + ''
+					})
+				}
+				return bounds
+			}
 			function getSimplePos(oControl) {
 				var paragraphs = oControl.GetAllParagraphs()
 				for (var i = 0; i < paragraphs.length; ++i) {
@@ -3736,6 +3765,42 @@ function getAllPositions() {
 					write_region,
 					identify_region,
 				}
+			}
+			// 集中作答区坐标
+			function getGatherCellRegion(nodeId) {
+				var nodeData = node_list.find(e => {
+					return e.id == nodeId
+				})
+				if (!nodeData || !nodeData.use_gather || !nodeData.gather_cell_id) {
+					return
+				}
+				var oCell = Api.LookupObject(nodeData.gather_cell_id)
+				if (!oCell || oCell.GetClassType() != 'tableCell') {
+					return
+				}
+				// 单元格区域
+				var cell_region = getCellBounds(oCell, question_map[nodeId].score)
+				// 互动区域
+				var drawings = oCell.GetContent().GetAllDrawingObjects() || []
+				var oDrawing = drawings.find(e => {
+					var title = e.Drawing.docPr.title || '{}'
+					var titleObj = JSON.parse(title)
+					if (titleObj.feature && titleObj.feature.sub_type == 'ask_accurate') {
+						return true
+					}
+				})
+				var interaction_region = null
+				if (oDrawing) {
+					interaction_region = {
+						page: oDrawing.Drawing.PageNum + 1,
+						x: mmToPx(oDrawing.Drawing.X),
+						y: mmToPx(oDrawing.Drawing.Y),
+						w: mmToPx(oDrawing.Drawing.Width),
+						h: mmToPx(oDrawing.Drawing.Height),
+						v: '1'
+					}
+				}
+				return {cell_region, interaction_region}
 			}
 
 			for (var i = 0, imax = controls.length; i < imax; ++i) {
@@ -3841,32 +3906,7 @@ function getAllPositions() {
 										}
 									} else if (askData.sub_type == 'cell') {
 										var oCell = Api.LookupObject(askData.cell_id)
-										if (oCell) {
-											var oCellContent = oCell.GetContent()
-											var oRow = oCell.GetParentRow()
-											var oTable = oCell.GetParentTable()
-											var pageCount = oTable.Table.getPageCount()
-											var startPage = oCell.Cell.Get_StartPage_Absolute()
-											for (var p = 0; p < pageCount; ++p) {
-												var npage = startPage + p
-												var pagebounds = oCell.Cell.GetPageBounds(startPage + p)
-												if (!pagebounds) {
-													continue
-												}
-												if (pagebounds.Right == 0 && pagebounds.Left == 0) {
-													continue
-												}
-												item.write_ask_region.push({
-													order: item.write_ask_region.length + 1 + '',
-													page: npage + 1,
-													x: mmToPx(pagebounds.Left),
-													y: mmToPx(pagebounds.Top),
-													w: mmToPx(pagebounds.Right - pagebounds.Left),
-													h: mmToPx(pagebounds.Bottom - pagebounds.Top),
-													v: ask_score + ''
-												})
-											}
-										}
+										item.write_ask_region.concat(getCellBounds(oCell, ask_score))
 									} else if (askData.sub_type == 'write' || askData.sub_type == 'identify') {
 										var oShape = Api.LookupObject(askData.shape_id)
 										if (oShape && oShape.Drawing) {
