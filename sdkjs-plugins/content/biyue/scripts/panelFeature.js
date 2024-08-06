@@ -189,13 +189,13 @@ function initFeature() {
 		}
 	]
 	$('#panelFeature').empty()
-	var content = '<table><tbody>'
-	content += `<tr><td colspan="2"><label class="header">全部</label></td></tr><tr><td class="padding-small" width="100%"><div id='all'></div></td></tr>`
+	var content = '<table style="width: 100%"><tbody>'
+	content += `<tr><td colspan="2"><label class="header">全部</label></td></tr><tr><td class="padding-small" width="100%" colspan="2"><div id='all'></div></td></tr>`
 	content += '<tr><td class="padding-small" colspan="2"><div class="separator horizontal"></div></td></tr>'
 	var list = list_feature || getList()
 	list.forEach((e, index) => {
 		if (!e.hidden) {
-			var str = `<tr><td colspan="2"><label class="header">${e.label}</label></td></tr><tr><td class="padding-small" width="100%"><div id=${e.id}></div></td></tr>`
+			var str = `<tr><td colspan="2"><label class="header">${e.label}</label></td></tr><tr><td class="padding-small" width="100%" colspan="2"><div id=${e.id}></div></td></tr>`
 			if (e.id != 'header' && e.id != 'statistics') {
 				str += `<tr id="${e.id}Pos"><td class="padding-small" width="50%"><label class="input-label">X坐标</label><div id="${e.id}X"></div></td><td class="padding-small" width="50%"><label class="input-label">Y坐标</label><div id="${e.id}Y"></div></td></tr>`
 			}
@@ -209,7 +209,7 @@ function initFeature() {
 	// 添加选择题集中作答区
 	var choice_display = window.BiyueCustomData.choice_display
 	content += '<tr><td class="padding-small" colspan="2"><div class="separator horizontal"></div></td></tr>'
-	content += `<tr><td><label class="header">选择题作答区</label></td></tr><tr><td class="padding-small" width="100%"><div id='select_choice_style'></div></td></tr>`
+	content += `<tr><td colspan="2"><label class="header">选择题作答区</label></td></tr><tr><td class="padding-small" width="100%" colspan="2"><div id='select_choice_style'></div></td></tr>`
 	content += `<tr id="choiceGather"><td class="padding-small" width="40%"><label class="input-label">每行数量</label><div id="input_choice_num"></div></td><td class="padding-small" width="60%"><label class="input-label">作答区位置</label><div id="select_choice_area"></div></td></tr>`
 	content += '</tbody></table>'
 	$('#panelFeature').html(content)
@@ -240,11 +240,13 @@ function initFeature() {
 				change: (id, data) => {
 					changePos(e.zone_type, 'x', data)
 				},
+				width: '100%',
 			})
 			e.inputY = new NumberInput(`${e.id}Y`, {
 				change: (id, data) => {
 					changePos(e.zone_type, 'y', data)
 				},
+				width: '100%',
 			})
 		}
 	})
@@ -266,10 +268,10 @@ function initFeature() {
 		callback_item: (data) => {
 			changeChoiceArea(data)
 		},
-		width: '100px',
+		width: '100%',
 	})
 	input_choice_num = new NumberInput('input_choice_num', {
-		width: '100px',
+		width: '100%',
 		change: (id, data) => {
 			changeChoiceNum(id, data)
 		},

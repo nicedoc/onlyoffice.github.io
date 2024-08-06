@@ -58,6 +58,7 @@ function initView() {
 		})
 	})
 	addClickEvent('#getQuesType', reqGetQuestionType)
+	addClickEvent('viewQuesType', onViewQuesType)
 }
 
 function handlePaperInfoResult(success, res) {
@@ -116,6 +117,10 @@ function changeTabPanel(id) {
 			showQuesData()
 		}
 	}
+}
+
+function onViewQuesType() {
+	console.log('展示题型')
 }
 
 export {

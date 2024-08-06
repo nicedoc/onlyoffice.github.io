@@ -1074,13 +1074,13 @@ function setInteraction(type, quesIds) {
 			if (LvlText && LvlText.length) {
 				if (LvlText[0].Value==SIMPLE_CHAR) {
 					if (vshow) {
-						console.log('当前简单互动已显示', oParagraph.GetText(), indleft)
+						//console.log('当前简单互动已显示', oParagraph.GetText(), indleft)
 						updateParagraphInd(oParagraph, vshow)
 						return
 					}
 				} else {
 					if (!vshow) {
-						console.log('当前简单互动本就未显示', oParagraph.GetText())
+						// console.log('当前简单互动本就未显示', oParagraph.GetText())
 						updateParagraphInd(oParagraph, vshow)
 						return
 					}

@@ -26,4 +26,21 @@ function addClickEvent(comname, func) {
 	com.on('click', func)
 }
 
-export { showCom, updateText, addClickEvent }
+// 关闭其他select弹窗
+function closeOtherSelect(exceptId) {
+	var list = $('.open')
+	if (list.length == 0) {
+		return
+	}
+	for (var i = 0; i < list.length; ++i) {
+		if (!list[i]) {
+			continue
+		}
+		if (list[i].id == exceptId) {
+			continue
+		}
+		$(`#${list[i].id}`).removeClass('open')
+	}
+}
+
+export { showCom, updateText, addClickEvent, closeOtherSelect }

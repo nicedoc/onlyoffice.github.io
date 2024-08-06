@@ -2341,7 +2341,6 @@ function getNumberingText(text) {
 }
 
 function GetDefaultName(level_type, text) {
-	console.log('====GetDefaultName text', text)
 	if (!text) {
 		return ''
 	}
