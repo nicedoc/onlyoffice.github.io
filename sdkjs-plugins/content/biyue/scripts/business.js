@@ -263,12 +263,23 @@ function updateControls() {
 			let ques_no = 1
 			let struct_index = 0
 			var control_list = []
+			function getJsonData(str) {
+				if (!str || str == '' || typeof str != 'string') {
+					return {}
+				}
+				try {
+					return JSON.parse(str)
+				} catch (error) {
+					console.log('json parse error', error)
+					return {}
+				}
+			}
 			controls.forEach((control) => {
 				var rect = Api.asc_GetContentControlBoundingRect(
 					control.Sdt.GetId(),
 					true
 				)
-				let tagInfo = JSON.parse(control.GetTag())
+				tagInfo = getJsonData(control.GetTag())
 				var text = control.GetRange().GetText()
 				let obj = {
 					control_id: control.Sdt.GetId(),
@@ -380,12 +391,23 @@ function updateCustomControls() {
 			let ques_no = 1
 			let struct_index = 0
 			var control_list = []
+			function getJsonData(str) {
+				if (!str || str == '' || typeof str != 'string') {
+					return {}
+				}
+				try {
+					return JSON.parse(str)
+				} catch (error) {
+					console.log('json parse error', error)
+					return {}
+				}
+			}
 			controls.forEach((control) => {
 				// var rect = Api.asc_GetContentControlBoundingRect(
 				// 	control.Sdt.GetId(),
 				// 	true
 				// )
-				let tagInfo = JSON.parse(control.GetTag())
+				let tagInfo = getJsonData(control.GetTag())
 				var text = control.GetRange().GetText()
 				let obj = {
 					control_id: control.Sdt.GetId(),
@@ -940,10 +962,21 @@ function addQuesScore(score = 10) {
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls()
 			var score = Asc.scope.score
+			function getJsonData(str) {
+				if (!str || str == '' || typeof str != 'string') {
+					return {}
+				}
+				try {
+					return JSON.parse(str)
+				} catch (error) {
+					console.log('json parse error', error)
+					return {}
+				}
+			}
 			if (controls) {
 				for (var i = 0; i < controls.length; ++i) {
 					var control = controls[i]
-					var tag = JSON.parse(control.GetTag())
+					tag = getJsonData(control.GetTag())	
 					if (tag.regionType == 'question') {
 						var range = control.GetRange()
 						var oTableStyle = oDocument.CreateStyle('CustomTableStyle', 'table')
@@ -1005,9 +1038,20 @@ function addScoreField(score, mode, layout, posall) {
 			var res = {
 				add: false,
 			}
+			function getJsonData(str) {
+				if (!str || str == '' || typeof str != 'string') {
+					return {}
+				}
+				try {
+					return JSON.parse(str)
+				} catch (error) {
+					console.log('json parse error', error)
+					return {}
+				}
+			}
 			for (var i = 0; i < controls.length; ++i) {
 				var control = controls[i]
-				var tag = JSON.parse(control.GetTag())
+				var tag = getJsonData(control.GetTag())
 				if (tag.regionType == 'question') {
 					var control_id = control.Sdt.GetId()
 					var controlIndex = control_list.findIndex((item) => {
@@ -1704,6 +1748,17 @@ function handleScoreField4(options) {
 			var MM2TWIPS = 25.4 / 72 / 20
 			var cellWidth = cell_width_mm / MM2TWIPS
 			var cellHeight = cell_height_mm / MM2TWIPS
+			function getJsonData(str) {
+				if (!str || str == '' || typeof str != 'string') {
+					return {}
+				}
+				try {
+					return JSON.parse(str)
+				} catch (error) {
+					console.log('json parse error', error)
+					return {}
+				}
+			}
 			for (var idx = 0, maxidx = list.length; idx < maxidx; ++idx) {
 				var options = list[idx]
 				var controlData = control_list[options.control_index]
@@ -1740,7 +1795,7 @@ function handleScoreField4(options) {
 					for (var i = 0, imax = shapes.length; i < imax; ++i) {
 						var dtitle = shapes[i].Drawing.docPr.title
 						if (dtitle && dtitle != '') {
-							var titlejson = JSON.parse(dtitle)
+							var titlejson = getJsonData(dtitle)
 							if (
 								titlejson.type == 'qscore' &&
 								titlejson.ques_control_id == controlData.control_id
@@ -1987,6 +2042,17 @@ function handleScoreField(options) {
 			var MM2TWIPS = 25.4 / 72 / 20
 			var cellWidth = cell_width_mm / MM2TWIPS
 			var cellHeight = cell_height_mm / MM2TWIPS
+			function getJsonData(str) {
+				if (!str || str == '' || typeof str != 'string') {
+					return {}
+				}
+				try {
+					return JSON.parse(str)
+				} catch (error) {
+					console.log('json parse error', error)
+					return {}
+				}
+			}
 			for (var idx = 0, maxidx = list.length; idx < maxidx; ++idx) {
 				var options = list[idx]
 				var controlData = control_list[options.control_index]
@@ -2023,7 +2089,7 @@ function handleScoreField(options) {
 					for (var i = 0, imax = shapes.length; i < imax; ++i) {
 						var dtitle = shapes[i].Drawing.docPr.title
 						if (dtitle && dtitle != '') {
-							var titlejson = JSON.parse(dtitle)
+							var titlejson = getJsonData(dtitle)
 							if (
 								titlejson.type == 'qscore' &&
 								titlejson.ques_control_id == controlData.control_id
@@ -2375,6 +2441,17 @@ function handleScoreField2(options) {
 			var cellWidth = cell_width_mm / MM2TWIPS
 			var spacingWidth = spacing_width_mm / MM2TWIPS
 			var cellHeight = cell_height_mm / MM2TWIPS
+			function getJsonData(str) {
+				if (!str || str == '' || typeof str != 'string') {
+					return {}
+				}
+				try {
+					return JSON.parse(str)
+				} catch (error) {
+					console.log('json parse error', error)
+					return {}
+				}
+			}
 			for (var idx = 0, maxidx = list.length; idx < maxidx; ++idx) {
 				var options = list[idx]
 				var controlData = control_list[options.control_index]
@@ -2411,7 +2488,7 @@ function handleScoreField2(options) {
 					for (var i = 0, imax = shapes.length; i < imax; ++i) {
 						var dtitle = shapes[i].Drawing.docPr.title
 						if (dtitle && dtitle != '') {
-							var titlejson = JSON.parse(dtitle)
+							var titlejson = getJsonData(dtitle)
 							if (
 								titlejson.type == 'qscore' &&
 								titlejson.ques_control_id == controlData.control_id
@@ -2773,9 +2850,20 @@ function addImage() {
 			var oDocument = Api.GetDocument()
 			let controls = oDocument.GetAllContentControls()
 			var map_base64 = Asc.scope.map_base64
+			function getJsonData(str) {
+				if (!str || str == '' || typeof str != 'string') {
+					return {}
+				}
+				try {
+					return JSON.parse(str)
+				} catch (error) {
+					console.log('json parse error', error)
+					return {}
+				}
+			}
 			for (var i = 0; i < controls.length; ++i) {
 				var control = controls[i]
-				var tag = JSON.parse(control.GetTag())
+				var tag = getJsonData(control.GetTag())
 				if (tag.regionType == 'question') {
 					var imgurl = map_base64['1'] //   'https://by-base-cdn.biyue.tech/check.svg'
 					var oDrawing = Api.CreateImage(imgurl, 8 * 36000, 8 * 36000)
@@ -2803,9 +2891,20 @@ function addMarkField() {
 		function () {
 			var oDocument = Api.GetDocument()
 			let controls = oDocument.GetAllContentControls()
+			function getJsonData(str) {
+				if (!str || str == '' || typeof str != 'string') {
+					return {}
+				}
+				try {
+					return JSON.parse(str)
+				} catch (error) {
+					console.log('json parse error', error)
+					return {}
+				}
+			}
 			for (var i = 0; i < controls.length; ++i) {
 				var control = controls[i]
-				var tag = JSON.parse(control.GetTag())
+				var tag = getJsonData(control.GetTag())
 				if (tag.regionType == 'question') {
 					var oFill = Api.CreateSolidFill(Api.CreateRGBColor(255, 0, 0))
 					oFill.UniFill.transparent = 20 // 透明度
@@ -2833,29 +2932,6 @@ function addMarkField() {
 		false,
 		true
 	)
-}
-// 显示小问序号
-function showAskIndex() {
-	var control_list = window.BiyueCustomData.control_list
-	Asc.scope.control_list = control_list
-	biyueCallCommand(
-		window,
-		function () {
-			var control_list = Asc.scope.control_list
-			var oDocument = Api.GetDocument()
-			var controls = oDocument.GetAllContentControls()
-			for (var i = 0, imax = control_list.length; i < imax; ++i) {
-				var control = control_list[i]
-				var tag = JSON.parse(control.GetTag())
-				if (tag.regionType == 'question') {
-				}
-			}
-		},
-		false,
-		true
-	).then((res) => {
-		console.log('result of showAskIndex:', res)
-	})
 }
 
 // 切换权重显示
@@ -3046,7 +3122,12 @@ function handleContentControlChange(params) {
 	var control_list = window.BiyueCustomData.control_list
 	var tag = params.Tag
 	if (tag) {
-		tag = JSON.parse(params.Tag)
+		try {
+			tag = JSON.parse(params.Tag)	
+		} catch (error) {
+			console.log('json parse error', error)
+			return
+		}
 		if (tag.regionType == 'question') {
 			if (control_list) {
 				var find = control_list.find((e) => {
@@ -3097,6 +3178,17 @@ function handleIdentifyBox(add) {
 			console.log('curPosInfo', curPosInfo)
 			var res = {
 				code: 0,
+			}
+			function getJsonData(str) {
+				if (!str || str == '' || typeof str != 'string') {
+					return {}
+				}
+				try {
+					return JSON.parse(str)
+				} catch (error) {
+					console.log('json parse error', error)
+					return {}
+				}
 			}
 			if (curPosInfo) {
 				var runIdx = -1
@@ -3158,7 +3250,7 @@ function handleIdentifyBox(add) {
 					)
 					var paraentControl = pParagraph.GetParentContentControl()
 					if (paraentControl) {
-						var tag = JSON.parse(paraentControl.GetTag())
+						var tag = getJsonData(paraentControl.GetTag())
 						if (
 							tag.regionType == 'question' ||
 							tag.regionType == 'sub-question'
@@ -3197,18 +3289,16 @@ function handleIdentifyBox(add) {
 										drawings[sidx].Drawing.docPr.title &&
 										drawings[sidx].Drawing.docPr.title != ''
 									) {
-										try {
-											var dtitle = JSON.parse(
-												drawings[sidx].Drawing.docPr.title
-											)
-											if (
-												dtitle.feature &&
-												dtitle.feature.type == 'ques_identify'
-											) {
-												res.remove_ids.push(drawings[sidx].Drawing.Id)
-												drawings[sidx].Delete()
-											}
-										} catch (error) {}
+										var dtitle = getJsonData(
+											drawings[sidx].Drawing.docPr.title
+										)
+										if (
+											dtitle.feature &&
+											dtitle.feature.type == 'ques_identify'
+										) {
+											res.remove_ids.push(drawings[sidx].Drawing.Id)
+											drawings[sidx].Delete()
+										}
 									}
 								}
 							}
@@ -3272,6 +3362,17 @@ function showIdentifyIndex(show) {
 				}
 				drawing.GraphicObj.spPr.setFill(oFill.UniFill)
 			}
+			function getJsonData(str) {
+				if (!str || str == '' || typeof str != 'string') {
+					return {}
+				}
+				try {
+					return JSON.parse(str)
+				} catch (error) {
+					console.log('json parse error', error)
+					return {}
+				}
+			}
 			var quesnum = 0
 			var quescontrol = null
 			for (var i = 0, imax = shapes.length; i < imax; ++i) {
@@ -3282,51 +3383,49 @@ function showIdentifyIndex(show) {
 					drawingObj.Drawing.docPr.title &&
 					drawingObj.Drawing.docPr.title != ''
 				) {
-					try {
-						var dtitle = JSON.parse(drawingObj.Drawing.docPr.title)
-						if (dtitle.feature && dtitle.feature.type == 'ques_identify') {
-							console.log(i, 'drawingObj', drawingObj)
-							var drawDocument = drawingObj.GetContent()
-							var oParagraph = drawDocument.GetElement(0)
-							if (oParagraph && oParagraph.GetClassType() == 'paragraph') {
-								oParagraph.RemoveAllElements()
-								if (show) {
-									var cindex = control_list.findIndex((e) => {
-										return e.control_id == dtitle.control_id
-									})
-									var qid = 0
-									if (cindex >= 0) {
-										if (control_list[cindex].regionType == 'question') {
-											qid = control_list[cindex].control_id
-										} else {
-											qid = control_list[cindex].parent_ques_control_id
-										}
-									}
-									if (qid == quescontrol) {
-										quesnum += 1
-									} else {
-										quescontrol = qid
-										quesnum = 1
-									}
-									oParagraph.AddText(quesnum + '')
-									oParagraph.SetColor(255, 0, 0, false)
-								} else {
-									oParagraph.AddText('×')
-									oParagraph.SetColor(125, 125, 125, false)
-								}
-								oParagraph.SetFontFamily('黑体')
-								oParagraph.SetFontSize(24)
-								oParagraph.SetJc('center')
-							}
+					var dtitle = getJsonData(drawingObj.Drawing.docPr.title)
+					if (dtitle.feature && dtitle.feature.type == 'ques_identify') {
+						console.log(i, 'drawingObj', drawingObj)
+						var drawDocument = drawingObj.GetContent()
+						var oParagraph = drawDocument.GetElement(0)
+						if (oParagraph && oParagraph.GetClassType() == 'paragraph') {
+							oParagraph.RemoveAllElements()
 							if (show) {
-								var oFill = Api.CreateSolidFill(Api.CreateRGBColor(255, 0, 0))
-								oFill.UniFill.transparent = 255 * 0.2 // 透明度
-								updateFill(drawingObj.Drawing, oFill)
+								var cindex = control_list.findIndex((e) => {
+									return e.control_id == dtitle.control_id
+								})
+								var qid = 0
+								if (cindex >= 0) {
+									if (control_list[cindex].regionType == 'question') {
+										qid = control_list[cindex].control_id
+									} else {
+										qid = control_list[cindex].parent_ques_control_id
+									}
+								}
+								if (qid == quescontrol) {
+									quesnum += 1
+								} else {
+									quescontrol = qid
+									quesnum = 1
+								}
+								oParagraph.AddText(quesnum + '')
+								oParagraph.SetColor(255, 0, 0, false)
 							} else {
-								updateFill(drawingObj.Drawing, Api.CreateNoFill())
+								oParagraph.AddText('×')
+								oParagraph.SetColor(125, 125, 125, false)
 							}
+							oParagraph.SetFontFamily('黑体')
+							oParagraph.SetFontSize(24)
+							oParagraph.SetJc('center')
 						}
-					} catch (error) {}
+						if (show) {
+							var oFill = Api.CreateSolidFill(Api.CreateRGBColor(255, 0, 0))
+							oFill.UniFill.transparent = 255 * 0.2 // 透明度
+							updateFill(drawingObj.Drawing, oFill)
+						} else {
+							updateFill(drawingObj.Drawing, Api.CreateNoFill())
+						}
+					}
 				}
 			}
 		},
@@ -3347,6 +3446,17 @@ function removeAllIdentify() {
 		function () {
 			var oDocument = Api.GetDocument()
 			var drawingObjs = oDocument.GetAllDrawingObjects()
+			function getJsonData(str) {
+				if (!str || str == '' || typeof str != 'string') {
+					return {}
+				}
+				try {
+					return JSON.parse(str)
+				} catch (error) {
+					console.log('json parse error', error)
+					return {}
+				}
+			}
 			for (var i = 0, imax = drawingObjs.length; i < imax; ++i) {
 				var drawingObj = drawingObjs[i]
 				if (
@@ -3355,12 +3465,10 @@ function removeAllIdentify() {
 					drawingObj.Drawing.docPr.title &&
 					drawingObj.Drawing.docPr.title != ''
 				) {
-					try {
-						var dtitle = JSON.parse(drawingObj.Drawing.docPr.title)
-						if (dtitle.feature && dtitle.feature.type == 'ques_identify') {
-							drawingObj.Delete()
-						}
-					} catch (error) {}
+					var dtitle = getJsonData(drawingObj.Drawing.docPr.title)
+					if (dtitle.feature && dtitle.feature.type == 'ques_identify') {
+						drawingObj.Delete()
+					}
 				}
 			}
 		},
@@ -3378,20 +3486,29 @@ function showWriteIdentifyIndex(show) {
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls()
 			var list = {}
+			function getJsonData(str) {
+				if (!str || str == '' || typeof str != 'string') {
+					return {}
+				}
+				try {
+					return JSON.parse(str)
+				} catch (error) {
+					console.log('json parse error', error)
+					return {}
+				}
+			}
 			function getParentQuesControl(control) {
 				var parentControl = control.GetParentContentControl()
 				if (parentControl) {
-					try {
-						var tag = JSON.parse(parentControl.GetTag())
-						if (tag.regionType == 'question') {
-							return parentControl
-						} else if (
-							tag.regionType == 'write' ||
-							tag.regionType == 'sub-question'
-						) {
-							return getParentQuesControl(parentControl)
-						}
-					} catch (error) {}
+					var tag = getJsonData(parentControl.GetTag())
+					if (tag.regionType == 'question') {
+						return parentControl
+					} else if (
+						tag.regionType == 'write' ||
+						tag.regionType == 'sub-question'
+					) {
+						return getParentQuesControl(parentControl)
+					}
 				}
 				return null
 			}
@@ -3399,7 +3516,7 @@ function showWriteIdentifyIndex(show) {
 			var quesControlId = 0
 			for (var i = 0, imax = controls.length; i < imax; ++i) {
 				var control = controls[i]
-				var tag = JSON.parse(control.GetTag())
+				var tag = getJsonData(control.GetTag())
 				if (tag.regionType == 'write' && tag.mode == 3) {
 					var parentControl = getParentQuesControl(control)
 					if (!parentControl) {
@@ -3479,13 +3596,11 @@ function showWriteIdentifyIndex(show) {
 								drawingObj.Drawing.docPr.title &&
 								drawingObj.Drawing.docPr.title != ''
 							) {
-								try {
-									var dtitle = JSON.parse(drawingObj.Drawing.docPr.title)
-									if (dtitle.type == 'askIdentify') {
-										drawingObj.Delete()
-										list[control.Sdt.GetId()] = null
-									}
-								} catch (error) {}
+								var dtitle = getJsonData(drawingObj.Drawing.docPr.title)
+								if (dtitle.type == 'askIdentify') {
+									drawingObj.Delete()
+									list[control.Sdt.GetId()] = null
+								}
 							}
 						}
 					}
@@ -3639,6 +3754,17 @@ function getAllPositions() {
 				const pixelsPerMillimeter = 96 / 25.4
 				return Math.floor(mm * pixelsPerMillimeter) >>> 0
 			}
+			function getJsonData(str) {
+				if (!str || str == '' || typeof str != 'string') {
+					return {}
+				}
+				try {
+					return JSON.parse(str)
+				} catch (error) {
+					console.log('json parse error', error)
+					return {}
+				}
+			}
 			function getCellBounds(oCell, ask_score) {
 				if (!oCell) {
 					return []
@@ -3734,7 +3860,7 @@ function getAllPositions() {
 							if (oDrawing.Drawing.docPr) {
 								var title = oDrawing.Drawing.docPr.title
 								if (title && title.indexOf('feature') >= 0) {
-									var titleObj = JSON.parse(title)
+									var titleObj = getJsonData(title)
 									if (
 										titleObj.feature &&
 										titleObj.feature.zone_type == 'question'
@@ -3790,7 +3916,7 @@ function getAllPositions() {
 				var drawings = oCell.GetContent().GetAllDrawingObjects() || []
 				var oDrawing = drawings.find(e => {
 					var title = e.Drawing.docPr.title || '{}'
-					var titleObj = JSON.parse(title)
+					var titleObj = getJsonData(title)
 					if (titleObj.feature && titleObj.feature.sub_type == 'ask_accurate') {
 						return true
 					}
@@ -3832,7 +3958,7 @@ function getAllPositions() {
 					}
 				}
 				// todo..分数框的尚未添加
-				var tag = JSON.parse(oControl.GetTag() || '{}')
+				var tag = getJsonData(oControl.GetTag() || '{}')
 				var question_obj = question_map[tag.client_id]
 					? question_map[tag.client_id]
 					: {}
@@ -4027,7 +4153,7 @@ function getAllPositions() {
 					if (oDrawing.Drawing.docPr) {
 						var title = oDrawing.Drawing.docPr.title
 						if (title && title.indexOf('feature') >= 0) {
-							var titleObj = JSON.parse(title)
+							var titleObj = getJsonData(title)
 							if (
 								titleObj.feature &&
 								titleObj.feature.zone_type &&

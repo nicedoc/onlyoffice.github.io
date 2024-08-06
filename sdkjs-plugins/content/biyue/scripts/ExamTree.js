@@ -152,10 +152,21 @@ function getDocList() {
 		}
 		var allControls = oDocument.GetAllContentControls()
 		var list = []
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
 
 		function addItem(e, defaultParentId) {
 			var parentCtrl = e.GetParentContentControl()
-			var subtag = JSON.parse(e.GetTag() || {})
+			subtag = getJsonData(e.GetTag())
 			if (
 				subtag.regionType == 'question' ||
 				subtag.regionType == 'sub-question'
@@ -194,7 +205,7 @@ function getDocList() {
 					classType: classType,
 				})
 			} else if (classType == 'blockLvlSdt') {
-				var tag = JSON.parse(oElement.GetTag() || {})
+				var tag = getJsonData(oElement.GetTag())
 				list.push({
 					id: oElement.Sdt.GetId(),
 					regionType: tag.regionType,
@@ -826,6 +837,17 @@ function updateRangeControlType(typeName) {
 			}
 			return objList
 		}
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
 		// 删除题目互动
 		function clearQuesInteraction(control_id) {
 			if (!control_id) {
@@ -835,7 +857,7 @@ function updateRangeControlType(typeName) {
 			if (!oControl) {
 				return
 			}
-			var tag = JSON.parse(oControl.GetTag() || {})
+			tag = getJsonData(oControl.GetTag())
 			if (tag.regionType == 'write') {
 				if (oControl.GetClassType() == 'inlineLvlSdt') {
 					var elementCount = oControl.GetElementsCount()
@@ -848,7 +870,7 @@ function updateRangeControlType(typeName) {
 							oRun.Run.Content[0].docPr) {
 							var title = oRun.Run.Content[0].docPr.title
 							if (title) {
-								var titleObj = JSON.parse(title)
+								var titleObj = getJsonData(title)
 								if (titleObj.feature && titleObj.feature.sub_type == 'ask_accurate') {
 									oRun.Delete()
 									break		
@@ -867,10 +889,10 @@ function updateRangeControlType(typeName) {
 							if (oDrawing.Drawing.docPr) {
 								var title = oDrawing.Drawing.docPr.title
 								if (title && title.indexOf('feature') >= 0) {
-									var titleObj = JSON.parse(title)
+									var titleObj = getJsonData(title)
 									if (titleObj.feature && titleObj.feature.zone_type == 'question') {
 										oDrawing.Delete()
-									}
+									}									
 								}
 							}
 						}
@@ -907,7 +929,7 @@ function updateRangeControlType(typeName) {
 					clearQuesInteraction(currentContentControl.Id)
 					Api.asc_RemoveContentControlWrapper(currentContentControl.Id);
 				} else {
-					var tag = JSON.parse(oControl.GetTag() || {})
+					var tag = getJsonData(oControl.GetTag())
 					oRange = oControl.GetRange()
 					var changeResult = {
 						id_old: oControl.Sdt.GetId(),
@@ -980,7 +1002,7 @@ function updateRangeControlType(typeName) {
 				if(oResult) {
 					return {
 						id: oResult.InternalId,
-						regionType: JSON.parse(tag || {}).regionType,
+						regionType: getJsonData(tag).regionType,
 						text: range.GetText()
 					}
 				} else {
@@ -1059,7 +1081,7 @@ function updateRangeControlType(typeName) {
 			} else if (typeName == 'write') { // write和其他类型处理方法不同
 				var needAdd = true
 				if (completeOverlapControl) {
-					var tag = JSON.parse(completeOverlapControl.GetTag() || {})
+					var tag = getJsonData(completeOverlapControl.GetTag())
 					if (tag.regionType == 'write') {
 						needAdd = false
 					}
@@ -1076,7 +1098,7 @@ function updateRangeControlType(typeName) {
 					}
 				}
 				controlsInRange.forEach(e => {
-					var tag = JSON.parse(e.GetTag() || {})
+					var tag = getJsonData(e.GetTag())
 					if (tag.regionType == 'write') {
 						Api.asc_RemoveContentControlWrapper(e.Sdt.GetId());
 					}
@@ -1084,7 +1106,7 @@ function updateRangeControlType(typeName) {
 			} else {
 				// 存在完全重叠的区域时，就只操作这个区域
 				if (completeOverlapControl) {
-					var tag = JSON.parse(completeOverlapControl.GetTag() || {})
+					var tag = getJsonData(completeOverlapControl.GetTag())
 					var changeObject = {
 						id_old: completeOverlapControl.Sdt.GetId(),
 						text: oRange ? oRange.GetText() : '',
@@ -1884,9 +1906,13 @@ function batchChangeQuesType(type) {
 				e.Sdt.Content.Selection &&
 				e.Sdt.Content.Selection.Use
 			) {
-				var tag = JSON.parse(e.GetTag())
-				if (tag && (tag.regionType == 'question' || tag.regionType == 'sub-question')) {
-					ques_id_list.push(e.Sdt.GetId())
+				try {
+					var tag = JSON.parse(e.GetTag())
+					if (tag && (tag.regionType == 'question' || tag.regionType == 'sub-question')) {
+						ques_id_list.push(e.Sdt.GetId())
+					}	
+				} catch (error) {
+					console.log('json parse error', error)
 				}
 			}
 		})

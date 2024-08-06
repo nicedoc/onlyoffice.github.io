@@ -16,20 +16,24 @@ function handleDocClick(isSelectionUse) {
 	window.Asc.plugin.executeMethod('GetCurrentContentControlPr', [], function(returnValue) {
 		console.log('GetCurrentContentControlPr', returnValue)
 		if (returnValue && returnValue.Tag) {
-			var tag = JSON.parse(returnValue.Tag || '{}')
-			g_click_value = {
-				InternalId: returnValue.InternalId,
-				Appearance: returnValue.Appearance,
-				Tag: tag,
-			}
-			if (tag.client_id) {
-				var event = new CustomEvent('clickSingleQues', {
-					detail: Object.assign({}, tag, {
-						InternalId: returnValue.InternalId,
-						Appearance: returnValue.Appearance,
-					}),
-				})
-				document.dispatchEvent(event)
+			try {
+				var tag = JSON.parse(returnValue.Tag || '{}')
+				g_click_value = {
+					InternalId: returnValue.InternalId,
+					Appearance: returnValue.Appearance,
+					Tag: tag,
+				}
+				if (tag.client_id) {
+					var event = new CustomEvent('clickSingleQues', {
+						detail: Object.assign({}, tag, {
+							InternalId: returnValue.InternalId,
+							Appearance: returnValue.Appearance,
+						}),
+					})
+					document.dispatchEvent(event)
+				}
+			} catch (error) {
+				console.log(error)
 			}
 		} else {
 			g_click_value = null
@@ -310,6 +314,17 @@ function getNodeList() {
 		var oDocument = Api.GetDocument()
 		var node_list = []
 		var controls = oDocument.GetAllContentControls() || []
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
 		function getParentBlock(oControl) {
 			if (!oControl) {
 				return null
@@ -330,7 +345,7 @@ function getNodeList() {
 			var parentBlock = getParentBlock(oControl)
 			var parent_id = 0
 			if (parentBlock) {
-				var parentTag = JSON.parse(parentBlock.GetTag() || '{}')
+				var parentTag = getJsonData(parentBlock.GetTag())
 				parent_id = parentTag.client_id || 0
 			}
 			return parent_id
@@ -351,7 +366,7 @@ function getNodeList() {
 							if (oChild2.docPr) {
 								var title = oChild2.docPr.title
 								if (title) {
-									var titleObj = JSON.parse(title)
+									var titleObj = getJsonData(title)
 									if (titleObj.feature && (titleObj.feature.sub_type == 'write' || titleObj.feature.sub_type == 'identify')) {
 										write_list.push({
 											id: titleObj.client_id,
@@ -365,7 +380,7 @@ function getNodeList() {
 						}
 					}
 				} else if (childType == 'inlineLvlSdt') {
-					var childTag = JSON.parse(oChild.GetTag() || '{}')
+					var childTag = getJsonData(oChild.GetTag())
 					if (childTag.regionType == 'write') {
 						write_list.push({
 							id: childTag.client_id,
@@ -380,7 +395,7 @@ function getNodeList() {
 			if (!oElement || !oElement.GetClassType || oElement.GetClassType() != 'blockLvlSdt') {
 				return
 			}
-			var childTag = JSON.parse(oElement.GetTag() || '{}')
+			var childTag = getJsonData(oElement.GetTag())
 			if (childTag.regionType == 'write') {
 				write_list.push({
 					id: childTag.client_id,
@@ -391,7 +406,7 @@ function getNodeList() {
 		}
 		for (var i = 0, imax = controls.length; i < imax; ++i) {
 			var oControl = controls[i]
-			var tagInfo = JSON.parse(oControl.GetTag() || '{}')
+			var tagInfo = getJsonData(oControl.GetTag())
 			var parent_id = getParentId(oControl)
 			if (tagInfo.regionType == 'question') {
 				var write_list = []
@@ -481,6 +496,17 @@ function updateRangeControlType(typeName) {
 			}
 			return
 		}
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
 		function getParentBlock(oControl) {
 			if (!oControl) {
 				return null
@@ -501,7 +527,7 @@ function updateRangeControlType(typeName) {
 			var parentBlock = getParentBlock(oControl)
 			var parent_id = 0
 			if (parentBlock) {
-				var parentTag = JSON.parse(parentBlock.GetTag() || '{}')
+				var parentTag = getJsonData(parentBlock.GetTag())
 				parent_id = parentTag.client_id || 0
 			}
 			return parent_id
@@ -539,7 +565,7 @@ function updateRangeControlType(typeName) {
 			var children = []
 			for (var i = 0; i < childControls.length; ++i) {
 				var childControl = childControls[i]
-				var tag = JSON.parse(childControl.GetTag() || '{}')
+				var tag = getJsonData(childControl.GetTag())
 				if (!tag.client_id) {
 					continue
 				}
@@ -623,7 +649,7 @@ function updateRangeControlType(typeName) {
 				oRun.Run.Content[0].docPr) {
 				var title = oRun.Run.Content[0].docPr.title
 				if (title) {
-					var titleObj = JSON.parse(title)
+					var titleObj = getJsonData(title)
 					if (titleObj.feature && titleObj.feature.sub_type == 'ask_accurate') {
 						oRun.Delete()
 						return true
@@ -704,7 +730,7 @@ function updateRangeControlType(typeName) {
 			if (!oControl) {
 				return
 			}
-			var tag = JSON.parse(oControl.GetTag() || '{}')
+			var tag = getJsonData(oControl.GetTag() || '{}')
 			if (tag.regionType == 'write') {
 				if (oControl.GetClassType() == 'inlineLvlSdt') {
 					var elementCount = oControl.GetElementsCount()
@@ -727,7 +753,7 @@ function updateRangeControlType(typeName) {
 							if (oDrawing.Drawing.docPr) {
 								var title = oDrawing.Drawing.docPr.title
 								if (title && title.indexOf('feature') >= 0) {
-									var titleObj = JSON.parse(title)
+									var titleObj = getJsonData(title)
 									if (titleObj.feature && titleObj.feature.zone_type == 'question') {
 										if (titleObj.feature.sub_type == 'ask_accurate') {
 											var cellParent = getDirectParentCell(oDrawing)
@@ -768,7 +794,7 @@ function updateRangeControlType(typeName) {
 			if (!oRemove) {
 				return
 			}
-			var tagRemove = JSON.parse(oRemove.GetTag() || '{}')
+			var tagRemove = getJsonData(oRemove.GetTag() || '{}')
 			clearQuesInteraction(oRemove)
 			result.change_list.push({
 				control_id: oRemove.Sdt.GetId(),
@@ -783,7 +809,7 @@ function updateRangeControlType(typeName) {
 			var controls = oDocument.GetAllContentControls() || []
 			var nodeList = []
 			controls.forEach((oControl) => {
-				var tagInfo = JSON.parse(oControl.GetTag() || '{}')
+				var tagInfo = getJsonData(oControl.GetTag() || '{}')
 				if (tagInfo.regionType) {
 					nodeList.push({
 						id: tagInfo.client_id,
@@ -965,7 +991,7 @@ function updateRangeControlType(typeName) {
 				if (!oControl) {
 					continue
 				}
-				var tag = JSON.parse(oControl.GetTag() || '{}')
+				var tag = getJsonData(oControl.GetTag() || '{}')
 				if (tag.client_id && question_map[tag.client_id] && question_map[tag.client_id].level_type == 'question') {
 					return {
 						id: tag.client_id,
@@ -979,7 +1005,7 @@ function updateRangeControlType(typeName) {
 			if (!oControl) {
 				return
 			}
-			var tag = JSON.parse(oControl.GetTag() || '{}')
+			var tag = getJsonData(oControl.GetTag() || '{}')
 			var obj = {}
 			if (!tag.client_id) {
 				// 之前没有配置client_id，需要分配
@@ -1011,7 +1037,7 @@ function updateRangeControlType(typeName) {
 			// 需要将后面的级别比他小的控件挪到它的范围内
 			var templist = []
 			var parentElementCount = oParent.GetElementsCount()
-			var tag = JSON.parse(oControl.GetTag() || '{}')
+			var tag = getJsonData(oControl.GetTag() || '{}')
 			for (var i = posinparent + 1; i < parentElementCount; ++i) {
 				var element = oParent.GetElement(i)
 				if (!element) {
@@ -1022,7 +1048,7 @@ function updateRangeControlType(typeName) {
 				}
 				if (element.GetClassType() == 'blockLvlSdt') {
 					element.Sdt.GetLogicDocument().PreventPreDelete = true
-					var nextTag = JSON.parse(element.GetTag() || '{}')
+					var nextTag = getJsonData(element.GetTag() || '{}')
 					if (nextTag.regionType == 'question') {
 						if (nextTag.lvl <= tag.lvl) {
 							break
@@ -1377,7 +1403,7 @@ function updateRangeControlType(typeName) {
 				var oTable = Api.LookupObject(startData.tableId)
 				var rows = oTable.GetRowsCount()
 				var oParentControl = Api.LookupObject(startData.controlId)
-				var oParentTag = JSON.parse(oParentControl.GetTag() || '{}')
+				var oParentTag = getJsonData(oParentControl.GetTag() || '{}')
 				if (oParentTag && oParentTag.client_id) {
 					for (var i = 0; i < rows; ++i) {
 						var oRow = oTable.GetRow(i)
@@ -1865,6 +1891,17 @@ function getBatchList() {
 		var ques_id_list = []
 		var oRange = oDocument.GetRangeBySelect()
 		var type = 'Selection'
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
 		if (!oRange) {
 			type = 'Target'
 			var node_list = Asc.scope.node_list || []
@@ -1877,7 +1914,7 @@ function getBatchList() {
 						oControl = oControl.GetParentContentControl()
 					}
 					if (oControl) {
-						var tag = JSON.parse(oControl.GetTag() || '{}')
+						var tag = getJsonData(oControl.GetTag() || '{}')
 						if (tag.regionType == 'question' && tag.client_id) {
 							var nodeData = node_list.find(e => {
 								return e.id == tag.client_id
@@ -1890,7 +1927,7 @@ function getBatchList() {
 									for (var i = controlIndex + 1; i < controls.length; i++) {
 										var nextControl = controls[i]
 										if (nextControl.GetClassType() == 'blockLvlSdt') {
-											var nextTag = JSON.parse(nextControl.GetTag() || '{}')
+											var nextTag = getJsonData(nextControl.GetTag() || '{}')
 											if (nextTag.lvl <= tag.lvl) {
 												break
 											}
@@ -1910,7 +1947,7 @@ function getBatchList() {
 										if (childControls) {
 											childControls.forEach(e => {
 												if (e.GetClassType() == 'blockLvlSdt') {
-													var childTag = JSON.parse(e.GetTag() || '{}')
+													var childTag = getJsonData(e.GetTag() || '{}')
 													if (childTag.regionType == 'question' && childTag.client_id) {
 														ques_id_list.push({
 															id: childTag.client_id,
@@ -1935,7 +1972,7 @@ function getBatchList() {
 					e.Sdt.Content.Selection &&
 					e.Sdt.Content.Selection.Use
 				) {
-					var tag = JSON.parse(e.GetTag() || '{}')
+					var tag = getJsonData(e.GetTag() || '{}')
 					if (tag && tag.client_id) {
 						ques_id_list.push({
 							id: tag.client_id,
@@ -2017,6 +2054,17 @@ function initControls() {
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls()
 		var nodeList = []
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
 		function getParentBlock(oControl) {
 			if (!oControl) {
 				return null
@@ -2066,7 +2114,7 @@ function initControls() {
 		oColor3.Set(0, 255, 0, false)
 		colors['inlineLvlSdt'] = oColor3
 		controls.forEach((oControl) => {
-			var tagInfo = JSON.parse(oControl.GetTag() || '{}')
+			var tagInfo = getJsonData(oControl.GetTag())
 			// if (oControl.GetClassType() == 'inlineLvlSdt') {
 				// tagInfo.color = '#ff0000'
 				// oControl.SetTag(JSON.stringify(tagInfo))
@@ -2077,7 +2125,7 @@ function initControls() {
 				var parentid = 0
 				var parentControl = getParentBlock(oControl)
 				if (parentControl) {
-					var parentTagInfo = JSON.parse(parentControl.GetTag() || '{}')
+					var parentTagInfo = getJsonData(parentControl.GetTag())
 					if (parentTagInfo.regionType == 'question') {
 						parentid = parentTagInfo.client_id
 					}
@@ -2096,7 +2144,7 @@ function initControls() {
 		var drawingList = []
 		drawings.forEach(oDrawing => {
 			var title = oDrawing.Drawing.docPr.title || '{}'
-			var titleObj = JSON.parse(title)
+			var titleObj = getJsonData(title)
 			if(titleObj && titleObj.feature && titleObj.feature.zone_type == 'question' && (titleObj.feature.sub_type == 'write' || titleObj.feature.sub_type == 'identify')) {
 				drawingList.push({
 					id: titleObj.feature.client_id,
@@ -2173,6 +2221,17 @@ function confirmLevelSet(levels) {
 		var questionMap = {}
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls()
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
 		function getParentBlock(oControl) {
 			if (!oControl) {
 				return null
@@ -2238,19 +2297,12 @@ function confirmLevelSet(levels) {
 						if (!TableCellW) {
 							TableCellW = oCell.Cell.CompiledPr.Pr.TableCellW
 						}
-						console.log('============= getProportion', TableCellW)
 						if (TableCellW && TableCellW.W) {
 							if (TableCellW.Type == 3) {
-								console.log('=========== 33333 ', TableCellW.W)
 								return Math.ceil(100 / TableCellW.W)
 							} else if (TableCellW.Type == 1) {
-								console.log('=========== 11111 ', TableCellW.W, tableWidth, tableWidth / TableCellW.W)
 								return Math.ceil(tableWidth / TableCellW.W)
-							} else {
-								console.log('8888888888888', TableCellW)
 							}
-						} else {
-							console.log('7777777777', TableCellW)
 						}
 					}
 				}
@@ -2259,7 +2311,7 @@ function confirmLevelSet(levels) {
 			return 1
 		}
 		controls.forEach((oControl) => {
-			var tagInfo = JSON.parse(oControl.GetTag() || '{}')
+			var tagInfo = getJsonData(oControl.GetTag())
 			 if (tagInfo.regionType == 'question' || tagInfo.regionType == 'write') {
 				client_node_id += 1
 				var id = client_node_id
@@ -2274,7 +2326,7 @@ function confirmLevelSet(levels) {
 				if (tagInfo.regionType == 'write') {
 					nodeData.level_type = 'write'
 					if (parentControl) {
-						var parent_tagInfo = JSON.parse(parentControl.GetTag() || '{}')
+						var parent_tagInfo = getJsonData(parentControl.GetTag())
 						var parentNode = nodeList.find((node) => {
 							return node.id == parent_tagInfo.client_id
 						})
@@ -2382,8 +2434,19 @@ function reqGetQuestionType() {
 		var target_list = []
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls() || []
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
 		controls.forEach((oControl) => {
-			var tagInfo = JSON.parse(oControl.GetTag() || '{}')
+			var tagInfo = getJsonData(oControl.GetTag())
 			if (tagInfo.regionType == 'question' && tagInfo.client_id) {
 				var nodeData = node_list.find(item => {
 					return item.id == tagInfo.client_id
@@ -2441,6 +2504,17 @@ function handleAllWrite(cmdType) {
 		var oDocument = Api.GetDocument()
 		var drawings = oDocument.GetAllDrawingObjects()
 		var cmdType = Asc.scope.cmdType
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
 		function updateFill(drawing, oFill) {
 			if (!oFill || !oFill.GetClassType || oFill.GetClassType() !== 'fill') {
 				return false
@@ -2451,7 +2525,7 @@ function handleAllWrite(cmdType) {
 		for (var i = 0, imax = drawings.length; i < imax; ++i) {
 			var oDrawing = drawings[i]
 			var title = oDrawing.Drawing.docPr.title || '{}'
-			var titleObj = JSON.parse(title)
+			var titleObj = getJsonData(title)
 			if (titleObj.feature && titleObj.feature.zone_type == 'question' && titleObj.feature.sub_type == 'write') {
 				if (cmdType == 'show') {
 					var oFill = Api.CreateSolidFill(Api.CreateRGBColor(255, 0, 0))
@@ -2549,9 +2623,20 @@ function handleWrite(cmdType) {
 			console.log('curControl is null')
 			return
 		}
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
 		var oControl = Api.LookupObject(curControl.Id)
 		if (oControl) {
-			var tag = JSON.parse(oControl.GetTag() || '{}')
+			var tag = getJsonData(oControl.GetTag() || '{}')
 			if (write_cmd == 'add') {
 				client_node_id += 1
 				var oFill = Api.CreateSolidFill(Api.CreateRGBColor(255, 0, 0))
@@ -2632,7 +2717,7 @@ function handleWrite(cmdType) {
 					}
 					for (var i = 0; i < drawings.length; ++i) {
 						var title = drawings[i].Drawing.docPr.title || '{}'
-						var titleObj = JSON.parse(title)
+						var titleObj = getJsonData(title)
 						if (titleObj.feature && titleObj.feature.zone_type == 'question' && titleObj.feature.sub_type == 'write') {
 							var drawingId = drawings[i].Drawing.Id
 							var oDrawing = allDrawings.find(e => {
@@ -2668,6 +2753,17 @@ function handleIdentifyBox(cmdType) {
 			console.log('curPosInfo', curPosInfo)
 			var res = {
 				cmdType: cmdType
+			}
+			function getJsonData(str) {
+				if (!str || str == '' || typeof str != 'string') {
+					return {}
+				}
+				try {
+					return JSON.parse(str)
+				} catch (error) {
+					console.log('json parse error', error)
+					return {}
+				}
 			}
 			if (curPosInfo) {
 				var runIdx = -1
@@ -2727,7 +2823,7 @@ function handleIdentifyBox(cmdType) {
 					)
 					var paraentControl = pParagraph.GetParentContentControl()
 					if (paraentControl) {
-						var tag = JSON.parse(paraentControl.GetTag())
+						var tag = getJsonData(paraentControl.GetTag())	
 						if (
 							tag.regionType == 'question'
 						) {
@@ -2764,15 +2860,13 @@ function handleIdentifyBox(cmdType) {
 										drawings[sidx].Drawing.docPr.title &&
 										drawings[sidx].Drawing.docPr.title != ''
 									) {
-										try {
-											var dtitle = JSON.parse(
-												drawings[sidx].Drawing.docPr.title
-											)
-											if (dtitle.feature && dtitle.feature.sub_type == 'identify') {
-												res.remove_ids.push(dtitle.feature.client_id)
-												drawings[sidx].Delete()
-											}
-										} catch (error) {}
+										var dtitle = getJsonData(
+											drawings[sidx].Drawing.docPr.title
+										)
+										if (dtitle.feature && dtitle.feature.sub_type == 'identify') {
+											res.remove_ids.push(dtitle.feature.client_id)
+											drawings[sidx].Delete()
+										}
 									}
 								}
 							}
@@ -2904,9 +2998,20 @@ function reqUploadTree() {
 		var controls = oDocument.GetAllContentControls()
 		var question_map = Asc.scope.question_map
 		console.log('question_map', question_map)
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
 		for (var i = 0, imax = controls.length; i < imax; ++i) {
 			var oControl = controls[i]
-			var tag = JSON.parse(oControl.GetTag() || '{}')
+			var tag = getJsonData(oControl.GetTag() || '{}')
 			if (tag.regionType != 'question' || !tag.client_id) {
 				continue
 			}
@@ -2917,7 +3022,7 @@ function reqUploadTree() {
 			var oParentControl = oControl.GetParentContentControl()
 			var parent_id = 0
 			if (oParentControl) {
-				var parentTag = JSON.parse(oParentControl.GetTag() || '{}')
+				var parentTag = getJsonData(oParentControl.GetTag() || '{}')
 				parent_id = parentTag.client_id
 			} else {
 				// 根据level, 查找在它前面的比它lvl小的struct
@@ -3156,6 +3261,17 @@ function batchProportion(idList, proportion) {
 		var PageMargins = oSection.Section.PageMargins
 		// console.log('============== ++++++++ 17', PageSize)
 		var tw = PageSize.W - PageMargins.Left - PageMargins.Right
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
 		function isTableEmpty(tableId) {
 			var oTable = Api.LookupObject(tableId)
 			if (!oTable) {
@@ -3214,7 +3330,7 @@ function batchProportion(idList, proportion) {
 				continue
 			}
 			var oControl = oControls.find(e => {
-				var tag = JSON.parse(e.GetTag() || '{}')
+				var tag = getJsonData(e.GetTag())
 				return tag.client_id == id
 			})
 			if (!oControl) {
@@ -3360,6 +3476,17 @@ function changeProportion(idList, proportion) {
 		var oControls = oDocument.GetAllContentControls()
 		var TABLE_TITLE = 'questionTable'
 		var newW = 100 / target_proportion
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
 		function AddControlToCell(oControl, oCell) {
 			var templist = []
 			templist.push(oControl)
@@ -3629,7 +3756,7 @@ function changeProportion(idList, proportion) {
 				continue
 			}
 			var oControl = oControls.find(e => {
-				var tag = JSON.parse(e.GetTag() || '{}')
+				var tag = getJsonData(e.GetTag())
 				return tag.client_id == id
 			})
 			if (!oControl) {
@@ -3728,6 +3855,17 @@ function deleteAsks(askList) {
 		var delete_ask_list = Asc.scope.delete_ask_list
 		var oDocument = Api.GetDocument()
 		var drawings = oDocument.GetAllDrawingObjects()
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
 		function clearQuesInteraction(oControl) {
 			if (!oControl) {
 				return
@@ -3742,7 +3880,7 @@ function deleteAsks(askList) {
 						oRun.Run.Content[0] &&
 						oRun.Run.Content[0].docPr) {
 						var title = oRun.Run.Content[0].docPr.title || "{}"
-						var titleObj = JSON.parse(title)
+						var titleObj = getJsonData(title)
 						if (titleObj.feature && titleObj.feature.sub_type == 'ask_accurate') {
 							oRun.Delete()
 							break
@@ -3755,8 +3893,7 @@ function deleteAsks(askList) {
 					for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
 						var oDrawing = drawings[j]
 						if (oDrawing.Drawing.docPr) {
-							var title = oDrawing.Drawing.docPr.title || "{}"
-							var titleObj = JSON.parse(title)
+							var titleObj = getJsonData(oDrawing.Drawing.docPr.title)
 							if (titleObj.feature && titleObj.feature.zone_type == 'question') {
 								oDrawing.Delete()
 							}
@@ -3781,8 +3918,7 @@ function deleteAsks(askList) {
 						oRun.Run.Content &&
 						oRun.Run.Content[0] &&
 						oRun.Run.Content[0].docPr) {
-						var title = oRun.Run.Content[0].docPr.title || '{}'
-						var titleObj = JSON.parse(title)
+						var titleObj = getJsonData(oRun.Run.Content[0].docPr.title)
 						if (titleObj.feature && titleObj.feature.sub_type == 'ask_accurate') {
 							oRun.Delete()
 							break

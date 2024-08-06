@@ -51,7 +51,12 @@ function getList() {
 	}
 	var extra_info = {}
 	if (workbook.extra_info && workbook.extra_info.length > 0) {
-		extra_info = JSON.parse(workbook.extra_info)
+		try {
+			extra_info = JSON.parse(workbook.extra_info)	
+		} catch (error) {
+			console.log('json parse error', error)
+			return
+		}
 		window.BiyueCustomData.workbook_info.parse_extra_data = extra_info
 		console.log('【extra_info】', extra_info)
 		var choice_display = Object.assign({

@@ -796,8 +796,18 @@ import { initView } from './pageView.js'
 			function (obj) {
 				window.Asc.plugin.currentContentControl = obj
 				var controlTag = obj ? obj.Tag : ''
-
-				var tagObj = JSON.parse(controlTag)
+				function getJsonData(str) {
+					if (!str || str == '' || typeof str != 'string') {
+						return {}
+					}
+					try {
+						return JSON.parse(str)
+					} catch (error) {
+						console.log('json parse error', error)
+						return {}
+					}
+				}
+				var tagObj = getJsonData(controlTag)
 				tagObj[key] = value
 				var newTag = JSON.stringify(tagObj)
 				window.Asc.plugin.callCommand(
@@ -1042,6 +1052,17 @@ import { initView } from './pageView.js'
 		console.log('showScoreContent on button clicked')
 		var fun = function () {
 			var controls = Api.GetDocument().GetAllContentControls()
+			function getJsonData(str) {
+				if (!str || str == '' || typeof str != 'string') {
+					return {}
+				}
+				try {
+					return JSON.parse(str)
+				} catch (error) {
+					console.log('json parse error', error)
+					return {}
+				}
+			}
 			for (var i = 0; i < controls.length; i++) {
 				var control = controls[i]
 				var obj = ''
@@ -1049,7 +1070,7 @@ import { initView } from './pageView.js'
 					obj = control.GetTag() || ''
 					if (obj) {
 						try {
-							obj = JSON.parse(obj)
+							obj = getJsonData(obj)
 						} catch (e) {
 							console.error('JSON解析失败', e)
 						}
@@ -1226,8 +1247,19 @@ import { initView } from './pageView.js'
 			[],
 			function (returnValue) {
 				console.log('control', returnValue)
+				function getJsonData(str) {
+					if (!str || str == '' || typeof str != 'string') {
+						return {}
+					}
+					try {
+						return JSON.parse(str)
+					} catch (error) {
+						console.log('json parse error', error)
+						return {}
+					}
+				}
 				if (returnValue && returnValue.Tag) {
-					var tag = JSON.parse(returnValue.Tag)
+					var tag = getJsonData(returnValue.Tag)
 					var event = new CustomEvent('clickSingleQues', {
 						detail: Object.assign({}, tag, {
 							InternalId: returnValue.InternalId,
@@ -1400,37 +1432,39 @@ import { initView } from './pageView.js'
 				) {
 					return
 				}
-
-				try {
-					var tagObj = JSON.parse(obj.Tag)
-					if (tagObj.group !== undefined && tagObj.group !== '') {
-						window.Asc.plugin.executeMethod(
-							'GetAllContentControls',
-							[],
-							function (controls) {
-								var ots = []
-								for (var i = 0; i < controls.length; i++) {
-									var e = controls[i]
-									if (e.Tag === undefined || e.Tag === '') {
-										continue
-									}
-
-									try {
-										var tag = JSON.parse(e.Tag)
-										if (tag.group === tagObj.group) {
-											tag.group = undefined
-											ots.push({ Id: e.InternalId, tag: JSON.stringify(tag) })
-										}
-									} catch (e) {
-										// console.log(e);
-									}
-								}
-								setBatchTag(window, ots)
-							}
-						)
+				function getJsonData(str) {
+					if (!str || str == '' || typeof str != 'string') {
+						return {}
 					}
-				} catch (e) {
-					console.log(e)
+					try {
+						return JSON.parse(str)
+					} catch (error) {
+						console.log('json parse error', error)
+						return {}
+					}
+				}
+				var tagObj = getJsonData(obj.Tag)
+				if (tagObj.group !== undefined && tagObj.group !== '') {
+					window.Asc.plugin.executeMethod(
+						'GetAllContentControls',
+						[],
+						function (controls) {
+							var ots = []
+							for (var i = 0; i < controls.length; i++) {
+								var e = controls[i]
+								if (e.Tag === undefined || e.Tag === '') {
+									continue
+								}
+
+								var tag = getJsonData(e.Tag)
+								if (tag.group === tagObj.group) {
+									tag.group = undefined
+									ots.push({ Id: e.InternalId, tag: JSON.stringify(tag) })
+								}
+							}
+							setBatchTag(window, ots)
+						}
+					)
 				}
 			}
 		)
@@ -1479,17 +1513,22 @@ import { initView } from './pageView.js'
 		if (prevControl === undefined || curControl === undefined) {
 			return
 		}
+		try {
+			var prevTagObj = JSON.parse(prevControl.Tag || '{}') || {}
+			var curTagObj = JSON.parse(curControl.Tag || '{}') || {}
 
-		var prevTagObj = JSON.parse(prevControl.Tag || '{}') || {}
-		var curTagObj = JSON.parse(curControl.Tag || '{}') || {}
+			if (prevTagObj.group === undefined) {
+				prevTagObj.group = prevControl.InternalId
+			}
 
-		if (prevTagObj.group === undefined) {
-			prevTagObj.group = prevControl.InternalId
-		}
-
-		if (prevTagObj.group === curTagObj.group) {
+			if (prevTagObj.group === curTagObj.group) {
+				return
+			}	
+		} catch (error) {
+			console.log('JSON解析失败', error)
 			return
 		}
+		
 
 		curTagObj.group = prevTagObj.group
 
@@ -1913,12 +1952,16 @@ import { initView } from './pageView.js'
 						if (oDrawing.Drawing.docPr) {
 							var title = oDrawing.Drawing.docPr.title
 							if (title && title.indexOf('feature') >= 0) {
-								var titleObj = JSON.parse(title)
-								if (
-									titleObj.feature &&
-									titleObj.feature.zone_type == 'question'
-								) {
-									oDrawing.Delete()
+								try {
+									var titleObj = JSON.parse(title)
+									if (
+										titleObj.feature &&
+										titleObj.feature.zone_type == 'question'
+									) {
+										oDrawing.Delete()
+									}	
+								} catch (error) {
+									console.log('json解析失败', error)
 								}
 							}
 						}

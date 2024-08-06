@@ -223,6 +223,17 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 		var drawings = oDocument.GetAllDrawingObjects()
 		var exceptList = Asc.scope.exceptList
 		var specifyFeatures = Asc.scope.specifyFeatures
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
 		function deleteAccurate(oDrawing) {
 			var run = oDrawing.Drawing.GetRun()
 			if (run) {
@@ -257,7 +268,7 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 				if (oDrawing.Drawing.docPr) {
 					var title = oDrawing.Drawing.docPr.title
 					if (title && title.indexOf('feature') >= 0) {
-						var titleObj = JSON.parse(title)
+						var titleObj = getJsonData(title)
 						if (titleObj.feature && titleObj.feature.zone_type) {
 							if (exceptList) {
 								var inExcept = exceptList.findIndex(e => {
@@ -420,6 +431,17 @@ function drawList(list) {
 		}
 		var res = {
 			list: [],
+		}
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
 		}
 		function addImageToCell(oTable, nRow, nCell, url, w, h, mleft, mright) {
 			if (!oTable) {
@@ -605,7 +627,7 @@ function drawList(list) {
 					for (var j = 0, jmax = oRun.Run.Content.length; j < jmax; ++j) {
 						if (oRun.Run.Content[j].GetType && oRun.Run.Content[j].GetType() == 22) {
 							var title = oRun.Run.Content[j].docPr.title || '{}'
-							var titleObj = JSON.parse(title)
+							var titleObj = getJsonData(title)
 							if (titleObj.feature && titleObj.feature.zone_type == zone_type) {
 								return oRun.Run.Content[j]
 							}
@@ -1153,13 +1175,24 @@ function setInteraction(type, quesIds) {
 			var numbering = oParagraph.GetNumbering()
 			syncSameParagraph(numbering, oParagraph, vshow)
 		}
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
 
 		function getExistDrawing(draws, sub_type_list, write_id) {
 			var list = []
 			for (var i = 0; i < draws.length; ++i) {
 				var title = draws[i].Drawing.docPr.title
 				if (title) {
-					var titleObj = JSON.parse(title)
+					var titleObj = getJsonData(title)
 					if (titleObj.feature) {
 						if (titleObj.feature.zone_type == 'question' && sub_type_list.indexOf(titleObj.feature.sub_type) >= 0) {
 							if (write_id) {
@@ -1226,7 +1259,7 @@ function setInteraction(type, quesIds) {
 				oRun.Run.Content[0].docPr) {
 				var title = oRun.Run.Content[0].docPr.title
 				if (title) {
-					var titleObj = JSON.parse(title)
+					var titleObj = getJsonData(title)
 					if (titleObj.feature && titleObj.feature.sub_type == 'ask_accurate') {
 						oRun.Delete()
 						return true
@@ -1419,7 +1452,7 @@ function setInteraction(type, quesIds) {
 		}
 		for (var i = 0, imax = controls.length; i < imax; ++i) {
 			var oControl = controls[i]
-			var tag = JSON.parse(oControl.GetTag() || '{}')
+			var tag = getJsonData(oControl.GetTag() || '{}')
 			if (quesIds) {
 				var qindex = quesIds.findIndex(e => {
 					return e == tag.client_id
@@ -1513,11 +1546,22 @@ function updateChoice(recalc = true) {
 				}
 			}
 		}
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
 		function handleControl(oControl, i) {
 			if (!oControl) {
 				return
 			}
-			var tag = JSON.parse(oControl.GetTag() || '{}')
+			var tag = getJsonData(oControl.GetTag())
 			if (!tag.client_id) {
 				control_id
 			}
@@ -1555,7 +1599,7 @@ function updateChoice(recalc = true) {
 					if (childControls && childControls.length) {
 						childControls.forEach((oChildControl) => {
 							if (oChildControl.GetClassType() == 'blockLvlSdt') {
-								var childtag = JSON.parse(oChildControl.GetTag() || '{}')
+								var childtag = getJsonData(oChildControl.GetTag())
 								if (childtag.client_id) {
 									var nodeData2 = node_list.find(e => {
 										return e.id == childtag.client_id
@@ -1608,7 +1652,7 @@ function updateChoice(recalc = true) {
 				}
 			}
 		}
-		for (var s = 0; s < structs.length; ++s) {
+		for (var s = structs.length-1; s >= 0; --s) {
 			var queslist = structs[s].items
 			if (!queslist || queslist.length == 0) {
 				continue
