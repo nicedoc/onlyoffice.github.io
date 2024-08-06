@@ -1366,14 +1366,20 @@ function drawPosition2(data) {
 					Tag: JSON.stringify(tag),
 				})
 				Api.asc_RemoveSelection()
-				return {
-					add: true,
-					control: {
-						control_id: oResult.InternalId,
-						regionType: 'feature',
-						v: posdata.v,
-						zone_type: posdata.zone_type,
-					},
+				if (oResult) {
+					return {
+						add: true,
+						control: {
+							control_id: oResult.InternalId,
+							regionType: 'feature',
+							v: posdata.v,
+							zone_type: posdata.zone_type,
+						},
+					}
+				} else {
+					return {
+						add: false,
+					}
 				}
 			}
 		},

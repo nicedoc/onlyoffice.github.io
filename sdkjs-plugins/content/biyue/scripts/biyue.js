@@ -696,29 +696,33 @@ import { initView } from './pageView.js'
                 var oResult = Api.asc_AddContentControl(e.controlType || 1, { "Tag": e.info ? JSON.stringify(e.info) : '' });
 
                 Api.asc_RemoveSelection();
-				if (inCell) {
-					var oControl = Api.LookupObject(oResult.InternalId)
-					if (oControl.GetClassType() == 'blockLvlSdt') {
-						var oCell = oControl.GetParentTableCell()
-						if (oCell.GetContent().GetElementsCount() > 1) {
-							oCell.GetContent().RemoveElement(1)
-						}
-						if (oControl.GetContent().GetElementsCount() > 1) {
-							var lastpos = oControl.GetContent().GetElementsCount() - 1
-							var lastElement = oControl.GetContent().GetElement(lastpos)
-							if (lastElement.GetClassType() == 'paragraph' && lastElement.GetElementsCount() == 0) {
-								oControl.GetContent().RemoveElement(lastpos)
+				if (oResult) {
+					if (inCell) {
+						var oControl = Api.LookupObject(oResult.InternalId)
+						if (oControl.GetClassType() == 'blockLvlSdt') {
+							var oCell = oControl.GetParentTableCell()
+							if (oCell.GetContent().GetElementsCount() > 1) {
+								oCell.GetContent().RemoveElement(1)
+							}
+							if (oControl.GetContent().GetElementsCount() > 1) {
+								var lastpos = oControl.GetContent().GetElementsCount() - 1
+								var lastElement = oControl.GetContent().GetElement(lastpos)
+								if (lastElement.GetClassType() == 'paragraph' && lastElement.GetElementsCount() == 0) {
+									oControl.GetContent().RemoveElement(lastpos)
+								}
 							}
 						}
 					}
+					if (e.column !== undefined && e.column > 1) {
+						results.push({
+							"InternalId": oResult.InternalId,
+							"Tag": oResult.Tag,
+							"Column": e.column
+						})
+					}
+				} else {
+					console.log('oResult is null', e);
 				}
-                if (e.column !== undefined && e.column > 1) {
-                    results.push({
-                        "InternalId": oResult.InternalId,
-                        "Tag": oResult.Tag,
-                        "Column": e.column
-                    })
-                }
             }
 
             console.log('command createContentControl done');
