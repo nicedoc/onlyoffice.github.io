@@ -721,7 +721,7 @@ import { initView } from './pageView.js'
 						})
 					}
 				} else {
-					console.log('oResult is null', e);
+					console.warn('asc_AddContentControl oResult is null', e);
 				}
             }
 

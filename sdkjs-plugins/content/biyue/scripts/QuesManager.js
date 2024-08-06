@@ -1233,6 +1233,8 @@ function updateRangeControlType(typeName) {
 											regionType: 'question',
 											numbing_text: GetNumberingValue(oControl)
 										})
+									} else {
+										console.warn('添加control失败')
 									}
 								}
 							} else {
@@ -1562,6 +1564,8 @@ function updateRangeControlType(typeName) {
 									}
 								}
 							}
+						} else {
+							console.warn('添加control失败')
 						}
 					}
 				}
