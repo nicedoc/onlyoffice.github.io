@@ -4038,6 +4038,7 @@ function getAllPositions() {
 							return e.id == tag.client_id
 						})
 						if (nodeData && nodeData.write_list) {
+              let mark_order = 1
 							for (var iask = 0; iask < question_obj.ask_list.length; ++iask) {
 								var askData = nodeData.write_list.find(e => {
 									return e.id == question_obj.ask_list[iask].id
@@ -4050,16 +4051,20 @@ function getAllPositions() {
 											var askBounds = Object.values(oAskControl.Sdt.Bounds)
 											// todo..需要考虑小问区域合并的情况
 											askBounds.forEach(e => {
-												item.write_ask_region.push({
-													order: item.write_ask_region.length + 1 + '',
-													page: e.Page + 1,
-													x: mmToPx(e.X),
-													y: mmToPx(e.Y),
-													w: mmToPx(e.W),
-													h: mmToPx(e.H),
-													v: ask_score + '',
-												})
+                        if (e.W) {
+                          item.write_ask_region.push({
+                            order: item.write_ask_region.length + 1 + '',
+                            page: e.Page + 1,
+                            x: mmToPx(e.X),
+                            y: mmToPx(e.Y),
+                            w: mmToPx(e.W),
+                            h: mmToPx(e.H),
+                            v: ask_score + '',
+                            mark_order: mark_order,
+                          })
+                        }
 											})
+                      mark_order++
 										}
 									} else if (askData.sub_type == 'cell') {
 										var oCell = Api.LookupObject(askData.cell_id)
@@ -4086,13 +4091,21 @@ function getAllPositions() {
               return { ...e, order: e.order + '' }
             })
             item.mark_ask_region = mark_ask_region.reduce((acc, obj) => {
-              const order = obj.order
+              const order = obj.mark_order
               if (!acc.hasOwnProperty(order)) {
                 acc[order] = []
               }
-              acc[order].push(obj)
+              // 过滤mark_order
+              const { mark_order, ...newObj } = obj
+              acc[order].push(newObj)
               return acc
             }, {})
+
+            // 过滤不需要传出去的标记
+            const removeField = (arr) => {
+              return arr.map(({mark_order, ...rest}) => rest)
+            }
+            item.write_ask_region = removeField(item.write_ask_region)
 					} else {
             // 没有小问的题目 暂时使用当前的题干区域作为批改和作答区 同时如果存在多个题干区，也只算作一个题目的批改区
             bounds.forEach((e) => {

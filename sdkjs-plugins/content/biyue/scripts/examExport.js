@@ -407,6 +407,7 @@ import { setXToken } from './auth.js'
     const need_update = false
     const ques_score_err = []
     const ask_score_err = []
+    const ask_score_empty_err = []
     const ques_type_err = []
 
     for (const key in postions) {
@@ -442,7 +443,8 @@ import { setXToken } from './auth.js'
             // 主观题
           } else {
             const positionsObj = postions[key].mark_ask_region
-            let ask_score = 0
+            let ask_score_sum = 0
+            let has_ask_score_empty_err = false
             for (const k in positionsObj) {
               if (positionsObj[k] && positionsObj[k][0]) {
                 question_ask[positionsObj[k][0].order] = {
@@ -451,13 +453,21 @@ import { setXToken } from './auth.js'
                 }
                 if (postions[key].score) {
                     //  检查小问的分数和题目的分数是否一致
-                    ask_score += parseFloat(positionsObj[k][0].v) || 0
+                    let ask_score = parseFloat(positionsObj[k][0].v) || 0
+                    ask_score_sum += ask_score
+                    if (!ask_score) {
+                      has_ask_score_empty_err = true
+                    }
                 }
               }
             }
-            if ((ask_score * 1 !== postions[key].score * 1) && postions[key].score) {
+            if ((ask_score_sum * 1 !== postions[key].score * 1) && postions[key].score) {
                 //  小问分数和题目分数不一致
                 ask_score_err.push(postions[key].ques_name)
+            }
+            if (has_ask_score_empty_err) {
+                // 题目有分数的情况下，有小问的分数为空
+                ask_score_empty_err.push(postions[key].ques_name)
             }
             postions[key].question_ask = question_ask
           }
@@ -477,6 +487,12 @@ import { setXToken } from './auth.js'
           message += `<br/><br/>`
         }
         message += `有题目小问分数和题目分数不一致,请检查题目:` + ask_score_err.join(',')
+    }
+    if (ask_score_empty_err.length > 0) {
+        if (message !== '') {
+          message += `<br/><br/>`
+        }
+        message += `有题目的小问分数出现为空,请检查题目:` + ask_score_empty_err.join(',')
     }
 
     if (ques_type_err.length > 0) {
