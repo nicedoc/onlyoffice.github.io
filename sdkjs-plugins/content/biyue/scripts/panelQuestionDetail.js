@@ -133,7 +133,7 @@ function resetEvent() {
 	}
 }
 
-function updateElements(quesData, hint) {
+function updateElements(quesData, hint, ignore_ask_list) {
 	resetEvent()
 	if (!inited) {
 		initElements()
@@ -166,7 +166,7 @@ function updateElements(quesData, hint) {
 		$('#ques_text').html(quesData.text)
 		$('#ques_text').attr('title', quesData.text)
 	}
-	if (quesData.ask_list && quesData.ask_list.length > 0) {
+	if (quesData.ask_list && quesData.ask_list.length > 0 && !ignore_ask_list) {
 		var content = ''
 		content += '<label class="header">每空权重/分数</label><div class="asks">'
 		quesData.ask_list.forEach((ask, index) => {
@@ -223,6 +223,8 @@ function showQuesData(params) {
 	}
 	g_client_id = params.client_id
 	var question_map = window.BiyueCustomData.question_map || {}
+  let choice_display = window.BiyueCustomData.choice_display || {}
+  let ignore_ask_list = false
 	var quesData = question_map ? question_map[g_client_id] : null
 	if (g_client_id) {
 		var node_list = window.BiyueCustomData.node_list || []
@@ -272,7 +274,18 @@ function showQuesData(params) {
 	console.log('=========== showQuesData ques:', quesData)
 	g_ques_id = ques_client_id
 	if (quesData.level_type == 'question') {
-		updateElements(quesData)	
+
+    if (choice_display.style && choice_display.style === 'show_choice_region') {
+      // 如果是开启了集中作答区状态，则需要忽略对应题目的小问
+      let node = node_list.find(e => {
+        return e.id == ques_client_id
+      })
+      if (node.use_gather) {
+        ignore_ask_list = true
+      }
+    }
+
+		updateElements(quesData, null, ignore_ask_list)
 	} else if (quesData.level_type == 'struct') {
 		updateElements(null, `当前选中为题组：${quesData ? quesData.ques_default_name : ''}`)
 		return

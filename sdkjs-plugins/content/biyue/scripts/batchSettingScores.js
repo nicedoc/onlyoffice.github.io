@@ -18,6 +18,7 @@
   function renderData() {
     let node_list = biyueCustomData.node_list || []
     question_map = biyueCustomData.question_map || {}
+    let choice_display = biyueCustomData.choice_display || {}
     let html = ''
     let question_list = []
     let tree = {}
@@ -27,7 +28,8 @@
       if (node_list[key].level_type == 'question') {
         if (item && item.question_type !== 6) {
           html += `<span class="question">${(item.ques_default_name ? item.ques_default_name : '')}`
-          if (item.ask_list && item.ask_list.length > 0) {
+          let show_choice_region = choice_display.style == 'show_choice_region' // 判断是否为开启集中作答区
+          if (item.ask_list && item.ask_list.length > 0 && (!show_choice_region || show_choice_region && !node_list[key].use_gather)) {
             for (const ask_k in item.ask_list) {
               html += `<input type="text" class="score ques-${ node_list[key].id } ask-index-${ask_k} ask-${item.ask_list[ask_k].id}" value="${item.ask_list[ask_k].score || 0}">`
             }
@@ -227,12 +229,18 @@
   }
 
   function onConfirm() {
+    let choice_display = biyueCustomData.choice_display || {}
+    let show_choice_region = choice_display.style == 'show_choice_region' // 判断是否为开启集中作答区
+    let node_list = biyueCustomData.node_list || []
     for (const key in questionList) {
       let id = questionList[key] || ''
       let dom = $('.ques-'+id)
       if (id && question_map[id] && dom) {
         let ask_list = question_map[id].ask_list || []
-        if (ask_list.length > 0) {
+        var nodeData = node_list.find(e => {
+          return e.id == id
+        })
+        if (ask_list.length > 0 && (!show_choice_region || show_choice_region && !nodeData.use_gather)) {
           // 有小问区的题
           let sumScore = 0
           for (const k in ask_list) {

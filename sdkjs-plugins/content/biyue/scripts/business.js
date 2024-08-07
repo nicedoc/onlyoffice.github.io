@@ -976,7 +976,7 @@ function addQuesScore(score = 10) {
 			if (controls) {
 				for (var i = 0; i < controls.length; ++i) {
 					var control = controls[i]
-					tag = getJsonData(control.GetTag())	
+					tag = getJsonData(control.GetTag())
 					if (tag.regionType == 'question') {
 						var range = control.GetRange()
 						var oTableStyle = oDocument.CreateStyle('CustomTableStyle', 'table')
@@ -3123,7 +3123,7 @@ function handleContentControlChange(params) {
 	var tag = params.Tag
 	if (tag) {
 		try {
-			tag = JSON.parse(params.Tag)	
+			tag = JSON.parse(params.Tag)
 		} catch (error) {
 			console.log('json parse error', error)
 			return
@@ -3979,6 +3979,15 @@ function getAllPositions() {
 					}
 					Api.asc_CheckCopy(text_data, 2)
 					var correctPos = GetCorrectRegion(oControl)
+          var gatherRegion = getGatherCellRegion(tag.client_id)
+          var is_gather_region = false
+          if (Asc.scope.choice_params && Asc.scope.choice_params.style === 'show_choice_region' && gatherRegion) {
+            // 开启集中作答区并且有集中作答区的坐标信息
+            is_gather_region = true
+            if (question_map[tag.client_id]) {
+              question_map[tag.client_id].ask_list = []
+            }
+          }
 					var item = {
 						id: tag.client_id,
 						control_id: oControl.Sdt.GetId(),
@@ -4007,8 +4016,24 @@ function getAllPositions() {
 							h: e.H,
 						})
 					})
-
-					if (question_obj.ask_list && question_obj.ask_list.length) {
+          if (is_gather_region) {
+            // 集中作答区的题目
+            let cell_region = gatherRegion.cell_region || []
+            cell_region.forEach((e) => {
+              item.write_ask_region.push({
+                page: e.page,
+                order: e.order + '',
+                v: item.score + '',
+                x: e.x,
+                y: e.y,
+                w: e.w,
+                h: e.h,
+              })
+            })
+            let mark_ask_region = {}
+            mark_ask_region['1'] = item.write_ask_region
+            item.mark_ask_region = mark_ask_region
+          }else if (question_obj.ask_list && question_obj.ask_list.length) {
 						var nodeData = node_list.find(e => {
 							return e.id == tag.client_id
 						})
