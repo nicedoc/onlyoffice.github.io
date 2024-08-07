@@ -20,7 +20,6 @@ import {
 	setSectionColumn,
 	getAllPositions
 } from './business.js'
-import { showQuesData, initListener } from './panelQuestionDetail.js'
 import { getVersion } from "./ver.js"
 import {
 	initFeature,
@@ -39,7 +38,8 @@ import {
 	handleContextMenuShow,
 	handleAllWrite,
 	showAskCells,
-	onContextMenuClick
+	onContextMenuClick,
+	layoutRepair
 } from './QuesManager.js'
 
 import { initView } from './pageView.js'
@@ -157,6 +157,13 @@ import { initView } from './pageView.js'
 							window.biyue[message.extra_data.func](message.extra_data.args)
 						}
 					}
+				}
+				break
+			case 'LayoutRepairMessage':
+				if (message.cmd) {
+					layoutRepair(message.cmd)
+				} else {
+					modal.command('initLayoutRepair', Asc.scope.layout_detect_result)
 				}
 				break
 			default:

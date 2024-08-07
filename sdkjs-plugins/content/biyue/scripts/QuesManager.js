@@ -4,6 +4,7 @@ import { getQuesType, reqComplete } from '../scripts/api/paper.js'
 import { handleChoiceUpdateResult, setInteraction, updateChoice } from "./featureManager.js";
 import { initExtroInfo } from "./panelFeature.js";
 var levelSetWindow = null
+var layoutRepairWindow = null
 var level_map = {}
 var g_click_value = null
 var upload_control_list = []
@@ -177,18 +178,15 @@ function getContextMenuItems(type) {
 		}
 	})
 	splitType.items = items
-	var settingItems = [splitType]
-	settingItems.push({
-		id: 'setSectionColumn_2',
-		text: '分为2栏'
-	})
-	settingItems.push({
-		id: 'setSectionColumn_1',
-		text: '取消分栏'
-	})
 	let settings = {
 		guid: window.Asc.plugin.guid,
-		items: settingItems,
+		items: [splitType],
+	}
+	if ((type == 'Target' && g_click_value && nodeData && nodeData.level_type == 'question') || type == 'Selection' ) {
+		settings.items.push({
+			id: `layoutRepair`,
+			text: '排版修复'
+		})
 	}
 	if (canBatch) {
 		var questypes = window.BiyueCustomData.paper_options.question_type
@@ -271,6 +269,14 @@ function getContextMenuItems(type) {
 			],
 		})
 	}
+	settings.items.push({
+		id: 'setSectionColumn_2',
+		text: '分为2栏'
+	})
+	settings.items.push({
+		id: 'setSectionColumn_1',
+		text: '取消分栏'
+	})
 	return settings
 }
 
@@ -302,6 +308,9 @@ function onContextMenuClick(id) {
 				break
 			case 'handleImageIgnore':
 				handleImageIgnore(strs[1])
+				break
+			case 'layoutRepair':
+				layoutDetect()
 				break
 			default:
 				break
@@ -4098,6 +4107,151 @@ function setSectionColumn(column) {
 		}
 	}, false, true)
 }
+function layoutDetect() {
+	return biyueCallCommand(window, function() {
+		var oDocument = Api.GetDocument()
+		var oRange = oDocument.GetRangeBySelect()
+		if (!oRange) {
+			var currentContentControl = oDocument.Document.GetContentControl()
+			oRange = Api.LookupObject(currentContentControl.Id).GetRange()
+		}
+		if (!oRange) {
+			return null
+		}
+		var paragraphs = oRange.Paragraphs || []
+		var result = {
+			has32: false, // 存在空格具有下划线属性
+			has160: false, // 存在ASCII码160，这是一个不可打印字符，称为不间断空格（NBSP）
+			has65307: false // 中文分号
+		}
+		function handleRun(oRun) {
+			if (!oRun || oRun.GetClassType() != 'run') {
+				return
+			}
+			var runContent = oRun.Run.Content || []
+			var isUnderline = oRun.GetUnderline()
+			var find = false
+			for (var k = 0, kmax = runContent.length; k < kmax; ++k) {
+				if (isUnderline && runContent[k].Value == 32) {
+					result.has32 = true
+					find = true
+				} else if (runContent[k].Value == 160) {
+					result.has160 = true
+					find = true
+				} else if (runContent[k].Value == 65307) { // 中文分号
+					result.has65307 = true
+					find = true
+				}
+			}
+			// 需要调整样式
+		}
+		for (var i = 0, imax = paragraphs.length; i < imax; ++i) {
+			var oParagraph = paragraphs[i]
+			var controls = oParagraph.GetAllContentControls() || []
+			controls.forEach(oControl => {
+				if (oControl.GetClassType() == 'inlineLvlSdt') {
+					var count1 = oControl.GetElementsCount()
+					if (count1) {
+						for (var k = 0; k < oControl.GetElementsCount(); ++k) {
+							handleRun(oControl.GetElement(k))
+						}
+					}
+				}
+			})
+			for (var j = 0; j < oParagraph.GetElementsCount(); ++j) {
+				handleRun(oParagraph.GetElement(j))
+			}
+		}
+		return result
+	}, false, false).then(res => {
+		Asc.scope.layout_detect_result = res
+		window.biyue.showDialog(layoutRepairWindow, '字符检测', 'layoutRepair.html', 250, 400, true)
+	})
+}
+
+// 排版修复
+function layoutRepair(cmdData) {
+	Asc.scope.cmdData = cmdData
+	return biyueCallCommand(window, function() {
+		var cmdData = Asc.scope.cmdData
+		var oDocument = Api.GetDocument()
+		var paragrahs = oDocument.GetAllParagraphs() || []
+
+		function handleRun(oRun, parent, pos) {
+			if (!oRun || oRun.GetClassType() != 'run') {
+				return
+			}
+			var runContent = oRun.Run.Content || []
+			if (cmdData.type == 1) {
+				if (cmdData.value == 32) {
+					if (!oRun.GetUnderline()) {
+						return
+					}
+					var find = false
+					var split = false
+					for (var k = 0, kmax = runContent.length; k < kmax; ++k) {
+						var element2 = runContent[k]
+						if (element2.Value == 32) {
+							if (!find && k > 0) {
+								var newRun = oRun.Run.Split_Run(k + 1)
+								parent.Add_ToContent(pos + 1, newRun)
+								return
+							}
+							find = true
+							oRun.Run.RemoveElement(element2)
+							oRun.Run.AddText('_', k)
+							if (k < kmax - 1) {
+								var nextValue = runContent[k + 1].Value
+								if (nextValue != 32) {
+									oRun.SetUnderline(false)
+									var newRun = oRun.Run.Split_Run(k + 1)
+									newRun.SetUnderline(true)
+									parent.Add_ToContent(pos + 1, newRun)
+									split = true
+									break
+								}
+							}
+						}
+					}
+					if (find) {
+						if (!split) {
+							oRun.SetUnderline(false)
+						}
+					}
+				} else {
+					for (var k = 0, kmax = runContent.length; k < kmax; ++k) {
+						var element2 = runContent[k]
+						if (element2.Value == cmdData.value) {
+							oRun.Run.RemoveElement(element2)
+							if (cmdData.newValue == 32) {
+								oRun.Run.AddText(' ', k)
+							} else if (cmdData.newValue == 59) {
+								oRun.Run.AddText(';', k)
+							}
+						}
+					}
+				}
+			}
+		} 
+		for (var i = 0, imax = paragrahs.length; i < imax; ++i) {
+			var oParagraph = paragrahs[i]
+			var controls = oParagraph.GetAllContentControls() || []
+			controls.forEach(oControl => {
+				if (oControl.GetClassType() == 'inlineLvlSdt') {
+					var count1 = oControl.GetElementsCount()
+					if (count1) {
+						for (var k = 0; k < oControl.GetElementsCount(); ++k) {
+							handleRun(oControl.GetElement(k), oControl.Sdt, k)
+						}
+					}
+				}
+			})
+			for (var j = 0; j < oParagraph.GetElementsCount(); ++j) {
+				handleRun(oParagraph.GetElement(j), oParagraph.Paragraph, j)
+			}
+		}
+	}, false, true)
+}
 
 export {
 	handleDocClick,
@@ -4116,5 +4270,6 @@ export {
 	showAskCells,
 	onContextMenuClick,
 	g_click_value,
-	updateAllChoice
+	updateAllChoice,
+	layoutRepair
 }
