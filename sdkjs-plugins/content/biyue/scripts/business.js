@@ -3765,7 +3765,7 @@ function getAllPositions() {
 					return {}
 				}
 			}
-			function getCellBounds(oCell, ask_score) {
+			function getCellBounds(oCell, ask_score, order) {
 				if (!oCell) {
 					return []
 				}
@@ -3783,7 +3783,7 @@ function getAllPositions() {
 						continue
 					}
 					bounds.push({
-						order: item.write_ask_region.length + 1 + '',
+						order: order + '',
 						page: npage + 1,
 						x: mmToPx(pagebounds.Left),
 						y: mmToPx(pagebounds.Top),
@@ -3911,7 +3911,7 @@ function getAllPositions() {
 					return
 				}
 				// 单元格区域
-				var cell_region = getCellBounds(oCell, question_map[nodeId].score)
+				var cell_region = getCellBounds(oCell, question_map[nodeId].score, '1')
 				// 互动区域
 				var drawings = oCell.GetContent().GetAllDrawingObjects() || []
 				var oDrawing = drawings.find(e => {
@@ -4038,7 +4038,7 @@ function getAllPositions() {
 										}
 									} else if (askData.sub_type == 'cell') {
 										var oCell = Api.LookupObject(askData.cell_id)
-										item.write_ask_region.concat(getCellBounds(oCell, ask_score))
+										item.write_ask_region.concat(getCellBounds(oCell, ask_score, item.write_ask_region.length + 1))
 									} else if (askData.sub_type == 'write' || askData.sub_type == 'identify') {
 										var oShape = Api.LookupObject(askData.shape_id)
 										if (oShape && oShape.Drawing) {
