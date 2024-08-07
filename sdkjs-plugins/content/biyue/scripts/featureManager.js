@@ -329,14 +329,14 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 			if (LvlText && LvlText.length) {
 				if (LvlText[0].Value!='\ue6a1') {
 					var targetInd = oParagraph.GetParentTableCell() ? 280 : 0
-					oParagraph.SetIndLeft(targetInd)
+					oParagraph.SetIndFirstLine(targetInd)
 					return
 				}
 			}
 			var key = `${oNum.Id}_${level}`
 			if (handledNumbering[key]) {
 				var targetInd = oParagraph.GetParentTableCell() ? 280 : 0
-				oParagraph.SetIndLeft(targetInd)
+				oParagraph.SetIndFirstLine(targetInd)
 				return
 			}
 			handledNumbering[key] = 1
@@ -387,7 +387,7 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 			var oTextPr = oNumberingLevel.GetTextPr();
 			oTextPr.SetFontFamily("iconfont");
 			var targetInd = oParagraph.GetParentTableCell() ? 280 : 0
-			oParagraph.SetIndLeft(targetInd)
+			oParagraph.SetIndFirstLine(targetInd)
 		}
 		var controls = oDocument.GetAllContentControls()
 		if (controls) {
@@ -1063,7 +1063,7 @@ function setInteraction(type, quesIds) {
 			} else {
 				targetInd = vshow ? (0 - vInd) : 0
 			}
-			oParagraph.SetIndLeft(targetInd)
+			oParagraph.SetIndFirstLine(targetInd)
 		}
 		function syncSameParagraph(numbering, oParagraph, vshow) {
 			allParagraphs.forEach(e => {
