@@ -1237,7 +1237,7 @@ import { initView } from './pageView.js'
 	// 在editor面板的插件按钮被点击
 	window.Asc.plugin.button = function (id, windowID) {
 		console.log('on plugin button id=${id} ${windowID}', id, windowID)
-    showImageIgnoreMark() // 重新打开不铺码图片的边框标识
+    changeImageIgnoreMark('show') // 重新打开不铺码图片的边框标识
 		if (windowID) {
 			if (id === -1) {
 				window.Asc.plugin.executeMethod('CloseWindow', [windowID])
@@ -1929,7 +1929,7 @@ import { initView } from './pageView.js'
 	}
 
 	function importExam() {
-    hiddenImageIgnoreMark().then(_res=> {
+    changeImageIgnoreMark('hidden').then(_res=> {
       console.log('关闭图片忽略区的边框红线标识')
       getAllPositions().then(res=>{
         questionPositions = res
@@ -2059,37 +2059,22 @@ import { initView } from './pageView.js'
 		showDialog(messageBoxWindow, params.title || '提示', 'message.html', 200, 100, true)
 	}
 
-  function hiddenImageIgnoreMark() {
+  function changeImageIgnoreMark(type) {
+	  Asc.scope.cmdType = type
     return biyueCallCommand(window, function() {
-    var oDocument = Api.GetDocument()
-		var drawings = oDocument.GetAllDrawingObjects() || []
-		drawings.forEach(oDrawing => {
-      let title = oDrawing.Drawing.docPr.title || ''
-      if (title.includes('partical_no_dot')) {
-        var oFill = Api.CreateSolidFill(Api.CreateRGBColor(255, 255, 255))
-        oFill.UniFill.transparent = 0 // 透明度
-
-				var oStroke = Api.CreateStroke(10000, oFill);
-				oDrawing.SetOutLine(oStroke);
-      }
-    })
-
-    }, false, false)
-  }
-
-  function showImageIgnoreMark() {
-    return biyueCallCommand(window, function() {
-    var oDocument = Api.GetDocument()
-		var drawings = oDocument.GetAllDrawingObjects() || []
-		drawings.forEach(oDrawing => {
-      let title = oDrawing.Drawing.docPr.title || ''
-      if (title.includes('partical_no_dot')) {
-				var oStroke = Api.CreateStroke(10000, Api.CreateSolidFill(Api.CreateRGBColor(255, 111, 61)));
-				oDrawing.SetOutLine(oStroke);
-      }
-    })
-
-    }, false, false)
+      var cmdType = Asc.scope.cmdType
+      var oDocument = Api.GetDocument()
+      var drawings = oDocument.GetAllDrawingObjects() || []
+      drawings.forEach(oDrawing => {
+        let title = oDrawing.Drawing.docPr.title || ''
+        if (title.includes('partical_no_dot')) {
+          var oFill = Api.CreateSolidFill(Api.CreateRGBColor(255, 255, 255))
+          oFill.UniFill.transparent = 0 // 透明度
+          var oStroke = Api.CreateStroke(10000, cmdType == 'show' ? Api.CreateSolidFill(Api.CreateRGBColor(255, 111, 61)) : oFill);
+          oDrawing.SetOutLine(oStroke);
+        }
+      })
+      }, false, false)
   }
 
 	window.biyue = {
