@@ -121,7 +121,7 @@ function getContextMenuItems(type) {
 			}
 		}
 	}
-	
+
 	var splitType = {
 		separator: true,
 		id: 'updateControlType',
@@ -395,7 +395,7 @@ function getNodeList() {
 							id: childTag.client_id,
 							sub_type: 'control',
 							control_id: oChild.Sdt.GetId()
-						})	
+						})
 					}
 				}
 			}
@@ -452,7 +452,7 @@ function getNodeList() {
 											continue
 										}
 										if (oElement2.GetClassType() == 'paragraph') {
-											getParagraphWriteList(oElement2, write_list)	
+											getParagraphWriteList(oElement2, write_list)
 										} else if (oElement2.GetClassType() == 'blockLvlSdt') {
 											getBlockWriteList(oElement2, write_list)
 										}
@@ -707,7 +707,7 @@ function updateRangeControlType(typeName) {
 			} else if (oNumberingLvl.Format == 46) {
 				sType = 'lowerLetter'
 			} else if (oNumberingLvl.Format == 47) {
-				sType = 'lowerRoman'	
+				sType = 'lowerRoman'
 			} else if (oNumberingLvl.Format == 60) {
 				sType = 'upperLetter'
 			} else if (oNumberingLvl.Format == 61) {
@@ -1410,7 +1410,7 @@ function updateRangeControlType(typeName) {
 			// 暂时只支持选中多个单元格设置小问和清除区域
 			if ((typeName == 'write' || typeName == 'clear' || typeName == 'clearAll') &&
 				startData.cellContentId && endData.cellContentId
-				&& startData.tableId == endData.tableId && 
+				&& startData.tableId == endData.tableId &&
 				startData.cellContentId != endData.cellContentId &&
 				startData.controlId && startData.controlId == endData.controlId &&
 				startData.controlIndex < startData.tableIndex) {
@@ -1431,7 +1431,7 @@ function updateRangeControlType(typeName) {
 								setCellType(oCell, oParentTag.client_id, startData.tableId)
 							}
 						}
-					}	
+					}
 				}
 			} else {
 				var controlsInRange = []
@@ -1529,7 +1529,7 @@ function updateRangeControlType(typeName) {
 								return {
 									code: 0,
 									message: '未处于题目中',
-								}	
+								}
 							} else if (parentControls.length > 0) {
 								var pQuestion = getQuestion(parentControls, parentControls.length)
 								if (!pQuestion) {
@@ -1627,7 +1627,7 @@ function updateRangeControlType(typeName) {
 				alert(res1.message)
 			} else {
 				getNodeList().then(res2 => {
-					handleChangeType(res1, res2)	
+					handleChangeType(res1, res2)
 				})
 			}
 		}
@@ -2073,7 +2073,7 @@ function showLevelSetDialog() {
 function initControls() {
 	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
 	return biyueCallCommand(window, function() {
-		var question_map = Asc.scope.question_map || {} 
+		var question_map = Asc.scope.question_map || {}
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls()
 		var nodeList = []
@@ -2129,7 +2129,7 @@ function initControls() {
 		}
 		controls.forEach((oControl) => {
 			var tagInfo = getJsonData(oControl.GetTag())
-			
+
 			// tagInfo.color = '#ff0000'
 			// oControl.Sdt.SetColor(colors[oControl.GetClassType()])
 			var parentid = 0
@@ -2190,7 +2190,7 @@ function initControls() {
 		return {
 			nodeList,
 			drawingList
-		} 
+		}
 	}, false, false).then(res => {
 		console.log('initControls   nodeList', res)
 		return new Promise((resolve, reject) => {
@@ -2540,7 +2540,7 @@ function reqGetQuestionType() {
 	})
 }
 function deleteChoiceOtherWrite() {
-	
+
 }
 
 // 显示/隐藏/删除所有书写区
@@ -2652,7 +2652,7 @@ function showAskCells(cmdType) {
 						})
 					}
 				}
-			}	
+			}
 		})
 	}, false, true)
 }
@@ -2869,7 +2869,7 @@ function handleIdentifyBox(cmdType) {
 					)
 					var paraentControl = pParagraph.GetParentContentControl()
 					if (paraentControl) {
-						var tag = getJsonData(paraentControl.GetTag())	
+						var tag = getJsonData(paraentControl.GetTag())
 						if (
 							tag.regionType == 'question'
 						) {
@@ -4029,7 +4029,7 @@ function deleteAsks(askList) {
 									}
 								}
 							}
-						}	
+						}
 					}
 				}
 			}
@@ -4110,7 +4110,11 @@ function handleImageIgnore(cmdType) {
 				oDrawing.Drawing.Set_Props({
 					title: cmdType == 'add' ? JSON.stringify(tag) : '',
 				})
-				var oStroke = Api.CreateStroke(10000, Api.CreateSolidFill(cmdType == 'add' ? Api.CreateRGBColor(255, 111, 61) : Api.CreateRGBColor(255, 255, 255)));
+
+        var oFill = Api.CreateSolidFill(Api.CreateRGBColor(255, 255, 255))
+        oFill.UniFill.transparent = 0 // 透明度
+
+				var oStroke = Api.CreateStroke(10000, cmdType == 'add' ? Api.CreateSolidFill( Api.CreateRGBColor(255, 111, 61)) : oFill);
 				oDrawing.SetOutLine(oStroke);
 			}
 		})
@@ -4269,7 +4273,7 @@ function layoutRepair(cmdData) {
 					}
 				}
 			}
-		} 
+		}
 		for (var i = 0, imax = paragrahs.length; i < imax; ++i) {
 			var oParagraph = paragrahs[i]
 			var controls = oParagraph.GetAllContentControls() || []
