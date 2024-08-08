@@ -1881,7 +1881,7 @@ function handleChangeType(res, res2) {
 		if (updateinteraction) {
 			deleteChoiceOtherWrite(null, false).then(res => {
 				setInteraction(interaction, addIds).then(() => window.biyue.StoreCustomData())
-			})	
+			})
 		} else {
 			deleteChoiceOtherWrite(null, true).then(res => {
 				window.biyue.StoreCustomData()
@@ -2678,7 +2678,7 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 			var validIds = []
 			var write_list = nodeData.write_list || []
 			for (var j = 0; j < childControls.length; ++j) {
-				var childTag = getJsonData(childControls[j].GetTag()) 
+				var childTag = getJsonData(childControls[j].GetTag())
 				if (childTag.client_id) {
 					var childIndex = question_map[id].ask_list.findIndex(e => {
 						return e.id == childTag.client_id
@@ -2705,15 +2705,15 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 			}
 			if (validIds.length > 1) {
 				var begin
-				var end  
+				var end
 				if (choice_blank == 'first') {
 					begin = 1
 					end = validIds.length -1
-					question_map[id].ask_list = [].concat(question_map[id].ask_list[validIds[0].child_index]) 
+					question_map[id].ask_list = [].concat(question_map[id].ask_list[validIds[0].child_index])
 				} else if (choice_blank == 'last') {
 					begin = 0
 					end = validIds.length - 2
-					question_map[id].ask_list = [].concat(question_map[id].ask_list[validIds[validIds.length - 1].child_index]) 
+					question_map[id].ask_list = [].concat(question_map[id].ask_list[validIds[validIds.length - 1].child_index])
 				}
 				for (var k = begin; k <= end; ++k) {
 					var write_index = write_list.findIndex(e => {
@@ -3233,89 +3233,94 @@ function reqUploadTree() {
 	if (isLoading('uploadTree')) {
 		return
 	}
-	setBtnLoading('uploadTree', true)
-	Asc.scope.node_list = window.BiyueCustomData.node_list
-	Asc.scope.question_map = window.BiyueCustomData.question_map
-	upload_control_list = []
-	console.log('[reqUploadTree start]', Date.now())
-	biyueCallCommand(window, function() {
-		var target_list = []
-		var oDocument = Api.GetDocument()
-		var controls = oDocument.GetAllContentControls()
-		var question_map = Asc.scope.question_map
-		console.log('question_map', question_map)
-		function getJsonData(str) {
-			if (!str || str == '' || typeof str != 'string') {
-				return {}
-			}
-			try {
-				return JSON.parse(str)
-			} catch (error) {
-				console.log('json parse error', error)
-				return {}
-			}
-		}
-		for (var i = 0, imax = controls.length; i < imax; ++i) {
-			var oControl = controls[i]
-			var tag = getJsonData(oControl.GetTag() || '{}')
-			if (tag.regionType != 'question' || !tag.client_id) {
-				continue
-			}
-			var quesData = question_map[tag.client_id]
-			if (!quesData) {
-				continue
-			}
-			var oParentControl = oControl.GetParentContentControl()
-			var parent_id = 0
-			if (oParentControl) {
-				var parentTag = getJsonData(oParentControl.GetTag() || '{}')
-				parent_id = parentTag.client_id
-			} else {
-				// 根据level, 查找在它前面的比它lvl小的struct
-				for (var j = target_list.length - 1; j >= 0; --j) {
-					var preNode = target_list[j]
-					if (preNode.lvl < tag.lvl && preNode.content_type == 'struct') {
-						parent_id = preNode.id
-						break
-					}
-				}
-			}
-			var oRange = oControl.GetRange()
-			oRange.Select()
-			let text_data = {
-				data:     "",
-				// 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
-				pushData: function (format, value) {
-					this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : "";
-				}
-			};
-			Api.asc_CheckCopy(text_data, 2);
-			var content_html = text_data.data
-			target_list.push({
-				id: tag.client_id,
-				parent_id: parent_id,
-				uuid: question_map[tag.client_id].uuid || '',
-				regionType: question_map[tag.client_id].level_type,
-				content_type: question_map[tag.client_id].level_type,
-				content_xml: '',
-				content_html: content_html,
-				content_text: oControl.GetRange().GetText(),
-				question_type: question_map[tag.client_id].question_type,
-				question_name: question_map[tag.client_id].ques_name || question_map[tag.client_id].ques_default_name,
-				control_id: oControl.Sdt.GetId(),
-				lvl: tag.lvl
-			})
-		}
-		console.log('target_list', target_list)
-		return target_list
-	}, false, false).then( control_list => {
-		if (control_list) {
-			upload_control_list = control_list
-			if (control_list && control_list.length) {
-				getXml(control_list[0].control_id)
-			}
-		}
-	})
+  // 先关闭智批元素，避免智批元素在全量更新的时候被带到题目里 更新之后再打开
+  setInteraction('none').then(() => {
+
+      setBtnLoading('uploadTree', true)
+      Asc.scope.node_list = window.BiyueCustomData.node_list
+      Asc.scope.question_map = window.BiyueCustomData.question_map
+      upload_control_list = []
+      console.log('[reqUploadTree start]', Date.now())
+      biyueCallCommand(window, function() {
+        var target_list = []
+        var oDocument = Api.GetDocument()
+        var controls = oDocument.GetAllContentControls()
+        var question_map = Asc.scope.question_map
+        console.log('question_map', question_map)
+        function getJsonData(str) {
+          if (!str || str == '' || typeof str != 'string') {
+            return {}
+          }
+          try {
+            return JSON.parse(str)
+          } catch (error) {
+            console.log('json parse error', error)
+            return {}
+          }
+        }
+        for (var i = 0, imax = controls.length; i < imax; ++i) {
+          var oControl = controls[i]
+          var tag = getJsonData(oControl.GetTag() || '{}')
+          if (tag.regionType != 'question' || !tag.client_id) {
+            continue
+          }
+          var quesData = question_map[tag.client_id]
+          if (!quesData) {
+            continue
+          }
+          var oParentControl = oControl.GetParentContentControl()
+          var parent_id = 0
+          if (oParentControl) {
+            var parentTag = getJsonData(oParentControl.GetTag() || '{}')
+            parent_id = parentTag.client_id
+          } else {
+            // 根据level, 查找在它前面的比它lvl小的struct
+            for (var j = target_list.length - 1; j >= 0; --j) {
+              var preNode = target_list[j]
+              if (preNode.lvl < tag.lvl && preNode.content_type == 'struct') {
+                parent_id = preNode.id
+                break
+              }
+            }
+          }
+          var oRange = oControl.GetRange()
+          oRange.Select()
+          let text_data = {
+            data:     "",
+            // 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
+            pushData: function (format, value) {
+              this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : "";
+            }
+          };
+          Api.asc_CheckCopy(text_data, 2);
+          var content_html = text_data.data
+          target_list.push({
+            id: tag.client_id,
+            parent_id: parent_id,
+            uuid: question_map[tag.client_id].uuid || '',
+            regionType: question_map[tag.client_id].level_type,
+            content_type: question_map[tag.client_id].level_type,
+            content_xml: '',
+            content_html: content_html,
+            content_text: oControl.GetRange().GetText(),
+            question_type: question_map[tag.client_id].question_type,
+            question_name: question_map[tag.client_id].ques_name || question_map[tag.client_id].ques_default_name,
+            control_id: oControl.Sdt.GetId(),
+            lvl: tag.lvl
+          })
+        }
+        console.log('target_list', target_list)
+        return target_list
+      }, false, false).then( control_list => {
+        if (control_list) {
+          upload_control_list = control_list
+          if (control_list && control_list.length) {
+            getXml(control_list[0].control_id)
+          }
+        }
+        setInteraction('useself')
+      })
+  })
 }
 
 function getXml(controlId) {
