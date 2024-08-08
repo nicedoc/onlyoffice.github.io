@@ -254,25 +254,26 @@ function initFeature() {
 		}
 	})
 	list_feature = list
-
-	select_choice_style = new ComponentSelect({
-		id: 'select_choice_style',
-		options: choiceStyles,
-		value_select: choice_display.style,
-		callback_item: (data) => {
-			changeChoiceStyle(data)
-		},
-		width: '100%',
-	})
-	select_choice_area = new ComponentSelect({
-		id: 'select_choice_area',
-		options: choiceAreas,
-		value_select: choice_display.area,
-		callback_item: (data) => {
-			changeChoiceArea(data)
-		},
-		width: '100%',
-	})
+	if (choice_display) {
+		select_choice_style = new ComponentSelect({
+			id: 'select_choice_style',
+			options: choiceStyles,
+			value_select: choice_display.style,
+			callback_item: (data) => {
+				changeChoiceStyle(data)
+			},
+			width: '100%',
+		})
+		select_choice_area = new ComponentSelect({
+			id: 'select_choice_area',
+			options: choiceAreas,
+			value_select: choice_display.area,
+			callback_item: (data) => {
+				changeChoiceArea(data)
+			},
+			width: '100%',
+		})
+	}
 	input_choice_num = new NumberInput('input_choice_num', {
 		width: '100%',
 		change: (id, data) => {

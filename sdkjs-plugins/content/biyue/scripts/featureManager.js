@@ -30,6 +30,7 @@ var c_oAscRelativeFromV = {
 }
 
 function handleFeature(options) {
+	if (!options) { return }
 	options.size = Object.assign({}, ZONE_SIZE[options.zone_type], (options.size || {}))
 	if (options.v == undefined) {
 		options.v = 1
@@ -49,6 +50,7 @@ function handleFeature(options) {
 }
 
 function drawExtroInfo(list) {
+	if (!list) { return }
 	list.forEach(e => {
 		e.page_num = e.p || 0
 		if (e.v == undefined) {
@@ -62,6 +64,7 @@ function drawExtroInfo(list) {
 }
 // 整理参数
 function addCommand(options) {
+	if (!options) { return }
 	if (!list_wait_command) {
 		list_wait_command = []
 	}
@@ -77,7 +80,7 @@ function addCommand(options) {
 
 function handleNext() {
 	setLoading(false)
-	if (list_wait_command && list_wait_command.length > 0) {
+	if (list_wait_command && list_wait_command.length) {
 		var newlist = []
 		var type = list_wait_command[0].type
 		newlist.push(Object.assign({}, list_wait_command[0]))
@@ -118,7 +121,7 @@ function handleHeader(cmdType, examTitle) {
 	}
 	drawHeader(cmdType, examTitle)
 }
-
+// 在页眉绘制再练和二维码		目前弃用
 function drawHeader(cmdType, examTitle) {
 	Asc.scope.header_cmd = cmdType
 	Asc.scope.header_exam_title = examTitle
@@ -214,7 +217,7 @@ function drawHeader(cmdType, examTitle) {
 		handleNext()
 	})
 }
-
+// 删除所有功能区
 function deleteAllFeatures(exceptList, specifyFeatures) {
 	Asc.scope.exceptList = exceptList
 	Asc.scope.specifyFeatures = specifyFeatures
@@ -310,6 +313,23 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 			}
 			return null
 		}
+		function getFormatTypeString(format) {
+			var sType = 'decimal'
+			switch(format) {
+				case 8: sType = 'chineseCounting'; break
+				case 9: sType = 'chineseCountingThousand'; break
+				case 10: sType = 'chineseLegalSimplified'; break
+				case 14: sType = 'decimalEnclosedCircle'; break
+				case 15: sType = 'decimalEnclosedCircleChinese'; break
+				case 21: sType = 'decimalZero'; break
+				case 46: sType = 'lowerLetter'; break
+				case 47: sType = 'lowerRoman'; break
+				case 60: sType = 'upperLetter'; break
+				case 61: sType = 'upperRoman'; break
+				default: break
+			}
+			return style
+		}
 		var handledNumbering = {}
 		function hideSimple(oParagraph) {
 			if (!oParagraph) {
@@ -344,28 +364,7 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 			if (LvlText.length > 1 && LvlText[LvlText.length - 1].Type == 1) {
 				suffix = LvlText[LvlText.length - 1].Value
 			}
-			var sType = 'decimal'
-			if (oNumberingLvl.Format == 8) {
-				sType = 'chineseCounting'
-			} else if (oNumberingLvl.Format == 9) {
-				sType = 'chineseCountingThousand'
-			} else if (oNumberingLvl.Format == 10) {
-				sType = 'chineseLegalSimplified'
-			} else if (oNumberingLvl.Format == 14) {
-				sType = 'decimalEnclosedCircle'
-			} else if (oNumberingLvl.Format == 15) {
-				sType = 'decimalEnclosedCircleChinese'
-			} else if (oNumberingLvl.Format == 21) {
-				sType = 'decimalZero'
-			} else if (oNumberingLvl.Format == 46) {
-				sType = 'lowerLetter'
-			} else if (oNumberingLvl.Format == 47) {
-				sType = 'lowerRoman'	
-			} else if (oNumberingLvl.Format == 60) {
-				sType = 'upperLetter'
-			} else if (oNumberingLvl.Format == 61) {
-				sType = 'upperRoman'
-			}
+			var sType = getFormatTypeString(oNumberingLvl.Format)
 			oNumberingLevel.SetTemplateType('bullet', '');
 			var str = ''
 			var find = false
@@ -1078,6 +1077,23 @@ function setInteraction(type, quesIds) {
 				}
 			})
 		}
+		function getFormatTypeString(format) {
+			var sType = 'decimal'
+			switch(format) {
+				case 8: sType = 'chineseCounting'; break
+				case 9: sType = 'chineseCountingThousand'; break
+				case 10: sType = 'chineseLegalSimplified'; break
+				case 14: sType = 'decimalEnclosedCircle'; break
+				case 15: sType = 'decimalEnclosedCircleChinese'; break
+				case 21: sType = 'decimalZero'; break
+				case 46: sType = 'lowerLetter'; break
+				case 47: sType = 'lowerRoman'; break
+				case 60: sType = 'upperLetter'; break
+				case 61: sType = 'upperRoman'; break
+				default: break
+			}
+			return style
+		}
 		function showSimple(oParagraph, vshow) {
 			var oNumberingLevel = oParagraph.GetNumbering()
 			if (!oNumberingLevel) {
@@ -1115,28 +1131,7 @@ function setInteraction(type, quesIds) {
 				return
 			}
 			handledNumbering[key] = 1
-			var sType = 'decimal'
-			if (oNumberingLvl.Format == 8) {
-				sType = 'chineseCounting'
-			} else if (oNumberingLvl.Format == 9) {
-				sType = 'chineseCountingThousand'
-			} else if (oNumberingLvl.Format == 10) {
-				sType = 'chineseLegalSimplified'
-			} else if (oNumberingLvl.Format == 14) {
-				sType = 'decimalEnclosedCircle'
-			} else if (oNumberingLvl.Format == 15) {
-				sType = 'decimalEnclosedCircleChinese'
-			} else if (oNumberingLvl.Format == 21) {
-				sType = 'decimalZero'
-			} else if (oNumberingLvl.Format == 46) {
-				sType = 'lowerLetter'
-			} else if (oNumberingLvl.Format == 47) {
-				sType = 'lowerRoman'	
-			} else if (oNumberingLvl.Format == 60) {
-				sType = 'upperLetter'
-			} else if (oNumberingLvl.Format == 61) {
-				sType = 'upperRoman'
-			}
+			var sType = getFormatTypeString(oNumberingLvl.Format)
 			var bulletStr = vshow ? `${SIMPLE_CHAR} ` : ''
 			oNumberingLevel.SetTemplateType('bullet', bulletStr);
 			var str = ''

@@ -669,6 +669,23 @@ function updateRangeControlType(typeName) {
 			}
 			return false
 		}
+		function getFormatTypeString(format) {
+			var sType = 'decimal'
+			switch(format) {
+				case 8: sType = 'chineseCounting'; break
+				case 9: sType = 'chineseCountingThousand'; break
+				case 10: sType = 'chineseLegalSimplified'; break
+				case 14: sType = 'decimalEnclosedCircle'; break
+				case 15: sType = 'decimalEnclosedCircleChinese'; break
+				case 21: sType = 'decimalZero'; break
+				case 46: sType = 'lowerLetter'; break
+				case 47: sType = 'lowerRoman'; break
+				case 60: sType = 'upperLetter'; break
+				case 61: sType = 'upperRoman'; break
+				default: break
+			}
+			return style
+		}
 		function hideSimple(oParagraph) {
 			if (!oParagraph) {
 				return
@@ -693,28 +710,7 @@ function updateRangeControlType(typeName) {
 			if (LvlText.length > 1 && LvlText[LvlText.length - 1].Type == 1) {
 				suffix = LvlText[LvlText.length - 1].Value
 			}
-			var sType = 'decimal'
-			if (oNumberingLvl.Format == 8) {
-				sType = 'chineseCounting'
-			} else if (oNumberingLvl.Format == 9) {
-				sType = 'chineseCountingThousand'
-			} else if (oNumberingLvl.Format == 10) {
-				sType = 'chineseLegalSimplified'
-			} else if (oNumberingLvl.Format == 14) {
-				sType = 'decimalEnclosedCircle'
-			} else if (oNumberingLvl.Format == 15) {
-				sType = 'decimalEnclosedCircleChinese'
-			} else if (oNumberingLvl.Format == 21) {
-				sType = 'decimalZero'
-			} else if (oNumberingLvl.Format == 46) {
-				sType = 'lowerLetter'
-			} else if (oNumberingLvl.Format == 47) {
-				sType = 'lowerRoman'
-			} else if (oNumberingLvl.Format == 60) {
-				sType = 'upperLetter'
-			} else if (oNumberingLvl.Format == 61) {
-				sType = 'upperRoman'
-			}
+			var sType = getFormatTypeString(oNumberingLvl.Format)
 			oNumberingLevel.SetTemplateType('bullet', '');
 			var str = ''
 			var find = false
@@ -3427,7 +3423,7 @@ function generateTreeForUpload(control_list) {
 			content: '全量更新成功',
 			showCancel: false
 		})
-    setInteraction('useself')
+    	setInteraction('useself')
 	}).catch(res => {
 		console.log('reqComplete fail', res)
 		console.log('[reqUploadTree end]', Date.now())
@@ -3436,7 +3432,7 @@ function generateTreeForUpload(control_list) {
 			content: res && res.message && res.message != '' ? res.message : '全量更新失败',
 			showCancel: false
 		})
-    setInteraction('useself')
+    	setInteraction('useself')
 	})
 	console.log(tree)
 }
