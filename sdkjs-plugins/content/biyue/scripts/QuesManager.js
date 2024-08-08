@@ -1031,7 +1031,7 @@ function updateRangeControlType(typeName) {
 			obj.numbing_text = GetNumberingValue(oControl)
 			if (regionType == 'write') {
 				obj.sub_type = 'control'
-				tag.color = '#f9dada'
+				tag.color = '#ff000040'
 			} else {
 				if (typeName == 'question' || typeName == 'setBig' || typeName == 'clearBig') {
 					tag.color = '#d9d9d9'
@@ -1580,7 +1580,7 @@ function updateRangeControlType(typeName) {
 							})
 						}
 						if (typeName == 'write') {
-							tag.color = '#f9dada'
+							tag.color = '#ff000040'
 						} else if (typeName == 'question') {
 							tag.color = '#d9d9d9'
 						}
@@ -2161,7 +2161,7 @@ function initControls() {
 					}
 					if (isWrite) {
 						changecolor = true
-						tagInfo.color = '#f9dada'
+						tagInfo.color = '#ff000040'
 					}
 				} else if (oControl.GetClassType() == 'blockLvlSdt' && question_map[tagInfo.client_id] && question_map[tagInfo.client_id].level_type == 'question') {
 					tagInfo.color = '#d9d9d9'
@@ -2377,7 +2377,7 @@ function confirmLevelSet(levels) {
 								id: id
 							})
 							nodeData.parent_id = parent_tagInfo.client_id
-							tagInfo.color = '#f9dada'
+							tagInfo.color = '#ff000040'
 						}
 					}
 				} else {
@@ -2396,7 +2396,7 @@ function confirmLevelSet(levels) {
 					if (tagInfo.regionType == 'question') {
 						nodeData.write_list = []
 						detail.ask_list = []
-						tagInfo.color = '#d9d9d9'
+						tagInfo.color = '#ffffff'
 					}
 					nodeList.push(nodeData)
 					questionMap[id] = detail
@@ -2539,6 +2539,7 @@ function reqGetQuestionType() {
 		})
 	})
 }
+// 删除选择题多余的空
 function deleteChoiceOtherWrite() {
 	
 }
