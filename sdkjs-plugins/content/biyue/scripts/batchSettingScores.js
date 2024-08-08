@@ -41,7 +41,10 @@
           if (!question_list.includes(node_list[key].id)) {
             question_list.push(node_list[key].id)
           }
-          if (pre_struct && tree[pre_struct]) {
+          if (!pre_struct && !tree[pre_struct]) {
+            tree[pre_struct] = []
+          }
+          if (tree[pre_struct]) {
             tree[pre_struct].push(node_list[key].id)
           }
         }
