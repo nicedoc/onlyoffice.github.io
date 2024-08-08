@@ -2,7 +2,7 @@ import ComponentSelect from '../components/Select.js'
 import NumberInput from '../components/NumberInput.js'
 import { reqSaveQuestion } from './api/paper.js'
 import { setInteraction } from './featureManager.js'
-import { changeProportion, deleteAsks, focusAsk, updateAllChoice } from './QuesManager.js'
+import { changeProportion, deleteAsks, focusAsk, updateAllChoice, deleteChoiceOtherWrite, getQuesMode } from './QuesManager.js'
 // 单题详情
 var proportionTypes = [
 	{ value: '1', label: '默认' },
@@ -174,7 +174,7 @@ function updateElements(quesData, hint, ignore_ask_list) {
 	if (select_type) {
 		select_type.setSelect((quesData.question_type || 0) + '')
 	}
-	updateQuesMode(quesData.question_type)
+	updateQuesMode(quesData.ques_mode)
 	if (select_proportion) {
 		select_proportion.setSelect((quesData.proportion || 1) + '')
 		if (!quesData.proportion) {
@@ -323,8 +323,23 @@ function changeQuestionType(data) {
 	if (window.BiyueCustomData.question_map[g_ques_id]) {
 		var oldvalue = window.BiyueCustomData.question_map[g_ques_id].question_type
 		window.BiyueCustomData.question_map[g_ques_id].question_type = data.value * 1
-		updateQuesMode(data.value)
-		if (data.value == 1 || oldvalue == 1) {
+		var oldMode = getQuesMode(oldvalue)
+		var quesMode = getQuesMode(data.value)
+		updateQuesMode(quesMode)
+		if (window.BiyueCustomData.question_map && window.BiyueCustomData.question_map[g_ques_id]) {
+			window.BiyueCustomData.question_map[g_ques_id].ques_mode = quesMode
+		}
+		if (quesMode == 1 || quesMode == 5) {
+			deleteChoiceOtherWrite([g_ques_id], false).then(() => {
+				updateAllChoice().then(() => {
+					autoSave()
+					showQuesData({
+						client_id: g_client_id,
+						regionType: 'question'
+					})
+				})
+			})
+		} else if (oldMode == 1 || oldMode == 5) {
 			updateAllChoice().then(() => {
 				autoSave()
 			})
@@ -473,21 +488,11 @@ function onFocusAsk(id) {
 	}
 }
 
-function updateQuesMode(question_type) {
-	question_type = question_type * 1
+function updateQuesMode(ques_mode) {
 	if (select_ques_mode) {
-		var ques_mode = 0
-		if (question_type > 0) {
-			var mark_type_info = Asc.scope.subject_mark_types
-			if (mark_type_info && mark_type_info.list) {
-				var find = mark_type_info.list.find(e => {
-					return e.question_type_id == question_type
-				})
-				ques_mode = find ? find.ques_mode : 3
-			}
-		}
 		select_ques_mode.setSelect(ques_mode + '')
 	}
+	return ques_mode
 }
 
 export { showQuesData, initListener }

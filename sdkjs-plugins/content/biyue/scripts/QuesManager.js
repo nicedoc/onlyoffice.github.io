@@ -121,7 +121,7 @@ function getContextMenuItems(type) {
 			}
 		}
 	}
-
+	
 	var splitType = {
 		separator: true,
 		id: 'updateControlType',
@@ -395,7 +395,7 @@ function getNodeList() {
 							id: childTag.client_id,
 							sub_type: 'control',
 							control_id: oChild.Sdt.GetId()
-						})
+						})	
 					}
 				}
 			}
@@ -452,7 +452,7 @@ function getNodeList() {
 											continue
 										}
 										if (oElement2.GetClassType() == 'paragraph') {
-											getParagraphWriteList(oElement2, write_list)
+											getParagraphWriteList(oElement2, write_list)	
 										} else if (oElement2.GetClassType() == 'blockLvlSdt') {
 											getBlockWriteList(oElement2, write_list)
 										}
@@ -707,7 +707,7 @@ function updateRangeControlType(typeName) {
 			} else if (oNumberingLvl.Format == 46) {
 				sType = 'lowerLetter'
 			} else if (oNumberingLvl.Format == 47) {
-				sType = 'lowerRoman'
+				sType = 'lowerRoman'	
 			} else if (oNumberingLvl.Format == 60) {
 				sType = 'upperLetter'
 			} else if (oNumberingLvl.Format == 61) {
@@ -1410,7 +1410,7 @@ function updateRangeControlType(typeName) {
 			// 暂时只支持选中多个单元格设置小问和清除区域
 			if ((typeName == 'write' || typeName == 'clear' || typeName == 'clearAll') &&
 				startData.cellContentId && endData.cellContentId
-				&& startData.tableId == endData.tableId &&
+				&& startData.tableId == endData.tableId && 
 				startData.cellContentId != endData.cellContentId &&
 				startData.controlId && startData.controlId == endData.controlId &&
 				startData.controlIndex < startData.tableIndex) {
@@ -1431,7 +1431,7 @@ function updateRangeControlType(typeName) {
 								setCellType(oCell, oParentTag.client_id, startData.tableId)
 							}
 						}
-					}
+					}	
 				}
 			} else {
 				var controlsInRange = []
@@ -1529,7 +1529,7 @@ function updateRangeControlType(typeName) {
 								return {
 									code: 0,
 									message: '未处于题目中',
-								}
+								}	
 							} else if (parentControls.length > 0) {
 								var pQuestion = getQuestion(parentControls, parentControls.length)
 								if (!pQuestion) {
@@ -1870,16 +1870,22 @@ function handleChangeType(res, res2) {
 	}
 	var use_gather = window.BiyueCustomData.choice_display && window.BiyueCustomData.choice_display.style != 'brackets_choice_region'
 	if (use_gather) {
-		updateChoice().then(res => {
-			return handleChoiceUpdateResult(res)
-		}).then(() => {
-			window.biyue.StoreCustomData()
+		deleteChoiceOtherWrite(null, false).then(() => {
+			updateChoice().then(res => {
+				return handleChoiceUpdateResult(res)
+			}).then(() => {
+				window.biyue.StoreCustomData()
+			})
 		})
 	} else {
 		if (updateinteraction) {
-			setInteraction(interaction, addIds).then(() => window.biyue.StoreCustomData())
+			deleteChoiceOtherWrite(null, false).then(res => {
+				setInteraction(interaction, addIds).then(() => window.biyue.StoreCustomData())
+			})	
 		} else {
-			window.biyue.StoreCustomData()
+			deleteChoiceOtherWrite(null, true).then(res => {
+				window.biyue.StoreCustomData()
+			})
 		}
 	}
 	console.log('handleChangeType end', node_list, 'g_click_value', g_click_value, 'update_node_id', update_node_id)
@@ -2016,10 +2022,21 @@ function batchChangeQuesType(type) {
 		if (!res || !res.code || !res.list || res.list.length == 0) {
 			return
 		}
-		var question_map = window.BiyueCustomData.question_map
+		var question_map = window.BiyueCustomData.question_map || {}
+		var judgeChoiceAll = false
+		var choice_ids = []
+		var useGather = window.BiyueCustomData.choice_display && window.BiyueCustomData.choice_display.style != 'brackets_choice_region'
 		res.list.forEach(e => {
-			if (question_map && question_map[e.id]) {
+			if (question_map[e.id]) {
+				var oldMode = question_map[e.id].ques_mode
+				var newMode = getQuesMode(type)
 				question_map[e.id].question_type = type * 1
+				question_map[e.id].ques_mode = newMode
+				if (newMode == 1 || newMode == 5) {
+					choice_ids.push(e.id)
+				} else if (useGather && (oldMode == 1 || oldMode == 5)) {
+					judgeChoiceAll = true
+				}
 			}
 		})
 		// 需要同步更新单题详情
@@ -2034,8 +2051,28 @@ function batchChangeQuesType(type) {
 				})
 			)
 		}
-	}).then(() => {
-		return updateAllChoice()
+		return {
+			choice_ids,
+			judgeChoiceAll
+		}
+	}).then((res) => {
+		console.log('before deleteChoiceOtherWrite', res)
+		if (res && res.choice_ids && res.choice_ids.length) {
+			return deleteChoiceOtherWrite(res.choice_ids, false)
+		} else {
+			return new Promise((resolve, reject) => {
+				resolve(res)
+			})
+		}
+	})
+	.then((res) => {
+		if (res && res.judgeChoiceAll) {
+			return updateAllChoice()
+		} else {
+			return new Promise((resolve, reject) => {
+				resolve()
+			})
+		}
 	}).then (() => {
 		window.biyue.StoreCustomData()
 	})
@@ -2073,7 +2110,7 @@ function showLevelSetDialog() {
 function initControls() {
 	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
 	return biyueCallCommand(window, function() {
-		var question_map = Asc.scope.question_map || {}
+		var question_map = Asc.scope.question_map || {} 
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls()
 		var nodeList = []
@@ -2129,7 +2166,7 @@ function initControls() {
 		}
 		controls.forEach((oControl) => {
 			var tagInfo = getJsonData(oControl.GetTag())
-
+			
 			// tagInfo.color = '#ff0000'
 			// oControl.Sdt.SetColor(colors[oControl.GetClassType()])
 			var parentid = 0
@@ -2190,7 +2227,7 @@ function initControls() {
 		return {
 			nodeList,
 			drawingList
-		}
+		} 
 	}, false, false).then(res => {
 		console.log('initControls   nodeList', res)
 		return new Promise((resolve, reject) => {
@@ -2422,9 +2459,12 @@ function confirmLevelSet(levels) {
 			})
 			window.BiyueCustomData.question_map = res.questionMap
 		}
-		return initExtroInfo()
+		return new Promise((resolve, reject) => {
+			resolve()
+		})
 	})
 	.then(() => reqGetQuestionType())
+	.then(() => initExtroInfo())
 	.then(() => {
 		console.log("================================ StoreCustomData")
 		window.biyue.StoreCustomData()
@@ -2466,6 +2506,22 @@ function GetDefaultName(level_type, text) {
 		return ''
 	}
 	return ''
+}
+
+// 获取作答模式
+function getQuesMode(question_type) {
+	question_type = question_type * 1
+	var ques_mode = 0
+	if (question_type > 0) {
+		var mark_type_info = Asc.scope.subject_mark_types
+		if (mark_type_info && mark_type_info.list) {
+			var find = mark_type_info.list.find(e => {
+				return e.question_type_id == question_type
+			})
+			ques_mode = find ? find.ques_mode : 3
+		}
+	}
+	return ques_mode
 }
 
 // 获取题型
@@ -2521,17 +2577,19 @@ function reqGetQuestionType() {
 				resolve()
 				return
 			}
+
 			getQuesType(window.BiyueCustomData.paper_uuid, control_list).then(res => {
 				console.log('getQuesType success ', res)
 				var content_list = res.data.content_list
 				if (content_list && content_list.length) {
 					content_list.forEach(e => {
 						window.BiyueCustomData.question_map[e.id].question_type = e.question_type * 1
+						window.BiyueCustomData.question_map[e.id].ques_mode = getQuesMode(e.question_type)
 						// window.BiyueCustomData.question_map[e.id].question_type_name = e.question_type_name
 						// 存储时question_type_name莫名其妙变得很大，不再存储
 					})
 				}
-				resolve()
+				return deleteChoiceOtherWrite()
 			}).catch(res => {
 				console.log('getQuesType fail ', res)
 				resolve()
@@ -2540,8 +2598,150 @@ function reqGetQuestionType() {
 	})
 }
 // 删除选择题多余的空
-function deleteChoiceOtherWrite() {
-
+function deleteChoiceOtherWrite(ids, recalc = true) {
+	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
+	Asc.scope.node_list = window.BiyueCustomData.node_list || []
+	Asc.scope.ids = ids ? ids : Object.keys(Asc.scope.question_map)
+	Asc.scope.choice_blank = window.BiyueCustomData.choice_blank
+	return biyueCallCommand(window, function() {
+		var question_map = Asc.scope.question_map
+		var node_list = Asc.scope.node_list
+		var choice_blank = Asc.scope.choice_blank
+		var mark_type_info = Asc.scope.subject_mark_types
+		var ids = Asc.scope.ids
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
+		function deleteAccurateRun(oRun) {
+			if (oRun &&
+				oRun.Run &&
+				oRun.Run.Content &&
+				oRun.Run.Content[0] &&
+				oRun.Run.Content[0].docPr) {
+				var title = oRun.Run.Content[0].docPr.title
+				if (title) {
+					var titleObj = getJsonData(title)
+					if (titleObj.feature && titleObj.feature.sub_type == 'ask_accurate') {
+						oRun.Delete()
+						return true
+					}
+				}
+			}
+			return false
+		}
+		function deleteControlAccurate(oControl) {
+			var elementCount = oControl.GetElementsCount()
+			for (var idx = 0; idx < elementCount; ++idx) {
+				var oRun = oControl.GetElement(idx)
+				if (deleteAccurateRun(oRun)) {
+					break
+				}
+			}
+		}
+		for (var i = 0; i < ids.length; ++i) {
+			var id = ids[i]
+			if (question_map[id].level_type != 'question' || question_map[id].question_type == 0) {
+				continue
+			}
+			var ques_mode = 0
+			if (mark_type_info && mark_type_info.list) {
+				var find = mark_type_info.list.find(e => {
+					return e.question_type_id == question_map[id].question_type
+				})
+				ques_mode = find ? find.ques_mode : 3
+			}
+			// 不是单选也不是多选
+			if (ques_mode != 1 && ques_mode != 5) {
+				continue
+			}
+			var nodeData = node_list.find(e => {
+				return e.id == id
+			})
+			if (!nodeData || !nodeData.control_id) {
+				continue
+			}
+			var oControl = Api.LookupObject(nodeData.control_id)
+			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
+				continue
+			}
+			var childControls = oControl.GetAllContentControls()
+			if (!childControls || childControls.length == 0) {
+				continue
+			}
+			var validIds = []
+			var write_list = nodeData.write_list || []
+			for (var j = 0; j < childControls.length; ++j) {
+				var childTag = getJsonData(childControls[j].GetTag()) 
+				if (childTag.client_id) {
+					var childIndex = question_map[id].ask_list.findIndex(e => {
+						return e.id == childTag.client_id
+					})
+					if (childIndex >= 0) {
+						validIds.push({
+							control_id: childControls[j].Sdt.GetId(),
+							child_index: childIndex
+						})
+					} else {
+						deleteControlAccurate(childControls[j])
+						Api.asc_RemoveContentControlWrapper(childControls[j].Sdt.GetId())
+						var write_index = write_list.findIndex(e => {
+							return e.id = childTag.client_id
+						})
+						if (write_index >= 0) {
+							write_list.splice(write_index, 1)
+						}
+					}
+				} else {
+					deleteControlAccurate(childControls[j])
+					Api.asc_RemoveContentControlWrapper(childControls[j].Sdt.GetId())
+				}
+			}
+			if (validIds.length > 1) {
+				var begin
+				var end  
+				if (choice_blank == 'first') {
+					begin = 1
+					end = validIds.length -1
+					question_map[id].ask_list = [].concat(question_map[id].ask_list[validIds[0].child_index]) 
+				} else if (choice_blank == 'last') {
+					begin = 0
+					end = validIds.length - 2
+					question_map[id].ask_list = [].concat(question_map[id].ask_list[validIds[validIds.length - 1].child_index]) 
+				}
+				for (var k = begin; k <= end; ++k) {
+					var write_index = write_list.findIndex(e => {
+						return e.control_id = validIds[k].control_id
+					})
+					if (write_index >= 0) {
+						write_list.splice(write_index, 1)
+					}
+					deleteControlAccurate(Api.LookupObject(validIds[k].control_id))
+					Api.asc_RemoveContentControlWrapper(validIds[k].control_id)
+				}
+			}
+			nodeData.write_list = write_list
+		}
+		return {
+			node_list,
+			question_map
+		}
+	}, false, recalc).then(res => {
+		return new Promise((resolve, reject) => {
+			if (res) {
+				window.BiyueCustomData.node_list = res.node_list
+				window.BiyueCustomData.question_map = res.question_map
+			}
+			resolve()
+		})
+	})
 }
 
 // 显示/隐藏/删除所有书写区
@@ -2653,7 +2853,7 @@ function showAskCells(cmdType) {
 						})
 					}
 				}
-			}
+			}	
 		})
 	}, false, true)
 }
@@ -2870,7 +3070,7 @@ function handleIdentifyBox(cmdType) {
 					)
 					var paraentControl = pParagraph.GetParentContentControl()
 					if (paraentControl) {
-						var tag = getJsonData(paraentControl.GetTag())
+						var tag = getJsonData(paraentControl.GetTag())	
 						if (
 							tag.regionType == 'question'
 						) {
@@ -4030,7 +4230,7 @@ function deleteAsks(askList) {
 									}
 								}
 							}
-						}
+						}	
 					}
 				}
 			}
@@ -4111,11 +4311,7 @@ function handleImageIgnore(cmdType) {
 				oDrawing.Drawing.Set_Props({
 					title: cmdType == 'add' ? JSON.stringify(tag) : '',
 				})
-
-        var oFill = Api.CreateSolidFill(Api.CreateRGBColor(255, 255, 255))
-        oFill.UniFill.transparent = 0 // 透明度
-
-				var oStroke = Api.CreateStroke(10000, cmdType == 'add' ? Api.CreateSolidFill( Api.CreateRGBColor(255, 111, 61)) : oFill);
+				var oStroke = Api.CreateStroke(10000, Api.CreateSolidFill(cmdType == 'add' ? Api.CreateRGBColor(255, 111, 61) : Api.CreateRGBColor(255, 255, 255)));
 				oDrawing.SetOutLine(oStroke);
 			}
 		})
@@ -4274,7 +4470,7 @@ function layoutRepair(cmdData) {
 					}
 				}
 			}
-		}
+		} 
 		for (var i = 0, imax = paragrahs.length; i < imax; ++i) {
 			var oParagraph = paragrahs[i]
 			var controls = oParagraph.GetAllContentControls() || []
@@ -4313,5 +4509,7 @@ export {
 	onContextMenuClick,
 	g_click_value,
 	updateAllChoice,
-	layoutRepair
+	layoutRepair,
+	deleteChoiceOtherWrite,
+	getQuesMode
 }

@@ -1036,12 +1036,13 @@ function setLoading(v) {
 }
 
 function setInteraction(type, quesIds) {
-	Asc.scope.interaction_type = type
+	Asc.scope.interaction_type_use = type
 	Asc.scope.interaction_quesIds = quesIds
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	Asc.scope.node_list = window.BiyueCustomData.node_list
 	return biyueCallCommand(window, function() {
-		var interaction_type = Asc.scope.interaction_type
+		var interaction_type_use = Asc.scope.interaction_type_use
+		var interaction_type = interaction_type_use
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls()
 		var question_map = Asc.scope.question_map || {}
@@ -1461,43 +1462,47 @@ function setInteraction(type, quesIds) {
 					continue
 				}
 			}
-			if (tag.regionType == 'question') {
-				if (interaction_type != 'none') {
-					if (!question_map[tag.client_id] || question_map[tag.client_id].level_type != 'question') {
-						continue
-					}
-				}
-				var ask_list = question_map[tag.client_id].ask_list
-				var nodeData = node_list.find(e => {
-					return e.id == tag.client_id
-				})
-				var write_list = nodeData ? (nodeData.write_list || []) : []
-				// var allDraws = oControl.GetAllDrawingObjects()
-				// var simpleDrawings = getExistDrawing(allDraws, ['simple'])
-				// var accurateDrawings = getExistDrawing(allDraws, ['accurate', 'ask_accurate'])
-				var type = nodeData.use_gather ? 'none' : interaction_type
-				var firstParagraph = getFirstParagraph(oControl)
-				if (firstParagraph) {
-					showSimple(firstParagraph, type != 'none')
-				}
-				if (nodeData.use_gather && nodeData.gather_cell_id) {
-					// 在集中作答区添加互动
-					var oCell = Api.LookupObject(nodeData.gather_cell_id)
-					if (oCell && oCell.GetClassType() == 'tableCell') {
-						var drawings = oCell.GetContent().GetAllDrawingObjects()
-						var dlist = getExistDrawing(drawings, ['ask_accurate'], nodeData.id)
-						if (!dlist || dlist.length == 0) {
-							if (interaction_type != 'none') {
-								var oDrawing = getAccurateDrawing(0, nodeData.id, 4, 2.5)
-								addCellInteraction(nodeData.gather_cell_id, oDrawing)
-							}
-						} else if (interaction_type == 'none') {
-							deleShape(dlist[0])
-						}	
-					}
-				}
-				handleControlAccurate(oControl, ask_list, write_list, type)
+			if (tag.regionType != 'question') {
+				continue
 			}
+			if (interaction_type_use != 'none') {
+				if (!question_map[tag.client_id] || question_map[tag.client_id].level_type != 'question') {
+					continue
+				}
+				if (interaction_type_use == 'useself') {
+					interaction_type = question_map[tag.client_id].interaction
+				}
+			}
+			var ask_list = question_map[tag.client_id].ask_list
+			var nodeData = node_list.find(e => {
+				return e.id == tag.client_id
+			})
+			var write_list = nodeData ? (nodeData.write_list || []) : []
+			// var allDraws = oControl.GetAllDrawingObjects()
+			// var simpleDrawings = getExistDrawing(allDraws, ['simple'])
+			// var accurateDrawings = getExistDrawing(allDraws, ['accurate', 'ask_accurate'])
+			var type = nodeData.use_gather ? 'none' : interaction_type
+			var firstParagraph = getFirstParagraph(oControl)
+			if (firstParagraph) {
+				showSimple(firstParagraph, type != 'none')
+			}
+			if (nodeData.use_gather && nodeData.gather_cell_id) {
+				// 在集中作答区添加互动
+				var oCell = Api.LookupObject(nodeData.gather_cell_id)
+				if (oCell && oCell.GetClassType() == 'tableCell') {
+					var drawings = oCell.GetContent().GetAllDrawingObjects()
+					var dlist = getExistDrawing(drawings, ['ask_accurate'], nodeData.id)
+					if (!dlist || dlist.length == 0) {
+						if (interaction_type != 'none') {
+							var oDrawing = getAccurateDrawing(0, nodeData.id, 4, 2.5)
+							addCellInteraction(nodeData.gather_cell_id, oDrawing)
+						}
+					} else if (interaction_type == 'none') {
+						deleShape(dlist[0])
+					}	
+				}
+			}
+			handleControlAccurate(oControl, ask_list, write_list, type)
 		}
 
 	}, false, true).then(res => {

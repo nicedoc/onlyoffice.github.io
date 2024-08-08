@@ -4,9 +4,7 @@ import { ZONE_SIZE, ZONE_TYPE, ZONE_TYPE_NAME } from './model/feature.js'
 import { handleFeature, handleHeader, drawExtroInfo, setLoading, deleteAllFeatures, setInteraction, updateChoice, handleChoiceUpdateResult } from './featureManager.js'
 import { biyueCallCommand, dispatchCommandResult } from "./command.js";
 import { showCom } from './model/util.js'
-import { updateAllChoice } from './QuesManager.js';
 var list_feature = []
-var timeout_pos = null
 var choiceStyles = [
 	{
 		value: 'brackets_choice_region',

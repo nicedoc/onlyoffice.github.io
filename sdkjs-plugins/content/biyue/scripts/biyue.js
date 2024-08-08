@@ -133,7 +133,7 @@ import { initView } from './pageView.js'
 				window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
 				break
 			case 'LevelSetConfirm': // 确定大小题设置
-				Asc.scope.choice_blank = message.choice
+				window.BiyueCustomData.choice_blank = message.choice
 				confirmLevelSet(message.levels)
 				window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
 				break
