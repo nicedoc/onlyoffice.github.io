@@ -36,7 +36,7 @@
       let item = question_map[node_list[key].id] || ''
       if (node_list[key].level_type == 'question') {
         if (item && item.question_type !== 6) {
-          html += `<span class="question">${(item.ques_default_name ? item.ques_default_name : '')}`
+          html += `<span class="question">${(item.ques_name || item.ques_default_name || '')}`
           html += `<select class="type-item ques-${ node_list[key].id }">`
           html += `<option value="" style="display:none;"></option>`
           for (const key in question_type_options) {
@@ -48,6 +48,9 @@
 
           if (!question_list.includes(node_list[key].id)) {
             question_list.push(node_list[key].id)
+          }
+          if (!pre_struct && !tree[pre_struct]) {
+            tree[pre_struct] = []
           }
           if (pre_struct && tree[pre_struct]) {
             tree[pre_struct].push(node_list[key].id)
