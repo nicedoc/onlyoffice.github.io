@@ -22,6 +22,7 @@ var interactionTypes = [
 var g_client_id
 var g_ques_id
 var select_type = null // 题型
+var select_ques_mode = null // 作答模式
 var select_proportion = null // 占比
 var select_interaction = null // 互动
 var input_score = null // 分数/权重
@@ -50,6 +51,12 @@ function initElements() {
           <td class="padding-small" colspan="1" width="100%">
             <label class="header">题型</label>
             <div id="questionType"></div>
+          </td>
+        </tr>
+		<tr>
+          <td class="padding-small" colspan="1" width="100%">
+            <label class="header">作答模式</label>
+            <div id="questionMode"></div>
           </td>
         </tr>
         <tr>
@@ -82,7 +89,6 @@ function initElements() {
 		questionTypes = questionTypes.concat(paper_options.question_type)
 	}
 	questionTypes.unshift({ value: '0', label: '未定义' })
-	console.log('============ questionTypes', questionTypes)
 	select_type = new ComponentSelect({
 		id: 'questionType',
 		options: questionTypes,
@@ -91,6 +97,24 @@ function initElements() {
 			changeQuestionType(data)
 		},
 		width: '100%',
+	})
+	var mark_type_info = Asc.scope.subject_mark_types
+	var modeOptions = []
+	if (mark_type_info && mark_type_info.ques_mode_map) {
+		Object.keys(mark_type_info.ques_mode_map).forEach(e => {
+			modeOptions.push({
+				value: e,
+				label: mark_type_info.ques_mode_map[e]
+			})
+		})
+		console.log('modeOptions', modeOptions)
+	}
+	select_ques_mode = new ComponentSelect({
+		id: 'questionMode',
+		options: modeOptions,
+		value_select: '0',
+		width: '100%',
+		enabled: false,
 	})
 	select_proportion = new ComponentSelect({
 		id: 'proportion',
@@ -150,6 +174,7 @@ function updateElements(quesData, hint, ignore_ask_list) {
 	if (select_type) {
 		select_type.setSelect((quesData.question_type || 0) + '')
 	}
+	updateQuesMode(quesData.question_type)
 	if (select_proportion) {
 		select_proportion.setSelect((quesData.proportion || 1) + '')
 		if (!quesData.proportion) {
@@ -298,6 +323,7 @@ function changeQuestionType(data) {
 	if (window.BiyueCustomData.question_map[g_ques_id]) {
 		var oldvalue = window.BiyueCustomData.question_map[g_ques_id].question_type
 		window.BiyueCustomData.question_map[g_ques_id].question_type = data.value * 1
+		updateQuesMode(data.value)
 		if (data.value == 1 || oldvalue == 1) {
 			updateAllChoice().then(() => {
 				autoSave()
@@ -444,6 +470,23 @@ function onFocusAsk(id) {
 			return e.id == quesData.ask_list[index].id
 		})
 		focusAsk(writeData)
+	}
+}
+
+function updateQuesMode(question_type) {
+	question_type = question_type * 1
+	if (select_ques_mode) {
+		var ques_mode = 0
+		if (question_type > 0) {
+			var mark_type_info = Asc.scope.subject_mark_types
+			if (mark_type_info && mark_type_info.list) {
+				var find = mark_type_info.list.find(e => {
+					return e.question_type_id == question_type
+				})
+				ques_mode = find ? find.ques_mode : 3
+			}
+		}
+		select_ques_mode.setSelect(ques_mode + '')
 	}
 }
 

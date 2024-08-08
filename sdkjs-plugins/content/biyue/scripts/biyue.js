@@ -133,6 +133,7 @@ import { initView } from './pageView.js'
 				window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
 				break
 			case 'LevelSetConfirm': // 确定大小题设置
+				Asc.scope.choice_blank = message.choice
 				confirmLevelSet(message.levels)
 				window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
 				break
@@ -830,11 +831,15 @@ import { initView } from './pageView.js'
 	}
 
 	let toggleControlStyle = function () {
+		if (Asc.scope.control_hightlight != undefined) {
+			styleEnable = Asc.scope.control_hightlight
+		}
 		if (styleEnable) {
 			styleEnable = false
 		} else {
 			styleEnable = true
 		}
+		Asc.scope.control_hightlight = styleEnable
 		console.log('styleEnable', styleEnable)
 
 		// 方案1:通过调整ContentControl的属性来显示，现在看来只支持选中的control

@@ -62,6 +62,16 @@ function reqSaveQuestion(paper_uuid, question_uuid, content_type, content_number
 	})
 }
 
+function reqSubjectMarkTypes(subject_value) {
+	return authRequest({
+		url: '/person/subject/mark_types',
+		method: 'get',
+		params: {
+			subject_value
+		},
+	})
+}
+
 
 /**
  * 上传试卷预览图
@@ -367,6 +377,7 @@ export {
 	reqComplete,
 	reqPaperInfo,
 	reqSaveQuestion,
+	reqSubjectMarkTypes,
 	structAdd,
 	structDelete,
 	structEmpty,
@@ -382,6 +393,6 @@ export {
 	examQuestionsUpdate,
 	teacherClassMyGradePrint,
 	teacherExamPrintPaperSelections,
-  paperUploadPreview,
-  paperValidatePosition
+  	paperUploadPreview,
+  	paperValidatePosition
 }

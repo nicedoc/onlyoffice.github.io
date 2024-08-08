@@ -15,7 +15,23 @@ class ComponentSelect {
 		this.options = params.options
 		this.value_select = params.value_select
 		this.width = params.width || '85px'
+		if (params.enabled == false) {
+			this.enabled = false
+		} else {
+			this.enabled = true
+		}
 		this.render()
+	}
+
+	setEnable(enable) {
+		this.enabled = enable
+		if (enable) {
+			$(`#${this.id}_input`).css('background-color', '#fff')
+			$(`#${this.id}_button`).css('background-color', '#fff')
+		} else {
+			$(`#${this.id}_input`).css('background-color', '#ccc')
+			$(`#${this.id}_button`).css('background-color', '#ccc')
+		}
 	}
 
 	render() {
@@ -53,9 +69,13 @@ class ComponentSelect {
 		if (data) {
 			$(`#${this.id}_input`).val(data.label)
 		}
+		this.setEnable(this.enabled)
 	}
 
 	toggleOptions() {
+		if (!this.enabled) {
+			return
+		}
 		if ($(`#${this.id}_span`).hasClass('open')) {
 			$(`#${this.id}_span`).removeClass('open')
 		} else {

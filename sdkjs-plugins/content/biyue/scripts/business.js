@@ -10,6 +10,7 @@ import {
 	structRename,
 	paperSavePosition,
 	examQuestionsUpdate,
+	reqSubjectMarkTypes
 } from './api/paper.js'
 import { getBase64, map_base64 } from '../resources/list_base64.js'
 import { biyueCallCommand } from './command.js'
@@ -58,7 +59,12 @@ function initPaperInfo() {
 					paper_options[key] = list
 				})
 				window.BiyueCustomData.paper_options = paper_options
-				resolve(res)
+				return reqSubjectMarkTypes(paper.subject_value).then(res3 => {
+					Asc.scope.subject_mark_types = res3.data
+					resolve(res)
+				}).catch(res => {
+					reject(res)
+				})
 			})
 			.catch((res) => {
 				handlePaperInfoResult(false, res)

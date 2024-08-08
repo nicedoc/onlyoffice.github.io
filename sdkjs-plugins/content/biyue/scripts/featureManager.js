@@ -1533,11 +1533,20 @@ function updateChoice(recalc = true) {
 			return node_list
 		}
 		var question_map = Asc.scope.question_map
+		var mark_type_info = Asc.scope.subject_mark_types
 		var num_row = choice_params.num_row || 10
 		var structs = []
 		function AddItem(id, control_id) {
-			if (question_map[id]) {
-				if (question_map[id].question_type == 1) {
+			if (question_map[id] && question_map[id].question_type > 0) {
+				var ques_mode = 0
+				if (mark_type_info && mark_type_info.list) {
+					var find = mark_type_info.list.find(e => {
+						return e.question_type_id == question_map[id].question_type
+					})
+					ques_mode = find ? find.ques_mode : 3
+				}
+				// todo..1是单选题，5是多选题，之后要考虑多选另行一组
+				if (ques_mode == 1 || ques_mode == 5) {
 					structs[structs.length - 1].items.push({
 						id: id,
 						control_id: control_id,

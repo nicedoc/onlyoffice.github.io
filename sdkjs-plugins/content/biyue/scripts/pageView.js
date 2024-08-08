@@ -9,7 +9,8 @@ import {
 	reqGetQuestionType,
 	handleAllWrite,
 	showAskCells,
-	g_click_value
+	g_click_value,
+	showLevelSetDialog
 } from './QuesManager.js'
 import { showCom, updateText, addClickEvent } from './model/util.js'
 function initView() {
@@ -58,7 +59,7 @@ function initView() {
 		})
 	})
 	addClickEvent('#getQuesType', reqGetQuestionType)
-	addClickEvent('viewQuesType', onViewQuesType)
+	addClickEvent('#viewQuesType', onViewQuesType)
 }
 
 function handlePaperInfoResult(success, res) {
@@ -120,7 +121,7 @@ function changeTabPanel(id) {
 }
 
 function onViewQuesType() {
-	console.log('展示题型')
+	// console.log('展示题型') todo..
 }
 
 export {

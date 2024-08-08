@@ -1023,7 +1023,6 @@ function updateRangeControlType(typeName) {
 				if (!tag.regionType) { // 之前没有配置regionType
 					tag.regionType = regionType
 				}
-				oControl.SetTag(JSON.stringify(tag));
 			}
 			obj.client_id = tag.client_id
 			obj.parent_id = parent_id
@@ -1032,9 +1031,16 @@ function updateRangeControlType(typeName) {
 			obj.numbing_text = GetNumberingValue(oControl)
 			if (regionType == 'write') {
 				obj.sub_type = 'control'
+				tag.color = '#f9dada'
 			} else {
+				if (typeName == 'question' || typeName == 'setBig' || typeName == 'clearBig') {
+					tag.color = '#d9d9d9'
+				} else if (tag.color) {
+					delete tag.color
+				}
 				obj.text = oControl.GetRange().GetText()
 			}
+			oControl.SetTag(JSON.stringify(tag));
 			result.change_list.push(obj)
 		}
 		function setBig(oControl) {
@@ -1252,7 +1258,8 @@ function updateRangeControlType(typeName) {
 										regionType: 'question',
 										mode: 1,
 										column: 1,
-										client_id: result.client_node_id
+										client_id: result.client_node_id,
+										color: '#d9d9d9'
 									}
 									var oResult = Api.asc_AddContentControl(1, {
 										Tag: JSON.stringify(tag)
@@ -1571,6 +1578,11 @@ function updateRangeControlType(typeName) {
 							intersectControls.forEach(e => {
 								removeControl(e)
 							})
+						}
+						if (typeName == 'write') {
+							tag.color = '#f9dada'
+						} else if (typeName == 'question') {
+							tag.color = '#d9d9d9'
 						}
 						var oResult = Api.asc_AddContentControl(type, {
 							Tag: JSON.stringify(tag)
@@ -2059,7 +2071,9 @@ function showLevelSetDialog() {
 }
 // 由于从BiyueCustomData中获取的中文取出后会是乱码，需要在初始化时，再根据controls刷新一次数据
 function initControls() {
+	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
 	return biyueCallCommand(window, function() {
+		var question_map = Asc.scope.question_map || {} 
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls()
 		var nodeList = []
@@ -2113,25 +2127,13 @@ function initControls() {
 			}
 			return null
 		}
-		var colors = {}
-		var oTextPr = Api.CreateTextPr()
-    	oTextPr.SetColor(255, 0, 0, false)
-    	var oColor2 = oTextPr.TextPr.GetColor().Copy()
-		colors['blockLvlSdt'] = oColor2
-
-		var oColor3 = oColor2.Copy()
-		oColor3.Set(0, 255, 0, false)
-		colors['inlineLvlSdt'] = oColor3
 		controls.forEach((oControl) => {
 			var tagInfo = getJsonData(oControl.GetTag())
-			// if (oControl.GetClassType() == 'inlineLvlSdt') {
-				// tagInfo.color = '#ff0000'
-				// oControl.SetTag(JSON.stringify(tagInfo))
-			//}
+			
 			// tagInfo.color = '#ff0000'
 			// oControl.Sdt.SetColor(colors[oControl.GetClassType()])
+			var parentid = 0
 			if (tagInfo.regionType) {
-				var parentid = 0
 				var parentControl = getParentBlock(oControl)
 				if (parentControl) {
 					var parentTagInfo = getJsonData(parentControl.GetTag())
@@ -2148,6 +2150,28 @@ function initControls() {
 					sub_type: 'control'
 				})
 			}
+			var changecolor = false
+			if (tagInfo.client_id) {
+				if (oControl.GetClassType() == 'inlineLvlSdt') {
+					var isWrite = false
+					if (question_map[parentid] && question_map[parentid].level_type == 'question' && question_map[parentid].ask_list) {
+						isWrite = question_map[parentid].ask_list.find(e => {
+							return e.id == tagInfo.client_id
+						})
+					}
+					if (isWrite) {
+						changecolor = true
+						tagInfo.color = '#f9dada'
+					}
+				} else if (oControl.GetClassType() == 'blockLvlSdt' && question_map[tagInfo.client_id] && question_map[tagInfo.client_id].level_type == 'question') {
+					tagInfo.color = '#d9d9d9'
+					changecolor = true
+				}
+			}
+			if (!changecolor && tagInfo.color) {
+				delete tagInfo.color
+			}
+			oControl.SetTag(JSON.stringify(tagInfo))
 		})
 		var drawings = oDocument.GetAllDrawingObjects() || []
 		var drawingList = []
@@ -2229,7 +2253,12 @@ function confirmLevelSet(levels) {
 		var nodeList = []
 		var questionMap = {}
 		var oDocument = Api.GetDocument()
-		var controls = oDocument.GetAllContentControls()
+		var controls = oDocument.GetAllContentControls() || []
+		var paragrahs = oDocument.GetAllParagraphs() || []
+		paragrahs.forEach(oParagraph => {
+			var oParaPr = oParagraph.GetParaPr();
+			oParaPr.SetShd("clear", 255, 255, 255, true);
+		})
 		function getJsonData(str) {
 			if (!str || str == '' || typeof str != 'string') {
 				return {}
@@ -2325,7 +2354,6 @@ function confirmLevelSet(levels) {
 				client_node_id += 1
 				var id = client_node_id
 				tagInfo.client_id = id
-				oControl.SetTag(JSON.stringify(tagInfo));
 				var parentControl = getParentBlock(oControl)
 				var nodeData = {
 					id: id,
@@ -2349,6 +2377,7 @@ function confirmLevelSet(levels) {
 								id: id
 							})
 							nodeData.parent_id = parent_tagInfo.client_id
+							tagInfo.color = '#f9dada'
 						}
 					}
 				} else {
@@ -2367,12 +2396,15 @@ function confirmLevelSet(levels) {
 					if (tagInfo.regionType == 'question') {
 						nodeData.write_list = []
 						detail.ask_list = []
+						tagInfo.color = '#d9d9d9'
 					}
 					nodeList.push(nodeData)
 					questionMap[id] = detail
 				}
+				oControl.SetTag(JSON.stringify(tagInfo));
 			 }
 		})
+		Api.asc_SetGlobalContentControlShowHighlight(true, 204, 255, 255)
 		return {
 			client_node_id: client_node_id,
 			nodeList: nodeList,
@@ -2380,6 +2412,7 @@ function confirmLevelSet(levels) {
 		}
 	}, false, false).then(res => {
 		console.log('===== confirmLevelSet res', res)
+		Asc.scope.control_hightlight = true
 		if (res) {
 			window.BiyueCustomData.client_node_id = res.client_node_id
 			window.BiyueCustomData.node_list = res.nodeList
@@ -2506,6 +2539,10 @@ function reqGetQuestionType() {
 		})
 	})
 }
+function deleteChoiceOtherWrite() {
+	
+}
+
 // 显示/隐藏/删除所有书写区
 function handleAllWrite(cmdType) {
 	Asc.scope.cmdType = cmdType

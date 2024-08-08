@@ -26,23 +26,31 @@
 			level.appendChild(select);
 			listEl.appendChild(level);
 		}
+		var choiceEl = document.getElementById('choice')
+		if (choiceEl) {
+			const select = document.createElement('select');
+			select.innerHTML = `
+				<option value="first">第1个空</option>
+				<option value="last">最后1个空</option>
+			`;
+			select.value = 'last'
+			choiceEl.appendChild(select);
+		}
 		$('#cancel').on('click', onCancel)
 		$('#confirm').on('click', onConfirm)
 	}
 
 	function onConfirm() {
-		const options = [];
     	const levels = document.querySelectorAll('#levelList select');
 		var levelMap = {}
 		levels.forEach((select, index) => {
 			const selectedValue = select.value;
 			levelMap[index] = selectedValue
 		});
-		
-		console.log(options);
 		window.Asc.plugin.sendToPlugin('onWindowMessage', {
 			type: 'LevelSetConfirm',
-			levels: levelMap
+			levels: levelMap,
+			choice: $('#choice select').val()
 		})
 	}
 
