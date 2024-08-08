@@ -175,7 +175,7 @@
             let hasChange = false
             for (const k in ask_list) {
               let score = parseFloat(ask_list[k].score) || 0
-              if (!score) {
+              if (!score || score * 1 == 0) {
                 ask_list[k].score = value
                 hasChange = true
               }
