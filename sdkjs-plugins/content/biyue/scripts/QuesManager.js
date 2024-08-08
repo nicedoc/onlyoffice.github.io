@@ -312,6 +312,8 @@ function onContextMenuClick(id) {
 			case 'layoutRepair':
 				layoutDetect()
 				break
+			case 'batchChangeScore':
+				batchChangeScore()
 			default:
 				break
 		}
@@ -4496,6 +4498,14 @@ function layoutRepair(cmdData) {
 			}
 		}
 	}, false, true)
+}
+
+function batchChangeScore() {
+	if (g_click_value && g_click_value.Tag && g_click_value.Tag.client_id) {
+		window.biyue.onBatchScoreSet(g_click_value.Tag.client_id)
+	} else {
+		window.biyue.onBatchScoreSet()
+	}
 }
 
 export {

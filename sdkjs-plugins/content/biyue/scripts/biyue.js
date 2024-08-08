@@ -2083,6 +2083,7 @@ import { initView } from './pageView.js'
 		reSplitQustion: reSplitQustion,
 		showMessageBox: showMessageBox,
 		reqUploadTree: reqUploadTree,
-		handleInit: handleInit
+		handleInit: handleInit,
+		onBatchScoreSet: onBatchScoreSet
 	}
 })(window, undefined)
