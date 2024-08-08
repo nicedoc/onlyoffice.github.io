@@ -3234,9 +3234,8 @@ function reqUploadTree() {
 		return
 	}
   // 先关闭智批元素，避免智批元素在全量更新的时候被带到题目里 更新之后再打开
+  setBtnLoading('uploadTree', true)
   setInteraction('none').then(() => {
-
-      setBtnLoading('uploadTree', true)
       Asc.scope.node_list = window.BiyueCustomData.node_list
       Asc.scope.question_map = window.BiyueCustomData.question_map
       upload_control_list = []
@@ -3318,7 +3317,6 @@ function reqUploadTree() {
             getXml(control_list[0].control_id)
           }
         }
-        setInteraction('useself')
       })
   })
 }
@@ -3427,6 +3425,7 @@ function generateTreeForUpload(control_list) {
 			content: '全量更新成功',
 			showCancel: false
 		})
+    setInteraction('useself')
 	}).catch(res => {
 		console.log('reqComplete fail', res)
 		console.log('[reqUploadTree end]', Date.now())
@@ -3435,6 +3434,7 @@ function generateTreeForUpload(control_list) {
 			content: res && res.message && res.message != '' ? res.message : '全量更新失败',
 			showCancel: false
 		})
+    setInteraction('useself')
 	})
 	console.log(tree)
 }
