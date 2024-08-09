@@ -328,7 +328,7 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 				case 61: sType = 'upperRoman'; break
 				default: break
 			}
-			return style
+			return sType
 		}
 		var handledNumbering = {}
 		function hideSimple(oParagraph) {
@@ -1092,7 +1092,7 @@ function setInteraction(type, quesIds) {
 				case 61: sType = 'upperRoman'; break
 				default: break
 			}
-			return style
+			return sType
 		}
 		function showSimple(oParagraph, vshow) {
 			var oNumberingLevel = oParagraph.GetNumbering()

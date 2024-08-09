@@ -684,7 +684,7 @@ function updateRangeControlType(typeName) {
 				case 61: sType = 'upperRoman'; break
 				default: break
 			}
-			return style
+			return sType
 		}
 		function hideSimple(oParagraph) {
 			if (!oParagraph) {
