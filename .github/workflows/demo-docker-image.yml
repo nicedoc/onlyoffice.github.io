@@ -3,14 +3,14 @@ name: Demo Docker Image CI
 
 on:
   push:
-    branches: [ "bonlyoffice" ]
+    branches: [ "stable" ]
   pull_request:
-    branches: [ "bonlyoffice" ]
+    branches: [ "stable" ]
 
 env:
   REGISTRY: registry.nicedoc.cn
   IMAGE_NAME: biyue-plugin
-  
+
 jobs:
 
   build:
@@ -24,7 +24,7 @@ jobs:
 
     - name: Check out the repo
       uses: actions/checkout@v4
-    
+
     - name: Write Version to File
       uses: nicedoc/write-version-to-file@0.2
       with:
@@ -44,9 +44,9 @@ jobs:
       uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
       with:
         images: |
-         ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} 
+         ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
-   
+
     - name: Build and push Docker image
       id: push
       uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
@@ -55,7 +55,7 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        
+
     # - name: Generate artifact attestation
     #   uses: actions/attest-build-provenance@v1
     #   with:
