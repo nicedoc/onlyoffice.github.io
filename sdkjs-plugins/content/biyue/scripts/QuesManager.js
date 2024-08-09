@@ -212,10 +212,10 @@ function getContextMenuItems(type) {
 					text: '修改题型',
 					items: itemsQuesType,
 				},
-				{
-					id: 'batchChangeScore',
-					text: '修改分数',
-				},
+				// {
+				// 	id: 'batchChangeScore',
+				// 	text: '修改分数',
+				// },
 				{
 					id: 'batchChangeProportion',
 					text: '修改占比',
