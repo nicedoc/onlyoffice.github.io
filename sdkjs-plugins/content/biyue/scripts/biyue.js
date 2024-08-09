@@ -39,7 +39,8 @@ import {
 	handleAllWrite,
 	showAskCells,
 	onContextMenuClick,
-	layoutRepair
+	layoutRepair,
+	tagImageCommon
 } from './QuesManager.js'
 
 import { initView } from './pageView.js'
@@ -165,6 +166,12 @@ import { initView } from './pageView.js'
 					layoutRepair(message.cmd)
 				} else {
 					modal.command('initLayoutRepair', Asc.scope.layout_detect_result)
+				}
+				break
+			case 'imageRelationMessage':
+				window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
+				if (message.data) {
+					tagImageCommon(message.data)
 				}
 				break
 			default:

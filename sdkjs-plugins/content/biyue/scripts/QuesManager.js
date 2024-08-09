@@ -5,6 +5,7 @@ import { handleChoiceUpdateResult, setInteraction, updateChoice } from "./featur
 import { initExtroInfo } from "./panelFeature.js";
 var levelSetWindow = null
 var layoutRepairWindow = null
+var imageRelationWindow = null
 var level_map = {}
 var g_click_value = null
 var upload_control_list = []
@@ -70,11 +71,18 @@ function getContextMenuItems(type) {
 			guid: window.Asc.plugin.guid,
 			items: [{
 				separator: true,
-				id: 'handleImageIgnore_add',
-				text: '开启局部不铺码'
+				id: 'handleImageIgnore',
+				text: '图片铺码',
+				items: [{
+					id: 'handleImageIgnore_del',
+					text: '开启'
+				}, {
+					id: 'handleImageIgnore_add',
+					text: '关闭'
+				}]
 			}, {
-				id: 'handleImageIgnore_del',
-				text: '关闭局部不铺码'
+				id: 'imageRelation',
+				text: '图片关联'
 			}],
 		}
 	} else if (type == 'Target' && !g_click_value) {
@@ -314,6 +322,10 @@ function onContextMenuClick(id) {
 				break
 			case 'batchChangeScore':
 				batchChangeScore()
+				break
+			case 'imageRelation':
+				imageRelation()
+				break
 			default:
 				break
 		}
@@ -4304,18 +4316,41 @@ function handleImageIgnore(cmdType) {
 		console.log('handleImageIgnore', cmdType)
 		var oDocument = Api.GetDocument()
 		var drawings = oDocument.GetAllDrawingObjects() || []
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
 		drawings.forEach(oDrawing => {
 			var GraphicObj = oDrawing.Drawing.GraphicObj
 			if (GraphicObj && GraphicObj.selected) {
-				var tag = {
-					partical_no_dot: 1
+				var tag = getJsonData(oDrawing.Drawing.docPr.title)
+				if (cmdType == 'add') {
+					if (tag.feature) {
+						tag.feature.partical_no_dot = 1
+					} else {
+						tag = {
+							feature: {
+								partical_no_dot: 1
+							}
+						}
+					}
+				} else {
+					if (tag.feature && tag.feature.partical_no_dot) {
+						delete tag.feature.partical_no_dot
+					}
 				}
 				oDrawing.Drawing.Set_Props({
-					title: cmdType == 'add' ? JSON.stringify(tag) : '',
+					title: JSON.stringify(tag)
 				})
 				var oFill = Api.CreateSolidFill(Api.CreateRGBColor(255, 255, 255))
         		oFill.UniFill.transparent = 0 // 透明度
-
 				var oStroke = Api.CreateStroke(10000, cmdType == 'add' ? Api.CreateSolidFill( Api.CreateRGBColor(255, 111, 61)) : oFill);
 				oDrawing.SetOutLine(oStroke);
 			}
@@ -4504,6 +4539,70 @@ function batchChangeScore() {
 	}
 }
 
+function imageRelation() {
+	console.log('imageRelation')
+	window.biyue.showDialog(imageRelationWindow, '图片关联', 'imageRelation.html', 800, 600, false)
+}
+
+function tagImageCommon(params) {
+	Asc.scope.tag_params = params
+	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
+	return biyueCallCommand(window, function() {
+		var tag_params = Asc.scope.tag_params
+		var client_node_id = Asc.scope.client_node_id
+		var oDocument = Api.GetDocument()
+		var drawings = oDocument.GetAllDrawingObjects() || []
+		var  oDrawing = drawings.find(e => {
+			return e.Drawing.Id == tag_params.drawing_id
+		})
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
+		if (oDrawing) {
+			var tag = getJsonData(oDrawing.Drawing.docPr.title)
+			if (tag.feature) {
+				if (!tag.feature.client_id) {
+					client_node_id += 1
+					tag.feature.client_id = client_node_id
+				}
+				tag.feature.ques_use = tag_params.ques_use.join('_')
+			} else {
+				client_node_id += 1
+				tag = {
+					feature: {
+						ques_use: tag_params.ques_use.join('_'),
+						client_id: client_node_id
+					}
+				}
+			}
+			oDrawing.Drawing.Set_Props({
+				title: JSON.stringify(tag)
+			})
+		}
+		return {
+			client_node_id: client_node_id,
+			drawing_id: tag_params.drawing_id,
+			ques_use: tag_params.ques_use
+		} 
+	}, false, false).then(res => {
+		if (res) {
+			window.BiyueCustomData.client_node_id = res.client_node_id
+			if (!window.BiyueCustomData.image_use) {
+				window.BiyueCustomData.image_use = {}
+			}
+			window.BiyueCustomData.image_use[res.drawing_id] = res.ques_use
+		}
+	})
+}
+
 export {
 	handleDocClick,
 	handleContextMenuShow,
@@ -4524,5 +4623,6 @@ export {
 	updateAllChoice,
 	layoutRepair,
 	deleteChoiceOtherWrite,
-	getQuesMode
+	getQuesMode,
+	tagImageCommon
 }
