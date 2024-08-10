@@ -1755,5 +1755,41 @@ function handleChoiceUpdateResult(res) {
 		resolve()
 	})
 }
+// 显示或隐藏页码
+function showOrHidePagination(v) {
+	Asc.scope.vshow = v
+	return biyueCallCommand(window, function(){
+		var oDocument = Api.GetDocument()
+		var drawings = oDocument.GetAllDrawingObjects() || []
+		var vshow = Asc.scope.v
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
+		drawings.forEach(e => {
+			var title = e.Drawing.docPr.title
+			var titleObj = getJsonData(title)
+			if (titleObj.feature && titleObj.feature.zone_type == 'pagination') {
+				var oShape = Api.LookupObject(e.Drawing.GraphicObj.Id)
+				if (oShape) {
+					var oShapeContent = oShape.GetContent()
+					if (oShapeContent) {
+						var paragraphs = oShapeContent.GetAllParagraphs() || []
+						paragraphs.forEach(p => {
+							p.SetColor(3, 3, 3, !vshow)
+						})
+					}
+				}
+			}
+		})
+	}, false, false)
+}
 
-export { handleFeature, handleHeader, drawExtroInfo, setLoading, deleteAllFeatures, setInteraction, updateChoice, handleChoiceUpdateResult }
+export { handleFeature, handleHeader, drawExtroInfo, setLoading, deleteAllFeatures, setInteraction, updateChoice, handleChoiceUpdateResult, showOrHidePagination }
