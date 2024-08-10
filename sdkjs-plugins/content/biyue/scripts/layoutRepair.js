@@ -29,6 +29,9 @@
 		$('#chineseSemicolon .ignore').on('click', () => {
 			onReplaceOrIgnore(0, 65307, 59)
 		})
+		$('#chineseSpace .replace').on('click', () => {
+			onReplaceOrIgnore(1, 12288, 32)
+		})
 	}
 
 	function onReplaceOrIgnore(type, val, newValue) {

@@ -4400,7 +4400,8 @@ function layoutDetect() {
 		var result = {
 			has32: false, // 存在空格具有下划线属性
 			has160: false, // 存在ASCII码160，这是一个不可打印字符，称为不间断空格（NBSP）
-			has65307: false // 中文分号
+			has65307: false, // 中文分号
+			has12288: false, // 中文空格
 		}
 		function handleRun(oRun) {
 			if (!oRun || oRun.GetClassType() != 'run') {
@@ -4413,12 +4414,11 @@ function layoutDetect() {
 				if (isUnderline && runContent[k].Value == 32) {
 					result.has32 = true
 					find = true
-				} else if (runContent[k].Value == 160) {
-					result.has160 = true
-					find = true
-				} else if (runContent[k].Value == 65307) { // 中文分号
-					result.has65307 = true
-					find = true
+				} else {
+					if (result[`has${runContent[k].Value}`]) {
+						result[`has${runContent[k].Value}`] = true
+						find = true
+					}
 				}
 			}
 			// 需要调整样式
@@ -4502,7 +4502,11 @@ function layoutRepair(cmdData) {
 						if (element2.Value == cmdData.value) {
 							oRun.Run.RemoveElement(element2)
 							if (cmdData.newValue == 32) {
-								oRun.Run.AddText(' ', k)
+								if (cmdData.value == 12288) {
+									oRun.Run.AddText('  ', k)
+								} else {
+									oRun.Run.AddText(' ', k)
+								}
 							} else if (cmdData.newValue == 59) {
 								oRun.Run.AddText(';', k)
 							}
