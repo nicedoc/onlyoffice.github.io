@@ -3949,13 +3949,17 @@ function getAllPositions() {
 					var Pages = oControlContent.Document.Pages
 					if (Pages) {
 						Pages.forEach((page, index) => {
-							bounds.push({
-								Page: oControl.Sdt.GetAbsolutePage(index),
-								X: mmToPx(page.Bounds.Left),
-								Y: mmToPx(page.Bounds.Top),
-								W: mmToPx(page.Bounds.Right - page.Bounds.Left),
-								H: mmToPx(page.Bounds.Bottom - page.Bounds.Top),
-							})
+              let w = page.Bounds.Right - page.Bounds.Left
+              let h = page.Bounds.Bottom - page.Bounds.Top
+              if (w > 0 && h > 0) {
+                bounds.push({
+                  Page: oControl.Sdt.GetAbsolutePage(index),
+                  X: mmToPx(page.Bounds.Left),
+                  Y: mmToPx(page.Bounds.Top),
+                  W: mmToPx(page.Bounds.Right - page.Bounds.Left),
+                  H: mmToPx(page.Bounds.Bottom - page.Bounds.Top),
+                })
+              }
 						})
 					}
 				} else if (oControl.GetClassType() == 'inlineLvlSdt') {
