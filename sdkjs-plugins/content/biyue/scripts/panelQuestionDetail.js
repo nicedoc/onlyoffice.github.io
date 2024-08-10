@@ -419,12 +419,43 @@ function changeQuesName(data) {
 }
 
 function changeScore(id, data) {
+	var v = data * 1
+	if (isNaN(v)) {
+		return
+	}
+	var ask_list = window.BiyueCustomData.question_map[g_ques_id].ask_list
+	var sum = 0
 	if (id == 'ques_weight') {
-		window.BiyueCustomData.question_map[g_ques_id].score = data
+		window.BiyueCustomData.question_map[g_ques_id].score = v
+		if (ask_list && ask_list.length) {
+			var avg = (v / ask_list.length).toFixed(1) * 1
+			for (var i = 0; i < ask_list.length; ++i) {
+				if (i == ask_list.length - 1) {
+					ask_list[i].score = v - sum
+				} else {
+					ask_list[i].score = avg
+					sum += avg
+				}
+				if (list_ask && list_ask[i]) {
+					list_ask[i].setValue(ask_list[i].score + '')		
+				}
+			}
+		}
 	} else {
 		var index = id.replace('ask', '') * 1
-		window.BiyueCustomData.question_map[g_ques_id].ask_list[index].score = data
+		ask_list[index].score = v
+		for (var i = 0; i < ask_list.length; ++i) {
+			var askscore = ask_list[i].score * 1
+			if (!isNaN(askscore)) {
+				sum += askscore
+			}
+		}
+		window.BiyueCustomData.question_map[g_ques_id].score = sum
+		if (input_score) {
+			input_score.setValue(sum + '')
+		}
 	}
+	window.BiyueCustomData.question_map[g_ques_id].ask_list = ask_list
 	autoSave()
 }
 
