@@ -42,5 +42,18 @@ function closeOtherSelect(exceptId) {
 		$(`#${list[i].id}`).removeClass('open')
 	}
 }
+function getListByMap(map, keyname = 'value', labelname = 'label') {
+	if (!map || typeof map !== 'object') {
+		return []
+	}
+	var list = []
+	Object.keys(map).forEach(e => {
+		list.push({
+			[`${keyname}`]: e,
+			[`${labelname}`]: map[e]
+		})
+	})
+	return list
+}
 
-export { showCom, updateText, addClickEvent, closeOtherSelect }
+export { showCom, updateText, addClickEvent, closeOtherSelect, getListByMap }
