@@ -1,7 +1,8 @@
 // eslint-disable-next-line no-unused-vars
 import { getToken } from './auth.js'
+import { VUE_APP_AUTH_API } from '../apiConfig.js'
 
-let baseURL = 'https://edusys.xmdas-link.com/bonlyoffice'
+let baseURL = VUE_APP_AUTH_API
 
 // 创建axios实例
 const service = axios.create({
