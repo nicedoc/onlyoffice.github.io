@@ -1,10 +1,11 @@
 import { getToken } from './auth.js'
+import { VUE_APP_GO_API } from '../apiConfig.js'
 // Token失效，需要重新获取token的StatusCode状态码
 const tokenFailStatusCodes = [
 	21, // token无效
 ]
 
-let baseURL = 'https://eduques.xmdas-link.com/bonlyoffice'
+let baseURL = VUE_APP_GO_API
 
 // 创建axios实例
 const service = axios.create({
