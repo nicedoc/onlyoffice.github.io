@@ -2095,7 +2095,7 @@ import { initView } from './pageView.js'
         }
       })
 
-      // 页码
+      // 试卷页码
       var vshow = cmdType == 'show'
       drawings.forEach(e => {
         var title = e.Drawing.docPr.title
