@@ -1,5 +1,5 @@
 {
-	"name" : "BiyueBranch",
+	"name" : "Biyue",
 	"nameLocale": {
 		"ru": "Biyue",
 		"fr": "Biyue",
@@ -18,13 +18,13 @@
 					"fr": "Créez des bibliographies et insérez des citations avec Mendeley.",
 					"es": "Cree bibliografías e inserte citas utilizando el servicio Mendeley.",
 					"de": "Erstellen Sie Bibliografien und fügen Sie Zitate mit Mendeley ein."
-				},				
+				},
 			"url": "index.html",
 			"icons": [ "resources/light/icon.png", "resources/light/icon@2x.png" ],
 			"icons2": [
 					{
 						"style" : "light",
-						
+
 						"100%": {
 							"normal": "resources/light/icon.png"
 						},
@@ -43,7 +43,7 @@
 					},
 					{
 						"style" : "dark",
-						
+
 						"100%": {
 							"normal": "resources/dark/icon.png"
 						},
