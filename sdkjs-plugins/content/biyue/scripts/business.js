@@ -3833,7 +3833,7 @@ function getAllPositions() {
 								}
 								var Numbering = oParagraph.Paragraph.Numbering
 								return {
-									page: oParagraph.Paragraph.PageNum,
+									page: oControl.Sdt.GetAbsolutePage(0) + 1,
 									x: mmToPx(paragraphX + xleft),
 									y: mmToPx(oParagraph.Paragraph.Y),
 									w: mmToPx(Numbering.Height),
@@ -3949,17 +3949,17 @@ function getAllPositions() {
 					var Pages = oControlContent.Document.Pages
 					if (Pages) {
 						Pages.forEach((page, index) => {
-              let w = page.Bounds.Right - page.Bounds.Left
-              let h = page.Bounds.Bottom - page.Bounds.Top
-              if (w > 0 && h > 0) {
-                bounds.push({
-                  Page: oControl.Sdt.GetAbsolutePage(index),
-                  X: mmToPx(page.Bounds.Left),
-                  Y: mmToPx(page.Bounds.Top),
-                  W: mmToPx(page.Bounds.Right - page.Bounds.Left),
-                  H: mmToPx(page.Bounds.Bottom - page.Bounds.Top),
-                })
-              }
+              				let w = page.Bounds.Right - page.Bounds.Left
+              				let h = page.Bounds.Bottom - page.Bounds.Top
+							if (w > 0 && h > 0) {
+								bounds.push({
+								Page: oControl.Sdt.GetAbsolutePage(index),
+								X: mmToPx(page.Bounds.Left),
+								Y: mmToPx(page.Bounds.Top),
+								W: mmToPx(page.Bounds.Right - page.Bounds.Left),
+								H: mmToPx(page.Bounds.Bottom - page.Bounds.Top),
+								})
+							}
 						})
 					}
 				} else if (oControl.GetClassType() == 'inlineLvlSdt') {
@@ -3989,15 +3989,15 @@ function getAllPositions() {
 					}
 					Api.asc_CheckCopy(text_data, 2)
 					var correctPos = GetCorrectRegion(oControl)
-          var gatherRegion = getGatherCellRegion(tag.client_id)
-          var is_gather_region = false
-          if (Asc.scope.choice_params && Asc.scope.choice_params.style === 'show_choice_region' && gatherRegion) {
-            // 开启集中作答区并且有集中作答区的坐标信息
-            is_gather_region = true
-            if (question_map[tag.client_id]) {
-              question_map[tag.client_id].ask_list = []
-            }
-          }
+					var gatherRegion = getGatherCellRegion(tag.client_id)
+					var is_gather_region = false
+					if (Asc.scope.choice_params && Asc.scope.choice_params.style === 'show_choice_region' && gatherRegion) {
+						// 开启集中作答区并且有集中作答区的坐标信息
+						is_gather_region = true
+						if (question_map[tag.client_id]) {
+						question_map[tag.client_id].ask_list = []
+						}
+					}
 					var item = {
 						id: tag.client_id,
 						control_id: oControl.Sdt.GetId(),
