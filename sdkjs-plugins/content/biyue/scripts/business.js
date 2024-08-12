@@ -3844,7 +3844,9 @@ function getAllPositions() {
 								// var numberingRect = Api.asc_GetParagraphNumberingBoundingRect(oParagraph.Paragraph.Id, 1)
 								// console.log('numberingRect', numberingRect)
 								if (ParaLineMetrics && ParaLineMetrics.Ascent) {
-									y += ParaLineMetrics.Ascent
+									var lineBounds = oParagraph.Paragraph.GetLineBounds(0)
+									var lineHeight = lineBounds.Bottom - lineBounds.Top
+									y += compiledPr.ParaPr.Spacing.Before + (compiledPr.ParaPr.Spacing.Line * lineHeight - lineHeight) / 2
 								}
 								return {
 									page: oParagraph.Paragraph.GetAbsolutePage(numberPage) + 1,
