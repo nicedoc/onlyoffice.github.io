@@ -2072,6 +2072,19 @@ import { initView } from './pageView.js'
       var cmdType = Asc.scope.cmdType
       var oDocument = Api.GetDocument()
       var drawings = oDocument.GetAllDrawingObjects() || []
+
+      function getJsonData(str) {
+        if (!str || str == '' || typeof str != 'string') {
+          return {}
+        }
+        try {
+          return JSON.parse(str)
+        } catch (error) {
+          console.log('json parse error', error)
+          return {}
+        }
+      }
+      // 图片不铺码的标识
       drawings.forEach(oDrawing => {
         let title = oDrawing.Drawing.docPr.title || ''
         if (title.includes('partical_no_dot')) {
@@ -2079,6 +2092,25 @@ import { initView } from './pageView.js'
           oFill.UniFill.transparent = 0 // 透明度
           var oStroke = Api.CreateStroke(10000, cmdType == 'show' ? Api.CreateSolidFill(Api.CreateRGBColor(255, 111, 61)) : oFill);
           oDrawing.SetOutLine(oStroke);
+        }
+      })
+
+      // 试卷页码
+      var vshow = cmdType == 'show'
+      drawings.forEach(e => {
+        var title = e.Drawing.docPr.title
+        var titleObj = getJsonData(title)
+        if (titleObj.feature && titleObj.feature.zone_type == 'pagination') {
+          var oShape = Api.LookupObject(e.Drawing.GraphicObj.Id)
+          if (oShape) {
+            var oShapeContent = oShape.GetContent()
+            if (oShapeContent) {
+              var paragraphs = oShapeContent.GetAllParagraphs() || []
+              paragraphs.forEach(p => {
+                p.SetColor(3, 3, 3, !vshow)
+              })
+            }
+          }
         }
       })
       }, false, false)

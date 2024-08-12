@@ -4148,7 +4148,11 @@ function deleteAsks(askList) {
 						}
 					}
 				}
-			} else {
+			} else if (oControl.GetClassType() == 'blockLvlSdt') {
+				var oControlContent = oControl.GetContent()
+				if (!oControlContent) {
+					return
+				}
 				var drawings = oControlContent.GetAllDrawingObjects()
 				if (drawings) {
 					for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
@@ -4544,7 +4548,6 @@ function batchChangeScore() {
 }
 
 function imageRelation() {
-	console.log('imageRelation')
 	window.biyue.showDialog(imageRelationWindow, '图片关联', 'imageRelation.html', 800, 600, false)
 }
 

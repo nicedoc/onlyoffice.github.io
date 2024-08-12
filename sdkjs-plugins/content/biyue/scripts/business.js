@@ -3832,10 +3832,26 @@ function getAllPositions() {
 									xleft = indLeft + firstLine
 								}
 								var Numbering = oParagraph.Paragraph.Numbering
+								var numberPage = Numbering.Page
+								var contentBounds = oParagraph.Paragraph.GetContentBounds(numberPage)
+								var y = oParagraph.Paragraph.Y
+								var x = paragraphX + xleft
+								if (contentBounds) {
+									y = contentBounds.Top
+									x = contentBounds.Left
+								}
+								var ParaLineMetrics = oParagraph.Paragraph.getLineMetrics(0)
+								// var numberingRect = Api.asc_GetParagraphNumberingBoundingRect(oParagraph.Paragraph.Id, 1)
+								// console.log('numberingRect', numberingRect)
+								if (ParaLineMetrics && ParaLineMetrics.Ascent) {
+									var lineBounds = oParagraph.Paragraph.GetLineBounds(0)
+									var lineHeight = lineBounds.Bottom - lineBounds.Top
+									y += compiledPr.ParaPr.Spacing.Before + (compiledPr.ParaPr.Spacing.Line * lineHeight - lineHeight) / 2
+								}
 								return {
-									page: oParagraph.Paragraph.PageNum,
-									x: mmToPx(paragraphX + xleft),
-									y: mmToPx(oParagraph.Paragraph.Y),
+									page: oParagraph.Paragraph.GetAbsolutePage(numberPage) + 1,
+									x: mmToPx(x),
+									y: mmToPx(y),
 									w: mmToPx(Numbering.Height),
 									h: mmToPx(Numbering.Height),
 								}
@@ -3886,7 +3902,7 @@ function getAllPositions() {
 										} else if (titleObj.feature.sub_type == 'write') {
 											obj.write_id = titleObj.feature.client_id
 											write_region.push(obj)
-										} else if (titleobj.feature.sub_type == 'identify') {
+										} else if (titleObj.feature.sub_type == 'identify') {
 											obj.write_id = titleObj.feature.client_id
 											identify_region.push(obj)
 										}
@@ -3949,13 +3965,17 @@ function getAllPositions() {
 					var Pages = oControlContent.Document.Pages
 					if (Pages) {
 						Pages.forEach((page, index) => {
-							bounds.push({
+              				let w = page.Bounds.Right - page.Bounds.Left
+              				let h = page.Bounds.Bottom - page.Bounds.Top
+							if (w > 0 && h > 0) {
+								bounds.push({
 								Page: oControl.Sdt.GetAbsolutePage(index),
 								X: mmToPx(page.Bounds.Left),
 								Y: mmToPx(page.Bounds.Top),
 								W: mmToPx(page.Bounds.Right - page.Bounds.Left),
 								H: mmToPx(page.Bounds.Bottom - page.Bounds.Top),
-							})
+								})
+							}
 						})
 					}
 				} else if (oControl.GetClassType() == 'inlineLvlSdt') {
@@ -3985,15 +4005,15 @@ function getAllPositions() {
 					}
 					Api.asc_CheckCopy(text_data, 2)
 					var correctPos = GetCorrectRegion(oControl)
-          var gatherRegion = getGatherCellRegion(tag.client_id)
-          var is_gather_region = false
-          if (Asc.scope.choice_params && Asc.scope.choice_params.style === 'show_choice_region' && gatherRegion) {
-            // 开启集中作答区并且有集中作答区的坐标信息
-            is_gather_region = true
-            if (question_map[tag.client_id]) {
-              question_map[tag.client_id].ask_list = []
-            }
-          }
+					var gatherRegion = getGatherCellRegion(tag.client_id)
+					var is_gather_region = false
+					if (Asc.scope.choice_params && Asc.scope.choice_params.style === 'show_choice_region' && gatherRegion) {
+						// 开启集中作答区并且有集中作答区的坐标信息
+						is_gather_region = true
+						if (question_map[tag.client_id]) {
+						question_map[tag.client_id].ask_list = []
+						}
+					}
 					var item = {
 						id: tag.client_id,
 						control_id: oControl.Sdt.GetId(),

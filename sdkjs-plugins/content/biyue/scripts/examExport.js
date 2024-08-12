@@ -559,6 +559,7 @@ import { setXToken } from './auth.js'
       ignore_region: getFieldsByZoneType('ignore'),
       end_regional: getFieldsByZoneType('end'),
       again_regional: getFieldsByZoneType('again'),
+      stat_regional: getFieldsByZoneType('statistics'),
       partial_no_dot_regional: questionPositions.partical_no_dot_list || []
     }
     // 处理选区的数据类型

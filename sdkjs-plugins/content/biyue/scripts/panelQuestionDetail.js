@@ -128,12 +128,19 @@ function initElements() {
 	input_score = new NumberInput('ques_weight', {
 		width: '100%',
 		change: (id, data) => {
-			changeScore(id, data)
+      let val = data
+		  val = checkInputValue(data, 100)
+			changeScore(id, val)
 		},
 	})
 	$(`#ques_name input`).on('input', () => {
 		changeQuesName($(`#ques_name input`).val())
 	  })
+	$(`#ques_weight input`).on('input', () => {
+    let val = $(`#ques_weight input`).val()
+		val = checkInputValue(val, 100)
+    $(`#ques_weight input`).val(val)
+  })
 	select_interaction = new ComponentSelect({
 		id: 'quesInteraction',
 		options: interactionTypes,
@@ -210,6 +217,8 @@ function updateElements(quesData, hint, ignore_ask_list) {
 				var askInput = new NumberInput(`ask${index}`, {
 					width: '60px',
 					change: (id, data) => {
+            let val = data
+            val = checkInputValue(data, 100)
 						changeScore(id, data)
 					},
 					focus: (id) => {
@@ -222,6 +231,11 @@ function updateElements(quesData, hint, ignore_ask_list) {
 			$(`#ask${index}_delete`).on('click', () => {
 				deleteAsk(index)
 			})
+      $(`#ask${index} input`).on('input', () => {
+        let val = $(`#ask${index} input`).val()
+        val = checkInputValue(val, 100)
+        $(`#ask${index} input`).val(val)
+      })
 		})
 		if (list_ask && list_ask.length > askcount) {
 			for (var i = list_ask.length - 1; i >= askcount; --i) {
@@ -435,9 +449,12 @@ function changeScore(id, data) {
 				} else {
 					ask_list[i].score = avg
 					sum += avg
+          sum = sum.toFixed(1) * 1
 				}
 				if (list_ask && list_ask[i]) {
-					list_ask[i].setValue(ask_list[i].score + '')		
+          let score = ask_list[i].score || 0
+          score = score.toFixed(1) * 1
+					list_ask[i].setValue(score + '')
 				}
 			}
 		}
@@ -448,6 +465,7 @@ function changeScore(id, data) {
 			var askscore = ask_list[i].score * 1
 			if (!isNaN(askscore)) {
 				sum += askscore
+        sum = sum.toFixed(1) * 1
 			}
 		}
 		window.BiyueCustomData.question_map[g_ques_id].score = sum
@@ -457,6 +475,27 @@ function changeScore(id, data) {
 	}
 	window.BiyueCustomData.question_map[g_ques_id].ask_list = ask_list
 	autoSave()
+}
+
+
+function checkInputValue(val = '', max) {
+  // 只允许数字和一个小数点，并且小数点后最多一位数字
+  var sanitizedValue = val.replace(/[^0-9.]/g, ''); // 移除非数字和小数点的字符
+
+  // 处理多个小数点的情况
+  var parts = sanitizedValue.split('.');
+  if (parts.length > 2) {
+      sanitizedValue = parts[0] + '.' + parts.slice(1).join('');
+  }
+
+  // 处理最多一位小数的情况
+  if (parts.length === 2) {
+      sanitizedValue = parts[0] + '.' + (parts[1].length > 1 ? parts[1].substring(0, 1) : parts[1]);
+  }
+  if (max) {
+    sanitizedValue = sanitizedValue > max ? max : sanitizedValue
+  }
+  return sanitizedValue
 }
 
 function autoSave() {
