@@ -3823,37 +3823,15 @@ function getAllPositions() {
 							}
 							var LvlText = oNumberingLvl.LvlText || []
 							if (LvlText && LvlText.length && LvlText[0].Value=='\ue6a1') {
-								var paragraphX = oParagraph.Paragraph.X
-								var compiledPr = oParagraph.Paragraph.getCompiledPr()
-								var xleft = 0
-								if (compiledPr && compiledPr.ParaPr) {
-									var indLeft = compiledPr.ParaPr.Ind.Left || 0
-									var firstLine = compiledPr.ParaPr.Ind.FirstLine || 0
-									xleft = indLeft + firstLine
-								}
 								var Numbering = oParagraph.Paragraph.Numbering
 								var numberPage = Numbering.Page
-								var contentBounds = oParagraph.Paragraph.GetContentBounds(numberPage)
-								var y = oParagraph.Paragraph.Y
-								var x = paragraphX + xleft
-								if (contentBounds) {
-									y = contentBounds.Top
-									x = contentBounds.Left
-								}
-								var ParaLineMetrics = oParagraph.Paragraph.getLineMetrics(0)
-								// var numberingRect = Api.asc_GetParagraphNumberingBoundingRect(oParagraph.Paragraph.Id, 1)
-								// console.log('numberingRect', numberingRect)
-								if (ParaLineMetrics && ParaLineMetrics.Ascent) {
-									var lineBounds = oParagraph.Paragraph.GetLineBounds(0)
-									var lineHeight = lineBounds.Bottom - lineBounds.Top
-									y += compiledPr.ParaPr.Spacing.Before + (compiledPr.ParaPr.Spacing.Line * lineHeight - lineHeight) / 2
-								}
+								var numberingRect = Api.asc_GetParagraphNumberingBoundingRect(oParagraph.Paragraph.Id, 1) || {}
 								return {
 									page: oParagraph.Paragraph.GetAbsolutePage(numberPage) + 1,
-									x: mmToPx(x),
-									y: mmToPx(y),
-									w: mmToPx(Numbering.Height),
-									h: mmToPx(Numbering.Height),
+									x: mmToPx(numberingRect.X0),
+									y: mmToPx(numberingRect.Y0),
+									w: mmToPx(numberingRect.X1 - numberingRect.X0),
+									h: mmToPx(numberingRect.Y1 - numberingRect.Y0),
 								}
 							}
 						}
@@ -3902,7 +3880,7 @@ function getAllPositions() {
 										} else if (titleObj.feature.sub_type == 'write') {
 											obj.write_id = titleObj.feature.client_id
 											write_region.push(obj)
-										} else if (titleobj.feature.sub_type == 'identify') {
+										} else if (titleObj.feature.sub_type == 'identify') {
 											obj.write_id = titleObj.feature.client_id
 											identify_region.push(obj)
 										}
