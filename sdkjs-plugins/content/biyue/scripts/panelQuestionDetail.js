@@ -35,6 +35,7 @@ var list_ask = [] // 小问
 var inited = false
 var timeout_save = null
 var workbook_id = 0
+var select_ask_index = -1
 
 function initElements() {
 	console.log('====================================================== panelquestiondetail initElements')
@@ -265,7 +266,7 @@ function updateElements(quesData, hint, ignore_ask_list) {
 		var content = ''
 		content += '<label class="header">每空权重/分数</label><div class="asks">'
 		quesData.ask_list.forEach((ask, index) => {
-			content += `<div class="item"><span class="asklabel">(${
+			content += `<div class="item"><span id="asklabel${index}" class="asklabel">(${
 				index + 1
 			})</span><div id="ask${index}"></div><i class="iconfont icon-shanchu clicked" id="ask${index}_delete"></i></div>`
 		})
@@ -286,7 +287,7 @@ function updateElements(quesData, hint, ignore_ask_list) {
 						changeScore(id, data)
 					},
 					focus: (id) => {
-						onFocusAsk(id)
+						onFocusAsk(id, index)
 					}
 				})
 				list_ask.push(askInput)
@@ -354,11 +355,12 @@ function showQuesData(params) {
 		var keys = Object.keys(question_map)
 		for (var i = 0; i < keys.length; ++i) {
 			var ask_list = question_map[keys[i]].ask_list || []
-			var find = ask_list.find(e => {
+			var findIndex = ask_list.findIndex(e => {
 				return e.id == params.client_id
 			})
-			if (find) {
+			if (findIndex >= 0) {
 				ques_client_id = keys[i]
+				select_ask_index = findIndex
 				break
 			}
 		}
@@ -377,18 +379,17 @@ function showQuesData(params) {
 	console.log('=========== showQuesData ques:', quesData)
 	g_ques_id = ques_client_id
 	if (quesData.level_type == 'question') {
-
-    if (choice_display.style && choice_display.style === 'show_choice_region') {
-      // 如果是开启了集中作答区状态，则需要忽略对应题目的小问
-      let node = node_list.find(e => {
-        return e.id == ques_client_id
-      })
-      if (node.use_gather) {
-        ignore_ask_list = true
-      }
-    }
-
+    	if (choice_display.style && choice_display.style === 'show_choice_region') {
+      		// 如果是开启了集中作答区状态，则需要忽略对应题目的小问
+      		let node = node_list.find(e => {
+        		return e.id == ques_client_id
+      		})
+      		if (node.use_gather) {
+        		ignore_ask_list = true
+      		}
+    	}
 		updateElements(quesData, null, ignore_ask_list)
+		updateAskSelect(findIndex)
 	} else if (quesData.level_type == 'struct') {
 		updateElements(null, `当前选中为题组：${quesData ? quesData.ques_default_name : ''}`)
 		return
@@ -613,7 +614,7 @@ function deleteAsk(index) {
 	}])
 }
 
-function onFocusAsk(id) {
+function onFocusAsk(id, idx) {
 	var index = id.replace('ask', '') * 1
 	var quesData = window.BiyueCustomData.question_map[g_ques_id]
 	if (!quesData || !quesData.ask_list || index >= quesData.ask_list.length) {
@@ -627,6 +628,7 @@ function onFocusAsk(id) {
 			return e.id == quesData.ask_list[index].id
 		})
 		focusAsk(writeData)
+		updateAskSelect(idx)
 	}
 }
 
@@ -790,6 +792,22 @@ function handleMark(quesData) {
 		quesData.mark_mode = markMode
 	}
 	updateScoreComponent()
+}
+
+function updateAskSelect(index) {
+	if (select_ask_index >= 0) {
+		var old = $(`#asklabel${select_ask_index}`)
+		if (old) {
+			old.removeClass('ask-selected')
+		}
+	}
+	select_ask_index = index
+	if (select_ask_index >= 0) {
+		var newel = $(`#asklabel${select_ask_index}`)
+		if (newel) {
+			newel.addClass('ask-selected')
+		}
+	}
 }
 
 export { showQuesData, initListener }

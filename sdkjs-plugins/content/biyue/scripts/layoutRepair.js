@@ -18,23 +18,23 @@
 		$('#cancel').on('click', onCancel)
 		$('#confirm').on('click', onConfirm)
 		$('#underSpace .replace').on('click', () => {
-			onReplaceOrIgnore(1, 32, 95)
+			onReplaceOrIgnore(1, 32, 95, '#underSpace')
 		})
 		$('#nbsp .replace').on('click', () => {
-			onReplaceOrIgnore(1, 160, 32)
+			onReplaceOrIgnore(1, 160, 32, '#nbsp')
 		})
 		$('#chineseSemicolon .replace').on('click', () => {
-			onReplaceOrIgnore(1, 65307, 59)
+			onReplaceOrIgnore(1, 65307, 59, '#chineseSemicolon')
 		})
 		$('#chineseSemicolon .ignore').on('click', () => {
-			onReplaceOrIgnore(0, 65307, 59)
+			onReplaceOrIgnore(0, 65307, 59, '#chineseSemicolon')
 		})
 		$('#chineseSpace .replace').on('click', () => {
-			onReplaceOrIgnore(1, 12288, 32)
+			onReplaceOrIgnore(1, 12288, 32, '#chineseSpace')
 		})
 	}
 
-	function onReplaceOrIgnore(type, val, newValue) {
+	function onReplaceOrIgnore(type, val, newValue, comId) {
 		console.log('onReplaceOrIgnore', type, val, newValue)
 		window.Asc.plugin.sendToPlugin('onWindowMessage', {
 			type: 'LayoutRepairMessage',
@@ -44,6 +44,7 @@
 				newValue: newValue
 			}
 		})
+		$(comId).hide()
 	}
 
 	function onConfirm() {
