@@ -610,7 +610,15 @@ import { setXToken } from './auth.js'
         return JSZip.loadAsync(arrayBuffer); // 使用 JSZip 加载 ArrayBuffer
       }).then(async zip => {
         try {
-          for (const [filename, file] of Object.entries(zip.files)) {
+          let files = Object.entries(zip.files)
+          // 保证图片的顺序
+          files.sort((a, b) => {
+            const aName = a[0]
+            const bName = b[0]
+            return aName.localeCompare(bName)
+          })
+
+          for (const [filename, file] of files) {
             if (!file.dir) { // 只处理文件，忽略文件夹
               // 读取文件内容为 Blob
               const fileBlob = await file.async('blob');
