@@ -54,7 +54,7 @@
     cursor: pointer;
     margin-left: 5px;
   }
-  select {
+  .type-item {
     background-color: transparent;
     background-image: none;
     box-sizing: border-box;
@@ -62,11 +62,11 @@
     font-size: inherit;
     outline: none;
     padding: 0 5px;
-    width: 80px;
+    width: 100px;
     border: none;
     height: 1.5em;
     min-width: 40px;
-    max-width: 80px;
+    max-width: 100px;
     display: inline-block;
     text-align: center;
     border-bottom: 1px solid #ccc;

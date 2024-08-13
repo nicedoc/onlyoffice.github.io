@@ -89,7 +89,7 @@
                 let selectHtml = `<select id="bat-type-group-${key}" class="type-item">`
                 selectHtml += `<option value="" style="display: none;"></option>`
                 for (const key in question_type_options) {
-                  selectHtml += `<option value="${question_type_options[key].value}">${question_type_options[key].label}</option>`
+                  selectHtml += `<option value="${question_type_options[key].value}" title="${question_type_options[key].label}">${question_type_options[key].label}</option>`
                 }
                 selectHtml += "</select>"
 
