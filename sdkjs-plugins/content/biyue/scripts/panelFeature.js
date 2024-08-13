@@ -273,17 +273,17 @@ function initFeature() {
 			},
 			width: '100%',
 		})
+		input_choice_num = new NumberInput('input_choice_num', {
+			width: '100%',
+			change: (id, data) => {
+				changeChoiceNum(id, data)
+			},
+		})
+		if (input_choice_num) {
+			input_choice_num.setValue(choice_display.num_row + '')
+		}
 	}
-	input_choice_num = new NumberInput('input_choice_num', {
-		width: '100%',
-		change: (id, data) => {
-			changeChoiceNum(id, data)
-		},
-	})
-	if (input_choice_num) {
-		input_choice_num.setValue(choice_display.num_row + '')
-	}
-	showCom('#choiceGather', choice_display.style != 'brackets_choice_region')
+	showCom('#choiceGather', choice_display && choice_display.style != 'brackets_choice_region')
 	initPositions2()
 }
 
@@ -590,6 +590,9 @@ function changeChoiceArea(data) {
 }
 
 function changeChoiceNum(id, data) {
+	if (!window.BiyueCustomData.choice_display) {
+		return
+	}
 	clearTimeout(timeout_change_choice_num)
 	timeout_change_choice_num = setTimeout(() => {
 		window.BiyueCustomData.choice_display.num_row = data
