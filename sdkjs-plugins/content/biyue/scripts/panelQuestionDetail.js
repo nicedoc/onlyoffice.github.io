@@ -118,9 +118,10 @@ function initElements() {
 	})
 	input_score = new NumberInput('ques_weight', {
 		width: '100%',
+		min: 0,
 		change: (id, data) => {
-      let val = data
-		  val = checkInputValue(data, 100)
+      		let val = data
+		  	val = checkInputValue(data, 100)
 			changeScore(id, val)
 		},
 	})
@@ -128,10 +129,10 @@ function initElements() {
 		changeQuesName($(`#ques_name input`).val())
 	  })
 	$(`#ques_weight input`).on('input', () => {
-    let val = $(`#ques_weight input`).val()
+    	let val = $(`#ques_weight input`).val()
 		val = checkInputValue(val, 100)
-    $(`#ques_weight input`).val(val)
-  })
+    	$(`#ques_weight input`).val(val)
+  	})
 	select_interaction = new ComponentSelect({
 		id: 'quesInteraction',
 		options: interactionTypes,
@@ -207,9 +208,10 @@ function updateElements(quesData, hint, ignore_ask_list) {
 			} else {
 				var askInput = new NumberInput(`ask${index}`, {
 					width: '60px',
+					min: 0,
 					change: (id, data) => {
-            let val = data
-            val = checkInputValue(data, 100)
+            			let val = data
+            			val = checkInputValue(data, 100)
 						changeScore(id, data)
 					},
 					focus: (id) => {

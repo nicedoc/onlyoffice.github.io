@@ -78,7 +78,13 @@ class NumberInput {
 		if (isNaN(vv)) {
 			vv = 1
 		}
-		inputEl.val(offset + vv)
+		var targetv = offset + vv
+		if (this.options.min != undefined) {
+			if (targetv < this.options.min) {
+				targetv = this.options.min
+			}
+		}
+		inputEl.val(targetv)
 		this.valueChange(inputEl.val())
 	}
 
