@@ -415,7 +415,7 @@ import { setXToken } from './auth.js'
         need_update = true
       }
       let score = parseFloat(postions[key].score) || 0
-      if (!score) {
+      if (!score || score <= 0) {
         ques_score_err.push(postions[key].ques_name)
       }
       if (!postions[key].ques_type) {
@@ -455,7 +455,7 @@ import { setXToken } from './auth.js'
                     //  检查小问的分数和题目的分数是否一致
                     let ask_score = parseFloat(positionsObj[k][0].v) || 0
                     ask_score_sum += ask_score
-                    if (!ask_score) {
+                    if (!ask_score || ask_score <= 0) {
                       has_ask_score_empty_err = true
                     }
                 }
