@@ -210,7 +210,7 @@ function initFeature() {
 		}
 	})
 	// 添加选择题集中作答区
-	var choice_display = window.BiyueCustomData.choice_display
+	var choice_display = window.BiyueCustomData.choice_display || {}
 	content += '<tr><td class="padding-small" colspan="2"><div class="separator horizontal"></div></td></tr>'
 	content += `<tr><td colspan="2"><label class="header">选择题作答区</label></td></tr><tr><td class="padding-small" width="100%" colspan="2"><div id='select_choice_style'></div></td></tr>`
 	content += `<tr id="choiceGather"><td class="padding-small" width="40%"><label class="input-label">每行数量</label><div id="input_choice_num"></div></td><td class="padding-small" width="60%"><label class="input-label">作答区位置</label><div id="select_choice_area"></div></td></tr>`
