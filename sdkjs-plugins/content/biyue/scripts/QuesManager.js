@@ -1681,6 +1681,16 @@ function handleChangeType(res, res2) {
 		}
 		question_map[qid].ask_list = new_list
 	}
+
+	function updateScore(qid) {
+		if (question_map[qid] && question_map[qid].ask_list && question_map[qid].mark_mode != 2) {
+			var sum = 0
+			question_map[qid].ask_list.forEach(e => {
+				sum += (e.score || 0)
+			})
+			question_map[qid].score = sum
+		}
+	}
 	res.change_list.forEach(item => {
 		var nodeIndex = node_list.findIndex(e => {
 			return e.id == item.client_id
@@ -1701,6 +1711,7 @@ function handleChangeType(res, res2) {
 						if (question_map[nodeData.parent_id]) {
 							question_map[nodeData.parent_id].ask_list.splice(writeIndex, 1)
 						}
+						updateScore(nodeData.parent_id)
 					}
 				}
 			}
@@ -1856,6 +1867,7 @@ function handleChangeType(res, res2) {
 					})
 					if (ask_index >= 0) {
 						question_map[item.parent_id].ask_list.splice(ask_index, 1)
+						updateScore(item.parent_id)
 					}
 					addIds.push(item.parent_id)
 				}
@@ -4199,6 +4211,11 @@ function deleteAsks(askList) {
 				var askIndex = question_map[qid].ask_list.findIndex(e => e.id == aid)
 				if (askIndex >= 0) {
 					question_map[qid].ask_list.splice(askIndex, 1)
+					var sum = 0
+					question_map[qid].ask_list.forEach(e => {
+						sum += (e.score || 0)
+					})
+					question_map[qid].score = sum
 				}
 			}
 			var nodeData = node_list.find(e => {

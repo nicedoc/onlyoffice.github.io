@@ -3,6 +3,7 @@ import NumberInput from '../components/NumberInput.js'
 import { reqSaveQuestion } from './api/paper.js'
 import { setInteraction } from './featureManager.js'
 import { changeProportion, deleteAsks, focusAsk, updateAllChoice, deleteChoiceOtherWrite, getQuesMode } from './QuesManager.js'
+import { getListByMap } from '../scripts/model/util.js'
 // 单题详情
 var proportionTypes = [
 	{ value: '1', label: '默认' },
@@ -34,54 +35,54 @@ function initElements() {
 	console.log('====================================================== panelquestiondetail initElements')
 	var content = ''
 	content = `
-  <div class="hint" style="text-align:center">请先选中一道题</div>
-  <div id="panelQuesWrapper">
-    <div>题目：<span id="ques_text"></span></div>
-    <table style="width: 100%">
-      <tbody>
-	  	<tr>
-          <td class="padding-small" width="100%">
-            <label class="header">题号</label>
-			<div id="ques_name" class="spinner" style="width: 100%">
-      			<input type="text" class="form-control" spellcheck="false">
-    		</div>
-          </td>
-        </tr>
-        <tr>
-          <td class="padding-small" colspan="1" width="100%">
-            <label class="header">题型</label>
-            <div id="questionType"></div>
-          </td>
-        </tr>
-		<tr>
-          <td class="padding-small" colspan="1" width="100%">
-            <label class="header">作答模式</label>
-            <div id="questionMode"></div>
-          </td>
-        </tr>
-        <tr>
-          <td class="padding-small" colspan="1" width="100%">
-            <label class="header">占比</label>
-            <div id="proportion"></div>
-          </td>
-        </tr>
-        <tr>
-          <td class="padding-small" width="100%">
-            <label class="header">权重/分数</label>
-            <div id="ques_weight"></div>
-          </td>
-        </tr>
-		<tr>
-          <td class="padding-small" colspan="1" width="100%">
-            <label class="header">互动</label>
-            <div id="quesInteraction"></div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    <div id="panelQuesAsks"></div>
-  </div>
-  `
+	<div class="hint" style="text-align:center">请先选中一道题</div>
+	<div id="panelQuesWrapper">
+	  <div>题目：<span id="ques_text"></span></div>
+	  <table style="width: 100%">
+		<tbody>
+			<tr>
+			<td class="padding-small" width="100%">
+			  <label class="header">题号</label>
+			  <div id="ques_name" class="spinner" style="width: 100%">
+					<input type="text" class="form-control" spellcheck="false">
+			  </div>
+			</td>
+		  </tr>
+		  <tr>
+			<td class="padding-small" colspan="1" width="100%">
+			  <label class="header">题型</label>
+			  <div id="questionType"></div>
+			</td>
+		  </tr>
+		  <tr>
+			<td class="padding-small" colspan="1" width="100%">
+			  <label class="header">作答模式</label>
+			  <div id="questionMode"></div>
+			</td>
+		  </tr>
+		  <tr>
+			<td class="padding-small" colspan="1" width="100%">
+			  <label class="header">占比</label>
+			  <div id="proportion"></div>
+			</td>
+		  </tr>
+		  <tr>
+			<td class="padding-small" width="100%">
+			  <label class="header">权重/分数</label>
+			  <div id="ques_weight"></div>
+			</td>
+		  </tr>
+		  <tr>
+			<td class="padding-small" colspan="1" width="100%">
+			  <label class="header">互动</label>
+			  <div id="quesInteraction"></div>
+			</td>
+		  </tr>
+		</tbody>
+	  </table>
+	  <div id="panelQuesAsks"></div>
+	</div>
+	`
 	$('#panelQues').html(content)
 	var paper_options = window.BiyueCustomData.paper_options || {}
 	var questionTypes = []
@@ -99,19 +100,9 @@ function initElements() {
 		width: '100%',
 	})
 	var mark_type_info = Asc.scope.subject_mark_types
-	var modeOptions = []
-	if (mark_type_info && mark_type_info.ques_mode_map) {
-		Object.keys(mark_type_info.ques_mode_map).forEach(e => {
-			modeOptions.push({
-				value: e,
-				label: mark_type_info.ques_mode_map[e]
-			})
-		})
-		console.log('modeOptions', modeOptions)
-	}
 	select_ques_mode = new ComponentSelect({
 		id: 'questionMode',
-		options: modeOptions,
+		options: mark_type_info ? getListByMap(mark_type_info.ques_mode_map) : [],
 		value_select: '0',
 		width: '100%',
 		enabled: false,
@@ -146,7 +137,7 @@ function initElements() {
 		options: interactionTypes,
 		value_select: 'none',
 		callback_item: (data) => {
-			chagneInteraction(data)
+			changeInteraction(data)
 		},
 		width: '100%',
 	})
@@ -369,8 +360,7 @@ function onChangeProportion(data) {
 	})
 }
 // 修改互动
-function chagneInteraction(data) {
-	console.log('chagneInteraction', data)
+function changeInteraction(data) {
 	if (window.BiyueCustomData.question_map[g_ques_id]) {
 		setInteraction(data.value, [g_ques_id]).then(() => {
 			window.BiyueCustomData.question_map[g_ques_id].interaction = data.value
@@ -500,13 +490,16 @@ function checkInputValue(val = '', max) {
 
 function autoSave() {
 	var quesData = window.BiyueCustomData.question_map[g_ques_id]
-	if (!quesData || !quesData.uuid) {
+	if (!quesData) {
 		return
 	}
 	clearTimeout(timeout_save)
 	timeout_save = setTimeout(() => {
 		window.biyue.StoreCustomData()
-	}, 500)
+	}, 500)	
+	if (!quesData.uuid) {
+		return
+	}
 	var scores = []
 	var qname = quesData.ques_name || quesData.ques_default_name
 	if (quesData.question_type != 6) {
