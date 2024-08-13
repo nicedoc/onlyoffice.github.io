@@ -3822,7 +3822,7 @@ function getAllPositions() {
 								return null
 							}
 							var LvlText = oNumberingLvl.LvlText || []
-							if (LvlText && LvlText.length && LvlText[0].Value=='\ue6a1') {
+							if (LvlText && LvlText.length && LvlText[0].Value=='\ue607') {
 								var Numbering = oParagraph.Paragraph.Numbering
 								var numberPage = Numbering.Page
 								var numberingRect = Api.asc_GetParagraphNumberingBoundingRect(oParagraph.Paragraph.Id, 1) || {}

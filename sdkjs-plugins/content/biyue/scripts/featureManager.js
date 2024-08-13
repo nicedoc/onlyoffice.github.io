@@ -347,7 +347,7 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 			}
 			var LvlText = oNumberingLvl.LvlText || []
 			if (LvlText && LvlText.length) {
-				if (LvlText[0].Value!='\ue6a1') {
+				if (LvlText[0].Value!='\ue607') {
 					var targetInd = oParagraph.GetParentTableCell() ? 280 : 0
 					oParagraph.SetIndFirstLine(targetInd)
 					return
@@ -376,7 +376,7 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 						if (find) {
 							str += LvlText[i].Value
 						}
-					} else if (LvlText[i].Value != '\ue6a1') {
+					} else if (LvlText[i].Value != '\ue607') {
 						str += LvlText[i].Value
 						find = true
 					}
@@ -1053,7 +1053,7 @@ function setInteraction(type, quesIds) {
 			return
 		}
 		var handledNumbering = {}
-		var SIMPLE_CHAR = '\ue6a1'
+		var SIMPLE_CHAR = '\ue607'
 		var vInd = 280
 		
 		function updateParagraphInd(oParagraph, vshow) {
@@ -1141,7 +1141,7 @@ function setInteraction(type, quesIds) {
 					if (LvlText[i].Type == 2) {
 						str += `%${level+1}`
 					} else {
-						if (LvlText[i].Value != '\ue6a1') {
+						if (LvlText[i].Value != '\ue607') {
 							str += LvlText[i].Value
 						}	
 					}
@@ -1156,7 +1156,7 @@ function setInteraction(type, quesIds) {
 							if (find) {
 								str += LvlText[i].Value
 							}
-						} else if (LvlText[i].Value != '\ue6a1') {
+						} else if (LvlText[i].Value != '\ue607') {
 							str += LvlText[i].Value
 							find = true
 						}
@@ -1224,7 +1224,7 @@ function setInteraction(type, quesIds) {
 				if (index > 0) {
 					var oRun = Api.CreateRun()
 					oRun.AddText(index + '')
-					oRun.SetFontSize(22)
+					oRun.SetFontSize(16)
 					oRun.SetVertAlign('baseline')
 					paragraphs[0].AddElement(oRun, 0)
 					paragraphs[0].SetColor(153, 153, 153, false)
@@ -1464,8 +1464,14 @@ function setInteraction(type, quesIds) {
 				if (!question_map[tag.client_id] || question_map[tag.client_id].level_type != 'question') {
 					continue
 				}
-				if (interaction_type_use == 'useself') {
-					interaction_type = question_map[tag.client_id].interaction
+				if (question_map[tag.client_id].mark_mode == 2) {
+					if (interaction_type_use == 'accurate') {
+						interaction_type = 'simple'
+					}
+				} else {
+					if (interaction_type_use == 'useself') {
+						interaction_type = question_map[tag.client_id].interaction
+					}
 				}
 			}
 			var ask_list = question_map[tag.client_id].ask_list
