@@ -757,7 +757,7 @@ function cancelAllScore() {
 }
 
 function handleMark(quesData) {
-	if (!workbook_id) {
+	if (workbook_id) {
 		showCom('#markModeTr', false)
 		showCom('#scoreTr', false)
 		showCom('#scores', false)
