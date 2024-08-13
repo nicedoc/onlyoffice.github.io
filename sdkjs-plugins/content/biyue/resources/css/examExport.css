@@ -62,11 +62,9 @@ input {
 }
 
 
-.workbook-info {
-  div {
-    margin-bottom: 10px;
-  }
+  .workbook-info {
 
+  }
   .label-title {
     font-size: 16px;
     font-weight: bold;
@@ -109,8 +107,8 @@ input {
     text-align: center;
     left: 0;
     right: 0;
+    margin-bottom: 10px;
   }
-}
 .loading {
   text-align: center;
   margin-top: 50px;

@@ -95,7 +95,7 @@
             let dom = document.querySelector('#group-id-' + key)
             if (dom) {
                 let html = dom.innerHTML // 取出当前的题组内容
-                let inputHtml = `<div class="bat-score-set">设置为<input type="text" id="bat-score-group-${ key }">分<span class="bat-score-set-btn" id="bat-score-set-btn-${ key }" data-id="${ key }">设置</span></div>`
+                let inputHtml = `<div class="bat-score-set">设置为<input class="input" type="text" id="bat-score-group-${ key }">分<span class="bat-score-set-btn" id="bat-score-set-btn-${ key }" data-id="${ key }">设置</span></div>`
                 dom.innerHTML = html + inputHtml
 
                 let inputDom = document.querySelector(`#bat-score-group-${ key }`)
