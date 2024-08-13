@@ -2,8 +2,8 @@ import ComponentSelect from '../components/Select.js'
 import NumberInput from '../components/NumberInput.js'
 import { reqSaveQuestion } from './api/paper.js'
 import { setInteraction } from './featureManager.js'
-import { changeProportion, deleteAsks, focusAsk, updateAllChoice, deleteChoiceOtherWrite, getQuesMode } from './QuesManager.js'
-import { getListByMap } from '../scripts/model/util.js'
+import { changeProportion, deleteAsks, focusAsk, updateAllChoice, deleteChoiceOtherWrite, getQuesMode, updateQuesScore } from './QuesManager.js'
+import { addClickEvent, getListByMap, showCom } from '../scripts/model/util.js'
 // 单题详情
 var proportionTypes = [
 	{ value: '1', label: '默认' },
@@ -26,63 +26,89 @@ var select_type = null // 题型
 var select_ques_mode = null // 作答模式
 var select_proportion = null // 占比
 var select_interaction = null // 互动
+var select_mark_mode = null // 批改模式
+var select_score_mode = null // 打分方式
+var select_score_layout = null // 分数布局
+var score_list = [] // 分数选项
 var input_score = null // 分数/权重
 var list_ask = [] // 小问
 var inited = false
 var timeout_save = null
+var workbook_id = 0
 
 function initElements() {
 	console.log('====================================================== panelquestiondetail initElements')
 	var content = ''
 	content = `
-	<div class="hint" style="text-align:center">请先选中一道题</div>
-	<div id="panelQuesWrapper">
-	  <div>题目：<span id="ques_text"></span></div>
-	  <table style="width: 100%">
-		<tbody>
-			<tr>
-			<td class="padding-small" width="100%">
-			  <label class="header">题号</label>
-			  <div id="ques_name" class="spinner" style="width: 100%">
-					<input type="text" class="form-control" spellcheck="false">
-			  </div>
-			</td>
-		  </tr>
-		  <tr>
-			<td class="padding-small" colspan="1" width="100%">
-			  <label class="header">题型</label>
-			  <div id="questionType"></div>
-			</td>
-		  </tr>
-		  <tr>
-			<td class="padding-small" colspan="1" width="100%">
-			  <label class="header">作答模式</label>
-			  <div id="questionMode"></div>
-			</td>
-		  </tr>
-		  <tr>
-			<td class="padding-small" colspan="1" width="100%">
-			  <label class="header">占比</label>
-			  <div id="proportion"></div>
-			</td>
-		  </tr>
-		  <tr>
-			<td class="padding-small" width="100%">
-			  <label class="header">权重/分数</label>
-			  <div id="ques_weight"></div>
-			</td>
-		  </tr>
-		  <tr>
-			<td class="padding-small" colspan="1" width="100%">
-			  <label class="header">互动</label>
-			  <div id="quesInteraction"></div>
-			</td>
-		  </tr>
-		</tbody>
-	  </table>
-	  <div id="panelQuesAsks"></div>
+  <div class="hint" style="text-align:center">请先选中一道题</div>
+  <div id="panelQuesWrapper">
+    <div>题目：<span id="ques_text"></span></div>
+    <table style="width: 100%">
+      <tbody>
+	  	<tr>
+          <td class="padding-small" colspan="2" width="100%">
+            <label class="header">题号</label>
+			<div id="ques_name" class="spinner" style="width: 100%">
+      			<input type="text" class="form-control" spellcheck="false">
+    		</div>
+          </td>
+        </tr>
+        <tr>
+          <td class="padding-small" colspan="2" width="100%">
+            <label class="header">题型</label>
+            <div id="questionType"></div>
+          </td>
+        </tr>
+		<tr>
+          <td class="padding-small" colspan="2" width="100%">
+            <label class="header">作答模式</label>
+            <div id="questionMode"></div>
+          </td>
+        </tr>
+        <tr>
+          <td class="padding-small" colspan="1" width="50%">
+            <label class="header">占比</label>
+            <div id="proportion"></div>
+          </td>
+		  <td class="padding-small" colspan="1" width="50%">
+            <label class="header">互动</label>
+            <div id="quesInteraction"></div>
+          </td>
+        </tr>
+        <tr>
+          <td class="padding-small" colspan="2" width="100%">
+            <label class="header">权重/分数</label>
+            <div id="ques_weight"></div>
+          </td>
+        </tr>
+		<tr id="markModeTr">
+          <td class="padding-small" colspan="2" width="100%">
+            <label class="header">批改模式</label>
+            <div id="markMode"></div>
+          </td>
+        </tr>
+		<tr id="scoreTr">
+          <td class="padding-small" colspan="1" width="50%">
+            <label class="header">打分模式</label>
+            <div id="scoreMode"></div>
+          </td>
+		  <td class="padding-small" colspan="1" width="50%">
+            <label class="header">分数布局</label>
+            <div id="scoreLayout"></div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+	<div id="scores">
+		<div class="row-between">
+			<div>分数选项</div>
+			<div class="clicked under" id="cancelAllScore">取消全选</div>
+		</div>
+		<div id="scorelist"></div>
 	</div>
-	`
+    <div id="panelQuesAsks"></div>
+  </div>
+  `
 	$('#panelQues').html(content)
 	var paper_options = window.BiyueCustomData.paper_options || {}
 	var questionTypes = []
@@ -114,7 +140,7 @@ function initElements() {
 		callback_item: (data) => {
 			onChangeProportion(data)
 		},
-		width: '100%',
+		width: '110px',
 	})
 	input_score = new NumberInput('ques_weight', {
 		width: '100%',
@@ -140,9 +166,53 @@ function initElements() {
 		callback_item: (data) => {
 			changeInteraction(data)
 		},
+		width: '110px',
+	})
+	select_mark_mode = new ComponentSelect({
+		id: 'markMode',
+		options: mark_type_info ? getListByMap(mark_type_info.mark_type_map) : [],
+		value_select: 'none',
+		callback_item: (data) => {
+			changeMarkMode(data)
+		},
 		width: '100%',
 	})
+	select_score_mode = new ComponentSelect({
+		id: 'scoreMode',
+		options: [{
+			value: 0,
+			label: '自动选择'
+		}, {
+			value: 1,
+			label: '普通模式'
+		}, {
+			value: 2,
+			label: '大分值模式'
+		}],
+		value_select: 0,
+		callback_item: (data) => {
+			changeScoreMode(data)
+		},
+		width: '110px',
+	})
+	select_score_layout = new ComponentSelect({
+		id: 'scoreLayout',
+		options: [{
+			value: 1,
+			label: '顶部浮动'
+		}, {
+			value: 2,
+			label: '嵌入式'
+		}],
+		value_select: 1,
+		callback_item: (data) => {
+			changeScoreLayout(data)
+		},
+		width: '110px',
+	})
+	addClickEvent('#cancelAllScore', cancelAllScore)
 	inited = true
+	workbook_id = window.BiyueCustomData.workbook_info ? window.BiyueCustomData.workbook_info.id : 0
 }
 
 function resetEvent() {
@@ -174,6 +244,7 @@ function updateElements(quesData, hint, ignore_ask_list) {
 		select_type.setSelect((quesData.question_type || 0) + '')
 	}
 	updateQuesMode(quesData.ques_mode)
+	handleMark(quesData)
 	if (select_proportion) {
 		select_proportion.setSelect((quesData.proportion || 1) + '')
 		if (!quesData.proportion) {
@@ -466,7 +537,8 @@ function changeScore(id, data) {
 		}
 	}
 	window.BiyueCustomData.question_map[g_ques_id].ask_list = ask_list
-	autoSave()
+	updateScores()
+	autoSave(true)
 }
 
 
@@ -490,7 +562,7 @@ function checkInputValue(val = '', max) {
   return sanitizedValue
 }
 
-function autoSave() {
+function autoSave(updatescore) {
 	var quesData = window.BiyueCustomData.question_map[g_ques_id]
 	if (!quesData) {
 		return
@@ -498,7 +570,12 @@ function autoSave() {
 	clearTimeout(timeout_save)
 	timeout_save = setTimeout(() => {
 		window.biyue.StoreCustomData()
-	}, 500)	
+		if (updatescore && !workbook_id) {
+			updateQuesScore([g_ques_id]).then(() => {
+				setInteraction('useself', [g_ques_id])
+			})
+		}
+	}, 500)
 	if (!quesData.uuid) {
 		return
 	}
@@ -558,6 +635,161 @@ function updateQuesMode(ques_mode) {
 		select_ques_mode.setSelect(ques_mode + '')
 	}
 	return ques_mode
+}
+
+function changeMarkMode(data) {
+	window.BiyueCustomData.question_map[g_ques_id].mark_mode = data.value
+	updateScoreComponent()
+	autoSave(true)
+}
+
+function updateScoreComponent() {
+	var mark_mode = window.BiyueCustomData.question_map[g_ques_id].mark_mode
+	if (mark_mode == 1) {
+		showCom('#scoreTr', false)
+		showCom('#scores', false)
+		showCom('#panelQuesAsks', true)
+	} else if (mark_mode == 2) {
+		var score = window.BiyueCustomData.question_map[g_ques_id].score * 1
+		if (!score || isNaN(score)) {
+			showCom('#scoreTr', false)
+			showCom('#scores', false)
+		} else {
+			showCom('#scoreTr', true)
+			showCom('#scores', true)
+		}
+		showCom('#panelQuesAsks', false)
+		updateScores()
+	}
+	autoSave(true)
+}
+
+function changeScoreMode(data) {
+	window.BiyueCustomData.question_map[g_ques_id].score_mode = data.value
+	updateScores()
+	autoSave(true)
+}
+
+function changeScoreLayout(data) {
+	window.BiyueCustomData.question_map[g_ques_id].score_layout = data.value
+	autoSave(true)
+}
+
+function removeScoreEvent() {
+	var doms = document.querySelectorAll('.score-item') || []
+	doms.forEach(function(dom) {
+		dom.removeEventListener('click', clickScore)
+	})
+}
+
+function clickScore(e) {
+	if (e && e.target && e.target.dataset && e.target.dataset.idx) {
+		e.target.classList.toggle('selected')
+		window.BiyueCustomData.question_map[g_ques_id].score_list[e.target.dataset.idx].use = !window.BiyueCustomData.question_map[g_ques_id].score_list[e.target.dataset.idx].use
+	}
+	autoSave(true)
+}
+
+function updateScores() {
+	removeScoreEvent()
+	if (window.BiyueCustomData.question_map[g_ques_id].mark_mode == 1) {
+		showCom('#scores', false)
+		return
+	}
+	var score = window.BiyueCustomData.question_map[g_ques_id].score * 1
+	var score_mode = window.BiyueCustomData.question_map[g_ques_id].score_mode || 0
+	var score_mode_use = score_mode
+	if (score_mode == 0) {
+		score_mode_use = score >= 15 ? 2 : 1
+	}
+	if (score_mode_use == 2) {
+		window.BiyueCustomData.question_map[g_ques_id].score_list = []
+		showCom('#scores', false)
+		return
+	} else {
+		showCom('#scores', true)
+	}
+	// 分数选项
+	var list = window.BiyueCustomData.question_map[g_ques_id].score_list || []
+	var count = 1
+	if (score >= 1) {
+		count += Math.floor(score - 1)
+	}
+	if (list.length == 0 || list.length != count) {
+		list = []
+		for (var i = 1; i < score; ++i) {
+			list.push({
+				value: i,
+				use: true
+			})
+		}
+		list.push({
+			value: 0.5,
+			use: true
+		})
+	}
+	var com = $('#scorelist')
+	var str = ''
+	for (var i = 0; i < list.length; ++i) {
+		str += `<div class="clicked score-item ${list[i].use ? 'selected' : ''}" id="s${i}" data-value="${list[i].value}" data-idx="${i}">${list[i].value}</div>`
+	}
+	window.BiyueCustomData.question_map[g_ques_id].score_list = list
+	com.html(str)
+	var doms = document.querySelectorAll('.score-item') || []
+	doms.forEach(function(dom) {
+		dom.addEventListener('click', clickScore)
+	})
+}
+
+function cancelAllScore() {
+	var coms = document.querySelectorAll('.score-item')
+	if (coms && coms.length) {
+		for (var i = 0; i < coms.length; ++i) {
+			coms[i].classList.remove('selected')
+		}
+		var list = window.BiyueCustomData.question_map[g_ques_id].score_list
+		score_list.forEach(e => {
+			e.use = false
+		})
+		window.BiyueCustomData.question_map[g_ques_id].score_list = list
+		autoSave(true)
+	}
+}
+
+function handleMark(quesData) {
+	if (!workbook_id) {
+		showCom('#markModeTr', false)
+		showCom('#scoreTr', false)
+		showCom('#scores', false)
+		return
+	}
+	if (!quesData) {
+		showCom('#markModeTr', false)
+		showCom('#scoreTr', false)
+		showCom('#scores', false)
+		return
+	}
+	if (quesData.ques_mode == 6) { // 文本
+		showCom('#markModeTr', false)
+		showCom('#scoreTr', false)
+		showCom('#scores', false)
+		showCom('#panelQuesAsks', false)
+		return
+	}
+	showCom('#markModeTr', true)
+	var markMode = quesData.mark_mode || 0
+	if (markMode == 0) {
+		if (quesData.ques_mode == 3 || quesData.ques_mode == 8) {
+			markMode = 2
+		} else {
+			markMode = 1
+		}
+	}
+	if (select_mark_mode) {
+		select_mark_mode.setSelect(markMode + '')
+		quesData.mark_mode = markMode
+	}
+	updateScoreComponent()
 }
 
 export { showQuesData, initListener }

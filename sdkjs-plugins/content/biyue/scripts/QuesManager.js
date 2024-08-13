@@ -4627,6 +4627,392 @@ function tagImageCommon(params) {
 	})
 }
 
+function updateQuesScore(ids) {
+	Asc.scope.node_list = window.BiyueCustomData.node_list || []
+	var question_map = window.BiyueCustomData.question_map || {}
+	Asc.scope.question_map = question_map
+	if (!ids) {
+		ids = []
+		Object.keys(question_map).forEach(key => {
+			if (question_map[key].level_type == 'question') {
+				ids.push(key)
+			}
+		})
+	}
+	Asc.scope.ids = ids
+	return biyueCallCommand(window, function() {
+		var node_list = Asc.scope.node_list
+		var question_map = Asc.scope.question_map
+		var ids = Asc.scope.ids
+		var oDocument = Api.GetDocument()
+		var cell_width_mm = 7 + 3
+		var cell_height_mm = 5 + 1.5
+		var MM2TWIPS = 25.4 / 72 / 20
+		var cellWidth = cell_width_mm / MM2TWIPS
+		var cellHeight = cell_height_mm / MM2TWIPS
+		var resList = []
+		var shapes = oDocument.GetAllShapes()
+		var drawings = oDocument.GetAllDrawingObjects()
+		var controls = oDocument.GetAllContentControls()
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
+		function getShape(id) {
+			if (!shapes) {
+				return null
+			}
+			for (var i = 0, imax = shapes.length; i < imax; ++i) {
+				var oShape = shapes[i]
+				var drawing = oShape.Drawing
+				if (!drawing) {
+					continue
+				}
+				var titleObj = getJsonData(drawing.docPr.title)
+				if (titleObj.feature && titleObj.feature.type == 'score' && titleObj.feature.ques_id == id) {
+					return oShape
+				}
+			}
+			return null
+		}
+		function deleteShape(oShape) {
+			if (!oShape) {
+				return
+			}
+			var oDrawing = drawings.find(e => {
+				return e.Drawing.Id == oShape.Drawing.Id
+			})
+			if (!oDrawing) {
+				return
+			}
+			var run = oDrawing.Drawing.GetRun()
+			if (run) {
+				var paragraph = run.GetParagraph()
+				if (paragraph) {
+					var oParagraph = Api.LookupObject(paragraph.Id)
+					var ipos = run.GetPosInParent()
+					if (ipos >= 0) {
+						oDrawing.Delete()
+						var element2 = oParagraph.GetElement(ipos)
+						if (element2 && element2.GetClassType() == 'run' && element2.Run.Id == run.Id) {
+							oParagraph.RemoveElement(ipos)
+						}
+						return
+					}
+				}
+			}
+			oDrawing.Delete()
+		}
+		function deleteScoreControl(id) {
+			var control = controls.find(e => {
+				var tag = getJsonData(e.GetTag())
+				return tag.regionType == 'score' && tag.ques_id == id
+			})
+			if (control) {
+				var posinparent = control.GetPosInParent()
+				var parent = control.Sdt.Parent
+				if (parent) {
+					var oParent = Api.LookupObject(parent.Id)
+					if (oParent) {
+						oParent.RemoveElement(posinparent)
+					}
+				}
+			}
+		}
+		for (var i = 0, imax = ids.length; i < imax; ++i) {
+			var id = ids[i]
+			var quesData = question_map[id]
+			if (!quesData || quesData.ques_mode == 6) {
+				continue
+			}
+			var nodeData = node_list.find(e => {
+				return e.id == id
+			})
+			if (!nodeData || !nodeData.control_id) {
+				continue
+			}
+			var oControl = Api.LookupObject(nodeData.control_id)
+			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
+				continue
+			}
+
+			var oShape = getShape(id)
+			if (oShape) {
+				deleteShape(oShape)
+			}
+			deleteScoreControl(id)
+			if (quesData.mark_mode != 2) {
+				continue
+			}
+			var scores = [0]
+			var score = Math.floor(quesData.score)
+			var vInteger = Math.trunc(score) // 整数部分
+			var score_mode_use = !quesData.score_mode ? (score >= 15 ? 2 : 1) : quesData.score_mode 
+			if (score_mode_use == 2) {
+				var ten = (vInteger / 10) >> 0
+				for (var i1 = 1; i1 <= ten; ++i1) {
+					scores.push(`${i1 * 10}+`)
+				}
+				var maxi2 = score < 10 ? score : 10
+				for (var i2 = 1; i2 < maxi2; ++i2) {
+					scores.push(i2)
+				}
+				scores.push('+0.5')
+			} else {
+				quesData.score_list.forEach(e => {
+					if (e.value == 0.5 && score == quesData.score) {
+						scores.push(quesData.score)
+					}
+					if (e.use) {
+						scores.push(e.value)
+					}
+				})
+			}
+			
+			var rect = Api.asc_GetContentControlBoundingRect(
+				nodeData.control_id,
+				true
+			)
+			var newRect = {
+				Left: rect.X0,
+				Right: rect.X1,
+				Top: rect.Y0,
+				Bottom: rect.Y1,
+			}
+			var controlContent = oControl.GetContent()
+			if (controlContent) {
+				var pageIndex = 0
+				if (
+					controlContent.Document &&
+					controlContent.Document.Pages &&
+					controlContent.Document.Pages.length > 1
+				) {
+					for (var p = 0; p < controlContent.Document.Pages.length; ++p) {
+						if (!oControl.Sdt.IsEmptyPage(p)) {
+							pageIndex = p
+							break
+						}
+					}
+				}
+				var pagebounds = controlContent.Document.Get_PageBounds(pageIndex)
+				if (pagebounds) {
+					newRect.Right = Math.max(pagebounds.Right, newRect.Right)
+				}
+			}
+			var width = newRect.Right - newRect.Left
+			var trips_width = width / MM2TWIPS
+			var cellcount = scores.length
+			var rowcount = 1
+			var columncount = cellcount
+			var score_layout = quesData.score_layout || 2
+			var maxTableWidth = trips_width / score_layout
+			if (maxTableWidth < cellcount * cellWidth) {
+				rowcount = Math.ceil((cellcount * cellWidth) / maxTableWidth)
+				columncount = Math.floor(maxTableWidth / cellWidth)
+			}
+			var mergecount = rowcount * columncount - cellcount
+			if (rowcount <= 0 || columncount <= 0) {
+				console.log('行数或列数异常', list)
+				continue
+			}
+			var oTable = Api.CreateTable(columncount, rowcount)
+			if (mergecount > 0) {
+				var cells = []
+				for (var k = 0; k < mergecount; ++k) {
+					var cellrow = oTable.GetRow(rowcount - 1)
+					if (cellrow) {
+						var cell = cellrow.GetCell(k)
+						if (cell) {
+							cells.push(cell)
+						}
+					}
+				}
+				if (cells.length > 0) {
+					oTable.MergeCells(cells)
+				}
+			}
+			var oTableStyle = oDocument.CreateStyle('CustomTableStyle', 'table')
+			var oTableStylePr = oTableStyle.GetConditionalTableStyle('wholeTable')
+			oTable.SetTableLook(true, true, true, true, true, true)
+			// oTableStylePr.GetTableRowPr().SetHeight('atLeast', cellHeight) // 高度至少多少trips
+			var oTableCellPr = oTableStyle.GetTableCellPr()
+			oTableCellPr.SetVerticalAlign('center')
+			oTable.SetStyle(oTableStyle)
+			oTable.SetCellSpacing(100)
+			oTable.SetTableCellMarginLeft(0)
+			oTable.SetTableCellMarginRight(0)
+			oTable.SetTableBorderTop('single', 1, 0.1, 255, 255, 255)
+			oTable.SetTableBorderBottom('single', 1, 0.1, 255, 255, 255)
+			oTable.SetTableBorderLeft('single', 1, 0.1, 255, 255, 255)
+			oTable.SetTableBorderRight('single', 1, 0.1, 255, 255, 255)
+			var scoreindex = -1
+			// 设置单元格文本
+			for (var irow = 0; irow < rowcount; ++irow) {
+				var oRow = oTable.GetRow(irow)
+				if (oRow) {
+					// oRow.Row.SetHeight(cell_height_mm, 'atLeast')
+					oRow.SetHeight('atLeast', cellHeight)
+				}
+				var cbegin = 0
+				var cend = columncount
+				if (mergecount > 0 && irow == rowcount - 1) {
+					// 最后一行
+					cbegin = 1
+					cend = columncount - mergecount + 1
+				}
+				for (var icolumn = cbegin; icolumn < cend; ++icolumn) {
+					var cr = irow
+					var cc = icolumn
+					scoreindex++
+					if (scoreindex >= scores.length) {
+						break
+					}
+					var cell = oTable.GetCell(cr, cc)
+					if (cell) {
+						var cellcontent = cell.GetContent()
+						if (cellcontent) {
+							var oCellPara = cellcontent.GetElement(0)
+							if (oCellPara) {
+								oCellPara.AddText(scores[scoreindex] + '')
+								cell.SetWidth('twips', cellWidth)
+								oCellPara.SetJc('center')
+								oCellPara.SetColor(53, 53, 53, false)
+								oCellPara.SetFontSize(16)
+							} else {
+								console.log('oCellPra is null')
+							}
+						} else {
+							console.log('cellcontent is null')
+						}
+						cell.SetCellBorderTop("single", 2, 0, 153, 153, 153)
+						cell.SetCellBorderBottom("single", 2, 0, 153, 153, 153)
+						cell.SetCellBorderLeft("single", 2, 0, 153, 153, 153)
+						cell.SetCellBorderRight("single", 2, 0, 153, 153, 153)
+						// console.log('cell', cell)
+					} else {
+						console.log('cannot get cell', cc, cr)
+					}
+				}
+			}
+			oTable.SetWidth('twips', columncount * cellWidth)
+			var shapew = cell_width_mm * columncount + 3
+			var shapeh = cell_height_mm * rowcount + 4
+			var Props = {
+				CellSelect: true,
+				Locked: false,
+				PositionV: {
+					Align: 1,
+					RelativeFrom: 2,
+					UseAlign: true,
+					Value: 0,
+				},
+				PositionH: {
+					Align: 4,
+					RelativeFrom: 0,
+					UseAlign: true,
+					Value: 0,
+				},
+				TableDefaultMargins: {
+					Bottom: 0,
+					Left: 0,
+					Right: 0,
+					Top: 0,
+				},
+			}
+			oTable.Table.Set_Props(Props)
+			oTable.SetTableTitle(JSON.stringify({
+				type: 'score',
+				ques_id: id
+			}))
+			// if (oTable.SetLockValue) {
+			//   oTable.SetLockValue(true)
+			// }
+			if (score_layout == 1) { // 顶部插入
+				oTable.SetWrappingStyle(true)
+				oTable.SetHAlign('right')
+				oTable.SetJc('right')
+				var parent = oControl.Sdt.GetParent()
+				var posinparent = oControl.GetPosInParent()
+				var oParent = Api.LookupObject(parent.Id)
+				var blockcontrol = oTable.InsertInContentControl(1)
+				blockcontrol.SetTag(JSON.stringify({
+					regionType: "score",
+					ques_id: id
+				}))
+				if (oParent && oParent.AddElement) {
+					oParent.AddElement(posinparent, blockcontrol)
+				}
+				return
+			}
+			oTable.SetWrappingStyle(params.layout == 1 ? true : false)
+			var oFill = Api.CreateNoFill()
+			var oStroke = Api.CreateStroke(3600, Api.CreateNoFill())
+			var oDrawing = Api.CreateShape(
+				'rect',
+				shapew * 36e3,
+				shapeh * 36e3,
+				oFill,
+				oStroke
+			)
+			var drawDocument = oDrawing.GetContent()
+			drawDocument.AddElement(0, oTable)
+			var titleobj = {
+				feature: {
+					zone_type: 'question',
+					type: 'score',
+					ques_control_id: nodeData.control_id,
+					ques_id: id,
+				}
+			}
+			oDrawing.Drawing.Set_Props({
+				title: JSON.stringify(titleobj),
+			})
+			if (score_layout == 2) {
+				// 嵌入式
+				oDrawing.SetWrappingStyle('square')
+				oDrawing.SetHorPosition('column', (width - shapew) * 36e3)
+			} else {
+				// 顶部
+				oDrawing.SetWrappingStyle('topAndBottom')
+				oDrawing.SetHorPosition('column', (width - shapew) * 36e3)
+				oDrawing.SetVerPosition('paragraph', 1 * 36e3)
+				// oDrawing.SetVerAlign("paragraph")
+			}
+			// 在题目内插入
+			var oRun = Api.CreateRun()
+			oRun.AddDrawing(oDrawing)
+			var paragraphs = controlContent.GetAllParagraphs()
+			console.log('paragraphs', paragraphs)
+			if (paragraphs && paragraphs.length > 0) {
+				var addParagraph = paragraphs.find(e => {
+					var parent1 = e.Paragraph.Parent
+					var parent2 = parent1.Parent
+					if (parent2 && parent2.Id == nodeData.control_id) {
+						return true
+					}
+				})
+				if (addParagraph) {
+					addParagraph.AddElement(oRun, 0)
+					resList.push({
+						code: 1,
+						ques_id: id,
+						paragraph_id: addParagraph.Paragraph.Id,
+						run_id: oRun.Run.Id,
+						drawing_id: oDrawing.Drawing.Id,
+						table_id: oTable.Table.Id
+					})
+				}
+			}
+		}
+	}, false, true)
+}
 export {
 	handleDocClick,
 	handleContextMenuShow,
@@ -4648,5 +5034,6 @@ export {
 	layoutRepair,
 	deleteChoiceOtherWrite,
 	getQuesMode,
-	tagImageCommon
+	tagImageCommon,
+	updateQuesScore
 }

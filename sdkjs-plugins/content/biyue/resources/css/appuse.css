@@ -807,4 +807,20 @@ a {
 	align-items: center;
 }
 
+.row-between {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.under {
+	text-decoration: underline;
+}
+
+.clicked {
+	&:hover {
+		cursor: pointer;
+	}
+}
 
