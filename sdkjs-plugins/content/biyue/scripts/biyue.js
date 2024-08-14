@@ -1264,8 +1264,11 @@ import { initView } from './pageView.js'
 	// 在editor面板的插件按钮被点击
 	window.Asc.plugin.button = function (id, windowID) {
 		console.log('on plugin button id=${id} ${windowID}', id, windowID)
-    changeImageIgnoreMark('show') // 重新打开不铺码图片的边框标识
-    handleAllWrite('show')
+    // 重新打开上传的时候关闭的识别区域
+    // 必须保证一个执行完成之后在去开启下一个
+    changeImageIgnoreMark('show').then(()=>{
+      handleAllWrite('show')
+    })
 		if (windowID) {
 			if (id === -1) {
 				window.Asc.plugin.executeMethod('CloseWindow', [windowID])
