@@ -331,9 +331,9 @@ import { getVersion } from "./ver.js"
                     var apiRanges = [];
                     textSet.forEach(e => {
                         var ranges = control.Search(e, false);
-                        //debugger;
+                        //debugger;;
                         apiRanges = mergeRange(apiRanges, ranges);
-                    }
+                    });
 
                         // search 有bug少返回一个字符            
                     apiRanges.reverse().forEach(apiRange => {
