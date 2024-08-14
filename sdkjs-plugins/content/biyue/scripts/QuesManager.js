@@ -819,7 +819,8 @@ function updateRangeControlType(typeName) {
 				control_id: oRemove.Sdt.GetId(),
 				client_id: tagRemove.client_id,
 				parent_id: getParentId(oRemove),
-				regionType: tagRemove.regionType
+				regionType: tagRemove.regionType,
+				type: 'remove'
 			})
 			oRemove.Sdt.GetLogicDocument().PreventPreDelete = true
 			Api.asc_RemoveContentControlWrapper(oRemove.Sdt.GetId())
@@ -1777,7 +1778,7 @@ function handleChangeType(res, res2) {
 						var writeIndex = ndata.write_list.findIndex(e => {
 							return e.id == item.client_id
 						})
-						if (writeIndex == -1) {
+						if (writeIndex == -1 && item.type != 'remove') {
 							ndata.write_list.push({
 								id: item.client_id,
 								control_id: item.control_id,
@@ -1807,6 +1808,9 @@ function handleChangeType(res, res2) {
 									id: item.client_id,
 									score: 0
 								})
+							} else if (item.type == 'remove') {
+								question_map[parent_id].ask_list.splice(index2, 1)
+								updateScore(parent_id)
 							}
 						}
 					}

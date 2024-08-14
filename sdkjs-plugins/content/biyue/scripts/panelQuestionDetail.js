@@ -647,7 +647,7 @@ function changeMarkMode(data) {
 
 function updateScoreComponent() {
 	var mark_mode = window.BiyueCustomData.question_map[g_ques_id].mark_mode
-	if (mark_mode == 1) {
+	if (!mark_mode || mark_mode == 1) {
 		showCom('#scoreTr', false)
 		showCom('#scores', false)
 		showCom('#panelQuesAsks', true)
@@ -694,7 +694,8 @@ function clickScore(e) {
 
 function updateScores() {
 	removeScoreEvent()
-	if (window.BiyueCustomData.question_map[g_ques_id].mark_mode == 1) {
+	var mark_mode = window.BiyueCustomData.question_map[g_ques_id].mark_mode
+	if (!mark_mode || mark_mode == 1) {
 		showCom('#scores', false)
 		return
 	}
