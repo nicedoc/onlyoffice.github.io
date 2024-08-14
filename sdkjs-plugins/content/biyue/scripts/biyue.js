@@ -301,21 +301,48 @@ import { getVersion } from "./ver.js"
                     var textSet = new Set();
                     regionTexts.forEach(e => textSet.add(e));
 
-                    //debugger;
+                    let includeRange = function(a, b)
+                    {
+                        return (a.Element === b.Element &&
+                            a.Start >= b.Start &&
+                            a.End <= b.End);
+                    };
+                    let mergeRange = function(arrA, arrB)
+                    {
+                        let all = arrA.concat(arrB);
+                        let ret = []
+                        for(var i = 0; i < all.length; i++) {
+                            var newE = true;
+                            for (var j = 0; j < all.length; j++) {
+                                if (i == j)
+                                    continue;
+                                if (includeRange(all[i], all[j])) {
+                                    newE = false;
+                                }
+                            }    
+                            if (newE)
+                                ret.push(all[i]);
+                        }
+                        return ret;
+                    };
+                    
 
+                    //debugger;
+                    var apiRanges = [];
                     textSet.forEach(e => {
-                        var apiRanges = control.Search(e, false);
+                        var ranges = control.Search(e, false);
                         //debugger;
+                        apiRanges = mergeRange(apiRanges, ranges);
+                    }
 
                         // search 有bug少返回一个字符            
-
-                        apiRanges.reverse().forEach(apiRange => {
+                    apiRanges.reverse().forEach(apiRange => {
                             apiRange.Select();
                             var tag = JSON.stringify({ 'regionType': 'write', 'mode': 3 });
                             Api.asc_AddContentControl(2, { "Tag": tag });
                             Api.asc_RemoveSelection();
-                        });
                     });
+                    
 
                     // 标记空白行
                     {
