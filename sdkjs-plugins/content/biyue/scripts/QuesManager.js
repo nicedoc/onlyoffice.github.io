@@ -1583,11 +1583,10 @@ function updateRangeControlType(typeName) {
 						}
 						// 设置小问时，先移除包含或交叉的control
 						if (type == 2) {
-							containControls.forEach(e => {
-								removeControl(e)
-							})
-							intersectControls.forEach(e => {
-								removeControl(e)
+							controlsInRange.forEach(e => {
+								if (e.GetClassType() == 'inlineLvlSdt') {
+									removeControl(e)
+								}
 							})
 						}
 						if (typeName == 'write') {
