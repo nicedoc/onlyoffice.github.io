@@ -510,7 +510,7 @@ import { initView } from './pageView.js'
 								var inInline = true
 								if (apiRange.StartPos && apiRange.EndPos) {
 									var index1 = apiRange.StartPos.findIndex(e2 => {
-										return e2.Class.Type == 68	
+										return e2.Class.Type == 68
 									})
 									if (index1 < 0) {
 										inInline = false
@@ -1265,6 +1265,7 @@ import { initView } from './pageView.js'
 	window.Asc.plugin.button = function (id, windowID) {
 		console.log('on plugin button id=${id} ${windowID}', id, windowID)
     changeImageIgnoreMark('show') // 重新打开不铺码图片的边框标识
+    handleAllWrite('show')
 		if (windowID) {
 			if (id === -1) {
 				window.Asc.plugin.executeMethod('CloseWindow', [windowID])
@@ -1958,9 +1959,13 @@ import { initView } from './pageView.js'
 	function importExam() {
     changeImageIgnoreMark('hidden').then(_res=> {
       console.log('关闭图片忽略区的边框红线标识')
-      getAllPositions().then(res=>{
-        questionPositions = res
-        showDialog(exportExamWindow, '上传试卷', 'examExport.html', 1000, 800, true)
+
+      handleAllWrite('hide').then(() => {
+        console.log('隐藏浮动的识别框')
+        getAllPositions().then(res=>{
+          questionPositions = res
+          showDialog(exportExamWindow, '上传试卷', 'examExport.html', 1000, 800, true)
+        })
       })
     })
 	}
