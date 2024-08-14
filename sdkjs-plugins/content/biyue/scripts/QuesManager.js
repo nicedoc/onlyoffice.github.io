@@ -392,7 +392,7 @@ function getNodeList() {
 									var titleObj = getJsonData(title)
 									if (titleObj.feature && (titleObj.feature.sub_type == 'write' || titleObj.feature.sub_type == 'identify')) {
 										write_list.push({
-											id: titleObj.client_id,
+											id: titleObj.feature.client_id,
 											sub_type: titleObj.feature.sub_type,
 											drawing_id: oChild2.Id,
 											shape_id: oChild2.GraphicObj.Id
@@ -5023,6 +5023,247 @@ function updateQuesScore(ids) {
 		}
 	}, false, true)
 }
+// 针对单道题，进行重新切题
+function splitControl(qid) {
+	if (!qid) {
+		return
+	}
+	var question_map = window.BiyueCustomData.question_map || {}
+	var node_list = window.BiyueCustomData.node_list || []
+	if (!question_map[qid]) {
+		return
+	}
+	Asc.scope.node_list = node_list
+	Asc.scope.question_map = question_map
+	Asc.scope.qid = qid
+	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
+	return biyueCallCommand(window, function() {
+		var node_list = Asc.scope.node_list
+		var qid = Asc.scope.qid
+		var client_node_id = Asc.scope.client_node_id
+		var oDocument = Api.GetDocument()
+		var result = {
+			change_list: [],
+			typeName: 'write'
+		}
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
+		function getParentBlock(oControl) {
+			if (!oControl) {
+				return null
+			}
+			if (oControl.GetClassType() == 'inlineLvlSdt') {
+				var parentControl = oControl.GetParentContentControl()
+				if (parentControl) {
+					if (parentControl.GetClassType() == 'blockLvlSdt') {
+						return parentControl
+					} else {
+						return getParentBlock(parentControl)
+					}
+				}
+			}
+			return null
+		}
+		function getParentId(oControl) {
+			var parentBlock = getParentBlock(oControl)
+			var parent_id = 0
+			if (parentBlock) {
+				var parentTag = getJsonData(parentBlock.GetTag())
+				parent_id = parentTag.client_id || 0
+			}
+			return parent_id
+		}
+		var nodeData = node_list.find(e => {
+			return e.id == qid
+		})
+		var control_id = nodeData ? nodeData.control_id : 0
+		var control = null
+		if (!control_id) {
+			control = Api.LookupObject(control_id)
+		}
+		if (!control) {
+			var controls = oDocument.GetAllContentControls()
+			if (controls) {
+				control = controls.find(e => {
+					var tag = getJsonData(e.GetTag())
+					return tag.client_id == qid
+				})
+			}
+		}
+		if (!control) {
+			return
+		}
+		let marker_log = function (str, ranges) {
+			let styledString = ''
+			let currentIndex = 0
+			const styles = []
+
+			ranges.forEach(([start, end], index) => {
+				// 添加高亮前的部分
+				if (start > currentIndex) {
+					styledString += '%c' + str.substring(currentIndex, start)
+					styles.push('')
+				}
+				// 添加高亮部分
+				styledString += '%c' + str.substring(start, end)
+				styles.push('border: 1px solid red; padding: 2px')
+				currentIndex = end
+			})
+
+			// 添加剩余的部分
+			if (currentIndex < str.length) {
+				styledString += '%c' + str.substring(currentIndex)
+				styles.push('')
+			}
+
+			console.log(styledString, ...styles)
+		}
+		var obj = getJsonData(control.GetTag())
+		if (obj.regionType == 'question') {
+			var inlineSdts = control.GetAllContentControls().filter((e) =>
+					e.GetTag() == JSON.stringify({ regionType: 'write', mode: 3 })
+			)
+			if (inlineSdts.length > 0) {
+				console.log('已有inline sdt， 删除以后再执行', inlineSdts)
+				inlineSdts.forEach((e) => {
+					var tag = getJsonData(e.GetTag())
+					result.change_list.push({
+						client_id: tag.client_id,
+						control_id: e.Sdt.GetId(),
+						parent_id: getParentId(e),
+						regionType: 'write',
+						type: 'remove'
+					})
+					Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
+				})
+			}
+
+			// 标记inline的答题区域
+			var text = control.GetRange().GetText()
+			// console.log('text', text)
+			var rangePatt = /(([\(]|[\（])(\s|\&nbsp\;)*([\）]|[\)]))|(___*)/gs
+			var match
+			var ranges = []
+			var regionTexts = []
+			while ((match = rangePatt.exec(text)) !== null) {
+				ranges.push([match.index, match.index + match[0].length])
+				regionTexts.push(match[0])
+			}
+			// console.log('regionTexts', regionTexts)
+			if (ranges.length > 0) {
+				marker_log(text, ranges)
+			}
+			var textSet = new Set()
+			regionTexts.forEach((e) => textSet.add(e))
+			let myArray = Array.from(textSet)
+			// console.log('======= textSet', textSet)
+			//debugger;
+			myArray = myArray.sort((a, b) => {
+				if (a.length - b.length > 0) {
+					return -1
+				} else if (a.length - b.length < 0) {
+					return 1
+				}
+				return 0
+			})
+			let sortedSet = new Set(myArray)
+			sortedSet.forEach((e) => {
+				var apiRanges = control.Search(e, false)
+				//debugger;
+				// search 有bug少返回一个字符
+				apiRanges.reverse().forEach((apiRange) => {
+					// console.log('apiRanges', apiRange)
+					var inInline = true
+					if (apiRange.StartPos && apiRange.EndPos) {
+						var index1 = apiRange.StartPos.findIndex(e2 => {
+							return e2.Class.Type == 68	
+						})
+						if (index1 < 0) {
+							inInline = false
+						} else {
+							var index2 = apiRange.EndPos.findIndex(e2 => {
+								return e2.Class.Type == 68
+							})
+							if (index2 < 0) {
+								inInline = false
+							}
+						}
+					}
+					if (!inInline) {
+						apiRange.Select()
+						// console.log('======apiRange ', apiRange)
+						client_node_id += 1
+						var tag = JSON.stringify({ regionType: 'write', mode: 3, client_id: client_node_id, color: '#ff000040' })
+						var oResult = Api.asc_AddContentControl(2, { Tag: tag })
+						if (oResult) {
+							result.change_list.push({
+								client_id: client_node_id,
+								control_id: oResult.InternalId,
+								parent_id: getParentId(Api.LookupObject(oResult.InternalId)),
+								regionType: 'write'
+							})
+						}
+						Api.asc_RemoveSelection()
+					}
+				})
+			})
+			var content = control.GetContent()
+			var elements = content.GetElementsCount()
+			for (var j = elements - 1; j >= 0; j--) {
+				var para = content.GetElement(j)
+				if (para.GetClassType() !== 'paragraph') {
+					break
+				}
+				var text = para.GetText()
+				if (text.trim() !== '') {
+					break
+				}
+			}
+
+			if (j < elements - 1) {
+				var range = content.GetElement(j + 1).GetRange()
+				var endRange = content.GetElement(elements - 1).GetRange()
+				range = range.ExpandTo(endRange)
+				range.Select()
+				client_node_id += 1
+				var tag = JSON.stringify({ regionType: 'write', mode: 5, client_id: client_node_id, color: '#ff000040' })
+
+				var oResult = Api.asc_AddContentControl(1, { Tag: tag })
+				if (oResult) {
+					result.change_list.push({
+						client_id: client_node_id,
+						control_id: oResult.InternalId,
+						parent_id: getParentId(Api.LookupObject(oResult.InternalId)),
+						regionType: 'write'
+					})
+				}
+				Api.asc_RemoveSelection()
+			}
+		}
+		result.client_node_id = client_node_id
+		return result
+	}, false, true).then(res1 => {
+		if (res1) {
+			if (res1.message && res1.message != '') {
+				alert(res1.message)
+			} else {
+				getNodeList().then(res2 => {
+					handleChangeType(res1, res2)
+				})
+			}
+		}
+	})
+}
+
 export {
 	handleDocClick,
 	handleContextMenuShow,
@@ -5045,5 +5286,6 @@ export {
 	deleteChoiceOtherWrite,
 	getQuesMode,
 	tagImageCommon,
-	updateQuesScore
+	updateQuesScore,
+	splitControl
 }

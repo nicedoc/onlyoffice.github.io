@@ -2,7 +2,7 @@ import ComponentSelect from '../components/Select.js'
 import NumberInput from '../components/NumberInput.js'
 import { reqSaveQuestion } from './api/paper.js'
 import { setInteraction } from './featureManager.js'
-import { changeProportion, deleteAsks, focusAsk, updateAllChoice, deleteChoiceOtherWrite, getQuesMode, updateQuesScore } from './QuesManager.js'
+import { changeProportion, deleteAsks, focusAsk, updateAllChoice, deleteChoiceOtherWrite, getQuesMode, updateQuesScore, splitControl } from './QuesManager.js'
 import { addClickEvent, getListByMap, showCom } from '../scripts/model/util.js'
 // 单题详情
 var proportionTypes = [
@@ -108,6 +108,7 @@ function initElements() {
 		<div id="scorelist"></div>
 	</div>
     <div id="panelQuesAsks"></div>
+	<div id="resplitQues" class="under clicked">重新切题</div>
   </div>
   `
 	$('#panelQues').html(content)
@@ -212,6 +213,7 @@ function initElements() {
 		width: '110px',
 	})
 	addClickEvent('#cancelAllScore', cancelAllScore)
+	addClickEvent('#resplitQues', resplitQues)
 	inited = true
 	workbook_id = window.BiyueCustomData.workbook_info ? window.BiyueCustomData.workbook_info.id : 0
 }
@@ -533,7 +535,7 @@ function changeScore(id, data) {
 			var askscore = ask_list[i].score * 1
 			if (!isNaN(askscore)) {
 				sum += askscore
-        sum = sum.toFixed(1) * 1
+        		sum = sum.toFixed(1) * 1
 			}
 		}
 		window.BiyueCustomData.question_map[g_ques_id].score = sum
@@ -826,6 +828,10 @@ function onClearAllAsks() {
 		})
 		deleteAsks(list)
 	}
+}
+
+function resplitQues() {
+	splitControl(g_ques_id)
 }
 
 export { showQuesData, initListener }
