@@ -491,16 +491,21 @@ import { initView } from './pageView.js'
 						}
 						var textSet = new Set()
 						regionTexts.forEach((e) => textSet.add(e))
-
+						let myArray = Array.from(textSet)
 						//debugger;
-
-						textSet.forEach((e) => {
+						myArray = myArray.sort((a, b) => {
+							if (a.length - b.length > 0) {
+								return -1
+							} else if (a.length - b.length < 0) {
+								return 1
+							}
+							return 0
+						})
+						let sortedSet = new Set(myArray)
+						sortedSet.forEach((e) => {
 							var apiRanges = control.Search(e, false)
-							// console.log('control.Search', apiRanges)
 							//debugger;
-
 							// search 有bug少返回一个字符
-
 							apiRanges.reverse().forEach((apiRange) => {
 								var inInline = true
 								if (apiRange.StartPos && apiRange.EndPos) {
