@@ -1732,7 +1732,7 @@ function updateChoice(recalc = true) {
 							console.log(queslist[rowno * cellnum + j], question_map)
 						}
 					} else {
-						// oCell.SetBackgroundColor(204, 255, 255, false)
+						// oCell.SetBackgroundColor(255, 191, 191, false)
 					}
 				}
 				if (mergeCells.length) {

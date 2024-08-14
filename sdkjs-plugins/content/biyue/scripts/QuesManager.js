@@ -450,7 +450,7 @@ function getNodeList() {
 								var oCell = oRow.GetCell(i2)
 								var shd = oCell.Cell.Get_Shd()
 								var fill = shd.Fill
-								if (fill && fill.r == 204 && fill.g == 255 && fill.b == 255) {
+								if (fill && fill.r == 255 && fill.g == 191 && fill.b == 191) {
 									write_list.push({
 										id: 'c_' + oCell.Cell.Id,
 										sub_type: 'cell',
@@ -796,7 +796,7 @@ function updateRangeControlType(typeName) {
 			if (!oCell) {
 				return
 			}
-			oCell.SetBackgroundColor(204, 255, 255, true)
+			oCell.SetBackgroundColor(255, 191, 191, true)
 			var cellContent = oCell.GetContent()
 			var paragraphs = cellContent.GetAllParagraphs()
 			paragraphs.forEach(oParagraph => {
@@ -939,7 +939,7 @@ function updateRangeControlType(typeName) {
 			if (typeName == 'write') { // 划分为小问，需要将选中的单元格都设置为小问
 				// 需要确保所选单元格里没有control，且自己处于某个control里
 				if (cellNotControl(cellContent)) {
-					oCell.SetBackgroundColor(204, 255, 255, false)
+					oCell.SetBackgroundColor(255, 191, 191, false)
 					canadd = true
 				}
 			} else if (typeName == 'clear' || typeName == 'clearAll') {
@@ -1686,7 +1686,11 @@ function handleChangeType(res, res2) {
 		if (question_map[qid] && question_map[qid].ask_list && question_map[qid].mark_mode != 2) {
 			var sum = 0
 			question_map[qid].ask_list.forEach(e => {
-				sum += (e.score || 0)
+				var ascore = e.score * 1
+				if (isNaN(ascore)) {
+					ascore = 0
+				}
+				sum += ascore
 			})
 			question_map[qid].score = sum
 		}
@@ -2466,7 +2470,7 @@ function confirmLevelSet(levels) {
 				oControl.SetTag(JSON.stringify(tagInfo));
 			 }
 		})
-		Api.asc_SetGlobalContentControlShowHighlight(true, 204, 255, 255)
+		Api.asc_SetGlobalContentControlShowHighlight(true, 255, 191, 191)
 		return {
 			client_node_id: client_node_id,
 			nodeList: nodeList,
@@ -2874,7 +2878,7 @@ function showAskCells(cmdType) {
 							if (writeData && writeData.sub_type == 'cell' && writeData.cell_id) {
 								var oCell = Api.LookupObject(writeData.cell_id)
 								if (oCell) {
-									oCell.SetBackgroundColor(204, 255, 255, cmdType == 'show' ? false : true)
+									oCell.SetBackgroundColor(255, 191, 191, cmdType == 'show' ? false : true)
 								}
 							}
 						})
@@ -4189,7 +4193,7 @@ function deleteAsks(askList) {
 			if (!oCell) {
 				return
 			}
-			oCell.SetBackgroundColor(204, 255, 255, true)
+			oCell.SetBackgroundColor(255, 191, 191, true)
 			var cellContent = oCell.GetContent()
 			var paragraphs = cellContent.GetAllParagraphs()
 			paragraphs.forEach(oParagraph => {
