@@ -2662,6 +2662,9 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 			return false
 		}
 		function deleteControlAccurate(oControl) {
+			if (!oControl || !oControl.GetElementsCount) {
+				return
+			}
 			var elementCount = oControl.GetElementsCount()
 			for (var idx = 0; idx < elementCount; ++idx) {
 				var oRun = oControl.GetElement(idx)
