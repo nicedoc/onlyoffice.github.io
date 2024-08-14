@@ -1,5 +1,6 @@
 ;(function (window, undefined) {
   let biyueCustomData = {}
+  let mark_type_info = {}
   let question_map = {}
   let questionList = []
   let tree_map = {}
@@ -178,6 +179,21 @@
     }
   }
 
+  // 获取作答模式
+  function getQuesMode(question_type) {
+    question_type = question_type * 1
+    var ques_mode = 0
+    if (question_type > 0) {
+      if (mark_type_info && mark_type_info.list) {
+        var find = mark_type_info.list.find(e => {
+          return e.question_type_id == question_type
+        })
+        ques_mode = find ? find.ques_mode : 3
+      }
+    }
+    return ques_mode
+  }
+
   function onConfirm() {
     for (const key in questionList) {
       let id = questionList[key] || ''
@@ -199,11 +215,13 @@
 
   function changeQuestionType({id, question_type}) {
     question_map[id].question_type = parseFloat(question_type) || 0
+    question_map[id].ques_mode = getQuesMode(parseFloat(question_type) || 0)
   }
 
   window.Asc.plugin.attachEvent('initPaper', function (message) {
     console.log('batchSettingQuestionType 接收的消息', message)
     biyueCustomData = message.biyueCustomData || {}
+    mark_type_info = message.subject_mark_types || {}
     init()
   })
 })(window, undefined)

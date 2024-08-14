@@ -81,6 +81,7 @@ import { initView } from './pageView.js'
 					xtoken: getToken(),
           			questionPositions: questionPositions,
           			biyueCustomData: window.BiyueCustomData,
+                subject_mark_types: Asc.scope.subject_mark_types
 				})
 				break
       		case 'positionSaveSuccess':
