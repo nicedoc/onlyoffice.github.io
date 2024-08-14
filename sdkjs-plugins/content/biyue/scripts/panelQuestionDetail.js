@@ -264,7 +264,8 @@ function updateElements(quesData, hint, ignore_ask_list) {
 	}
 	if (quesData.ask_list && quesData.ask_list.length > 0 && !ignore_ask_list) {
 		var content = ''
-		content += '<label class="header">每空权重/分数</label><div class="asks">'
+		content += '<div class="row-between"><label class="header">每空权重/分数</label><div class="clicked under" id="clearAllAsks">删除所有小问</div></div>'
+		content += '<div class="asks">'
 		quesData.ask_list.forEach((ask, index) => {
 			content += `<div class="item"><span id="asklabel${index}" class="asklabel">(${
 				index + 1
@@ -317,6 +318,9 @@ function updateElements(quesData, hint, ignore_ask_list) {
 		}
 		list_ask = []
 	}
+	$('#clearAllAsks').on('click', () => {
+		onClearAllAsks()
+	})
 }
 
 function showQuesData(params) {
@@ -808,6 +812,19 @@ function updateAskSelect(index) {
 		if (newel) {
 			newel.addClass('ask-selected')
 		}
+	}
+}
+
+function onClearAllAsks() {
+	var quesData = window.BiyueCustomData.question_map[g_ques_id]
+	if (quesData.ask_list) {
+		var list = quesData.ask_list.map(e => {
+			return {
+				ques_id: g_ques_id,
+				ask_id: e.id
+			}
+		})
+		deleteAsks(list)
 	}
 }
 
