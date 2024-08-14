@@ -32,21 +32,21 @@ var ZONE_SIZE = {
 		h: 6.247058823529412, 
 		font_size: 18,
 		shape_type: 'rect',
-		stroke_width: 0.1,
+		stroke_width: 0.05,
 	},
 	[`${ZONE_TYPE.END}`]: {
 		w: 15.236470588235296,
 		h: 7.9411764705882355,
 		font_size: 18,
 		shape_type: 'rect',
-		stroke_width: 0.1,
+		stroke_width: 0.05,
 	},
 	[`${ZONE_TYPE.PASS}`]: {
 		w: 15.236470588235296,
 		h: 7.9411764705882355,
 		font_size: 18,
 		shape_type: 'rect',
-		stroke_width: 0.1,
+		stroke_width: 0.05,
 	},
 	[`${ZONE_TYPE.SELF_EVALUATION}`]: {
 		w: 8,
@@ -71,7 +71,7 @@ var ZONE_SIZE = {
 		h: 7.9411764705882355,
 		font_size: 18,
 		shape_type: 'rect',
-		stroke_width: 0.1,
+		stroke_width: 0.05,
 	},
 	[`${ZONE_TYPE.IGNORE}`]: {
 		w: 40,

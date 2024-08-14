@@ -837,7 +837,7 @@ function drawList(list) {
 							var stroke_width = options.size.stroke_width || 0.1
 							var oStroke = Api.CreateStroke(
 								stroke_width * 36e3,
-								Api.CreateSolidFill(Api.CreateRGBColor(225, 225, 225))
+								Api.CreateSolidFill(Api.CreateRGBColor(53, 53, 53))
 							)
 							oDrawing = Api.CreateShape(
 								options.size.shape_type || 'rect',
@@ -852,7 +852,7 @@ function drawList(list) {
 								var oRun = Api.CreateRun()
 								oRun.AddText(options.label)
 								paragraphs[0].AddElement(oRun)
-								paragraphs[0].SetColor(3, 3, 3, false)
+								paragraphs[0].SetColor(53, 53, 53, false)
 								paragraphs[0].SetFontSize(14)
 								paragraphs[0].SetSpacingAfter(0)
 								var jc = options.size && options.size.jc ? options.size.jc : 'center'
