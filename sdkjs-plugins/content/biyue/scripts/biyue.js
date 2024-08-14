@@ -466,13 +466,8 @@ import { initView } from './pageView.js'
 							}
 						}
 					}
-					if (
-						obj.regionType === 'question' ||
-						obj.regionType === 'sub-question'
-					) {
-						var inlineSdts = control
-							.GetAllContentControls()
-							.filter(
+					if (obj.regionType === 'question' ||obj.regionType === 'sub-question') {
+						var inlineSdts = control.GetAllContentControls().filter(
 								(e) =>
 									e.GetTag() == JSON.stringify({ regionType: 'write', mode: 3 })
 							)
@@ -501,15 +496,35 @@ import { initView } from './pageView.js'
 
 						textSet.forEach((e) => {
 							var apiRanges = control.Search(e, false)
+							// console.log('control.Search', apiRanges)
 							//debugger;
 
 							// search 有bug少返回一个字符
 
 							apiRanges.reverse().forEach((apiRange) => {
-								apiRange.Select()
-								var tag = JSON.stringify({ regionType: 'write', mode: 3 })
-								Api.asc_AddContentControl(2, { Tag: tag })
-								Api.asc_RemoveSelection()
+								var inInline = true
+								if (apiRange.StartPos && apiRange.EndPos) {
+									var index1 = apiRange.StartPos.findIndex(e2 => {
+										return e2.Class.Type == 68	
+									})
+									if (index1 < 0) {
+										inInline = false
+									} else {
+										var index2 = apiRange.EndPos.findIndex(e2 => {
+											return e2.Class.Type == 68
+										})
+										if (index2 < 0) {
+											inInline = false
+										}
+									}
+								}
+								if (!inInline) {
+									apiRange.Select()
+									// console.log('======apiRange ', apiRange)
+									var tag = JSON.stringify({ regionType: 'write', mode: 3 })
+									Api.asc_AddContentControl(2, { Tag: tag })
+									Api.asc_RemoveSelection()
+								}
 							})
 						})
 
@@ -2017,9 +2032,9 @@ import { initView } from './pageView.js'
 				}
 
 				var text_all =
-					oDocument
-						.GetRange()
-						.GetText({
+				oDocument
+					.GetRange()
+					.GetText({
 							Math: false,
 							TableCellSeparator: '\u24D2',
 							TableRowSeparator: '\u24E1',
