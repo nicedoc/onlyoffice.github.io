@@ -3777,11 +3777,9 @@ function getAllPositions() {
 				}
 				var bounds = []
 				var oTable = oCell.GetParentTable()
-				var pageCount = oTable.Table.getPageCount()
-				var startPage = oCell.Cell.Get_StartPage_Absolute()
-				for (var p = 0; p < pageCount; ++p) {
-					var npage = startPage + p
-					var pagebounds = oCell.Cell.GetPageBounds(startPage + p)
+        var pagesCount = oCell.Cell.PagesCount
+				for (var p = 0; p < pagesCount; ++p) {
+					var pagebounds = oCell.Cell.GetPageBounds(p)
 					if (!pagebounds) {
 						continue
 					}
@@ -3790,12 +3788,13 @@ function getAllPositions() {
 					}
 					bounds.push({
 						order: order + '',
-						page: npage + 1,
+						page: oCell.Cell.Get_AbsolutePage(p),
 						x: mmToPx(pagebounds.Left),
 						y: mmToPx(pagebounds.Top),
 						w: mmToPx(pagebounds.Right - pagebounds.Left),
 						h: mmToPx(pagebounds.Bottom - pagebounds.Top),
-						v: ask_score + ''
+						v: ask_score + '',
+            mark_order: order + ''
 					})
 				}
 				return bounds
@@ -4072,7 +4071,9 @@ function getAllPositions() {
 										}
 									} else if (askData.sub_type == 'cell') {
 										var oCell = Api.LookupObject(askData.cell_id)
-										item.write_ask_region.concat(getCellBounds(oCell, ask_score, item.write_ask_region.length + 1))
+                    var d = getCellBounds(oCell, ask_score, mark_order)
+										item.write_ask_region = item.write_ask_region.concat(d)
+                    mark_order++
 									} else if (askData.sub_type == 'write' || askData.sub_type == 'identify') {
 										var oShape = Api.LookupObject(askData.shape_id)
 										if (oShape && oShape.Drawing) {

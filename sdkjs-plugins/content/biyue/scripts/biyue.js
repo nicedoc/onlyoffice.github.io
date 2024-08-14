@@ -2036,8 +2036,8 @@ import { initView } from './pageView.js'
 							var shd = oCell.Cell.Get_Shd()
 							if (shd) {
 								var fill = shd.Fill
-								if (fill && fill.r == 204 && fill.g == 255 && fill.b == 255) {
-									oCell.SetBackgroundColor(204, 255, 255, true)
+								if (fill && fill.r == 255 && fill.g == 191 && fill.b == 191) {
+									oCell.SetBackgroundColor(255, 191, 191, true)
 								}
 							}
 						}
