@@ -831,7 +831,18 @@ function onClearAllAsks() {
 }
 
 function resplitQues() {
-	splitControl(g_ques_id)
+	var quesData = window.BiyueCustomData.question_map[g_ques_id]
+	if (quesData.ask_list) {
+		var list = quesData.ask_list.map(e => {
+			return {
+				ques_id: g_ques_id,
+				ask_id: e.id
+			}
+		})
+		deleteAsks(list, false).then(() => {
+			splitControl(g_ques_id)
+		})
+	}
 }
 
 export { showQuesData, initListener }

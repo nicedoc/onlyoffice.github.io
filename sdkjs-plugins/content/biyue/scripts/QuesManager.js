@@ -1900,6 +1900,7 @@ function handleChangeType(res, res2) {
 	var use_gather = window.BiyueCustomData.choice_display && window.BiyueCustomData.choice_display.style != 'brackets_choice_region'
 	if (use_gather) {
 		deleteChoiceOtherWrite(null, false).then(() => {
+			notifyQuestionChange(update_node_id)
 			updateChoice().then(res => {
 				return handleChoiceUpdateResult(res)
 			}).then(() => {
@@ -1909,15 +1910,21 @@ function handleChangeType(res, res2) {
 	} else {
 		if (updateinteraction) {
 			deleteChoiceOtherWrite(null, false).then(res => {
+				notifyQuestionChange(update_node_id)
 				setInteraction(interaction, addIds).then(() => window.biyue.StoreCustomData())
 			})
 		} else {
 			deleteChoiceOtherWrite(null, true).then(res => {
+				notifyQuestionChange(update_node_id)
 				window.biyue.StoreCustomData()
 			})
 		}
 	}
 	console.log('handleChangeType end', node_list, 'g_click_value', g_click_value, 'update_node_id', update_node_id)
+	notifyQuestionChange(update_node_id)
+}
+
+function notifyQuestionChange(update_node_id) {
 	document.dispatchEvent(
 		new CustomEvent('updateQuesData', {
 			detail: {
@@ -2492,8 +2499,15 @@ function confirmLevelSet(levels) {
 			resolve()
 		})
 	})
-	.then(() => reqGetQuestionType())
-	.then(() => initExtroInfo())
+	.then(() => {
+		return reqGetQuestionType()
+	})
+	.then(() => {
+		return deleteChoiceOtherWrite()
+	})
+	.then(() => {
+		return initExtroInfo()
+	})
 	.then(() => {
 		console.log("================================ StoreCustomData")
 		window.biyue.StoreCustomData()
@@ -2617,7 +2631,7 @@ function reqGetQuestionType() {
 						// 存储时question_type_name莫名其妙变得很大，不再存储
 					})
 				}
-				return deleteChoiceOtherWrite()
+				resolve()
 			}).catch(res => {
 				console.log('getQuesType fail ', res)
 				resolve()
@@ -4125,9 +4139,11 @@ function changeProportion(idList, proportion) {
 	})
 }
 
-function deleteAsks(askList) {
+function deleteAsks(askList, notify = true) {
 	if (!askList || askList.length == 0) {
-		return
+		return new Promise((resolve, reject) => {
+			return resolve({})	
+		})
 	}
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	Asc.scope.node_list = window.BiyueCustomData.node_list
@@ -4289,14 +4305,20 @@ function deleteAsks(askList) {
 		if (res) {
 			window.BiyueCustomData.question_map = res.question_map
 			window.BiyueCustomData.node_list = res.node_list
-			if (res.question_map[res.ques_id] && res.question_map[res.ques_id].interaction == 'accurate') {
-				setInteraction('accurate', [res.ques_id])
+			if (notify) {
+				document.dispatchEvent(new CustomEvent('updateQuesData', {
+					detail: {
+						client_id: res.ques_id
+					}
+				}))
 			}
-			document.dispatchEvent(new CustomEvent('updateQuesData', {
-				detail: {
-					client_id: res.ques_id
-				}
-			}))
+			if (res.question_map[res.ques_id] && res.question_map[res.ques_id].interaction == 'accurate') {
+				return setInteraction('accurate', [res.ques_id])
+			} else {
+				return new Promise((resolve, reject) => {
+					return resolve({})	
+				})
+			}
 		}
 	})
 }
@@ -5129,9 +5151,9 @@ function splitControl(qid) {
 		}
 		var obj = getJsonData(control.GetTag())
 		if (obj.regionType == 'question') {
-			var inlineSdts = control.GetAllContentControls().filter((e) =>
-					e.GetTag() == JSON.stringify({ regionType: 'write', mode: 3 })
-			)
+			var inlineSdts = control.GetAllContentControls().filter((e) => {
+				return getJsonData(e.GetTag()).regionType == 'write'
+			})
 			if (inlineSdts.length > 0) {
 				console.log('已有inline sdt， 删除以后再执行', inlineSdts)
 				inlineSdts.forEach((e) => {
@@ -5255,8 +5277,8 @@ function splitControl(qid) {
 			if (res1.message && res1.message != '') {
 				alert(res1.message)
 			} else {
-				getNodeList().then(res2 => {
-					handleChangeType(res1, res2)
+				return getNodeList().then(res2 => {
+					return handleChangeType(res1, res2)
 				})
 			}
 		}

@@ -297,7 +297,7 @@ function changeAll(data) {
 		return
 	}
 	if (data.value != 'close' && (!extra_info.hidden_correct_region || extra_info.hidden_correct_region.checked == false)) {
-		vinteraction = extra_info.start_interaction.checked ? 'accurate' : 'simple'
+		vinteraction = extra_info.start_interaction && extra_info.start_interaction.checked ? 'accurate' : 'simple'
 	}
 	window.BiyueCustomData.interaction = vinteraction
 	if (data.value == 'close') {
@@ -523,7 +523,7 @@ function initPositions1() {
 		return deleteAllFeatures([], specifyFeatures)
 	})
 	.then(() => {
-		updateChoice(false)
+		return updateChoice(false)
 	})
 	.then(res => {
 		if (res) {
