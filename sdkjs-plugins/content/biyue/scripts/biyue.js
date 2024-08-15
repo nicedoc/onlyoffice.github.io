@@ -86,7 +86,8 @@ import { initView } from './pageView.js'
 				break
       		case 'positionSaveSuccess':
 				window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
-        		alert('上传成功')
+            showOrHiddenRegion('show')
+            alert('上传成功')
 				break
 			case 'scoreSetSuccess': // 分数设置成功
 				if (message.data.control_list) {
@@ -418,7 +419,7 @@ import { initView } from './pageView.js'
 		)
 	}
 
-	let checkAnswerRegion = function () {        
+	let checkAnswerRegion = function () {
         return biyueCallCommand(
 			window,
 			function () {
@@ -509,13 +510,13 @@ import { initView } from './pageView.js'
                                 if (includeRange(all[i], all[j])) {
                                     newE = false;
                                 }
-                            }    
+                            }
                             if (newE)
                                 ret.push(all[i]);
                         }
                         return ret;
                     };
-                    
+
 
                     //debugger;
                     var apiRanges = [];
@@ -525,14 +526,14 @@ import { initView } from './pageView.js'
                         apiRanges = mergeRange(apiRanges, ranges);
                     });
 
-                        // search 有bug少返回一个字符            
+                        // search 有bug少返回一个字符
                     apiRanges.reverse().forEach(apiRange => {
                             apiRange.Select();
                             var tag = JSON.stringify({ 'regionType': 'write', 'mode': 3 });
                             Api.asc_AddContentControl(2, { "Tag": tag });
                             Api.asc_RemoveSelection();
                     });
-                    
+
 
                     // 标记空白行
                     {
@@ -1264,9 +1265,7 @@ import { initView } from './pageView.js'
 		console.log('on plugin button id=${id} ${windowID}', id, windowID)
     // 重新打开上传的时候关闭的识别区域
     // 必须保证一个执行完成之后在去开启下一个
-    changeImageIgnoreMark('show').then(()=>{
-      handleAllWrite('show')
-    })
+    showOrHiddenRegion('show')
 		if (windowID) {
 			if (id === -1) {
 				window.Asc.plugin.executeMethod('CloseWindow', [windowID])
@@ -1282,6 +1281,13 @@ import { initView } from './pageView.js'
 			return
 		}
 	}
+
+  function showOrHiddenRegion(type) {
+    // 在上传前隐藏标识区域 关闭窗口后需要重新开启
+    changeImageIgnoreMark(type).then(()=>{
+      handleAllWrite(type)
+    })
+  }
 
 	function showPosition(window, onGetPos) {
 		window.Asc.plugin.executeMethod(
