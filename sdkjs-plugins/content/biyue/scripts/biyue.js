@@ -1921,7 +1921,8 @@ import { initView } from './pageView.js'
 				}
 				if (isFirstLoad) {
 					Asc.scope.split_getdoc = true
-					reSplitQustion()
+					initExtroInfo()
+					// reSplitQustion()
 				} else {
 					initControls().then(() => {
 						Asc.scope.split_getdoc = false
