@@ -484,6 +484,9 @@ function updateFeatureList(res) {
 					if (onlyoffice_options.pagination) {
 						size.pagination = onlyoffice_options.pagination
 					}
+				} else {
+					size.right = 0
+					size.bottom = 0
 				}
 			}
 			setXY(

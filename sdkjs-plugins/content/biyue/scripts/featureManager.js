@@ -929,16 +929,18 @@ function drawList(list) {
 										var PageMargins = section.Section.PageMargins
 										var oParagraph = oFooter.GetElement(0)
 										// 统计
+										var sh = PageMargins.Right - (options.size.right || 0) - options.size.w
+										var sv = PageMargins.Bottom - (options.size.bottom || 0) - options.size.h
 										var typeDrawing = getTypeDrawing(oParagraph, options.type_name)
 										if (typeDrawing) {
-											typeDrawing.Set_PositionH(7, false, PageMargins.Right - options.size.right - options.size.w, false);
-											typeDrawing.Set_PositionV(0, false, PageMargins.Bottom - options.size.bottom - options.size.h, false)
+											typeDrawing.Set_PositionH(7, false, sh, false);
+											typeDrawing.Set_PositionV(0, false, sv, false)
 											typeDrawing.Set_DrawingType(2);
 										} else {
 											var oAdd = oDrawing.Copy()
 											var drawing = oAdd.Drawing
-											drawing.Set_PositionH(7, false, PageMargins.Right - options.size.right - options.size.w, false);
-											drawing.Set_PositionV(0, false, PageMargins.Bottom - options.size.bottom - options.size.h, false)
+											drawing.Set_PositionH(7, false, sh, false);
+											drawing.Set_PositionV(0, false, sv, false)
 											drawing.Set_DrawingType(2);
 											oParagraph.SetJc('center')
 											var titleobj = {
@@ -976,8 +978,11 @@ function drawList(list) {
 											} else if (pstyle == 'oddRightEvenLeft') {
 												align = footerObj.type == 'even' ? 'left' : 'right'
 											}
-											setPaginationAlign(oAddNum, align, PageMargins, options.size.pagination.margin)
-											oAddNum.SetVerPosition('bottomMargin', (PageMargins.Bottom - options.size.pagination.bottom - options.size.pagination.font_size) * 36e3)
+											var pmargin = options.size.pagination ? options.size.pagination.margin : 0
+											var pbottom = options.size.pagination ? options.size.pagination.bottom : 0
+											var psize = options.size.pagination ? options.size.pagination.font_size : 2.71
+											setPaginationAlign(oAddNum, align, PageMargins, pmargin)
+											oAddNum.SetVerPosition('bottomMargin', (PageMargins.Bottom -pbottom - psize) * 36e3)
 											if (needAdd) {
 												oParagraph.AddDrawing(oAddNum)
 											}
@@ -1685,11 +1690,6 @@ function updateChoice(recalc = true) {
 
 			var oTable = Api.CreateTable(cellnum, rows)
 			var oTableStyle = oDocument.CreateStyle('CustomTableStyle', 'table')
-			var oTableCellPr = oTableStyle.GetTableCellPr();
-			oTableCellPr.SetCellBorderTop("single", 1, 0, 153, 153, 153);
-			oTableCellPr.SetCellBorderBottom("single", 1, 0, 153, 153, 153);
-			oTableCellPr.SetCellBorderLeft("single", 1, 0, 153, 153, 153);
-			oTableCellPr.SetCellBorderRight("single", 1, 0, 153, 153, 153);
 			oTable.SetStyle(oTableStyle)
 			oTable.SetWidth('percent', 100)
 			for (var i = 0; i < rows; ++i) {
@@ -1700,6 +1700,10 @@ function updateChoice(recalc = true) {
 				for (var j = 0; j < cellnum; ++j) {
 					var oCell = oRow.GetCell(j)
 					oCell.SetWidth('percent', 100 / cellnum)
+					oCell.SetCellBorderBottom("single", 1, 0, 53, 53, 53)
+					oCell.SetCellBorderRight("single", 1, 0, 53, 153, 53)
+					oCell.SetCellBorderTop("single", 1, 0, 53, 53, 53)
+					oCell.SetCellBorderLeft("single", 1, 0, 53, 53, 53)
 					var oCellContent = oCell.GetContent()
 					if (rowno * cellnum + j >= queslist.length) {
 						mergeCells.push(oCell)
