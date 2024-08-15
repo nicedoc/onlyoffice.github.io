@@ -2958,7 +2958,6 @@ function handleWrite(cmdType) {
 				oDrawing.SetPaddings(0, 0, 0, 0)
 				var paragraphs = oControl.GetAllParagraphs()
 				if (paragraphs && paragraphs.length > 0) {
-					var paragraphs = oControl.GetAllParagraphs()
 					var parentParagraph = null
 					for (var i = 0; i < paragraphs.length; ++i) {
 						var oParagraph = paragraphs[i]
@@ -2971,12 +2970,14 @@ function handleWrite(cmdType) {
 							}
 						}
 					}
-					var oRun = Api.CreateRun()
-					oRun.AddDrawing(oDrawing)
-					parentParagraph.AddElement(
-						oRun,
-						1
-					)
+					if (parentParagraph) {
+						var oRun = Api.CreateRun()
+						oRun.AddDrawing(oDrawing)
+						parentParagraph.AddElement(
+							oRun,
+							1
+						)
+					}
 				}
 				return {
 					client_node_id: client_node_id,
@@ -3281,7 +3282,8 @@ function reqUploadTree() {
 	}
   // 先关闭智批元素，避免智批元素在全量更新的时候被带到题目里 更新之后再打开
   setBtnLoading('uploadTree', true)
-  setInteraction('none').then(() => {
+  setInteraction('none')
+  .then(() => {
       Asc.scope.node_list = window.BiyueCustomData.node_list
       Asc.scope.question_map = window.BiyueCustomData.question_map
       upload_control_list = []
@@ -4269,25 +4271,24 @@ function deleteAsks(askList, notify = true) {
 				var oCell = Api.LookupObject(writeData.cell_id)
 				removeCellInteraction(oCell)
 			} else if (writeData.sub_type == 'write' || writeData.sub_type == 'identify') {
-				if (writeData.shape_id) {
-					var oDrawing = drawings.find(e => {
-						return writeData.drawing_id == e.Drawing.Id
-					})
-					if (oDrawing) {
-						if (writeData.sub_type == 'identify') {
-							oDrawing.Delete()
-						} else {
-							var run = oDrawing.Drawing.GetRun()
-							if (run) {
-								var paragraph = run.GetParagraph()
-								if (paragraph) {
-									var oParagraph = Api.LookupObject(paragraph.Id)
-									var ipos = run.GetPosInParent()
-									if (ipos >= 0) {
-										oDrawing.Delete()
-										if (oParagraph) {
-											oParagraph.RemoveElement(ipos)
-										}
+				var oDrawing = drawings.find(e => {
+					var tag = getJsonData(e.Drawing.docPr.title)
+					return tag.feature && tag.feature.client_id == writeData.id
+				})
+				if (oDrawing) {
+					if (writeData.sub_type == 'identify') {
+						oDrawing.Delete()
+					} else {
+						var run = oDrawing.Drawing.GetRun()
+						if (run) {
+							var paragraph = run.GetParagraph()
+							if (paragraph) {
+								var oParagraph = Api.LookupObject(paragraph.Id)
+								var ipos = run.GetPosInParent()
+								if (ipos >= 0) {
+									oDrawing.Delete()
+									if (oParagraph) {
+										oParagraph.RemoveElement(ipos)
 									}
 								}
 							}
@@ -4361,14 +4362,12 @@ function focusAsk(writeData) {
 				}
 			}
 		} else if (write_data.sub_type == 'write' || write_data.sub_type == 'identify') {
-			if (write_data.shape_id) {
-				var oDrawing = drawings.find(e => {
-					var tag = getJsonData(e.Drawing.docPr.title)
-					return tag.feature && tag.feature.client_id == write_data.id
-				})
-				if (oDrawing) {
-					oDrawing.Select()
-				}
+			var oDrawing = drawings.find(e => {
+				var tag = getJsonData(e.Drawing.docPr.title)
+				return tag.feature && tag.feature.client_id == write_data.id
+			})
+			if (oDrawing) {
+				oDrawing.Select()
 			}
 		}
 	}, false, false)

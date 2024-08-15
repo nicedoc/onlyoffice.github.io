@@ -1358,8 +1358,16 @@ function setInteraction(type, quesIds) {
 					}
 				}
 			} else if (askData.sub_type == 'write') {
-				if (askData.shape_id) {
-					var oShape = Api.LookupObject(askData.shape_id)
+				var drawings = oControl.GetAllDrawingObjects() || []
+				var oAskDrawing = drawings.find(e => {
+					var drawingTitle = getJsonData(e.Drawing.docPr.title)
+					return drawingTitle.feature && drawingTitle.feature.client_id == askData.id
+				})
+				if (oAskDrawing) {
+					var oShape = null
+					if (oAskDrawing.Drawing.GraphicObj) {
+						oShape = Api.LookupObject(oAskDrawing.Drawing.GraphicObj.Id)
+					}
 					if (oShape) {
 						var shapeContent = oShape.GetContent()
 						if (shapeContent) {

@@ -951,7 +951,7 @@ import { initView } from './pageView.js'
 		addBtnClickEvent('clearControl', () => {
 			onClearAllControls(true).then(() => {
 				window.BiyueCustomData.node_list = []
-				window.biyueCustomData.question_map = {}
+				window.BiyueCustomData.question_map = {}
 			})
 		})
 		addBtnClickEvent('checkAnswerRegionBtn', checkAnswerRegion)

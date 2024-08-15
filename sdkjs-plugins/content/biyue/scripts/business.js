@@ -3777,7 +3777,7 @@ function getAllPositions() {
 				}
 				var bounds = []
 				var oTable = oCell.GetParentTable()
-        var pagesCount = oCell.Cell.PagesCount
+				var pagesCount = oCell.Cell.PagesCount
 				for (var p = 0; p < pagesCount; ++p) {
 					var pagebounds = oCell.Cell.GetPageBounds(p)
 					if (!pagebounds) {
@@ -3794,7 +3794,7 @@ function getAllPositions() {
 						w: mmToPx(pagebounds.Right - pagebounds.Left),
 						h: mmToPx(pagebounds.Bottom - pagebounds.Top),
 						v: ask_score + '',
-            mark_order: order + ''
+						mark_order: order + '',
 					})
 				}
 				return bounds
@@ -3821,10 +3821,14 @@ function getAllPositions() {
 								return null
 							}
 							var LvlText = oNumberingLvl.LvlText || []
-							if (LvlText && LvlText.length && LvlText[0].Value=='\ue607') {
+							if (LvlText && LvlText.length && LvlText[0].Value == '\ue607') {
 								var Numbering = oParagraph.Paragraph.Numbering
 								var numberPage = Numbering.Page
-								var numberingRect = Api.asc_GetParagraphNumberingBoundingRect(oParagraph.Paragraph.Id, 1) || {}
+								var numberingRect =
+									Api.asc_GetParagraphNumberingBoundingRect(
+										oParagraph.Paragraph.Id,
+										1
+									) || {}
 								return {
 									page: oParagraph.Paragraph.GetAbsolutePage(numberPage) + 1,
 									x: mmToPx(numberingRect.X0),
@@ -3899,7 +3903,7 @@ function getAllPositions() {
 			}
 			// 集中作答区坐标
 			function getGatherCellRegion(nodeId) {
-				var nodeData = node_list.find(e => {
+				var nodeData = node_list.find((e) => {
 					return e.id == nodeId
 				})
 				if (!nodeData || !nodeData.use_gather || !nodeData.gather_cell_id) {
@@ -3913,7 +3917,7 @@ function getAllPositions() {
 				var cell_region = getCellBounds(oCell, question_map[nodeId].score, '1')
 				// 互动区域
 				var drawings = oCell.GetContent().GetAllDrawingObjects() || []
-				var oDrawing = drawings.find(e => {
+				var oDrawing = drawings.find((e) => {
 					var title = e.Drawing.docPr.title || '{}'
 					var titleObj = getJsonData(title)
 					if (titleObj.feature && titleObj.feature.sub_type == 'ask_accurate') {
@@ -3928,10 +3932,10 @@ function getAllPositions() {
 						y: mmToPx(oDrawing.Drawing.Y),
 						w: mmToPx(oDrawing.Drawing.Width),
 						h: mmToPx(oDrawing.Drawing.Height),
-						v: '1'
+						v: '1',
 					}
 				}
-				return {cell_region, interaction_region}
+				return { cell_region, interaction_region }
 			}
 
 			for (var i = 0, imax = controls.length; i < imax; ++i) {
@@ -3942,15 +3946,15 @@ function getAllPositions() {
 					var Pages = oControlContent.Document.Pages
 					if (Pages) {
 						Pages.forEach((page, index) => {
-              				let w = page.Bounds.Right - page.Bounds.Left
-              				let h = page.Bounds.Bottom - page.Bounds.Top
+							let w = page.Bounds.Right - page.Bounds.Left
+							let h = page.Bounds.Bottom - page.Bounds.Top
 							if (w > 0 && h > 0) {
 								bounds.push({
-								Page: oControl.Sdt.GetAbsolutePage(index),
-								X: mmToPx(page.Bounds.Left),
-								Y: mmToPx(page.Bounds.Top),
-								W: mmToPx(page.Bounds.Right - page.Bounds.Left),
-								H: mmToPx(page.Bounds.Bottom - page.Bounds.Top),
+									Page: oControl.Sdt.GetAbsolutePage(index),
+									X: mmToPx(page.Bounds.Left),
+									Y: mmToPx(page.Bounds.Top),
+									W: mmToPx(page.Bounds.Right - page.Bounds.Left),
+									H: mmToPx(page.Bounds.Bottom - page.Bounds.Top),
 								})
 							}
 						})
@@ -3984,11 +3988,15 @@ function getAllPositions() {
 					var correctPos = GetCorrectRegion(oControl)
 					var gatherRegion = getGatherCellRegion(tag.client_id)
 					var is_gather_region = false
-					if (Asc.scope.choice_params && Asc.scope.choice_params.style === 'show_choice_region' && gatherRegion) {
+					if (
+						Asc.scope.choice_params &&
+						Asc.scope.choice_params.style === 'show_choice_region' &&
+						gatherRegion
+					) {
 						// 开启集中作答区并且有集中作答区的坐标信息
 						is_gather_region = true
 						if (question_map[tag.client_id]) {
-						question_map[tag.client_id].ask_list = []
+							question_map[tag.client_id].ask_list = []
 						}
 					}
 					var item = {
@@ -4019,115 +4027,125 @@ function getAllPositions() {
 							h: e.H,
 						})
 					})
-          if (is_gather_region) {
-            // 集中作答区的题目
-            let cell_region = gatherRegion.cell_region || []
-            cell_region.forEach((e) => {
-              item.write_ask_region.push({
-                page: e.page,
-                order: e.order + '',
-                v: item.score + '',
-                x: e.x,
-                y: e.y,
-                w: e.w,
-                h: e.h,
-              })
-            })
-            let mark_ask_region = {}
-            mark_ask_region['1'] = item.write_ask_region
-            item.mark_ask_region = mark_ask_region
-          }else if (question_obj.ask_list && question_obj.ask_list.length) {
-						var nodeData = node_list.find(e => {
+					if (is_gather_region) {
+						// 集中作答区的题目
+						let cell_region = gatherRegion.cell_region || []
+						cell_region.forEach((e) => {
+							item.write_ask_region.push({
+								page: e.page,
+								order: e.order + '',
+								v: item.score + '',
+								x: e.x,
+								y: e.y,
+								w: e.w,
+								h: e.h,
+							})
+						})
+						let mark_ask_region = {}
+						mark_ask_region['1'] = item.write_ask_region
+						item.mark_ask_region = mark_ask_region
+					} else if (question_obj.ask_list && question_obj.ask_list.length) {
+						var nodeData = node_list.find((e) => {
 							return e.id == tag.client_id
 						})
 						if (nodeData && nodeData.write_list) {
-              let mark_order = 1
+							let mark_order = 1
 							for (var iask = 0; iask < question_obj.ask_list.length; ++iask) {
-								var askData = nodeData.write_list.find(e => {
+								var askData = nodeData.write_list.find((e) => {
 									return e.id == question_obj.ask_list[iask].id
 								})
 								if (askData) {
-                  var ask_score = question_obj.ask_list[iask].score || ''
+									var ask_score = question_obj.ask_list[iask].score || ''
 									if (askData.sub_type == 'control') {
 										var oAskControl = Api.LookupObject(askData.control_id)
 										if (oAskControl && oAskControl.Sdt) {
 											var askBounds = Object.values(oAskControl.Sdt.Bounds)
 											// todo..需要考虑小问区域合并的情况
-											askBounds.forEach(e => {
-                        if (e.W) {
-                          item.write_ask_region.push({
-                            order: mark_order + '',
-                            page: e.Page + 1,
-                            x: mmToPx(e.X),
-                            y: mmToPx(e.Y),
-                            w: mmToPx(e.W),
-                            h: mmToPx(e.H),
-                            v: ask_score + '',
-                            mark_order: mark_order,
-                          })
-                        }
+											askBounds.forEach((e) => {
+												if (e.W) {
+													item.write_ask_region.push({
+														order: mark_order + '',
+														page: e.Page + 1,
+														x: mmToPx(e.X),
+														y: mmToPx(e.Y),
+														w: mmToPx(e.W),
+														h: mmToPx(e.H),
+														v: ask_score + '',
+														mark_order: mark_order,
+													})
+												}
 											})
-                      mark_order++
+											mark_order++
 										}
 									} else if (askData.sub_type == 'cell') {
 										var oCell = Api.LookupObject(askData.cell_id)
-                    var d = getCellBounds(oCell, ask_score, mark_order)
+										var d = getCellBounds(oCell, ask_score, mark_order)
 										item.write_ask_region = item.write_ask_region.concat(d)
-                    mark_order++
-									} else if (askData.sub_type == 'write' || askData.sub_type == 'identify') {
-										var oShape = Api.LookupObject(askData.shape_id)
+										mark_order++
+									} else if (
+										askData.sub_type == 'write' ||
+										askData.sub_type == 'identify'
+									) {
+										var oShape = oShapes.find(e => {
+											if (e.Drawing) {
+												var shapetitle = getJsonData(e.Drawing.docPr.title)
+												return shapetitle.feature && shapetitle.feature.client_id == askData.id
+											}
+										})
 										if (oShape && oShape.Drawing) {
 											item.write_ask_region.push({
-												order: item.write_ask_region.length + 1 + '',
+												order: mark_order + '',
 												page: oShape.Drawing.PageNum + 1,
 												x: mmToPx(oShape.Drawing.X),
 												y: mmToPx(oShape.Drawing.Y),
 												w: mmToPx(oShape.Drawing.Width),
 												h: mmToPx(oShape.Drawing.Height),
-												v: ask_score + ''
+												v: ask_score + '',
+												mark_order: mark_order,
 											})
+											mark_order++
 										}
 									}
 								}
 							}
 						}
-            // 在先不考虑出现有小问跨页的情况下，一个书写区算做一个小问批改区
-            let mark_ask_region = item.write_ask_region.map((e) => {
-              return { ...e, order: e.order + '' }
-            })
-            item.mark_ask_region = mark_ask_region.reduce((acc, obj) => {
-              const order = obj.mark_order
-              if (!acc.hasOwnProperty(order)) {
-                acc[order] = []
-              }
-              // 过滤mark_order
-              const { mark_order, ...newObj } = obj
-              acc[order].push(newObj)
-              return acc
-            }, {})
+						// 在先不考虑出现有小问跨页的情况下，一个书写区算做一个小问批改区
+						let mark_ask_region = item.write_ask_region.map((e) => {
+							return { ...e, order: e.order + '' }
+						})
+						item.mark_ask_region = mark_ask_region.reduce((acc, obj) => {
+							const order = obj.mark_order
+							if (!acc.hasOwnProperty(order)) {
+								acc[order] = []
+							}
+							// 过滤mark_order
+							const { mark_order, ...newObj } = obj
+							acc[order].push(newObj)
+							return acc
+						}, {})
 
-            // 过滤不需要传出去的标记
-            const removeField = (arr) => {
-              return arr.map(({mark_order, ...rest}) => rest)
-            }
-            item.write_ask_region = removeField(item.write_ask_region)
+						// 过滤不需要传出去的标记
+						const removeField = (arr) => {
+							return arr.map(({ mark_order, ...rest }) => rest)
+						}
+						item.write_ask_region = removeField(item.write_ask_region)
 					} else {
-            // 没有小问的题目 暂时使用当前的题干区域作为批改和作答区 同时如果存在多个题干区，也只算作一个题目的批改区
-            bounds.forEach((e) => {
-              item.write_ask_region.push({
-                page: e.Page + 1,
-                order: '1',
-                v: item.score + '',
-                x: e.X,
-                y: e.Y,
-                w: e.W,
-                h: e.H,
-              })
-            })
-            let mark_ask_region = {}
-            mark_ask_region['1'] = item.write_ask_region
-            item.mark_ask_region = mark_ask_region
-          }
+						// 没有小问的题目 暂时使用当前的题干区域作为批改和作答区 同时如果存在多个题干区，也只算作一个题目的批改区
+						bounds.forEach((e) => {
+							item.write_ask_region.push({
+								page: e.Page + 1,
+								order: '1',
+								v: item.score + '',
+								x: e.X,
+								y: e.Y,
+								w: e.W,
+								h: e.H,
+							})
+						})
+						let mark_ask_region = {}
+						mark_ask_region['1'] = item.write_ask_region
+						item.mark_ask_region = mark_ask_region
+					}
 
 					item.ask_num = Object.keys(item.mark_ask_region).length
 					item.mark_method = '1'
@@ -4206,7 +4224,10 @@ function getAllPositions() {
 									zone_type: titleObj.feature.zone_type,
 									fields: [],
 								}
-								if (titleObj.feature.zone_type == 'statistics' || titleObj.feature.zone_type == 'pagination') {
+								if (
+									titleObj.feature.zone_type == 'statistics' ||
+									titleObj.feature.zone_type == 'pagination'
+								) {
 									let statistics_arr = []
 									for (var p = 0; p < pageCount; ++p) {
 										statistics_arr.push({
@@ -4289,7 +4310,7 @@ function getAllPositions() {
 				ques_list,
 				feature_list,
 				paper_info,
-				partical_no_dot_list
+				partical_no_dot_list,
 			}
 		},
 		false,
@@ -4300,6 +4321,7 @@ function getAllPositions() {
 	//   return res
 	// })
 }
+
 
 export {
 	getPaperInfo,
