@@ -3788,7 +3788,7 @@ function getAllPositions() {
 					}
 					bounds.push({
 						order: order + '',
-						page: oCell.Cell.Get_AbsolutePage(p),
+						page: oCell.Cell.Get_AbsolutePage(p) + 1,
 						x: mmToPx(pagebounds.Left),
 						y: mmToPx(pagebounds.Top),
 						w: mmToPx(pagebounds.Right - pagebounds.Left),
