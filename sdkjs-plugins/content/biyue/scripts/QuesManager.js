@@ -4332,6 +4332,17 @@ function focusAsk(writeData) {
 		var write_data = Asc.scope.write_data
 		var oDocument = Api.GetDocument()
 		var drawings = oDocument.GetAllDrawingObjects() || []
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
 		if (write_data.sub_type == 'control') {
 			if (write_data.control_id) {
 				var oControl = Api.LookupObject(write_data.control_id)
@@ -4352,7 +4363,8 @@ function focusAsk(writeData) {
 		} else if (write_data.sub_type == 'write' || write_data.sub_type == 'identify') {
 			if (write_data.shape_id) {
 				var oDrawing = drawings.find(e => {
-					return e.Drawing.Id == write_data.drawing_id
+					var tag = getJsonData(e.Drawing.docPr.title)
+					return tag.feature && tag.feature.client_id == write_data.id
 				})
 				if (oDrawing) {
 					oDrawing.Select()
