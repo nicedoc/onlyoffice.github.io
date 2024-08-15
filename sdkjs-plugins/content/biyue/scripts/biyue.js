@@ -418,155 +418,152 @@ import { initView } from './pageView.js'
 		)
 	}
 
-	let checkAnswerRegion = function () {
-		return biyueCallCommand(
+	let checkAnswerRegion = function () {        
+        return biyueCallCommand(
 			window,
 			function () {
-				// 在console中打印字符串，range指定的部分会被高亮显示
-				let marker_log = function (str, ranges) {
-					let styledString = ''
-					let currentIndex = 0
-					const styles = []
+            	// 在console中打印字符串，range指定的部分会被高亮显示
+            	let marker_log = function (str, ranges) {
+                let styledString = '';
+                let currentIndex = 0;
+                const styles = [];
 
-					ranges.forEach(([start, end], index) => {
-						// 添加高亮前的部分
-						if (start > currentIndex) {
-							styledString += '%c' + str.substring(currentIndex, start)
-							styles.push('')
-						}
-						// 添加高亮部分
-						styledString += '%c' + str.substring(start, end)
-						styles.push('border: 1px solid red; padding: 2px')
-						currentIndex = end
-					})
+                ranges.forEach(([start, end], index) => {
+                    // 添加高亮前的部分
+                    if (start > currentIndex) {
+                        styledString += '%c' + str.substring(currentIndex, start);
+                        styles.push('');
+                    }
+                    // 添加高亮部分
+                    styledString += '%c' + str.substring(start, end);
+                    styles.push('border: 1px solid red; padding: 2px');
+                    currentIndex = end;
+                });
 
-					// 添加剩余的部分
-					if (currentIndex < str.length) {
-						styledString += '%c' + str.substring(currentIndex)
-						styles.push('')
-					}
+                // 添加剩余的部分
+                if (currentIndex < str.length) {
+                    styledString += '%c' + str.substring(currentIndex);
+                    styles.push('');
+                }
 
-					console.log(styledString, ...styles)
-				}
+                console.log(styledString, ...styles);
+            };
 
-				//debugger;
+            //debugger;
 
-				var oDocument = Api.GetDocument()
-				var controls = oDocument.GetAllContentControls()
+            var oDocument = Api.GetDocument();
+            var controls = oDocument.GetAllContentControls();
 
-				for (var i = 0; i < controls.length; i++) {
-					var control = controls[i]
-					var obj = ''
-					if (control && control.GetTag()) {
-						obj = control.GetTag() || ''
-						if (obj) {
-							try {
-								obj = JSON.parse(obj)
-							} catch (e) {
-								console.error('JSON解析失败', e)
-							}
-						}
-					}
-					if (obj.regionType === 'question' ||obj.regionType === 'sub-question') {
-						var inlineSdts = control.GetAllContentControls().filter(
-								(e) =>
-									e.GetTag() == JSON.stringify({ regionType: 'write', mode: 3 })
-							)
-						if (inlineSdts.length > 0) {
-							console.log('已有inline sdt， 删除以后再执行', inlineSdts)
-							continue
-						}
+            for (var i = 0; i < controls.length; i++) {
+                var control = controls[i];
+                var obj = ''
+                if (control && control.GetTag()) {
+                    obj = control.GetTag() || ''
+                    if (obj) {
+                        try {
+                            obj = JSON.parse(obj)
+                        } catch (e) {
+                            console.error('JSON解析失败', e)
+                        }
+                    }
+                }
+                if (obj.regionType === 'question' || obj.regionType === 'sub-question') {
+                    var inlineSdts = control.GetAllContentControls().filter(e => e.GetTag() == JSON.stringify({ 'regionType': 'write', 'mode': 3 }));
+                    if (inlineSdts.length > 0) {
+                        console.log("已有inline sdt， 删除以后再执行", inlineSdts);
+                        continue
+                    }
 
-						// 标记inline的答题区域
-						var text = control.GetRange().GetText()
-						var rangePatt = /(([\(]|[\（])(\s|\&nbsp\;)*([\）]|[\)]))|(___*)/gs
-						var match
-						var ranges = []
-						var regionTexts = []
-						while ((match = rangePatt.exec(text)) !== null) {
-							ranges.push([match.index, match.index + match[0].length])
-							regionTexts.push(match[0])
-						}
-						if (ranges.length > 0) {
-							marker_log(text, ranges)
-						}
-						var textSet = new Set()
-						regionTexts.forEach((e) => textSet.add(e))
-						let myArray = Array.from(textSet)
-						//debugger;
-						myArray = myArray.sort((a, b) => {
-							if (a.length - b.length > 0) {
-								return -1
-							} else if (a.length - b.length < 0) {
-								return 1
-							}
-							return 0
-						})
-						let sortedSet = new Set(myArray)
-						sortedSet.forEach((e) => {
-							var apiRanges = control.Search(e, false)
-							//debugger;
-							// search 有bug少返回一个字符
-							apiRanges.reverse().forEach((apiRange) => {
-								var inInline = true
-								if (apiRange.StartPos && apiRange.EndPos) {
-									var index1 = apiRange.StartPos.findIndex(e2 => {
-										return e2.Class.Type == 68
-									})
-									if (index1 < 0) {
-										inInline = false
-									} else {
-										var index2 = apiRange.EndPos.findIndex(e2 => {
-											return e2.Class.Type == 68
-										})
-										if (index2 < 0) {
-											inInline = false
-										}
-									}
-								}
-								if (!inInline) {
-									apiRange.Select()
-									// console.log('======apiRange ', apiRange)
-									var tag = JSON.stringify({ regionType: 'write', mode: 3 })
-									Api.asc_AddContentControl(2, { Tag: tag })
-									Api.asc_RemoveSelection()
-								}
-							})
-						})
 
-						// 标记空白行
-						{
-							// debugger;
-							var content = control.GetContent()
-							var elements = content.GetElementsCount()
-							for (var j = elements - 1; j >= 0; j--) {
-								var para = content.GetElement(j)
-								if (para.GetClassType() !== 'paragraph') {
-									break
-								}
-								var text = para.GetText()
-								if (text.trim() !== '') {
-									break
-								}
-							}
+                    // 标记inline的答题区域
+                    var text = control.GetRange().GetText();
+                    var rangePatt = /(([\(]|[\（])(\s|\&nbsp\;)*([\）]|[\)]))|(___*)/gs
+                    var match;
+                    var ranges = [];
+                    var regionTexts = [];
+                    while ((match = rangePatt.exec(text)) !== null) {
+                        ranges.push([match.index, match.index + match[0].length]);
+                        regionTexts.push(match[0]);
+                    }
+                    if (ranges.length > 0) {
+                        marker_log(text, ranges);
+                    }
+                    var textSet = new Set();
+                    regionTexts.forEach(e => textSet.add(e));
 
-							if (j < elements - 1) {
-								var range = content.GetElement(j + 1).GetRange()
-								var endRange = content.GetElement(elements - 1).GetRange()
-								range = range.ExpandTo(endRange)
-								range.Select()
-								var tag = JSON.stringify({ regionType: 'write', mode: 5 })
-								Api.asc_AddContentControl(1, { Tag: tag })
-								Api.asc_RemoveSelection()
-							}
-						}
-					}
-				}
-			},
-			false,
-			false
-		)
-	}
+                    let includeRange = function(a, b)
+                    {
+                        return (a.Element === b.Element &&
+                            a.Start >= b.Start &&
+                            a.End <= b.End);
+                    };
+                    let mergeRange = function(arrA, arrB)
+                    {
+                        let all = arrA.concat(arrB);
+                        let ret = []
+                        for(var i = 0; i < all.length; i++) {
+                            var newE = true;
+                            for (var j = 0; j < all.length; j++) {
+                                if (i == j)
+                                    continue;
+                                if (includeRange(all[i], all[j])) {
+                                    newE = false;
+                                }
+                            }    
+                            if (newE)
+                                ret.push(all[i]);
+                        }
+                        return ret;
+                    };
+                    
+
+                    //debugger;
+                    var apiRanges = [];
+                    textSet.forEach(e => {
+                        var ranges = control.Search(e, false);
+                        //debugger;;
+                        apiRanges = mergeRange(apiRanges, ranges);
+                    });
+
+                        // search 有bug少返回一个字符            
+                    apiRanges.reverse().forEach(apiRange => {
+                            apiRange.Select();
+                            var tag = JSON.stringify({ 'regionType': 'write', 'mode': 3 });
+                            Api.asc_AddContentControl(2, { "Tag": tag });
+                            Api.asc_RemoveSelection();
+                    });
+                    
+
+                    // 标记空白行
+                    {
+                        //debugger;
+                        var content = control.GetContent();
+                        var elements = content.GetElementsCount();
+                        for (var j = elements - 1; j >= 0; j--) {
+                            var para = content.GetElement(j);
+                            if (para.GetClassType() !== "paragraph") {
+                                break;
+                            }
+                            var text = para.GetText();
+                            if (text.trim() !== '') {
+                                break;
+                            }
+                        }
+
+                        if (j < elements - 1) {
+                            var range = content.GetElement(j + 1).GetRange();
+                            var endRange = content.GetElement(elements - 1).GetRange();
+                            range = range.ExpandTo(endRange);
+                            range.Select();
+                            var tag = JSON.stringify({ 'regionType': 'write', 'mode': 5 });
+                            Api.asc_AddContentControl(1, { "Tag": tag });
+                            Api.asc_RemoveSelection();
+                        }
+                    }
+                }
+            }
+        }, false, false);
+    }
 
 	// 插件初始化
 	window.Asc.plugin.init = function () {
