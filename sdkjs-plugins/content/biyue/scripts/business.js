@@ -4056,7 +4056,7 @@ function getAllPositions() {
 											askBounds.forEach(e => {
                         if (e.W) {
                           item.write_ask_region.push({
-                            order: item.write_ask_region.length + 1 + '',
+                            order: mark_order + '',
                             page: e.Page + 1,
                             x: mmToPx(e.X),
                             y: mmToPx(e.Y),
@@ -4116,7 +4116,7 @@ function getAllPositions() {
             bounds.forEach((e) => {
               item.write_ask_region.push({
                 page: e.Page + 1,
-                order: item.write_ask_region.length + 1 + '',
+                order: '1',
                 v: item.score + '',
                 x: e.X,
                 y: e.Y,
