@@ -333,8 +333,8 @@ function showQuesData(params) {
 	}
 	g_client_id = params.client_id
 	var question_map = window.BiyueCustomData.question_map || {}
-  let choice_display = window.BiyueCustomData.choice_display || {}
-  let ignore_ask_list = false
+  	let choice_display = window.BiyueCustomData.choice_display || {}
+  	let ignore_ask_list = false
 	var quesData = question_map ? question_map[g_client_id] : null
 	if (g_client_id) {
 		var node_list = window.BiyueCustomData.node_list || []
@@ -385,7 +385,7 @@ function showQuesData(params) {
 	console.log('=========== showQuesData ques:', quesData)
 	g_ques_id = ques_client_id
 	if (quesData.level_type == 'question') {
-    	if (choice_display.style && choice_display.style === 'show_choice_region') {
+    	if ((quesData.ques_mode == 1 || quesData.ques_mode == 5) && choice_display.style && choice_display.style === 'show_choice_region') {
       		// 如果是开启了集中作答区状态，则需要忽略对应题目的小问
       		let node = node_list.find(e => {
         		return e.id == ques_client_id
