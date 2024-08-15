@@ -948,7 +948,12 @@ import { initView } from './pageView.js'
 		}
 		// 切题
 		addBtnClickEvent('splitQuestionBtn', onSplitQuestion)
-		addBtnClickEvent('clearControl', clearAllControls)
+		addBtnClickEvent('clearControl', () => {
+			onClearAllControls(true).then(() => {
+				window.BiyueCustomData.node_list = []
+				window.biyueCustomData.question_map = {}
+			})
+		})
 		addBtnClickEvent('checkAnswerRegionBtn', checkAnswerRegion)
 		addBtnClickEvent('toggleStyleBtn', toggleControlStyle)
 		// Todo 考虑其他实现方法
@@ -1084,6 +1089,77 @@ import { initView } from './pageView.js'
 				})
 			}
 		}
+	}
+	function onClearAllControls(recalc = false) {
+		return biyueCallCommand(window, function () {
+			var oDocument = Api.GetDocument()
+			var controls = oDocument.GetAllContentControls() || []
+			// 先删除所有题目的互动
+			var drawings = oDocument.GetAllDrawingObjects() || []
+			for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
+				var oDrawing = drawings[j]
+				if (oDrawing.Drawing.docPr) {
+					var title = oDrawing.Drawing.docPr.title
+					if (title && title.indexOf('feature') >= 0) {
+						try {
+							var titleObj = JSON.parse(title)
+							if (
+								titleObj.feature &&
+								titleObj.feature.zone_type == 'question'
+							) {
+								oDrawing.Delete()
+							}
+						} catch (error) {
+							console.log('json解析失败', error)
+						}
+					}
+				}
+			}
+			// 再删除所有control
+			console.log('删除所有control')
+			controls.forEach((e) => {
+				Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
+			})
+			// 重置单元格颜色
+			var tables = oDocument.GetAllTables() || []
+			for (var t = 0, tmax = tables.length; t < tmax; ++t) {
+				var oTable = tables[t]
+				var rowcount = oTable.GetRowsCount()
+				for (var r = 0; r < rowcount; ++r) {
+					var oRow = oTable.GetRow(r)
+					var cellcount = oRow.GetCellsCount()
+					for (var c = 0; c < cellcount; ++c) {
+						var oCell = oRow.GetCell(c)
+						var shd = oCell.Cell.Get_Shd()
+						if (shd) {
+							var fill = shd.Fill
+							if (fill && fill.r == 255 && fill.g == 191 && fill.b == 191) {
+								oCell.SetBackgroundColor(255, 191, 191, true)
+							}
+						}
+					}
+				}
+			}
+			// 删除选择题集中作答区
+			for (var i1 = tables.length - 1; i1 >= 0; --i1) {
+				var tableTitle = tables[i1].GetTableTitle()
+				if (tableTitle.indexOf('choiceGather') >= 0) {
+					var pos = tables[i1].GetPosInParent()
+					var parent = tables[i1].Table.GetParent()
+					if (parent) {
+						var oParent = Api.LookupObject(parent.Id)
+						oParent.RemoveElement(pos)
+					}
+				}
+			}
+			var text_all = oDocument.GetRange().GetText({
+				Math: false,
+				TableCellSeparator: '\u24D2',
+				TableRowSeparator: '\u24E1',
+			}) || ''
+			var text_json = oDocument.ToJSON(false, false, false, false, true, true)
+			return { text_all, text_json }
+		}, false, recalc)
 	}
 	// 显示分数框
 	function showScoreContent() {
@@ -1995,75 +2071,7 @@ import { initView } from './pageView.js'
 	}
 	// 重新切题
 	function reSplitQustion() {
-		return biyueCallCommand(
-			window,
-			function () {
-				var oDocument = Api.GetDocument()
-				var controls = oDocument.GetAllContentControls()
-				// 先删除所有题目的互动
-				var drawings = oDocument.GetAllDrawingObjects()
-				if (drawings) {
-					for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
-						var oDrawing = drawings[j]
-						if (oDrawing.Drawing.docPr) {
-							var title = oDrawing.Drawing.docPr.title
-							if (title && title.indexOf('feature') >= 0) {
-								try {
-									var titleObj = JSON.parse(title)
-									if (
-										titleObj.feature &&
-										titleObj.feature.zone_type == 'question'
-									) {
-										oDrawing.Delete()
-									}
-								} catch (error) {
-									console.log('json解析失败', error)
-								}
-							}
-						}
-					}
-				}
-				// 再删除所有control
-				console.log('删除所有control')
-				controls.forEach((e) => {
-					Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
-				})
-				// 重置单元格颜色
-				var tables = oDocument.GetAllTables()
-				for (var t = 0, tmax = tables.length; t < tmax; ++t) {
-					var oTable = tables[t]
-					var rowcount = oTable.GetRowsCount()
-					for (var r = 0; r < rowcount; ++r) {
-						var oRow = oTable.GetRow(r)
-						var cellcount = oRow.GetCellsCount()
-						for (var c = 0; c < cellcount; ++c) {
-							var oCell = oRow.GetCell(c)
-							var shd = oCell.Cell.Get_Shd()
-							if (shd) {
-								var fill = shd.Fill
-								if (fill && fill.r == 255 && fill.g == 191 && fill.b == 191) {
-									oCell.SetBackgroundColor(255, 191, 191, true)
-								}
-							}
-						}
-					}
-				}
-
-				var text_all =
-				oDocument
-					.GetRange()
-					.GetText({
-							Math: false,
-							TableCellSeparator: '\u24D2',
-							TableRowSeparator: '\u24E1',
-						}) || ''
-				var text_json = oDocument.ToJSON(false, false, false, false, true, true)
-
-				return { text_all, text_json }
-			},
-			false,
-			false
-		)
+		return onClearAllControls()
 			.then((result) => {
 				var ranges = newSplit(result.text_json)
 				console.log('splitQuestion:', ranges)
