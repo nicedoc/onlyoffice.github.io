@@ -5162,78 +5162,77 @@ function splitControl(qid) {
 			if (ranges.length > 0) {
 				marker_log(text, ranges)
 			}
-			var textSet = new Set()
-			regionTexts.forEach((e) => textSet.add(e))
-			let myArray = Array.from(textSet)
-			// console.log('======= textSet', textSet)
+			var textSet = new Set();
+			regionTexts.forEach(e => textSet.add(e));
+
+			let includeRange = function(a, b)
+			{
+				return (a.Element === b.Element &&
+					a.Start >= b.Start &&
+					a.End <= b.End);
+			};
+			let mergeRange = function(arrA, arrB)
+			{
+				let all = arrA.concat(arrB);
+				let ret = []
+				for(var i = 0; i < all.length; i++) {
+					var newE = true;
+					for (var j = 0; j < all.length; j++) {
+						if (i == j)
+							continue;
+						if (includeRange(all[i], all[j])) {
+							newE = false;
+						}
+					}    
+					if (newE)
+						ret.push(all[i]);
+				}
+				return ret;
+			};
+			
+
 			//debugger;
-			myArray = myArray.sort((a, b) => {
-				if (a.length - b.length > 0) {
-					return -1
-				} else if (a.length - b.length < 0) {
-					return 1
-				}
-				return 0
-			})
-			let sortedSet = new Set(myArray)
-			sortedSet.forEach((e) => {
-				var apiRanges = control.Search(e, false)
-				//debugger;
-				// search 有bug少返回一个字符
-				apiRanges.reverse().forEach((apiRange) => {
-					// console.log('apiRanges', apiRange)
-					var inInline = true
-					if (apiRange.StartPos && apiRange.EndPos) {
-						var index1 = apiRange.StartPos.findIndex(e2 => {
-							return e2.Class.Type == 68	
+			var apiRanges = [];
+			textSet.forEach(e => {
+				var ranges = control.Search(e, false);
+				//debugger;;
+				apiRanges = mergeRange(apiRanges, ranges);
+			});
+
+				// search 有bug少返回一个字符            
+			apiRanges.reverse().forEach(apiRange => {
+					apiRange.Select();
+					client_node_id += 1
+					var tag = JSON.stringify({ regionType: 'write', mode: 3, client_id: client_node_id, color: '#ff000040' })
+					var oResult = Api.asc_AddContentControl(2, { Tag: tag })
+					if (oResult) {
+						result.change_list.push({
+							client_id: client_node_id,
+							control_id: oResult.InternalId,
+							parent_id: getParentId(Api.LookupObject(oResult.InternalId)),
+							regionType: 'write'
 						})
-						if (index1 < 0) {
-							inInline = false
-						} else {
-							var index2 = apiRange.EndPos.findIndex(e2 => {
-								return e2.Class.Type == 68
-							})
-							if (index2 < 0) {
-								inInline = false
-							}
-						}
 					}
-					if (!inInline) {
-						apiRange.Select()
-						// console.log('======apiRange ', apiRange)
-						client_node_id += 1
-						var tag = JSON.stringify({ regionType: 'write', mode: 3, client_id: client_node_id, color: '#ff000040' })
-						var oResult = Api.asc_AddContentControl(2, { Tag: tag })
-						if (oResult) {
-							result.change_list.push({
-								client_id: client_node_id,
-								control_id: oResult.InternalId,
-								parent_id: getParentId(Api.LookupObject(oResult.InternalId)),
-								regionType: 'write'
-							})
-						}
-						Api.asc_RemoveSelection()
-					}
-				})
-			})
-			var content = control.GetContent()
-			var elements = content.GetElementsCount()
+					Api.asc_RemoveSelection();
+			});
+			var content = control.GetContent();
+			var elements = content.GetElementsCount();
 			for (var j = elements - 1; j >= 0; j--) {
-				var para = content.GetElement(j)
-				if (para.GetClassType() !== 'paragraph') {
-					break
+				var para = content.GetElement(j);
+				if (para.GetClassType() !== "paragraph") {
+					break;
 				}
-				var text = para.GetText()
+				var text = para.GetText();
 				if (text.trim() !== '') {
-					break
+					break;
 				}
 			}
 
 			if (j < elements - 1) {
-				var range = content.GetElement(j + 1).GetRange()
-				var endRange = content.GetElement(elements - 1).GetRange()
-				range = range.ExpandTo(endRange)
-				range.Select()
+				var range = content.GetElement(j + 1).GetRange();
+				var endRange = content.GetElement(elements - 1).GetRange();
+				range = range.ExpandTo(endRange);
+				range.Select();
 				client_node_id += 1
 				var tag = JSON.stringify({ regionType: 'write', mode: 5, client_id: client_node_id, color: '#ff000040' })
 
@@ -5246,7 +5245,7 @@ function splitControl(qid) {
 						regionType: 'write'
 					})
 				}
-				Api.asc_RemoveSelection()
+				Api.asc_RemoveSelection();
 			}
 		}
 		result.client_node_id = client_node_id
