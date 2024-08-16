@@ -1383,7 +1383,10 @@ function setInteraction(type, quesIds) {
 									oRun,
 									0
 								)
-								oDrawing.SetWrappingStyle('inline')
+								oShape.SetVerticalTextAlign("top")
+								oDrawing.SetVerPosition("paragraph", 0);
+								oDrawing.SetHorAlign('column', 'left');
+								oDrawing.SetWrappingStyle('inFront')
 							}
 						}
 					}
