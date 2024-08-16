@@ -72,6 +72,21 @@ function reqSubjectMarkTypes(subject_value) {
 	})
 }
 
+function reqSaveInfo(paper_uuid, info) {
+	return request({
+		url: '/oodoc/save/info',
+		method: 'POST',
+		isJsonData: true,
+		headers: {
+			'Content-Type': 'application/json;charset=UTF-8',
+		},
+		data: {
+			paper_uuid,	// 试卷UUID	是	[string]	933f5fa3-3f1c-4020-887f-206d67d6741f	查看
+			info,
+		},
+	})
+}
+
 
 /**
  * 上传试卷预览图
@@ -378,6 +393,7 @@ export {
 	reqPaperInfo,
 	reqSaveQuestion,
 	reqSubjectMarkTypes,
+	reqSaveInfo,
 	structAdd,
 	structDelete,
 	structEmpty,

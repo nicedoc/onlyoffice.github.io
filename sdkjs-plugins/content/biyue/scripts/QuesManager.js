@@ -2149,6 +2149,19 @@ function splitEnd() {
 function showLevelSetDialog() {
 	window.biyue.showDialog(levelSetWindow, '自动序号识别设置', 'levelSet.html', 592, 400)
 }
+function updateDataBySavedData(str) {
+	if (!str || str == '') {
+		return
+	}
+	try {
+		var data = JSON.parse(str)
+		window.BiyueCustomData.client_node_id = data.client_node_id
+		window.BiyueCustomData.node_list = data.node_list
+		window.BiyueCustomData.question_map = data.question_map	
+	} catch (error) {
+		console.log(error)
+	}
+}
 // 由于从BiyueCustomData中获取的中文取出后会是乱码，需要在初始化时，再根据controls刷新一次数据
 function initControls() {
 	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
@@ -5326,5 +5339,6 @@ export {
 	getQuesMode,
 	tagImageCommon,
 	updateQuesScore,
-	splitControl
+	splitControl,
+	updateDataBySavedData
 }

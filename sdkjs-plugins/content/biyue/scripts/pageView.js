@@ -13,6 +13,7 @@ import {
 	showLevelSetDialog
 } from './QuesManager.js'
 import { showCom, updateText, addClickEvent } from './model/util.js'
+import { reqSaveInfo } from './api/paper.js'
 function initView() {
 	showCom('#initloading', true)
 	showCom('#hint1', false)
@@ -60,6 +61,7 @@ function initView() {
 	})
 	addClickEvent('#getQuesType', reqGetQuestionType)
 	addClickEvent('#viewQuesType', onViewQuesType)
+	addClickEvent('#saveData', onSaveData)
 }
 
 function handlePaperInfoResult(success, res) {
@@ -122,6 +124,35 @@ function changeTabPanel(id) {
 
 function onViewQuesType() {
 	// console.log('展示题型') todo..
+}
+
+function onSaveData() {
+	var quesmap = window.BiyueCustomData.question_map || {}
+	var treemap = {}
+	Object.keys(quesmap).forEach(id => {
+		treemap[id] = Object.assign({}, quesmap[id])
+		delete treemap[id].text
+		delete treemap[id].ques_default_name
+	})
+	var info = {
+		node_list: window.BiyueCustomData.node_list || [],
+		question_map: treemap,
+		client_node_id: window.BiyueCustomData.client_node_id
+	}
+	var str = JSON.stringify(info)
+	console.log('保存数据', str)
+	reqSaveInfo(window.BiyueCustomData.paper_uuid, str).then(res => {
+		window.biyue.showMessageBox({
+			content: '保存成功',
+			showCancel: false
+		})
+	}).catch(res => {
+		window.biyue.showMessageBox({
+			content: '保存失败',
+			showCancel: false
+		})
+	})
+	
 }
 
 export {

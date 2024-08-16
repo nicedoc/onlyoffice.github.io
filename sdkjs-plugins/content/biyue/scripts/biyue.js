@@ -40,7 +40,8 @@ import {
 	showAskCells,
 	onContextMenuClick,
 	layoutRepair,
-	tagImageCommon
+	tagImageCommon,
+	updateDataBySavedData
 } from './QuesManager.js'
 
 import { initView } from './pageView.js'
@@ -2006,6 +2007,9 @@ import { initView } from './pageView.js'
 					initExtroInfo()
 					// reSplitQustion()
 				} else {
+					if (res2.data && res2.data.paper && res2.data.paper.info) {
+						updateDataBySavedData(res2.data.paper.info)
+					}
 					initControls().then(() => {
 						Asc.scope.split_getdoc = false
 						initExtroInfo()
