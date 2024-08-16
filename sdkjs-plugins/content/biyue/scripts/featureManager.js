@@ -953,6 +953,7 @@ function drawList(list) {
 												title: JSON.stringify(titleobj),
 											})
 											oParagraph.AddDrawing(oAdd)
+											oAdd.Drawing.Set_Parent(oParagraph.Paragraph)
 										}
 										// 页码
 										var oAddNum = getTypeDrawing(oParagraph, 'pagination')
@@ -985,6 +986,7 @@ function drawList(list) {
 											oAddNum.SetVerPosition('bottomMargin', (PageMargins.Bottom -pbottom - psize) * 36e3)
 											if (needAdd) {
 												oParagraph.AddDrawing(oAddNum)
+												oAddNum.Drawing.Set_Parent(oParagraph.Paragraph)
 											}
 										}
 									})									
