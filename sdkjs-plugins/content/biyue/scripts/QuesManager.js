@@ -33,6 +33,13 @@ function handleDocClick(isSelectionUse) {
 						}),
 					})
 					document.dispatchEvent(event)
+				} else if (window.tab_select == 'tabQues') {
+					var event = new CustomEvent('clickSingleQues', {
+						detail: {
+							InternalId: returnValue.InternalId
+						},
+					})
+					document.dispatchEvent(event)
 				}
 			} catch (error) {
 				console.log(error)

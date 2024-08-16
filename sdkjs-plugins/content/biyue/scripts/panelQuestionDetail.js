@@ -43,30 +43,30 @@ function initElements() {
 	content = `
   <div class="hint" style="text-align:center">请先选中一道题</div>
   <div id="panelQuesWrapper">
-    <div>题目：<span id="ques_text"></span></div>
+    <div><span id="texttitle">题目：</span><span id="ques_text"></span></div>
     <table style="width: 100%">
       <tbody>
 	  	<tr>
           <td class="padding-small" colspan="2" width="100%">
-            <label class="header">题号</label>
+            <label class="header" id="nametitle">题号</label>
 			<div id="ques_name" class="spinner" style="width: 100%">
       			<input type="text" class="form-control" spellcheck="false">
     		</div>
           </td>
         </tr>
-        <tr>
+        <tr id="quesTypeTr">
           <td class="padding-small" colspan="2" width="100%">
             <label class="header">题型</label>
             <div id="questionType"></div>
           </td>
         </tr>
-		<tr>
+		<tr id="quesModeTr">
           <td class="padding-small" colspan="2" width="100%">
             <label class="header">作答模式</label>
             <div id="questionMode"></div>
           </td>
         </tr>
-        <tr>
+        <tr id="proportionTr">
           <td class="padding-small" colspan="1" width="50%">
             <label class="header">占比</label>
             <div id="proportion"></div>
@@ -76,7 +76,7 @@ function initElements() {
             <div id="quesInteraction"></div>
           </td>
         </tr>
-        <tr>
+        <tr id="weightTr">
           <td class="padding-small" colspan="2" width="100%">
             <label class="header">权重/分数</label>
             <div id="ques_weight"></div>
@@ -229,6 +229,18 @@ function resetEvent() {
 	}
 }
 
+function showQuesCom(v) {
+	showCom('#quesTypeTr', v)
+	showCom('#quesModeTr', v)
+	showCom('#proportionTr', v)
+	showCom('#weightTr', v)
+	showCom('#markModeTr', v)
+	showCom('#scoreTr', v)
+	showCom('#scores', v)
+	showCom('#panelQuesAsks', v)
+	showCom('#resplitQues', v)
+}
+
 function updateElements(quesData, hint, ignore_ask_list) {
 	resetEvent()
 	if (!inited) {
@@ -240,8 +252,24 @@ function updateElements(quesData, hint, ignore_ask_list) {
 		$('#panelQues .hint').html(`${hint ? (hint + '，') : ''}请先选中一道题`)
 		return
 	}
+	if (quesData.level_type == 'struct') {
+		$('#panelQues .hint').hide()
+		$('#panelQuesWrapper').show()
+		showQuesCom(false)
+		if (quesData.text) {
+			$('#texttitle').html('题组：')
+			$('#nametitle').html('题组名')
+			$('#ques_text').html(quesData.text)
+			$('#ques_text').attr('title', quesData.text)
+		}
+		$(`#ques_name input`).val(quesData.ques_name || quesData.ques_default_name || '')
+		return
+	}
+	$('#texttitle').html('题目：')
+	$('#nametitle').html('题号')
 	$('#panelQues .hint').hide()
 	$('#panelQuesWrapper').show()
+	showQuesCom(true)
 	$(`#ques_name input`).val(quesData.ques_name || quesData.ques_default_name || '')
 	if (select_type) {
 		select_type.setSelect((quesData.question_type || 0) + '')
@@ -344,7 +372,8 @@ function showQuesData(params) {
 		console.log('nodeData', nodeData)
 		if (nodeData) {
 			if (nodeData.level_type == 'struct') {
-				updateElements(null, `当前选中为题组`)
+				g_ques_id = g_client_id
+				updateElements(question_map[nodeData.id], `当前选中为题组`)
 				return
 			} else if (nodeData.level_type == 'text') {
 				updateElements(null, `当前选中为待处理文本`)
@@ -397,7 +426,8 @@ function showQuesData(params) {
 		updateElements(quesData, null, ignore_ask_list)
 		updateAskSelect(findIndex)
 	} else if (quesData.level_type == 'struct') {
-		updateElements(null, `当前选中为题组：${quesData ? quesData.ques_default_name : ''}`)
+		g_ques_id = ques_client_id
+		updateElements(quesData, `当前选中为题组：${quesData ? quesData.ques_default_name : ''}`)
 		return
 	} else {
 		updateElements(null)
@@ -498,13 +528,15 @@ function initListener() {
 }
 
 function changeQuesName(data) {
-	window.BiyueCustomData.question_map[g_ques_id].ques_name = data
+	if (window.BiyueCustomData.question_map[g_ques_id]) {
+		window.BiyueCustomData.question_map[g_ques_id].ques_name = data
+	}
 	autoSave()
 }
 
 function changeScore(id, data) {
 	var v = data * 1
-	if (isNaN(v)) {
+	if (isNaN(v) || !window.BiyueCustomData.question_map[g_ques_id]) {
 		return
 	}
 	var ask_list = window.BiyueCustomData.question_map[g_ques_id].ask_list
@@ -614,6 +646,9 @@ function autoSave(updatescore) {
 
 function deleteAsk(index) {
 	var quesData = window.BiyueCustomData.question_map[g_ques_id]
+	if (!quesData || !quesData.ask_list || index >= quesData.ask_list.length) {
+		return
+	}
 	deleteAsks([{
 		ques_id: g_ques_id,
 		ask_id: quesData.ask_list[index].id
@@ -646,12 +681,18 @@ function updateQuesMode(ques_mode) {
 }
 
 function changeMarkMode(data) {
+	if (!window.BiyueCustomData.question_map[g_ques_id]) {
+		return
+	}
 	window.BiyueCustomData.question_map[g_ques_id].mark_mode = data.value
 	updateScoreComponent()
 	autoSave(true)
 }
 
 function updateScoreComponent() {
+	if (!window.BiyueCustomData.question_map[g_ques_id]) {
+		return
+	}
 	var mark_mode = window.BiyueCustomData.question_map[g_ques_id].mark_mode
 	if (!mark_mode || mark_mode == 1) {
 		showCom('#scoreTr', false)
@@ -673,12 +714,18 @@ function updateScoreComponent() {
 }
 
 function changeScoreMode(data) {
+	if (!window.BiyueCustomData.question_map[g_ques_id]) {
+		return
+	}
 	window.BiyueCustomData.question_map[g_ques_id].score_mode = data.value
 	updateScores()
 	autoSave(true)
 }
 
 function changeScoreLayout(data) {
+	if (!window.BiyueCustomData.question_map[g_ques_id]) {
+		return
+	}
 	window.BiyueCustomData.question_map[g_ques_id].score_layout = data.value
 	autoSave(true)
 }
@@ -691,6 +738,9 @@ function removeScoreEvent() {
 }
 
 function clickScore(e) {
+	if (!window.BiyueCustomData.question_map[g_ques_id] || !window.BiyueCustomData.question_map[g_ques_id].score_list) {
+		return
+	}
 	if (e && e.target && e.target.dataset && e.target.dataset.idx) {
 		e.target.classList.toggle('selected')
 		window.BiyueCustomData.question_map[g_ques_id].score_list[e.target.dataset.idx].use = !window.BiyueCustomData.question_map[g_ques_id].score_list[e.target.dataset.idx].use
@@ -700,6 +750,9 @@ function clickScore(e) {
 
 function updateScores() {
 	removeScoreEvent()
+	if (!window.BiyueCustomData.question_map[g_ques_id]) {
+		return
+	}
 	var mark_mode = window.BiyueCustomData.question_map[g_ques_id].mark_mode
 	if (!mark_mode || mark_mode == 1) {
 		showCom('#scores', false)
@@ -751,6 +804,9 @@ function updateScores() {
 }
 
 function cancelAllScore() {
+	if (!window.BiyueCustomData.question_map[g_ques_id]) {
+		return
+	}
 	var coms = document.querySelectorAll('.score-item')
 	if (coms && coms.length) {
 		for (var i = 0; i < coms.length; ++i) {
@@ -819,7 +875,7 @@ function updateAskSelect(index) {
 
 function onClearAllAsks() {
 	var quesData = window.BiyueCustomData.question_map[g_ques_id]
-	if (quesData.ask_list) {
+	if (quesData && quesData.ask_list) {
 		var list = quesData.ask_list.map(e => {
 			return {
 				ques_id: g_ques_id,
@@ -832,7 +888,7 @@ function onClearAllAsks() {
 
 function resplitQues() {
 	var quesData = window.BiyueCustomData.question_map[g_ques_id]
-	if (quesData.ask_list && quesData.ask_list.length) {
+	if (quesData && quesData.ask_list && quesData.ask_list.length) {
 		var list = quesData.ask_list.map(e => {
 			return {
 				ques_id: g_ques_id,
