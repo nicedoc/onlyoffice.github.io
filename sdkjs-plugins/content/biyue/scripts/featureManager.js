@@ -273,6 +273,10 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 					if (title && title.indexOf('feature') >= 0) {
 						var titleObj = getJsonData(title)
 						if (titleObj.feature && titleObj.feature.zone_type) {
+							// 作答区和识别框不应该被删除
+							if (titleObj.feature.sub_type == 'write' || titleObj.feature.sub_type == 'identify' || titleObj.feature.type == 'score') {
+								continue
+							}
 							if (exceptList) {
 								var inExcept = exceptList.findIndex(e => {
 									return e.zone_type == titleObj.feature.zone_type

@@ -2155,9 +2155,11 @@ function updateDataBySavedData(str) {
 	}
 	try {
 		var data = JSON.parse(str)
-		window.BiyueCustomData.client_node_id = data.client_node_id
-		window.BiyueCustomData.node_list = data.node_list
-		window.BiyueCustomData.question_map = data.question_map	
+		if (data.client_node_id) {
+			window.BiyueCustomData.client_node_id = data.client_node_id
+			window.BiyueCustomData.node_list = data.node_list
+			window.BiyueCustomData.question_map = data.question_map	
+		}
 	} catch (error) {
 		console.log(error)
 	}
