@@ -306,7 +306,7 @@ import { setXToken } from './auth.js'
     let index = 1
     for (const key in ques_list) {
       let item = ques_list[key] || ""
-      if (item && item.ref_id && item.ques_type !== 6) {
+      if (item && item.ref_id && item.ques_mode !== 6) {
         if (!positions[item.ref_id]) {
           positions[item.ref_id] = {}
         }
