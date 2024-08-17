@@ -2108,7 +2108,11 @@ import { initView } from './pageView.js'
 
 	function showMessageBox(params) {
 		Asc.scope.messageData = params
-		showDialog(messageBoxWindow, params.title || '提示', 'message.html', 200, 100, true)
+		var ismodal = true
+		if (params.is_modal != undefined && params.is_modal == false) {
+			ismodal = false
+		}
+		showDialog(messageBoxWindow, params.title || '提示', 'message.html', 200, 100, ismodal)
 	}
 
   function changeImageIgnoreMark(type) {
