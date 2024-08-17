@@ -1309,7 +1309,7 @@ function updateRangeControlType(typeName) {
 							// 暂不支持直接将单元格设置为题目
 							return {
 								code: 0,
-								message: '请先选中一个范围'
+								message: '暂不支持直接将单元格设置为题目'
 							}
 						}
 					}
