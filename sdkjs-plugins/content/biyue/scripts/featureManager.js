@@ -1406,10 +1406,19 @@ function setInteraction(type, quesIds) {
 			if (!oControl) {
 				return
 			}
+			var drawings = oControl.GetAllDrawingObjects()
+			if (type == 'none') {
+				var dlist = getExistDrawing(drawings, ['ask_accurate'])
+				if (dlist && dlist.length) {
+					dlist.forEach(e => {
+						deleShape(e)
+					})
+				}
+				return
+			}
 			if (!write_list || !ask_list) {
 				return
 			}
-			var drawings = oControl.GetAllDrawingObjects()
 			for (var i = 0; i < ask_list.length; ++i) {
 				var askData = write_list.find(e => {
 					return e.id == ask_list[i].id
