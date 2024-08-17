@@ -44,6 +44,8 @@ import {
 	updateDataBySavedData
 } from './QuesManager.js'
 
+import { reqSaveInfo } from './api/paper.js'
+
 import { initView } from './pageView.js'
 
 ;(function (window, undefined) {
@@ -87,8 +89,13 @@ import { initView } from './pageView.js'
 				break
       		case 'positionSaveSuccess':
 				window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
-            showOrHiddenRegion('show')
-            alert('上传成功')
+                let params = {
+                    message: '上传成功',
+                    saveData: true,
+                    showMessageBox: true,
+                    showCancel: false
+                }
+                showOrHiddenRegion('show', params)
 				break
 			case 'scoreSetSuccess': // 分数设置成功
 				if (message.data.control_list) {
@@ -1359,10 +1366,39 @@ import { initView } from './pageView.js'
 		}
 	}
 
-  function showOrHiddenRegion(type) {
+  function showOrHiddenRegion(type, params) {
     // 在上传前隐藏标识区域 关闭窗口后需要重新开启
     changeImageIgnoreMark(type).then(()=>{
-      handleAllWrite(type)
+      handleAllWrite(type).then(()=>{
+        // 隐藏浮动的识别框
+        if (params.saveData) {
+          // 保存数据
+          var quesmap = window.BiyueCustomData.question_map || {}
+          var treemap = {}
+          Object.keys(quesmap).forEach(id => {
+            treemap[id] = Object.assign({}, quesmap[id])
+            delete treemap[id].text
+            delete treemap[id].ques_default_name
+          })
+          var info = {
+            node_list: window.BiyueCustomData.node_list || [],
+            question_map: treemap,
+            client_node_id: window.BiyueCustomData.client_node_id
+          }
+          var str = JSON.stringify(info)
+          reqSaveInfo(window.BiyueCustomData.paper_uuid, str).then(res => {
+            window.biyue.showMessageBox({
+              content: params.message,
+              showCancel: params.showCancel
+            })
+          }).catch(res => {
+            window.biyue.showMessageBox({
+              content: '上传成功，但是试卷保存数据失败',
+              showCancel: false
+            })
+          })
+        }
+      })
     })
   }
 
@@ -2108,7 +2144,11 @@ import { initView } from './pageView.js'
 
 	function showMessageBox(params) {
 		Asc.scope.messageData = params
-		showDialog(messageBoxWindow, params.title || '提示', 'message.html', 200, 100, true)
+		var ismodal = true
+		if (params.is_modal != undefined && params.is_modal == false) {
+			ismodal = false
+		}
+		showDialog(messageBoxWindow, params.title || '提示', 'message.html', 200, 100, ismodal)
 	}
 
   function changeImageIgnoreMark(type) {

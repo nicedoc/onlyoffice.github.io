@@ -4013,6 +4013,7 @@ function getAllPositions() {
 						answer: '',
 						ref_id: question_obj.uuid || '',
 						ques_type: question_obj.question_type || '',
+						ques_mode: question_obj.ques_mode || 3,
 						ques_name: question_obj.ques_name || question_obj.ques_default_name,
 						mark_method: '1',
 						mark_ask_region: {},
