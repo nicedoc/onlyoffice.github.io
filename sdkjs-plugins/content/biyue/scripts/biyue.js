@@ -614,7 +614,8 @@ import { initView } from './pageView.js'
 			callback()
 			return
 		}
-
+		window.BiyueCustomData.time = new Date().toString()
+		console.log('[StoreCustomData]', window.BiyueCustomData.time)
 		Asc.scope.BiyueCustomId = window.BiyueCustomId
 		Asc.scope.BiyueCustomData = window.BiyueCustomData
 		window.Asc.plugin.callCommand(

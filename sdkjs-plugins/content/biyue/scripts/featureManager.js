@@ -1491,6 +1491,9 @@ function setInteraction(type, quesIds) {
 			if (tag.regionType != 'question') {
 				continue
 			}
+			if (!question_map[tag.client_id]) {
+				continue
+			}
 			if (interaction_type_use != 'none') {
 				if (!question_map[tag.client_id] || question_map[tag.client_id].level_type != 'question') {
 					continue
