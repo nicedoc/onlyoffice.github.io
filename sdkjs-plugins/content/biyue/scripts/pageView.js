@@ -137,7 +137,8 @@ function onSaveData() {
 	var info = {
 		node_list: window.BiyueCustomData.node_list || [],
 		question_map: treemap,
-		client_node_id: window.BiyueCustomData.client_node_id
+		client_node_id: window.BiyueCustomData.client_node_id,
+		time: window.BiyueCustomData.time
 	}
 	var str = JSON.stringify(info)
 	console.log('保存数据', str)

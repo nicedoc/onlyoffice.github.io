@@ -3337,6 +3337,9 @@ function reqUploadTree() {
           if (!quesData) {
             continue
           }
+		  if (!question_map[tag.client_id].level_type) {
+			continue
+		  }
           var oParentControl = oControl.GetParentContentControl()
           var parent_id = 0
           if (oParentControl) {
