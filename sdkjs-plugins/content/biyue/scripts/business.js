@@ -3821,7 +3821,7 @@ function getAllPositions() {
 								return null
 							}
 							var LvlText = oNumberingLvl.LvlText || []
-							if (LvlText && LvlText.length && LvlText[0].Value == '\ue607') {
+							if (LvlText && LvlText.length && LvlText[0].Value == '\ue749') {
 								var Numbering = oParagraph.Paragraph.Numbering
 								var numberPage = Numbering.Page
 								var numberingRect =

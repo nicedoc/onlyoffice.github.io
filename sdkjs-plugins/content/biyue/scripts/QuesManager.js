@@ -721,7 +721,7 @@ function updateRangeControlType(typeName) {
 			}
 			var LvlText = oNumberingLvl.LvlText || []
 			if (LvlText && LvlText.length) {
-				if (LvlText[0].Value!='\ue607') {
+				if (LvlText[0].Value!='\ue749') {
 					return
 				}
 			}
@@ -741,7 +741,7 @@ function updateRangeControlType(typeName) {
 						if (find) {
 							str += LvlText[i].Value
 						}
-					} else if (LvlText[i].Value != '\ue607') {
+					} else if (LvlText[i].Value != '\ue749') {
 						str += LvlText[i].Value
 						find = true
 					}
@@ -2537,7 +2537,7 @@ function confirmLevelSet(levels) {
 }
 
 function getNumberingText(text) {
-	if (text.length && text[0] == '\ue607') {
+	if (text.length && text[0] == '\ue749') {
 		return text.substring(1)
 	}
 	return text
@@ -2673,6 +2673,8 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 		var choice_blank = Asc.scope.choice_blank
 		var mark_type_info = Asc.scope.subject_mark_types
 		var ids = Asc.scope.ids
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls() || []
 		function getJsonData(str) {
 			if (!str || str == '' || typeof str != 'string') {
 				return {}
@@ -2732,10 +2734,13 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 			var nodeData = node_list.find(e => {
 				return e.id == id
 			})
-			if (!nodeData || !nodeData.control_id) {
+			if (!nodeData) {
 				continue
 			}
-			var oControl = Api.LookupObject(nodeData.control_id)
+			var oControl = controls.find(e => {
+				var tag = getJsonData(e.GetTag())
+				return e.GetClassType() == 'blockLvlSdt' && e.GetPosInParent() >= 0 && tag.client_id == nodeData.id
+			})
 			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
 				continue
 			}
@@ -2754,7 +2759,8 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 					if (childIndex >= 0) {
 						validIds.push({
 							control_id: childControls[j].Sdt.GetId(),
-							child_index: childIndex
+							child_index: childIndex,
+							client_id: childTag.client_id
 						})
 					} else {
 						deleteControlAccurate(childControls[j])
@@ -2785,7 +2791,7 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 				}
 				for (var k = begin; k <= end; ++k) {
 					var write_index = write_list.findIndex(e => {
-						return e.control_id = validIds[k].control_id
+						return e.id == validIds[k].client_id
 					})
 					if (write_index >= 0) {
 						write_list.splice(write_index, 1)
@@ -4181,6 +4187,7 @@ function deleteAsks(askList, notify = true) {
 		var delete_ask_list = Asc.scope.delete_ask_list
 		var oDocument = Api.GetDocument()
 		var drawings = oDocument.GetAllDrawingObjects()
+		var allControls = oDocument.GetAllContentControls() || []
 		function getJsonData(str) {
 			if (!str || str == '' || typeof str != 'string') {
 				return {}
@@ -4192,6 +4199,61 @@ function deleteAsks(askList, notify = true) {
 				return {}
 			}
 		}
+		function deleteAccurateRun(oRun) {
+			if (oRun &&
+				oRun.Run &&
+				oRun.Run.Content &&
+				oRun.Run.Content[0] &&
+				oRun.Run.Content[0].docPr) {
+				var title = oRun.Run.Content[0].docPr.title
+				if (title) {
+					var titleObj = getJsonData(title)
+					if (titleObj.feature && titleObj.feature.sub_type == 'ask_accurate') {
+						oRun.Delete()
+						return true
+					}
+				}
+			}
+			return false
+		}
+
+		function deleShape(oShape) {
+			if (!oShape) {
+				return
+			}
+			var run = oShape.Drawing.GetRun()
+			if (run) {
+				var runParent = run.GetParent()
+				if (runParent) {
+					var oParent = Api.LookupObject(runParent.Id)
+					if (oParent && oParent.GetClassType() == 'inlineLvlSdt') {
+						var count = oParent.GetElementsCount()
+						for (var c = 0; c < count; ++c) {
+							var child = oParent.GetElement(c)
+							if (child.GetClassType() == 'run' && child.Run.Id == run.Id) {
+								deleteAccurateRun(child)
+								break
+							}
+						}
+						return true
+					}
+				}
+				var paragraph = run.GetParagraph()
+				if (paragraph) {
+					var oParagraph = Api.LookupObject(paragraph.Id)
+					var ipos = run.GetPosInParent()
+					if (ipos >= 0) {
+						oShape.Delete()
+						if (oParagraph) {
+							oParagraph.RemoveElement(ipos)
+						}
+						return true
+					}
+				}
+			}
+			oShape.Delete()
+			return true
+		}
 		function clearQuesInteraction(oControl) {
 			if (!oControl) {
 				return
@@ -4200,18 +4262,7 @@ function deleteAsks(askList, notify = true) {
 				var elementCount = oControl.GetElementsCount()
 				for (var idx = 0; idx < elementCount; ++idx) {
 					var oRun = oControl.GetElement(idx)
-					if (oRun &&
-						oRun.Run &&
-						oRun.Run.Content &&
-						oRun.Run.Content[0] &&
-						oRun.Run.Content[0].docPr) {
-						var title = oRun.Run.Content[0].docPr.title || "{}"
-						var titleObj = getJsonData(title)
-						if (titleObj.feature && titleObj.feature.sub_type == 'ask_accurate') {
-							oRun.Delete()
-							break
-						}
-					}
+					deleteAccurateRun(oRun)
 				}
 			} else if (oControl.GetClassType() == 'blockLvlSdt') {
 				var oControlContent = oControl.GetContent()
@@ -4243,77 +4294,177 @@ function deleteAsks(askList, notify = true) {
 				var childCount = oParagraph.GetElementsCount()
 				for (var i = 0; i < childCount; ++i) {
 					var oRun = oParagraph.GetElement(i)
-					if (oRun &&
-						oRun.Run &&
-						oRun.Run.Content &&
-						oRun.Run.Content[0] &&
-						oRun.Run.Content[0].docPr) {
-						var titleObj = getJsonData(oRun.Run.Content[0].docPr.title)
-						if (titleObj.feature && titleObj.feature.sub_type == 'ask_accurate') {
-							oRun.Delete()
-							break
+					deleteAccurateRun(oRun)
+				}
+			})
+		}
+		function getControl(client_id, control_id) {
+			if (client_id) {
+				if (control_id) {
+					var oControl = Api.LookupObject(control_id)
+					if (oControl && oControl.GetTag) {
+						var pos = oControl.GetPosInParent()
+						if (pos >= 0) {
+							var tag = getJsonData(oControl.GetTag())
+							if (tag.client_id == client_id) {
+								return oControl
+							}	
 						}
 					}
 				}
-			})
+				var oControl = allControls.find(e => {
+					var tag = getJsonData(e.GetTag())
+					return tag.client_id == client_id
+				})
+				return oControl
+			}
+			return null
 		}
 		for (var i = 0, imax = delete_ask_list.length; i < imax; ++i) {
 			var qid = delete_ask_list[i].ques_id
 			var aid = delete_ask_list[i].ask_id
 			if (question_map[qid]) {
-				var askIndex = question_map[qid].ask_list.findIndex(e => e.id == aid)
-				if (askIndex >= 0) {
-					question_map[qid].ask_list.splice(askIndex, 1)
-					var sum = 0
-					question_map[qid].ask_list.forEach(e => {
-						sum += (e.score || 0)
-					})
-					question_map[qid].score = sum
+				if (aid == 0) {
+					question_map[qid].score = 0
+				} else {
+					var askIndex = question_map[qid].ask_list.findIndex(e => e.id == aid)
+					if (askIndex >= 0) {
+						question_map[qid].ask_list.splice(askIndex, 1)
+						var sum = 0
+						question_map[qid].ask_list.forEach(e => {
+							sum += (e.score || 0)
+						})
+						question_map[qid].score = sum
+					}
 				}
 			}
 			var nodeData = node_list.find(e => {
 				return e.id == qid
 			})
-			if (!nodeData || !nodeData.write_list) {
+			if (!nodeData) {
 				continue
 			}
-			var writeIndex = nodeData.write_list.findIndex(e => {
-				return e.id == aid
-			})
-			if (writeIndex == -1) {
+			var quesControl = getControl(qid, nodeData.control_id)
+			if (!quesControl || quesControl.GetClassType() != 'blockLvlSdt') {
 				continue
 			}
-			var writeData = nodeData.write_list[writeIndex]
-			if (!writeData) {
-				continue
-			}
-			nodeData.write_list.splice(writeIndex, 1)
-			if (writeData.sub_type == 'control') {
-				var oControl = Api.LookupObject(writeData.control_id)
-				clearQuesInteraction(oControl)
-				Api.asc_RemoveContentControlWrapper(writeData.control_id)
-			} else if (writeData.sub_type == 'cell') {
-				var oCell = Api.LookupObject(writeData.cell_id)
-				removeCellInteraction(oCell)
-			} else if (writeData.sub_type == 'write' || writeData.sub_type == 'identify') {
-				var oDrawing = drawings.find(e => {
-					var tag = getJsonData(e.Drawing.docPr.title)
-					return tag.feature && tag.feature.client_id == writeData.id
+			if (aid == 0) {
+				// 删除所有小问，遍历出所有小问，全部删除
+				// 删除所有精准互动
+				var childDrawings = quesControl.GetAllDrawingObjects() || []
+				for (var j = 0; j < childDrawings.length; ++j) {
+					var tag = getJsonData(childDrawings[j].Drawing.docPr.title)
+					if (tag.feature && tag.feature.zone_type == 'question') {
+						if (tag.feature.sub_type == 'ask_accurate') {
+							deleShape(childDrawings[j])
+						}
+					}
+				}
+				// 删除所有inlineControl
+				var childControls = quesControl.GetAllContentControls() || []
+				childControls.forEach(e => {
+					if (e.GetClassType() == 'inlineLvlSdt' && e.Sdt) {
+						Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
+					}
 				})
-				if (oDrawing) {
-					if (writeData.sub_type == 'identify') {
-						oDrawing.Delete()
-					} else {
-						var run = oDrawing.Drawing.GetRun()
-						if (run) {
-							var paragraph = run.GetParagraph()
-							if (paragraph) {
-								var oParagraph = Api.LookupObject(paragraph.Id)
-								var ipos = run.GetPosInParent()
-								if (ipos >= 0) {
-									oDrawing.Delete()
-									if (oParagraph) {
-										oParagraph.RemoveElement(ipos)
+				// 删除所有write 和 identify
+				childDrawings = quesControl.GetAllDrawingObjects() || []
+				for (var j = 0; j < childDrawings.length; ++j) {
+					var tag = getJsonData(childDrawings[j].Drawing.docPr.title)
+					if (tag.feature && tag.feature.zone_type == 'question') {
+						if (tag.feature.sub_type == 'write') {
+							var run = childDrawings[j].Drawing.GetRun()
+							if (run) {
+								var paragraph = run.GetParagraph()
+								if (paragraph) {
+									var oParagraph = Api.LookupObject(paragraph.Id)
+									var ipos = run.GetPosInParent()
+									if (ipos >= 0) {
+										childDrawings[j].Delete()
+										if (oParagraph) {
+											oParagraph.RemoveElement(ipos)
+										}
+									}
+								}
+							}
+						} else if (tag.feature.sub_type == 'identify') {
+							childDrawings[j].Delete()
+						}
+					}
+				}
+				// 删除所有单元格小问
+				var pageCount = quesControl.Sdt.getPageCount()
+				for (var p = 0; p < pageCount; ++p) {
+					var page = quesControl.Sdt.GetAbsolutePage(p)
+					var tables = quesControl.GetAllTablesOnPage(page)
+					if (tables) {
+						for (var t = 0; t < tables.length; ++t) {
+							var oTable = tables[t]
+							var rowcount = oTable.GetRowsCount()
+							for (var r = 0; r < rowcount; ++r) {
+								var oRow = oTable.GetRow(r)
+								var cellcount = oRow.GetCellsCount()
+								for (var c = 0; c < cellcount; ++c) {
+									var oCell = oRow.GetCell(c)
+									if (!oCell) {
+										continue
+									}
+									var shd = oCell.Cell.Get_Shd()
+									if (shd) {
+										var fill = shd.Fill
+										if (fill && fill.r == 255 && fill.g == 191 && fill.b == 191) {
+											oCell.SetBackgroundColor(255, 191, 191, true)
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+				nodeData.write_list = []
+				question_map[qid].ask_list = []
+			} else {
+				if (!nodeData.write_list) {
+					continue
+				}
+				var writeIndex = nodeData.write_list.findIndex(e => {
+					return e.id == aid
+				})
+				if (writeIndex == -1) {
+					continue
+				}
+				var writeData = nodeData.write_list[writeIndex]
+				if (!writeData) {
+					continue
+				}
+				nodeData.write_list.splice(writeIndex, 1)
+				if (writeData.sub_type == 'control') {
+					var oControl = Api.LookupObject(writeData.control_id)
+					clearQuesInteraction(oControl)
+					Api.asc_RemoveContentControlWrapper(writeData.control_id)
+				} else if (writeData.sub_type == 'cell') {
+					var oCell = Api.LookupObject(writeData.cell_id)
+					removeCellInteraction(oCell)
+				} else if (writeData.sub_type == 'write' || writeData.sub_type == 'identify') {
+					var oDrawing = drawings.find(e => {
+						var tag = getJsonData(e.Drawing.docPr.title)
+						return tag.feature && tag.feature.client_id == writeData.id
+					})
+					if (oDrawing) {
+						if (writeData.sub_type == 'identify') {
+							oDrawing.Delete()
+						} else {
+							var run = oDrawing.Drawing.GetRun()
+							if (run) {
+								var paragraph = run.GetParagraph()
+								if (paragraph) {
+									var oParagraph = Api.LookupObject(paragraph.Id)
+									var ipos = run.GetPosInParent()
+									if (ipos >= 0) {
+										oDrawing.Delete()
+										if (oParagraph) {
+											oParagraph.RemoveElement(ipos)
+										}
 									}
 								}
 							}
@@ -4358,6 +4509,8 @@ function focusAsk(writeData) {
 		var write_data = Asc.scope.write_data
 		var oDocument = Api.GetDocument()
 		var drawings = oDocument.GetAllDrawingObjects() || []
+		var controls = oDocument.GetAllContentControls() || []
+		
 		function getJsonData(str) {
 			if (!str || str == '' || typeof str != 'string') {
 				return {}
@@ -4370,10 +4523,13 @@ function focusAsk(writeData) {
 			}
 		}
 		if (write_data.sub_type == 'control') {
-			if (write_data.control_id) {
-				var oControl = Api.LookupObject(write_data.control_id)
-				if (oControl) {
-					oDocument.Document.MoveCursorToContentControl(write_data.control_id, true)
+			var oControls = controls.filter(e => {
+				var tag = getJsonData(e.GetTag())
+				return tag.client_id == write_data.id
+			})
+			if (oControls && oControls.length) {
+				if (oControls.length == 1) {
+					oDocument.Document.MoveCursorToContentControl(oControls[0].Sdt.GetId(), true)
 				}
 			}
 		} else if (write_data.sub_type == 'cell') {
@@ -5148,7 +5304,7 @@ function splitControl(qid) {
 		if (!control_id) {
 			control = Api.LookupObject(control_id)
 		}
-		if (!control) {
+		if (!control || control.GetClassType() != 'blockLvlSdt' || control.GetPosInParent() == -1) {
 			var controls = oDocument.GetAllContentControls()
 			if (controls) {
 				control = controls.find(e => {

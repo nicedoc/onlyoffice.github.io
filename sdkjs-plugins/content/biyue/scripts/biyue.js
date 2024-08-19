@@ -1372,7 +1372,7 @@ import { initView } from './pageView.js'
     changeImageIgnoreMark(type).then(()=>{
       handleAllWrite(type).then(()=>{
         // 隐藏浮动的识别框
-        if (params.saveData) {
+        if (params && params.saveData) {
           // 保存数据
           var quesmap = window.BiyueCustomData.question_map || {}
           var treemap = {}
