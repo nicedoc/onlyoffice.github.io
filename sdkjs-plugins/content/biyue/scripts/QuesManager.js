@@ -721,7 +721,7 @@ function updateRangeControlType(typeName) {
 			}
 			var LvlText = oNumberingLvl.LvlText || []
 			if (LvlText && LvlText.length) {
-				if (LvlText[0].Value!='\ue607') {
+				if (LvlText[0].Value!='\ue749') {
 					return
 				}
 			}
@@ -741,7 +741,7 @@ function updateRangeControlType(typeName) {
 						if (find) {
 							str += LvlText[i].Value
 						}
-					} else if (LvlText[i].Value != '\ue607') {
+					} else if (LvlText[i].Value != '\ue749') {
 						str += LvlText[i].Value
 						find = true
 					}
@@ -2537,7 +2537,7 @@ function confirmLevelSet(levels) {
 }
 
 function getNumberingText(text) {
-	if (text.length && text[0] == '\ue607') {
+	if (text.length && text[0] == '\ue749') {
 		return text.substring(1)
 	}
 	return text

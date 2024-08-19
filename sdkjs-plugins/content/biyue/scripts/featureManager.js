@@ -351,7 +351,7 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 			}
 			var LvlText = oNumberingLvl.LvlText || []
 			if (LvlText && LvlText.length) {
-				if (LvlText[0].Value!='\ue607') {
+				if (LvlText[0].Value!='\ue749') {
 					var targetInd = oParagraph.GetParentTableCell() ? 280 : 0
 					oParagraph.SetIndFirstLine(targetInd)
 					return
@@ -380,7 +380,7 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 						if (find) {
 							str += LvlText[i].Value
 						}
-					} else if (LvlText[i].Value != '\ue607') {
+					} else if (LvlText[i].Value != '\ue749') {
 						str += LvlText[i].Value
 						find = true
 					}
@@ -1064,7 +1064,7 @@ function setInteraction(type, quesIds) {
 			return
 		}
 		var handledNumbering = {}
-		var SIMPLE_CHAR = '\ue607'
+		var SIMPLE_CHAR = '\ue749'
 		var vInd = 280
 		
 		function updateParagraphInd(oParagraph, vshow) {
@@ -1152,7 +1152,7 @@ function setInteraction(type, quesIds) {
 					if (LvlText[i].Type == 2) {
 						str += `%${level+1}`
 					} else {
-						if (LvlText[i].Value != '\ue607') {
+						if (LvlText[i].Value != '\ue749') {
 							str += LvlText[i].Value
 						}	
 					}
@@ -1167,7 +1167,7 @@ function setInteraction(type, quesIds) {
 							if (find) {
 								str += LvlText[i].Value
 							}
-						} else if (LvlText[i].Value != '\ue607') {
+						} else if (LvlText[i].Value != '\ue749') {
 							str += LvlText[i].Value
 							find = true
 						}
