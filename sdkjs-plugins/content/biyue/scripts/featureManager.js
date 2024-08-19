@@ -380,7 +380,7 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 						if (find) {
 							str += LvlText[i].Value
 						}
-					} else if (LvlText[i].Value != '\ue749') {
+					} else if (LvlText[i].Value != '\ue749' && LvlText[i].Value != '\ue607') {
 						str += LvlText[i].Value
 						find = true
 					}
