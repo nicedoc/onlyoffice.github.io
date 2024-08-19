@@ -875,32 +875,25 @@ function updateAskSelect(index) {
 
 function onClearAllAsks() {
 	var quesData = window.BiyueCustomData.question_map[g_ques_id]
-	if (quesData && quesData.ask_list) {
-		var list = quesData.ask_list.map(e => {
-			return {
-				ques_id: g_ques_id,
-				ask_id: e.id
-			}
-		})
-		deleteAsks(list)
+	if (quesData) {
+		deleteAsks([{
+			ques_id: g_ques_id,
+			ask_id: 0
+		}])
 	}
 }
 
 function resplitQues() {
-	var quesData = window.BiyueCustomData.question_map[g_ques_id]
-	if (quesData && quesData.ask_list && quesData.ask_list.length) {
-		var list = quesData.ask_list.map(e => {
-			return {
-				ques_id: g_ques_id,
-				ask_id: e.id
+	deleteAsks([{
+		ques_id: g_ques_id,
+		ask_id: 0
+	}], false).then(() => {
+		splitControl(g_ques_id).then(res => {
+			if (window.BiyueCustomData.question_map[g_ques_id] && window.BiyueCustomData.question_map[g_ques_id].interaction == 'accurate') {
+				setInteraction(window.BiyueCustomData.question_map[g_ques_id].interaction, [g_ques_id])
 			}
 		})
-		deleteAsks(list, false).then(() => {
-			splitControl(g_ques_id)
-		})
-	} else {
-		splitControl(g_ques_id)
-	}
+	})
 }
 
 export { showQuesData, initListener }

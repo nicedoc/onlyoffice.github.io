@@ -1407,7 +1407,7 @@ function setInteraction(type, quesIds) {
 				return
 			}
 			var drawings = oControl.GetAllDrawingObjects()
-			if (type == 'none') {
+			if (type == 'none' || type == 'simple') {
 				var dlist = getExistDrawing(drawings, ['ask_accurate'])
 				if (dlist && dlist.length) {
 					dlist.forEach(e => {
