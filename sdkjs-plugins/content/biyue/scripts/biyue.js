@@ -1103,6 +1103,17 @@ import { initView } from './pageView.js'
 		return biyueCallCommand(window, function () {
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls() || []
+			function getJsonData(str) {
+				if (!str || str == '' || typeof str != 'string') {
+					return {}
+				}
+				try {
+					return JSON.parse(str)
+				} catch (error) {
+					console.log('json parse error', error)
+					return {}
+				}
+			}
 			// 先删除所有题目的互动
 			var drawings = oDocument.GetAllDrawingObjects() || []
 			for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
@@ -1124,10 +1135,31 @@ import { initView } from './pageView.js'
 					}
 				}
 			}
+			// 删除regionType == num的control
+			for (var i = controls.length - 1; i >= 0; --i) {
+				if (controls[i].GetClassType() != 'inlineLvlSdt') {
+					continue
+				}
+				var tag = getJsonData(controls[i].GetTag())
+				if (tag.regionType == 'num') {
+					var parent = controls[i].Sdt.Parent
+					if (parent) {
+						var oParent = Api.LookupObject(parent.Id)
+						if (oParent && (oParent.GetClassType() == 'paragraph' || oParent.GetClassType() == 'blockLvlSdt')) {
+							var pos = controls[i].Sdt.GetPosInParent()
+							if (pos >= 0) {
+								oParent.RemoveElement(pos)
+							}
+						}
+					}
+				}
+			}
 			// 再删除所有control
 			console.log('删除所有control')
 			controls.forEach((e) => {
-				Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
+				if (e.Sdt) {
+					Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
+				}
 			})
 			// 重置单元格颜色
 			var tables = oDocument.GetAllTables() || []
