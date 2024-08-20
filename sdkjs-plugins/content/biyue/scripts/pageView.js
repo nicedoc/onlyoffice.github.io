@@ -10,10 +10,11 @@ import {
 	handleAllWrite,
 	showAskCells,
 	g_click_value,
-	showLevelSetDialog
+	clearRepeatControl
 } from './QuesManager.js'
 import { showCom, updateText, addClickEvent } from './model/util.js'
 import { reqSaveInfo } from './api/paper.js'
+import { resetStack } from './command.js'
 function initView() {
 	showCom('#initloading', true)
 	showCom('#hint1', false)
@@ -62,6 +63,18 @@ function initView() {
 	addClickEvent('#getQuesType', reqGetQuestionType)
 	addClickEvent('#viewQuesType', onViewQuesType)
 	addClickEvent('#saveData', onSaveData)
+	addClickEvent('#clearRepeatControl', clearRepeatControl)
+	addClickEvent('#extroSwitch', showExtroButtons)
+	addClickEvent('#printData', () => {
+		console.log('BiyueCustomData', window.BiyueCustomData)
+	})
+	showCom('#extro_buttons', false)
+	addClickEvent('#printStack', () => {
+		if (window.commandStack) {
+			console.log('commandStack len:', window.commandStack.length)
+		}
+	})
+	addClickEvent('#clearStack', resetStack)
 }
 
 function handlePaperInfoResult(success, res) {
@@ -126,7 +139,7 @@ function onViewQuesType() {
 	// console.log('展示题型') todo..
 }
 
-function onSaveData() {
+function onSaveData(print = true) {
 	var quesmap = window.BiyueCustomData.question_map || {}
 	var treemap = {}
 	Object.keys(quesmap).forEach(id => {
@@ -142,21 +155,38 @@ function onSaveData() {
 	}
 	var str = JSON.stringify(info)
 	console.log('保存数据', str)
-	reqSaveInfo(window.BiyueCustomData.paper_uuid, str).then(res => {
-		window.biyue.showMessageBox({
-			content: '保存成功',
-			showCancel: false
+	return new Promise((resolve, reject) => {
+		reqSaveInfo(window.BiyueCustomData.paper_uuid, str).then(res => {
+			if (print) {
+				window.biyue.showMessageBox({
+					content: '保存成功',
+					showCancel: false
+				})
+			}
+			resolve()
+		}).catch(res => {
+			if (print) {
+				window.biyue.showMessageBox({
+					content: '保存失败',
+					showCancel: false
+				})
+			}
+			resolve()
 		})
-	}).catch(res => {
-		window.biyue.showMessageBox({
-			content: '保存失败',
-			showCancel: false
-		})
-	})
-	
+	}) 
+}
+
+function showExtroButtons() {
+	var com = $('#extro_buttons')
+	if (!com) {
+		return
+	}
+	com.toggle()
 }
 
 export {
 	initView,
-	handlePaperInfoResult
+	handlePaperInfoResult,
+	clearRepeatControl,
+	onSaveData
 }

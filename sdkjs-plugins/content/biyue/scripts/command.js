@@ -98,4 +98,13 @@ function dispatchCommandResult(window, result) {
     }
 }
 
-export { biyueCallCommand, dispatchCommandResult };
+function resetStack(window) {
+	if (window) {
+		window.commandStack = []
+		if (window.commandCallbackMap) {
+			window.commandCallbackMap = {}
+		}
+	}
+}
+
+export { biyueCallCommand, dispatchCommandResult, resetStack };

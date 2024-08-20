@@ -265,6 +265,7 @@
 			display: flex;
    			align-items: center;
     		justify-content: center;
+			margin-bottom: 4px;
 		}
 
 		.btn-unable {
@@ -333,6 +334,7 @@
 		  </div>
 		  <div id="importExam" class="btn-normal clicked">上传卷面</div>
 		  <div id="saveData" class="btn-normal clicked">保存数据</div>
+		  <div id="extroSwitch" class="under clicked" style="margin-bottom: 8px;padding-left: 12px;">切换显示其他按钮</div>
 		  <!-- <select id="writeSelect">
 			<option value="show">显示所有书写区</option>
 			<option value="hide">隐藏所有书写区</option>
@@ -345,7 +347,7 @@
         </div>
         <div id="panelFeature"></div>
         <div class="button_wrapper">
-          <div class="button_wrapper">
+          <div id="extro_buttons">
             <!-- <div id="getDocInfo" class="btn-text-default">获取文档信息</div> -->
             <!-- <div id="splitQuestionBtn" class="btn-text-default">切题</div>         -->
             <!-- <div class="btn-text-default" id="importExam">准备上传</div>
@@ -355,6 +357,10 @@
             <div id="checkAnswerRegionBtn" class="btn-text-default">识别答题区</div>-->
             <div id="toggleStyleBtn" class="btn-text-default">切换答题样式</div>
 			<div id="clearControl" class="btn-text-default">删除所有控件 </div>
+			<div id="clearRepeatControl" class="btn-text-default">删除ID重复控件 </div>
+			<div id="printData" class="btn-text-default">输出BiyueCustomData内容</div>
+			<div id="printStack" class="btn-text-default">输出当前stack length</div>
+			<div id="clearStack" class="btn-text-default">清空stack</div>
             <!--<div id="lockBtn" class="btn-text-default">锁定</div>
             <div id="unlockBtn" class="btn-text-default">解锁</div>
             <div id="showPosition" class="btn-text-default">显示渲染位置</div>
