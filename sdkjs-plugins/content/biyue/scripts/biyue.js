@@ -46,20 +46,21 @@ import {
 
 import { reqSaveInfo } from './api/paper.js'
 
-import { initView } from './pageView.js'
+import { initView, onSaveData } from './pageView.js'
 
 ;(function (window, undefined) {
 	var styleEnable = false
 	let activeQuesItem = ''
-	let scoreSetWindow = null
-	let exportExamWindow = null
-  let batchSettingScoresWindow = null
-  let batchSettingQuestionTypeWindow = null
-	let fieldsWindow = null
+	let windows = {
+		scoreSetWindow: null,
+		exportExamWindow: null,
+		batchSettingScoresWindow: null,
+		batchSettingQuestionTypeWindow: null,
+		messageBoxWindow: null
+	}
 	let timeout_controlchange = null
 	let contextMenu_options = null
   	let questionPositions = {}
-	let messageBoxWindow = null
 
 
 	function NewDefaultCustomData() {
@@ -1380,9 +1381,11 @@ import { initView } from './pageView.js'
 	// 在editor面板的插件按钮被点击
 	window.Asc.plugin.button = function (id, windowID) {
 		console.log('on plugin button id=${id} ${windowID}', id, windowID)
-    // 重新打开上传的时候关闭的识别区域
-    // 必须保证一个执行完成之后在去开启下一个
-    showOrHiddenRegion('show')
+    	// 重新打开上传的时候关闭的识别区域
+    	// 必须保证一个执行完成之后在去开启下一个
+		if (windows.exportExamWindow && windows.exportExamWindow.id == windowID) {
+			showOrHiddenRegion('show')
+		}
 		if (windowID) {
 			if (id === -1) {
 				window.Asc.plugin.executeMethod('CloseWindow', [windowID])
@@ -1391,9 +1394,11 @@ import { initView } from './pageView.js'
 		}
 		if (id == -1) {
 			console.log('StoreCustomData', window.BiyueCustomData)
-			StoreCustomData(() => {
-				console.log('store custom data done')
-				window.Asc.plugin.executeCommand("close", '')
+			onSaveData(false).then(() => {
+				StoreCustomData(() => {
+					console.log('store custom data done')
+					window.Asc.plugin.executeCommand("close", '')
+				})
 			})
 			return
 		}
@@ -2088,7 +2093,7 @@ import { initView } from './pageView.js'
 		})
 	}
 
-	function showDialog(win, name, url, width, height, isModal = false) {
+	function showDialog(winName, name, url, width, height, isModal = false) {
 		let location = window.location
 		let start = location.pathname.lastIndexOf('/') + 1
 		let file = location.pathname.substring(start)
@@ -2103,14 +2108,18 @@ import { initView } from './pageView.js'
 			EditorsSupport:[ "word", "cell", "slide" ],
 			size: [width, height]
 		}
-		if (!win) {
-			win = new window.Asc.PluginWindow()
-			win.attachEvent('onWindowMessage', function (message) {
-				messageHandler(win, message)
+		if (!windows) {
+			console.log('windows is null')
+			return
+		}
+		if (!windows[winName]) {
+			windows[winName] = new window.Asc.PluginWindow()
+			windows[winName].attachEvent('onWindowMessage', function (message) {
+				messageHandler(windows[winName], message)
 			})
 		}
-		win.show(variation)
-		return win
+		windows[winName].show(variation)
+		return windows[winName]
 	}
 
 	function importExam() {
@@ -2121,17 +2130,18 @@ import { initView } from './pageView.js'
         console.log('隐藏浮动的识别框')
         getAllPositions().then(res=>{
           questionPositions = res
-          showDialog(exportExamWindow, '上传试卷', 'examExport.html', 1000, 800, true)
+          showDialog('exportExamWindow', '上传试卷', 'examExport.html', 1000, 800, true)
+		  console.log('importExam  exportExamWindow:', windows.exportExamWindow)
         })
       })
     })
 	}
   function onBatchScoreSet() {
-    showDialog(batchSettingScoresWindow, '批量操作 - 修改分数', 'batchSettingScores.html', 800, 600)
+    showDialog('batchSettingScoresWindow', '批量操作 - 修改分数', 'batchSettingScores.html', 800, 600)
   }
 
   function onBatchQuesTypeSet() {
-    showDialog(batchSettingQuestionTypeWindow, '批量操作 - 修改题型', 'batchSettingQuestionType.html', 800, 600)
+    showDialog('batchSettingQuestionTypeWindow', '批量操作 - 修改题型', 'batchSettingQuestionType.html', 800, 600)
   }
 
 	window.insertHtml = insertHtml
@@ -2181,7 +2191,7 @@ import { initView } from './pageView.js'
 		if (params.is_modal != undefined && params.is_modal == false) {
 			ismodal = false
 		}
-		showDialog(messageBoxWindow, params.title || '提示', 'message.html', 200, 100, ismodal)
+		showDialog('messageBoxWindow', params.title || '提示', 'message.html', 200, 100, ismodal)
 	}
 
   function changeImageIgnoreMark(type) {

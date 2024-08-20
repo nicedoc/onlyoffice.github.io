@@ -2156,7 +2156,7 @@ function splitEnd() {
 }
 
 function showLevelSetDialog() {
-	window.biyue.showDialog(levelSetWindow, '自动序号识别设置', 'levelSet.html', 592, 400)
+	window.biyue.showDialog('levelSetWindow', '自动序号识别设置', 'levelSet.html', 592, 400)
 }
 function updateDataBySavedData(str) {
 	if (!str || str == '') {
@@ -2181,6 +2181,7 @@ function initControls() {
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls()
 		var nodeList = []
+		var ids = {}
 		function getJsonData(str) {
 			if (!str || str == '' || typeof str != 'string') {
 				return {}
@@ -2238,6 +2239,9 @@ function initControls() {
 			// oControl.Sdt.SetColor(colors[oControl.GetClassType()])
 			var parentid = 0
 			if (tagInfo.regionType) {
+				if (tagInfo.regionType == 'question') {
+					ids[tagInfo.client_id] = 1
+				}
 				var parentControl = getParentBlock(oControl)
 				if (parentControl) {
 					var parentTagInfo = getJsonData(parentControl.GetTag())
@@ -2296,7 +2300,8 @@ function initControls() {
 		})
 		return {
 			nodeList,
-			drawingList
+			drawingList,
+			ids
 		}
 	}, false, false).then(res => {
 		console.log('initControls   nodeList', res)
@@ -2304,6 +2309,7 @@ function initControls() {
 			// todo.. 这里暂不考虑上次的数据未保存或保存失败的情况，只假设此时的control数据和nodelist里的是一致的，只是乱码而已，其他的后续再处理
 			var nodeList = res.nodeList
 			var drawingList = res.drawingList
+			var ids = res.ids || {}
 			if (nodeList && nodeList.length > 0) {
 				var question_map = window.BiyueCustomData.question_map || {}
 				var node_list = window.BiyueCustomData.node_list || []
@@ -2313,36 +2319,43 @@ function initControls() {
 						question_map[node.id].ques_default_name = node.numbing_text ? getNumberingText(node.numbing_text) : GetDefaultName(question_map[node.id].level_type, node.text)
 					}
 				})
-				for (var i = 0, imax = node_list.length; i < imax; ++i) {
+				Object.keys(question_map).forEach(id => {
+					if (!ids[id]) {
+						delete question_map[id]
+					}
+				})
+				for (var i = node_list.length - 1; i >= 0; --i) {
 					var nodeData = node_list[i]
 					var ndata = nodeList.find(e => {
 						return e.id == nodeData.id
 					})
 					if (ndata) {
 						nodeData.control_id = ndata.control_id
-					}
-					if (nodeData.write_list) {
-						for (var j = 0; j < nodeData.write_list.length; ++j) {
-							var writeData = nodeData.write_list[j]
-							if (writeData.sub_type == 'control') {
-								var ndata = nodeList.find(e => {
-									return e.id == writeData.id
-								})
-								if (ndata) {
-									writeData.control_id = ndata.control_id
+						if (nodeData.write_list) {
+							for (var j = 0; j < nodeData.write_list.length; ++j) {
+								var writeData = nodeData.write_list[j]
+								if (writeData.sub_type == 'control') {
+									var ndata = nodeList.find(e => {
+										return e.id == writeData.id
+									})
+									if (ndata) {
+										writeData.control_id = ndata.control_id
+									}
+								} else if (writeData.sub_type == 'write' || writeData.sub_type == 'identify') {
+									var ddata = drawingList.find(e => {
+										return e.id == writeData.id
+									})
+									if (ddata) {
+										writeData.shape_id = ddata.shape_id
+										writeData.drawing_id = ddata.drawing_id
+									}
+								} else if (writeData.sub_type == 'cell') {
+									// todo..目前还没办法处理单元格ID改变后如何对应的情况
 								}
-							} else if (writeData.sub_type == 'write' || writeData.sub_type == 'identify') {
-								var ddata = drawingList.find(e => {
-									return e.id == writeData.id
-								})
-								if (ddata) {
-									writeData.shape_id = ddata.shape_id
-									writeData.drawing_id = ddata.drawing_id
-								}
-							} else if (writeData.sub_type == 'cell') {
-								// todo..目前还没办法处理单元格ID改变后如何对应的情况
 							}
 						}
+					} else {
+						node_list.splice(i, 1)
 					}
 				}
 			}
@@ -4700,7 +4713,7 @@ function layoutDetect() {
 		return result
 	}, false, false).then(res => {
 		Asc.scope.layout_detect_result = res
-		window.biyue.showDialog(layoutRepairWindow, '字符检测', 'layoutRepair.html', 250, 400, true)
+		window.biyue.showDialog('layoutRepairWindow', '字符检测', 'layoutRepair.html', 250, 400, true)
 	})
 }
 
@@ -4801,7 +4814,7 @@ function batchChangeScore() {
 }
 
 function imageRelation() {
-	window.biyue.showDialog(imageRelationWindow, '图片关联', 'imageRelation.html', 800, 600, false)
+	window.biyue.showDialog('imageRelationWindow', '图片关联', 'imageRelation.html', 800, 600, false)
 }
 
 function tagImageCommon(params) {
@@ -5488,6 +5501,121 @@ function splitControl(qid) {
 		}
 	})
 }
+// 删除ID重复控件
+function clearRepeatControl(reclac = false) {
+	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
+	Asc.scope.node_list = window.BiyueCustomData.node_list || []
+	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
+	return biyueCallCommand(window, function() {
+		var client_node_id = Asc.scope.client_node_id || 0
+		var node_list = Asc.scope.node_list
+		var question_map = Asc.scope.question_map
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls() || []
+		var idmap = {}
+		var drawings = oDocument.GetAllDrawingObjects() || []
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
+		function addItem(type, id, tag) {
+			if (idmap[tag.client_id]) {
+				idmap[tag.client_id].push({
+					type: type,
+					id: id,
+					tag: tag
+				})
+				repeatIds[tag.client_id] = 1
+			} else {
+				idmap[tag.client_id] = [{
+					type: type,
+					id: id,
+					tag: tag
+				}]
+			}
+		}
+		var repeatIds = {}
+		controls.forEach(e => {
+			if (e.Sdt) {
+				var tag = getJsonData(e.GetTag())
+				if (tag.client_id) {
+					addItem(e.GetClassType(), e.Sdt.GetId(), tag)
+				}
+			}
+		})
+		drawings.forEach(e => {
+			if (e.Drawing && e.Drawing.docPr && e.Drawing.docPr.title) {
+				var tag = getJsonData(e.Drawing.docPr.title)
+				if (tag.client_id) {
+					if (idmap[tag.client_id]) {
+						client_node_id += client_node_id
+						tag.client_id = client_node_id
+						addItem('drawing', e.Drawing.Id, tag)
+					}
+					oDrawing.Drawing.Set_Props({
+						title: JSON.stringify(tag),
+					})
+				}
+			}
+		})
+		// 存在ID分配重复
+		if (Object.keys(repeatIds).length) {
+			Object.keys(repeatIds).forEach(id => {
+				var list = idmap[id]
+				for (var i = 0; i < list.length; ++i) {
+					if (list[i].type == 'blockLvlSdt' || list[i].type == 'inlineLvlSdt') {
+						Api.asc_RemoveContentControlWrapper(list[i].id)
+					} else if (list[i].type == 'drawing') {
+						
+					}
+				}
+				for (var i = node_list.length - 1; i >= 0; --i) {
+					if (node_list[i].id == id) {
+						node_list.splice(i, 1)
+					} else if (node_list[i].write_list) {
+						for (var j = node_list[i].write_list.length - 1; j >= 0; --j) {
+							if (node_list[i].write_list[j].id == id) {
+								node_list[i].write_list.splice(j, 1)
+								var qid = node_list[i].id
+								if (question_map[qid] && question_map[qid].ask_list) {
+									for (var k = question_map[qid].ask_list.length - 1; k >= 0; --k) {
+										if (question_map[qid].ask_list[k].id == id) {
+											question_map[qid].ask_list.splice(k, 1)
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+				if (idx >= 0) {
+					node_list.splice(idx, 1)
+				}
+				if (question_map[id]) {
+					delete question_map[id]
+				}
+			})
+		}
+		return {
+			client_node_id: client_node_id,
+			node_list: node_list,
+			question_map: question_map
+		}
+	}, false, reclac).then(res => {
+		if (res) {
+			window.BiyueCustomData.client_node_id = res.client_node_id
+			window.BiyueCustomData.node_list = res.node_list
+			window.BiyueCustomData.question_map = res.question_map
+		}
+	})
+}
 
 export {
 	handleDocClick,
@@ -5513,5 +5641,6 @@ export {
 	tagImageCommon,
 	updateQuesScore,
 	splitControl,
-	updateDataBySavedData
+	updateDataBySavedData,
+	clearRepeatControl
 }
