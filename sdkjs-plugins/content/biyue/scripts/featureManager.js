@@ -391,12 +391,31 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 			oTextPr.SetFontFamily("iconfont");
 			var targetInd = oParagraph.GetParentTableCell() ? 280 : 0
 			oParagraph.SetIndFirstLine(targetInd)
+			return true
 		}
 		var controls = oDocument.GetAllContentControls()
 		if (controls) {
 			for (var j = 0, jmax = controls.length; j < jmax; ++j) {
 				var oControl = controls[j]
 				if (oControl.GetClassType() == 'blockLvlSdt') {
+					var childControls = oControl.GetAllContentControls() || []
+					if (childControls.length) {
+						for (var c = childControls.length - 1; c >= 0; --c) {
+							var tag = getJsonData(childControls[c].GetTag())
+							if (tag.regionType == 'num' && childControls[c].GetClassType() == 'inlineLvlSdt') {
+								var parent = childControls[c].Sdt.Parent
+								if (parent && parent.GetType() == 1) {
+									var oParent = Api.LookupObject(parent.Id)
+									if (oParent) {
+										var pos = childControls[c].Sdt.GetPosInParent()
+										if (pos >= 0) {
+											oParent.RemoveElement(pos)
+										}
+									}
+								}
+							}
+						}
+					}
 					var firstParagraph = getFirstParagraph(oControl)
 					hideSimple(firstParagraph)
 				}
@@ -1105,9 +1124,50 @@ function setInteraction(type, quesIds) {
 			}
 			return sType
 		}
+		function showControlSimple(oParagraph, vshow) {
+			if (!oParagraph) {
+				return
+			}
+			// 删除已有的
+			var childControls = oParagraph.GetAllContentControls() || []
+			if (childControls.length) {
+				for (var c = childControls.length - 1; c >= 0; --c) {
+					var tag = getJsonData(childControls[c].GetTag())
+					if (tag.regionType == 'num' && childControls[c].GetClassType() == 'inlineLvlSdt') {
+						var parent = childControls[c].Sdt.Parent
+						if (parent && parent.GetType() == 1) {
+							var oParent = Api.LookupObject(parent.Id)
+							if (oParent) {
+								var pos = childControls[c].Sdt.GetPosInParent()
+								if (pos >= 0) {
+									oParent.RemoveElement(pos)
+								}
+							}
+						}
+					}
+				}
+			}
+			// 添加
+			if (vshow) {
+				var oInlineLvlSdt = Api.CreateInlineLvlSdt();
+				var oRun = Api.CreateRun();
+				oRun.SetFontFamily('iconfont')
+				oRun.AddText("\ue749")
+				oInlineLvlSdt.SetTag(JSON.stringify({
+					regionType: 'num',
+					color: '#ffffff40'
+				}))
+				oInlineLvlSdt.AddElement(oRun, 0);
+				oParagraph.Paragraph.Add_ToContent(0, oInlineLvlSdt.Sdt)
+			}
+		}
 		function showSimple(oParagraph, vshow) {
+			if (!oParagraph) {
+				return
+			}
 			var oNumberingLevel = oParagraph.GetNumbering()
 			if (!oNumberingLevel) {
+				showControlSimple(oParagraph, vshow)
 				return
 			}
 			var level = oNumberingLevel.Lvl

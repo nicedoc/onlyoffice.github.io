@@ -2262,6 +2262,9 @@ function initControls() {
 					tagInfo.color = '#d9d9d9'
 					changecolor = true
 				}
+			} else if (tagInfo.regionType == 'num') {
+				tagInfo.color = '#ffffff40'
+				changecolor = true
 			}
 			if (!changecolor && tagInfo.color) {
 				delete tagInfo.color

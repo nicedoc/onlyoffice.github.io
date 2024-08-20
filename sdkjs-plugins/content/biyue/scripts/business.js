@@ -3808,33 +3808,52 @@ function getAllPositions() {
 						var parent2 = parent1.Parent
 						if (parent2 && parent2.Id == oControl.Sdt.GetId()) {
 							var oNumberingLevel = oParagraph.GetNumbering()
-							if (!oNumberingLevel) {
-								return null
-							}
-							var level = oNumberingLevel.Lvl
-							var oNum = oNumberingLevel.Num
-							if (!oNum) {
-								return null
-							}
-							var oNumberingLvl = oNum.GetLvl(level)
-							if (!oNumberingLvl) {
-								return null
-							}
-							var LvlText = oNumberingLvl.LvlText || []
-							if (LvlText && LvlText.length && LvlText[0].Value == '\ue749') {
-								var Numbering = oParagraph.Paragraph.Numbering
-								var numberPage = Numbering.Page
-								var numberingRect =
-									Api.asc_GetParagraphNumberingBoundingRect(
-										oParagraph.Paragraph.Id,
-										1
-									) || {}
-								return {
-									page: oParagraph.Paragraph.GetAbsolutePage(numberPage) + 1,
-									x: mmToPx(numberingRect.X0),
-									y: mmToPx(numberingRect.Y0),
-									w: mmToPx(numberingRect.X1 - numberingRect.X0),
-									h: mmToPx(numberingRect.Y1 - numberingRect.Y0),
+							if (oNumberingLevel) {
+								var level = oNumberingLevel.Lvl
+								var oNum = oNumberingLevel.Num
+								if (!oNum) {
+									return null
+								}
+								var oNumberingLvl = oNum.GetLvl(level)
+								if (!oNumberingLvl) {
+									return null
+								}
+								var LvlText = oNumberingLvl.LvlText || []
+								if (LvlText && LvlText.length && LvlText[0].Value == '\ue749') {
+									var Numbering = oParagraph.Paragraph.Numbering
+									var numberPage = Numbering.Page
+									var numberingRect =
+										Api.asc_GetParagraphNumberingBoundingRect(
+											oParagraph.Paragraph.Id,
+											1
+										) || {}
+									console.log('numberingRect x:', numberingRect.X0, 'y:',numberingRect.Y0, 'w:', numberingRect.X1 - numberingRect.X0, 'h: ',  numberingRect.Y1 - numberingRect.Y0)
+									return {
+										page: oParagraph.Paragraph.GetAbsolutePage(numberPage) + 1,
+										x: mmToPx(numberingRect.X0),
+										y: mmToPx(numberingRect.Y0),
+										w: mmToPx(numberingRect.X1 - numberingRect.X0),
+										h: mmToPx(numberingRect.Y1 - numberingRect.Y0),
+									}
+								}
+							} else {
+								var pControls = oParagraph.GetAllContentControls() || []
+								var numControl = pControls.find(e => {
+									var tag = getJsonData(e.GetTag())
+									return e.GetClassType() == 'inlineLvlSdt' && tag.regionType == 'num'
+								})
+								if (numControl && numControl.Sdt && numControl.Sdt.Bounds) {
+									var bounds = Object.values(numControl.Sdt.Bounds) || []
+									if (bounds.length) {
+										return {
+											page: bounds[0].Page + 1,
+											x: mmToPx(bounds[0].X),
+											y: mmToPx(bounds[0].Y),
+											w: mmToPx(bounds[0].W),
+											h: mmToPx(bounds[0].H),
+										}
+									}
+									
 								}
 							}
 						}

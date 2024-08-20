@@ -27,7 +27,7 @@
       let item = question_map[node_list[key].id] || ''
       if (node_list[key].level_type == 'question') {
         if (item && item.question_type !== 6) {
-          html += `<span class="question">${(item.ques_name || item.ques_default_name  || '')}`
+          html += `<span class="question" title="${ item.text }">${(item.ques_name || item.ques_default_name  || '')}`
           let show_choice_region = choice_display.style == 'show_choice_region' // 判断是否为开启集中作答区
           if (item.ask_list && item.ask_list.length > 0 && (!show_choice_region || show_choice_region && !node_list[key].use_gather)) {
             for (const ask_k in item.ask_list) {
