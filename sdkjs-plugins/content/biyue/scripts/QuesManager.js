@@ -1768,6 +1768,13 @@ function handleChangeType(res, res2) {
 						question_map[item.client_id].level_type = targetLevel
 					}
 				}
+			} else if (targetLevel == 'struct') {
+				question_map[item.client_id] = {
+					text: item.text,
+					level_type: targetLevel,
+					ques_default_name: item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(targetLevel, item.text)
+				}
+				update_node_id = item.client_id
 			} else {
 				if (question_map[item.client_id]) {
 					delete question_map[item.client_id]
@@ -1849,6 +1856,8 @@ function handleChangeType(res, res2) {
 			})
 			if (targetLevel == 'question') {
 				addIds.push(item.client_id)
+			} else if (targetLevel == 'struct') {
+				update_node_id = item.client_id
 			}
 			if (targetLevel == 'question' || targetLevel == 'struct') {
 				question_map[item.client_id] = {
