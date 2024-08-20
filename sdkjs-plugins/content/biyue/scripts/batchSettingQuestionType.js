@@ -37,7 +37,7 @@
       let item = question_map[node_list[key].id] || ''
       if (node_list[key].level_type == 'question') {
         if (item) {
-          html += `<span class="question">${(item.ques_name || item.ques_default_name || '')}`
+          html += `<span class="question" title="${ item.text }">${(item.ques_name || item.ques_default_name || '')}`
           html += `<select class="type-item ques-${ node_list[key].id }">`
           html += `<option value="" style="display:none;"></option>`
           for (const key in question_type_options) {
