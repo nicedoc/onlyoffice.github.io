@@ -416,19 +416,34 @@ import { setXToken } from './auth.js'
       }
       let score = parseFloat(postions[key].score) || 0
       if (!score || score <= 0) {
-        ques_score_err.push(postions[key].ques_name)
+        ques_score_err.push({
+          ques_name: postions[key].ques_name,
+          text: postions[key].text
+        })
       }
       if (!postions[key].ques_type) {
-        ques_type_err.push(postions[key].ques_name)
+        ques_type_err.push({
+          ques_name: postions[key].ques_name,
+          text: postions[key].text
+        })
       }
       if (checkRegionEmpty(postions[key], 'title_region')) {
-        title_region_err.push(postions[key].ques_name)
+        title_region_err.push({
+          ques_name: postions[key].ques_name,
+          text: postions[key].text
+        })
       }
       if (checkRegionEmpty(postions[key], 'write_ask_region', true) || !postions[key]['write_ask_region'] || postions[key]['write_ask_region'].length === 0) {
-        write_ask_region_err.push(postions[key].ques_name)
+        write_ask_region_err.push({
+          ques_name: postions[key].ques_name,
+          text: postions[key].text
+        })
       }
       if (checkRegionEmpty(postions[key], 'correct_ask_region', true)) {
-        correct_ask_region_err.push(postions[key].ques_name)
+        correct_ask_region_err.push({
+          ques_name: postions[key].ques_name,
+          text: postions[key].text
+        })
       }
       postions[key].score = parseFloat(postions[key].score) || 0
       if (postions[key].mark_method === '4') {
@@ -463,11 +478,17 @@ import { setXToken } from './auth.js'
             }
             if ((ask_score_sum * 1 !== postions[key].score * 1) && postions[key].score) {
                 //  小问分数和题目分数不一致
-                ask_score_err.push(postions[key].ques_name)
+                ask_score_err.push({
+                  ques_name: postions[key].ques_name,
+                  text: postions[key].text
+                })
             }
             if (has_ask_score_empty_err) {
                 // 题目有分数的情况下，有小问的分数为空
-                ask_score_empty_err.push(postions[key].ques_name)
+                ask_score_empty_err.push({
+                  ques_name: postions[key].ques_name,
+                  text: postions[key].text
+                })
             }
             postions[key].question_ask = question_ask
           }
@@ -480,42 +501,42 @@ import { setXToken } from './auth.js'
         if (message !== '') {
           message += `<br/><br/>`
         }
-        message += `有题目未设置分数,请检查题目:` + ques_score_err.join(',')
+        message += `有题目未设置分数,请检查题目:` + ques_score_err.map(item => `<span title="${item.text}">${item.ques_name}</span>`).join(',')
     }
     if (ask_score_err.length > 0) {
         if (message !== '') {
           message += `<br/><br/>`
         }
-        message += `有题目小问分数和题目分数不一致,请检查题目:` + ask_score_err.join(',')
+        message += `有题目小问分数和题目分数不一致,请检查题目:` + ask_score_err.map(item => `<span title="${item.text}">${item.ques_name}</span>`).join(',')
     }
     if (ask_score_empty_err.length > 0) {
         if (message !== '') {
           message += `<br/><br/>`
         }
-        message += `有题目的小问分数出现为空,请检查题目:` + ask_score_empty_err.join(',')
+        message += `有题目的小问分数出现为空,请检查题目:` + ask_score_empty_err.map(item => `<span title="${item.text}">${item.ques_name}</span>`).join(',')
     }
 
     if (ques_type_err.length > 0) {
         if (message !== '') {
             message += `<br/><br/>`
         }
-        message += `有题目未设置题目类型,请检查题目:` + ques_type_err.join(',')
+        message += `有题目未设置题目类型,请检查题目:` + ques_type_err.map(item => `<span title="${item.text}">${item.ques_name}</span>`).join(',')
     }
 
     if (title_region_err.length > 0) {
-        message = `有题干区域未设置,请检查题目:` + title_region_err.join(',')
+        message = `有题干区域未设置,请检查题目:` + title_region_err.map(item => `<span title="${item.text}">${item.ques_name}</span>`).join(',')
     }
     if (write_ask_region_err.length > 0) {
         if (message !== '') {
             message += `<br/><br/>`
         }
-        message += `有作答区域未设置,请检查题目:` + write_ask_region_err.join(',')
+        message += `有作答区域未设置,请检查题目:` + write_ask_region_err.map(item => `<span title="${item.text}">${item.ques_name}</span>`).join(',')
     }
     if (correct_ask_region_err.length > 0) {
         if (message !== '') {
             message += `<br/><br/>`
         }
-        message += `有小问订正框区域未设置,请检查题目:` + correct_ask_region_err.join(',')
+        message += `有小问订正框区域未设置,请检查题目:` + correct_ask_region_err.map(item => `<span title="${item.text}">${item.ques_name}</span>`).join(',')
     }
 
 
