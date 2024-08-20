@@ -53,12 +53,20 @@ function initView() {
 		})
 	})
 	addClickEvent('#uploadTree', () => {
-		window.biyue.showMessageBox({
-			content: '确定要全量更新吗？',
-			extra_data: {
-				func: 'reqUploadTree'
-			}
-		})
+		var qmap = window.BiyueCustomData.question_map
+		if (!qmap || Object.keys(qmap).length == 0) {
+			window.biyue.showMessageBox({
+				content: '未找到可更新的题目，请检查题目列表',
+				showCancel: false
+			})
+		} else {
+			window.biyue.showMessageBox({
+				content: '确定要全量更新吗？',
+				extra_data: {
+					func: 'reqUploadTree'
+				}
+			})
+		}
 	})
 	addClickEvent('#getQuesType', reqGetQuestionType)
 	addClickEvent('#viewQuesType', onViewQuesType)

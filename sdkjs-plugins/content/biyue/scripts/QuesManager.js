@@ -3415,12 +3415,17 @@ function reqUploadTree() {
         console.log('target_list', target_list)
         return target_list
       }, false, false).then( control_list => {
-        if (control_list) {
+        if (control_list && control_list.length) {
           upload_control_list = control_list
-          if (control_list && control_list.length) {
-            getXml(control_list[0].control_id)
-          }
-        }
+          getXml(control_list[0].control_id)
+        } else {
+			upload_control_list = []
+			setBtnLoading('uploadTree', false)
+			window.biyue.showMessageBox({
+				content: '未找到可更新的题目，请检查题目列表',
+				showCancel: false
+			})
+		}
       })
   })
 }
