@@ -4433,11 +4433,14 @@ function deleteAsks(askList, notify = true) {
 						}
 					}
 				}
-				// 删除所有inlineControl
+				// 删除除订正框外的所有inlineControl
 				var childControls = quesControl.GetAllContentControls() || []
 				childControls.forEach(e => {
 					if (e.GetClassType() == 'inlineLvlSdt' && e.Sdt) {
-						Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
+						var tag = getJsonData(e.GetTag())
+						if (tag.regionType != 'num') {
+							Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
+						}
 					}
 				})
 				// 删除所有write 和 identify
@@ -5665,6 +5668,63 @@ function clearRepeatControl(reclac = false) {
 			}
 			resolve()	
 		})
+	})
+}
+
+function tidyNodes() {
+	return clearRepeatControl(false).then(() => {
+		return getNodeList()
+	}).then(list => {
+		console.log('tidyNodes', list)
+		if (list) {
+			var node_list = window.BiyueCustomData.node_list || []
+			var question_map = window.BiyueCustomData.question_map || {}
+			for (var i = 0, imax = list.length; i < imax; ++i) {
+				var id = list[i].id
+				var index1 = node_list.findIndex(e => e.id == id)
+				if (index1 == -1) { // 原本就不在node列表里，不管
+					if (question_map[id]) {
+						delete question_map[id] // 同步删除map里的
+					}
+					continue
+				}
+				var write_list = list[i].write_list || []
+				var oldNodeData = node_list[index1]
+				if (oldNodeData.write_list) {
+					for (var j = oldNodeData.write_list.length - 1; j >= 0; --j) {
+						var writeData = oldNodeData.write_list[j]
+						var writeIndex = write_list.findIndex(e => e.id == writeData.id)
+						if (writeIndex == -1) { // 找不到，删除
+							oldNodeData.write_list.splice(j, 1)
+						}
+					}
+				}
+				if (question_map[id].ask_list) {
+					for (var k = question_map[id].ask_list.length - 1; k >= 0; --k) {
+						var askData = question_map[id].ask_list[k]
+						var askIndex = write_list.findIndex(e => e.id == askData.id)
+						if (askIndex == -1) { // 找不到，删除
+							question_map[id].ask_list.splice(k, 1)
+						}	
+					}
+				}
+			}
+			for (var i = node_list.length -1; i >= 0; --i) {
+				var index2 = list.findIndex(e => e.id == node_list[i].id)
+				if (index2 == -1) {
+					node_list.splice(i, 1)
+				}
+			}
+			var keys = Object.keys(question_map)
+			keys.forEach(id => {
+				var index3 = list.findIndex(e => e.id == id)
+				if (index3 == -1) {
+					delete question_map[id]
+				}
+			})
+			window.BiyueCustomData.node_list = node_list
+			window.BiyueCustomData.question_map = question_map
+		}
 	})
 }
 

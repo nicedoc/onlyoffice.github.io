@@ -10,7 +10,8 @@ import {
 	handleAllWrite,
 	showAskCells,
 	g_click_value,
-	clearRepeatControl
+	clearRepeatControl,
+	tidyNodes
 } from './QuesManager.js'
 import { showCom, updateText, addClickEvent } from './model/util.js'
 import { reqSaveInfo } from './api/paper.js'
@@ -83,6 +84,7 @@ function initView() {
 		}
 	})
 	addClickEvent('#clearStack', resetStack)
+	addClickEvent('#tidyNodes', tidyNodes)
 }
 
 function handlePaperInfoResult(success, res) {
