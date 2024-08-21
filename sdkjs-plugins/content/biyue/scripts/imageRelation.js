@@ -156,6 +156,11 @@
 				dom.style.color = ''
 				}
 			})
+      if (dom.value > 0) {
+        dom.style.color = '#4CAF50'
+      } else {
+        dom.style.color = ''
+      }
 		})
 	  }
 
