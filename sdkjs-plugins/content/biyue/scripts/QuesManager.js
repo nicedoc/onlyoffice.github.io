@@ -204,7 +204,7 @@ function getContextMenuItems(type) {
 		})
 	}
 	if (canBatch) {
-		var questypes = window.BiyueCustomData.paper_options.question_type
+		var questypes = window.BiyueCustomData.paper_options ? window.BiyueCustomData.paper_options.question_type : []
 		var itemsQuesType = questypes.map((e) => {
 			return {
 				id: `batchChangeQuesType_${e.value}`,
@@ -1052,7 +1052,9 @@ function updateRangeControlType(typeName) {
 				tag.color = '#ff000040'
 			} else {
 				if (typeName == 'question' || typeName == 'setBig' || typeName == 'clearBig') {
-					tag.color = '#d9d9d9'
+					tag.color = '#d9d9d940'
+				} else if (typeName == 'struct') {
+					tag.color = '#CFF4FF80'
 				} else if (tag.color) {
 					delete tag.color
 				}
@@ -1277,7 +1279,7 @@ function updateRangeControlType(typeName) {
 										mode: 1,
 										column: 1,
 										client_id: result.client_node_id,
-										color: '#d9d9d9'
+										color: '#d9d9d940'
 									}
 									var oResult = Api.asc_AddContentControl(1, {
 										Tag: JSON.stringify(tag)
@@ -1599,7 +1601,9 @@ function updateRangeControlType(typeName) {
 						if (typeName == 'write') {
 							tag.color = '#ff000040'
 						} else if (typeName == 'question') {
-							tag.color = '#d9d9d9'
+							tag.color = '#d9d9d940'
+						} else if (typeName == 'struct') {
+							tag.color = '#CFF4FF80'
 						}
 						var oResult = Api.asc_AddContentControl(type, {
 							Tag: JSON.stringify(tag)
@@ -2271,9 +2275,14 @@ function initControls() {
 						changecolor = true
 						tagInfo.color = '#ff000040'
 					}
-				} else if (oControl.GetClassType() == 'blockLvlSdt' && question_map[tagInfo.client_id] && question_map[tagInfo.client_id].level_type == 'question') {
-					tagInfo.color = '#d9d9d9'
-					changecolor = true
+				} else if (oControl.GetClassType() == 'blockLvlSdt' && question_map[tagInfo.client_id]) {
+					if (question_map[tagInfo.client_id].level_type == 'question') {
+						tagInfo.color = '#d9d9d940'
+						changecolor = true
+					} else if (question_map[tagInfo.client_id].level_type == 'struct') {
+						tagInfo.color = '#CFF4FF80'
+						changecolor = true
+					}
 				}
 			} else if (tagInfo.regionType == 'num') {
 				tagInfo.color = '#ffffff40'
@@ -2516,7 +2525,13 @@ function confirmLevelSet(levels) {
 					if (tagInfo.regionType == 'question') {
 						nodeData.write_list = []
 						detail.ask_list = []
-						tagInfo.color = '#ffffff'
+						if (level_type == 'question') {
+							tagInfo.color = '#d9d9d940'
+						} else if (level_type == 'struct') {
+							tagInfo.color = '#CFF4FF80'
+						} else {
+							tagInfo.color = '#ffffff'
+						}
 					}
 					nodeList.push(nodeData)
 					questionMap[id] = detail
@@ -2568,9 +2583,16 @@ function getNumberingText(text) {
 	return text
 }
 
-function GetDefaultName(level_type, text) {
-	if (!text) {
+function GetDefaultName(level_type, str) {
+	if (!str || typeof str != 'string') {
 		return ''
+	}
+	var text
+	var texts = str.split('\r\n')
+	if (texts && texts.length > 0) {
+		text = texts[0]		
+	} else {
+		text = str
 	}
 	if (level_type == 'struct') {
 		const pattern = /^[一二三四五六七八九十0-9]+.*?(?=[：:])/
