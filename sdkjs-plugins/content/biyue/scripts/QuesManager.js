@@ -705,6 +705,26 @@ function updateRangeControlType(typeName) {
 			}
 			return sType
 		}
+		function hideSimpleControl(oControl) {
+			var childControls = oControl.GetAllContentControls() || []
+			if (childControls.length) {
+				for (var c = childControls.length - 1; c >= 0; --c) {
+					var tag = getJsonData(childControls[c].GetTag())
+					if (tag.regionType == 'num' && childControls[c].GetClassType() == 'inlineLvlSdt') {
+						var parent = childControls[c].Sdt.Parent
+						if (parent && parent.GetType() == 1) {
+							var oParent = Api.LookupObject(parent.Id)
+							if (oParent) {
+								var pos = childControls[c].Sdt.GetPosInParent()
+								if (pos >= 0) {
+									oParent.RemoveElement(pos)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 		function hideSimple(oParagraph) {
 			if (!oParagraph) {
 				return
@@ -769,6 +789,7 @@ function updateRangeControlType(typeName) {
 				}
 			} else if (tag.regionType =='question') {
 				if (oControl.GetClassType() == 'blockLvlSdt') {
+					hideSimpleControl(oControl)
 					var oParagraph = oControl.GetAllParagraphs()[0]
 					hideSimple(oParagraph)
 					var oControlContent = oControl.GetContent()
