@@ -105,9 +105,9 @@
 		if (node_list[key].level_type == 'question') {
 		  if (item) {
 			html += `<span class="question" title="${ item.text }">${(item.ques_name || item.ques_default_name || '')}`
-			html += `<select class="type-item ques-${ node_list[key].id }">`
-			html += `<option value="" style="display:none;"></option>`
-      var used = ques_use.find(item => item == node_list[key].id)
+			var used = ques_use.find(item => item == node_list[key].id)
+			html += `<select class="type-item ques-${ node_list[key].id }" style="color:${used ? '#4CAF50' : ''}">`
+			// html += `<option value="" style="display:none;"></option>`
 			for (const key in type_options) {
 			  let selected = ''
 			  if (used && key == 1) {
@@ -150,11 +150,11 @@
 		doms.forEach(function(dom) {
 			dom.addEventListener('change', function() {
 				handleQuesUse(id, dom.value || '')
-        if (dom.value > 0) {
-          dom.style.color = '#4CAF50'
-        } else {
-          dom.style.color = ''
-        }
+				if (dom.value > 0) {
+				dom.style.color = '#4CAF50'
+				} else {
+				dom.style.color = ''
+				}
 			})
       if (dom.value > 0) {
         dom.style.color = '#4CAF50'

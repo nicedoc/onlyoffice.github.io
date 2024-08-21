@@ -204,7 +204,7 @@ function getContextMenuItems(type) {
 		})
 	}
 	if (canBatch) {
-		var questypes = window.BiyueCustomData.paper_options.question_type
+		var questypes = window.BiyueCustomData.paper_options ? window.BiyueCustomData.paper_options.question_type : []
 		var itemsQuesType = questypes.map((e) => {
 			return {
 				id: `batchChangeQuesType_${e.value}`,
@@ -705,6 +705,26 @@ function updateRangeControlType(typeName) {
 			}
 			return sType
 		}
+		function hideSimpleControl(oControl) {
+			var childControls = oControl.GetAllContentControls() || []
+			if (childControls.length) {
+				for (var c = childControls.length - 1; c >= 0; --c) {
+					var tag = getJsonData(childControls[c].GetTag())
+					if (tag.regionType == 'num' && childControls[c].GetClassType() == 'inlineLvlSdt') {
+						var parent = childControls[c].Sdt.Parent
+						if (parent && parent.GetType() == 1) {
+							var oParent = Api.LookupObject(parent.Id)
+							if (oParent) {
+								var pos = childControls[c].Sdt.GetPosInParent()
+								if (pos >= 0) {
+									oParent.RemoveElement(pos)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 		function hideSimple(oParagraph) {
 			if (!oParagraph) {
 				return
@@ -769,6 +789,7 @@ function updateRangeControlType(typeName) {
 				}
 			} else if (tag.regionType =='question') {
 				if (oControl.GetClassType() == 'blockLvlSdt') {
+					hideSimpleControl(oControl)
 					var oParagraph = oControl.GetAllParagraphs()[0]
 					hideSimple(oParagraph)
 					var oControlContent = oControl.GetContent()
@@ -800,7 +821,7 @@ function updateRangeControlType(typeName) {
 			}
 		}
 		function removeCellInteraction(oCell) {
-			if (!oCell) {
+			if (!oCell || !oCell.GetClassType || oCell.GetClassType() != 'tableCell') {
 				return
 			}
 			oCell.SetBackgroundColor(255, 191, 191, true)
@@ -938,7 +959,7 @@ function updateRangeControlType(typeName) {
 					return
 				}
 			}
-			if (!oCell) {
+			if (!oCell || !oCell.GetClassType || oCell.GetClassType() != 'tableCell') {
 				return
 			}
 			var canadd = false
@@ -1052,7 +1073,9 @@ function updateRangeControlType(typeName) {
 				tag.color = '#ff000040'
 			} else {
 				if (typeName == 'question' || typeName == 'setBig' || typeName == 'clearBig') {
-					tag.color = '#d9d9d9'
+					tag.color = '#d9d9d940'
+				} else if (typeName == 'struct') {
+					tag.color = '#CFF4FF80'
 				} else if (tag.color) {
 					delete tag.color
 				}
@@ -1277,7 +1300,7 @@ function updateRangeControlType(typeName) {
 										mode: 1,
 										column: 1,
 										client_id: result.client_node_id,
-										color: '#d9d9d9'
+										color: '#d9d9d940'
 									}
 									var oResult = Api.asc_AddContentControl(1, {
 										Tag: JSON.stringify(tag)
@@ -1599,7 +1622,9 @@ function updateRangeControlType(typeName) {
 						if (typeName == 'write') {
 							tag.color = '#ff000040'
 						} else if (typeName == 'question') {
-							tag.color = '#d9d9d9'
+							tag.color = '#d9d9d940'
+						} else if (typeName == 'struct') {
+							tag.color = '#CFF4FF80'
 						}
 						var oResult = Api.asc_AddContentControl(type, {
 							Tag: JSON.stringify(tag)
@@ -2271,9 +2296,14 @@ function initControls() {
 						changecolor = true
 						tagInfo.color = '#ff000040'
 					}
-				} else if (oControl.GetClassType() == 'blockLvlSdt' && question_map[tagInfo.client_id] && question_map[tagInfo.client_id].level_type == 'question') {
-					tagInfo.color = '#d9d9d9'
-					changecolor = true
+				} else if (oControl.GetClassType() == 'blockLvlSdt' && question_map[tagInfo.client_id]) {
+					if (question_map[tagInfo.client_id].level_type == 'question') {
+						tagInfo.color = '#d9d9d940'
+						changecolor = true
+					} else if (question_map[tagInfo.client_id].level_type == 'struct') {
+						tagInfo.color = '#CFF4FF80'
+						changecolor = true
+					}
 				}
 			} else if (tagInfo.regionType == 'num') {
 				tagInfo.color = '#ffffff40'
@@ -2516,7 +2546,13 @@ function confirmLevelSet(levels) {
 					if (tagInfo.regionType == 'question') {
 						nodeData.write_list = []
 						detail.ask_list = []
-						tagInfo.color = '#ffffff'
+						if (level_type == 'question') {
+							tagInfo.color = '#d9d9d940'
+						} else if (level_type == 'struct') {
+							tagInfo.color = '#CFF4FF80'
+						} else {
+							tagInfo.color = '#ffffff'
+						}
 					}
 					nodeList.push(nodeData)
 					questionMap[id] = detail
@@ -2568,9 +2604,16 @@ function getNumberingText(text) {
 	return text
 }
 
-function GetDefaultName(level_type, text) {
-	if (!text) {
+function GetDefaultName(level_type, str) {
+	if (!str || typeof str != 'string') {
 		return ''
+	}
+	var text
+	var texts = str.split('\r\n')
+	if (texts && texts.length > 0) {
+		text = texts[0]		
+	} else {
+		text = str
 	}
 	if (level_type == 'struct') {
 		const pattern = /^[一二三四五六七八九十0-9]+.*?(?=[：:])/
@@ -2944,7 +2987,7 @@ function showAskCells(cmdType) {
 							})
 							if (writeData && writeData.sub_type == 'cell' && writeData.cell_id) {
 								var oCell = Api.LookupObject(writeData.cell_id)
-								if (oCell) {
+								if (oCell && oCell.GetClassType && oCell.GetClassType() == 'tableCell') {
 									oCell.SetBackgroundColor(255, 191, 191, cmdType == 'show' ? false : true)
 								}
 							}
@@ -4390,11 +4433,14 @@ function deleteAsks(askList, notify = true) {
 						}
 					}
 				}
-				// 删除所有inlineControl
+				// 删除除订正框外的所有inlineControl
 				var childControls = quesControl.GetAllContentControls() || []
 				childControls.forEach(e => {
 					if (e.GetClassType() == 'inlineLvlSdt' && e.Sdt) {
-						Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
+						var tag = getJsonData(e.GetTag())
+						if (tag.regionType != 'num') {
+							Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
+						}
 					}
 				})
 				// 删除所有write 和 identify
@@ -5614,10 +5660,70 @@ function clearRepeatControl(reclac = false) {
 			question_map: question_map
 		}
 	}, false, reclac).then(res => {
-		if (res) {
-			window.BiyueCustomData.client_node_id = res.client_node_id
-			window.BiyueCustomData.node_list = res.node_list
-			window.BiyueCustomData.question_map = res.question_map
+		return new Promise((resolve, reject) => {
+			if (res) {
+				window.BiyueCustomData.client_node_id = res.client_node_id
+				window.BiyueCustomData.node_list = res.node_list
+				window.BiyueCustomData.question_map = res.question_map
+			}
+			resolve()	
+		})
+	})
+}
+
+function tidyNodes() {
+	return clearRepeatControl(false).then(() => {
+		return getNodeList()
+	}).then(list => {
+		console.log('tidyNodes', list)
+		if (list) {
+			var node_list = window.BiyueCustomData.node_list || []
+			var question_map = window.BiyueCustomData.question_map || {}
+			for (var i = 0, imax = list.length; i < imax; ++i) {
+				var id = list[i].id
+				var index1 = node_list.findIndex(e => e.id == id)
+				if (index1 == -1) { // 原本就不在node列表里，不管
+					if (question_map[id]) {
+						delete question_map[id] // 同步删除map里的
+					}
+					continue
+				}
+				var write_list = list[i].write_list || []
+				var oldNodeData = node_list[index1]
+				if (oldNodeData.write_list) {
+					for (var j = oldNodeData.write_list.length - 1; j >= 0; --j) {
+						var writeData = oldNodeData.write_list[j]
+						var writeIndex = write_list.findIndex(e => e.id == writeData.id)
+						if (writeIndex == -1) { // 找不到，删除
+							oldNodeData.write_list.splice(j, 1)
+						}
+					}
+				}
+				if (question_map[id].ask_list) {
+					for (var k = question_map[id].ask_list.length - 1; k >= 0; --k) {
+						var askData = question_map[id].ask_list[k]
+						var askIndex = write_list.findIndex(e => e.id == askData.id)
+						if (askIndex == -1) { // 找不到，删除
+							question_map[id].ask_list.splice(k, 1)
+						}	
+					}
+				}
+			}
+			for (var i = node_list.length -1; i >= 0; --i) {
+				var index2 = list.findIndex(e => e.id == node_list[i].id)
+				if (index2 == -1) {
+					node_list.splice(i, 1)
+				}
+			}
+			var keys = Object.keys(question_map)
+			keys.forEach(id => {
+				var index3 = list.findIndex(e => e.id == id)
+				if (index3 == -1) {
+					delete question_map[id]
+				}
+			})
+			window.BiyueCustomData.node_list = node_list
+			window.BiyueCustomData.question_map = question_map
 		}
 	})
 }
@@ -5647,5 +5753,6 @@ export {
 	updateQuesScore,
 	splitControl,
 	updateDataBySavedData,
-	clearRepeatControl
+	clearRepeatControl,
+	tidyNodes
 }

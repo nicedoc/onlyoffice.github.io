@@ -2260,7 +2260,7 @@ import { initView, onSaveData } from './pageView.js'
                 })
                 if (writeData && writeData.sub_type == 'cell' && writeData.cell_id) {
                   var oCell = Api.LookupObject(writeData.cell_id)
-                  if (oCell) {
+                  if (oCell && oCell.GetClassType && oCell.GetClassType() == 'tableCell') {
                     oCell.SetBackgroundColor(255, 191, 191, cmdType == 'show' ? false : true)
                   }
                 }

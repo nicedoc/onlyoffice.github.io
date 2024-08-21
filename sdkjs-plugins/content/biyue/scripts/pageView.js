@@ -10,7 +10,8 @@ import {
 	handleAllWrite,
 	showAskCells,
 	g_click_value,
-	clearRepeatControl
+	clearRepeatControl,
+	tidyNodes
 } from './QuesManager.js'
 import { showCom, updateText, addClickEvent } from './model/util.js'
 import { reqSaveInfo } from './api/paper.js'
@@ -83,6 +84,7 @@ function initView() {
 		}
 	})
 	addClickEvent('#clearStack', resetStack)
+	addClickEvent('#tidyNodes', tidyNodes)
 }
 
 function handlePaperInfoResult(success, res) {
@@ -162,9 +164,9 @@ function onSaveData(print = true) {
 		time: window.BiyueCustomData.time
 	}
 	var str = JSON.stringify(info)
-	console.log('保存数据', str)
 	return new Promise((resolve, reject) => {
 		reqSaveInfo(window.BiyueCustomData.paper_uuid, str).then(res => {
+			console.log('保存数据到后端成功', str)
 			if (print) {
 				window.biyue.showMessageBox({
 					content: '保存成功',
@@ -173,6 +175,7 @@ function onSaveData(print = true) {
 			}
 			resolve()
 		}).catch(res => {
+			console.log('保存数据到后端失败', res)
 			if (print) {
 				window.biyue.showMessageBox({
 					content: '保存失败',
