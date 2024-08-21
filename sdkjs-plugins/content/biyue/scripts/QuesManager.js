@@ -821,7 +821,7 @@ function updateRangeControlType(typeName) {
 			}
 		}
 		function removeCellInteraction(oCell) {
-			if (!oCell) {
+			if (!oCell || !oCell.GetClassType || oCell.GetClassType() != 'tableCell') {
 				return
 			}
 			oCell.SetBackgroundColor(255, 191, 191, true)
@@ -959,7 +959,7 @@ function updateRangeControlType(typeName) {
 					return
 				}
 			}
-			if (!oCell) {
+			if (!oCell || !oCell.GetClassType || oCell.GetClassType() != 'tableCell') {
 				return
 			}
 			var canadd = false
@@ -2987,7 +2987,7 @@ function showAskCells(cmdType) {
 							})
 							if (writeData && writeData.sub_type == 'cell' && writeData.cell_id) {
 								var oCell = Api.LookupObject(writeData.cell_id)
-								if (oCell) {
+								if (oCell && oCell.GetClassType && oCell.GetClassType() == 'tableCell') {
 									oCell.SetBackgroundColor(255, 191, 191, cmdType == 'show' ? false : true)
 								}
 							}
@@ -5657,11 +5657,14 @@ function clearRepeatControl(reclac = false) {
 			question_map: question_map
 		}
 	}, false, reclac).then(res => {
-		if (res) {
-			window.BiyueCustomData.client_node_id = res.client_node_id
-			window.BiyueCustomData.node_list = res.node_list
-			window.BiyueCustomData.question_map = res.question_map
-		}
+		return new Promise((resolve, reject) => {
+			if (res) {
+				window.BiyueCustomData.client_node_id = res.client_node_id
+				window.BiyueCustomData.node_list = res.node_list
+				window.BiyueCustomData.question_map = res.question_map
+			}
+			resolve()	
+		})
 	})
 }
 
@@ -5690,5 +5693,6 @@ export {
 	updateQuesScore,
 	splitControl,
 	updateDataBySavedData,
-	clearRepeatControl
+	clearRepeatControl,
+	tidyNodes
 }
