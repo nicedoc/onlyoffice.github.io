@@ -57,8 +57,8 @@ function updateCustomControls() {
     let ques_no = 1
     let struct_index = 0
     var control_list = []
-    controls.forEach(control => {
-      var rect = Api.asc_GetContentControlBoundingRect(control.Sdt.GetId(), true);
+    controls.forEach(control => {      
+      //var rect = Api.asc_GetContentControlBoundingRect(control.Sdt.GetId(), true);
       let tagInfo = JSON.parse(control.GetTag())
       var text = control.GetRange().GetText()
       let obj = {
