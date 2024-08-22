@@ -1568,6 +1568,9 @@ function setInteraction(type, quesIds) {
 					}
 				}
 			}
+			if (question_map[tag.client_id].ques_mode == 6) {
+				interaction_type = 'none'
+			}
 			var ask_list = question_map[tag.client_id].ask_list
 			var nodeData = node_list.find(e => {
 				return e.id == tag.client_id
@@ -1576,12 +1579,13 @@ function setInteraction(type, quesIds) {
 			// var allDraws = oControl.GetAllDrawingObjects()
 			// var simpleDrawings = getExistDrawing(allDraws, ['simple'])
 			// var accurateDrawings = getExistDrawing(allDraws, ['accurate', 'ask_accurate'])
-			var type = nodeData.use_gather ? 'none' : interaction_type
+			var isGatherChoice = (question_map[tag.client_id].ques_mode == 1 || question_map[tag.client_id].ques_mode == 5) && nodeData.use_gather
+			var type = isGatherChoice ? 'none' : interaction_type
 			var firstParagraph = getFirstParagraph(oControl)
 			if (firstParagraph) {
 				showSimple(firstParagraph, type != 'none')
 			}
-			if (nodeData.use_gather && nodeData.gather_cell_id) {
+			if (isGatherChoice && nodeData.gather_cell_id) {
 				// 在集中作答区添加互动
 				var oCell = Api.LookupObject(nodeData.gather_cell_id)
 				if (oCell && oCell.GetClassType() == 'tableCell') {
@@ -1594,7 +1598,7 @@ function setInteraction(type, quesIds) {
 						}
 					} else if (interaction_type == 'none') {
 						deleShape(dlist[0])
-					}	
+					}
 				}
 			}
 			handleControlAccurate(oControl, ask_list, write_list, type)
@@ -1847,7 +1851,7 @@ function handleChoiceUpdateResult(res) {
 	if (res) {
 		window.BiyueCustomData.node_list = res
 		if (window.BiyueCustomData.interaction != 'none') {
-			return setInteraction(window.BiyueCustomData.interaction)
+			return setInteraction('useself')
 		}
 	}
 	return new Promise((resolve, reject) => {

@@ -6,12 +6,16 @@
   let tree_map = {}
   let question_type_options = []
   let hidden_empty_struct = false
+  let needUpdateInteraction = false
+  let needUpdateChoice = false
   window.Asc.plugin.init = function () {
     console.log('examExport init')
     window.Asc.plugin.sendToPlugin('onWindowMessage', { type: 'PaperMessage' })
   }
 
   function init() {
+	needUpdateChoice = false
+	needUpdateInteraction = false
     getOptions()
     $('#confirm').on('click', onConfirm)
     $('#hidden_empty_struct').on('click', onSwitchStruct)
@@ -120,7 +124,16 @@
     let arr = tree_map[struct_id] || []
     for (const key in arr) {
         let id = arr[key]
+		var oldMode = question_map[id].ques_mode
+		var ques_mode = getQuesMode(parseFloat(value) || 0)
+		question_map[id].ques_mode = ques_mode
         question_map[id].question_type = value
+		if (!needUpdateInteraction) {
+			needUpdateInteraction = question_map[id].interaction != 'none' && (oldMode == 6 || ques_mode == 6) 
+		}
+		if (!needUpdateChoice) {
+			needUpdateChoice = oldMode == 1 || oldMode == 5 || ques_mode == 1 || ques_mode == 5
+		}
     }
 
     renderData()
@@ -183,12 +196,15 @@
   function getQuesMode(question_type) {
     question_type = question_type * 1
     var ques_mode = 0
+	if (question_type == 6) {
+		return 6
+	}
     if (question_type > 0) {
       if (mark_type_info && mark_type_info.list) {
         var find = mark_type_info.list.find(e => {
           return e.question_type_id == question_type
         })
-        ques_mode = find ? find.ques_mode : 3
+		return find ? find.ques_mode : 3
       }
     }
     return ques_mode
@@ -209,13 +225,25 @@
     // 将窗口的信息传递出去
     window.Asc.plugin.sendToPlugin('onWindowMessage', {
       type: 'changeQuestionMap',
-      data: question_map,
+      data: {
+		question_map: question_map,
+		needUpdateChoice: needUpdateChoice,
+		needUpdateInteraction: needUpdateInteraction
+	  },
     })
   }
 
   function changeQuestionType({id, question_type}) {
+	var oldMode = question_map[id].ques_mode
     question_map[id].question_type = parseFloat(question_type) || 0
-    question_map[id].ques_mode = getQuesMode(parseFloat(question_type) || 0)
+	var ques_mode = getQuesMode(parseFloat(question_type) || 0)
+    question_map[id].ques_mode = ques_mode
+	if (!needUpdateInteraction) {
+		needUpdateInteraction = question_map[id].interaction != 'none' && (oldMode == 6 || ques_mode == 6) 
+	}
+	if (!needUpdateChoice) {
+		needUpdateChoice = oldMode == 1 || oldMode == 5 || ques_mode == 1 || ques_mode == 5
+	}
   }
 
   window.Asc.plugin.attachEvent('initPaper', function (message) {

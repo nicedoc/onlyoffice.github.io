@@ -533,14 +533,8 @@ function initPositions1() {
 			window.BiyueCustomData.node_list = res
 		}
 		var vinteraction = window.BiyueCustomData.interaction
-		updateAllInteraction(vinteraction)
-		if (vinteraction != 'none') {
-			return setInteraction(vinteraction)
-		} else {
-			return new Promise((resolve, reject) => {
-				resolve()
-			})
-		}
+		updateAllInteraction(vinteraction, false)
+		return setInteraction('useself')
 	}).then(() => {
 		return drawExtroInfo(list_feature)
 	}).then(() => {
@@ -568,10 +562,12 @@ function MoveCursor() {
 	}, false, false)
 }
 
-function updateAllInteraction(vinteraction) {
+function updateAllInteraction(vinteraction, isForce = true) {
 	var question_map = window.BiyueCustomData.question_map || {}
 	Object.keys(question_map).forEach(e => {
-		question_map[e].interaction = vinteraction
+		if (isForce || question_map[e].interaction == undefined) {
+			question_map[e].interaction = vinteraction
+		}
 	})
 }
 

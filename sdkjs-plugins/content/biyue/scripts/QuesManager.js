@@ -2103,16 +2103,21 @@ function batchChangeQuesType(type) {
 		var judgeChoiceAll = false
 		var choice_ids = []
 		var useGather = window.BiyueCustomData.choice_display && window.BiyueCustomData.choice_display.style != 'brackets_choice_region'
+		var interaction_ids = []
 		res.list.forEach(e => {
 			if (question_map[e.id]) {
 				var oldMode = question_map[e.id].ques_mode
 				var newMode = getQuesMode(type)
+				if (question_map[e.id].interaction != 'none' && (oldMode == 6 || newMode == 6)) {
+					interaction_ids.push(e.id)
+				}
 				question_map[e.id].question_type = type * 1
 				question_map[e.id].ques_mode = newMode
 				if (newMode == 1 || newMode == 5) {
 					choice_ids.push(e.id)
-				} else if (useGather && (oldMode == 1 || oldMode == 5)) {
-					judgeChoiceAll = true
+				}
+				if (!judgeChoiceAll && useGather) {
+					judgeChoiceAll = (newMode == 1 || newMode == 5 || oldMode == 1 || oldMode == 5)
 				}
 			}
 		})
@@ -2130,27 +2135,40 @@ function batchChangeQuesType(type) {
 		}
 		return {
 			choice_ids,
-			judgeChoiceAll
+			judgeChoiceAll,
+			interaction_ids
 		}
-	}).then((res) => {
-		console.log('before deleteChoiceOtherWrite', res)
-		if (res && res.choice_ids && res.choice_ids.length) {
-			return deleteChoiceOtherWrite(res.choice_ids, false)
-		} else {
-			return new Promise((resolve, reject) => {
+	}).then(res => {
+		return new Promise((resolve, reject) => {
+			if (res && res.choice_ids && res.choice_ids.length) {
+				return deleteChoiceOtherWrite(res.choice_ids, false).then(() => {
+					resolve(res)
+				})	
+			} else {
 				resolve(res)
-			})
-		}
-	})
-	.then((res) => {
-		if (res && res.judgeChoiceAll) {
-			return updateAllChoice()
-		} else {
-			return new Promise((resolve, reject) => {
-				resolve()
-			})
-		}
-	}).then (() => {
+			}
+		})
+	}).then(res => {
+		return new Promise((resolve, reject) => {
+			if (res && res.judgeChoiceAll) {
+				return updateAllChoice().then(() => {
+					resolve(res)
+				})	
+			} else {
+				resolve(res)
+			}
+		})
+	}).then((res => {
+		return new Promise((resolve, reject) => {
+			if (res && res.interaction_ids && res.interaction_ids.length) {
+				return setInteraction('useself', res.interaction_ids).then(() => {
+					resolve(res)
+				})	
+			} else {
+				resolve(res)
+			}
+		})
+	})).then(() => {
 		window.biyue.StoreCustomData()
 	})
 }
@@ -2598,22 +2616,21 @@ function confirmLevelSet(levels) {
 }
 
 function getNumberingText(text) {
-	if (text.length && text[0] == '\ue749') {
-		return text.substring(1)
+	if (!text || typeof text != 'string') {
+		return null
 	}
-	return text
+	return text.replace(/[\ue749\ue6a1\ue607]/g, '');
 }
 
 function GetDefaultName(level_type, str) {
 	if (!str || typeof str != 'string') {
 		return ''
 	}
-	var text
+	str = str.replace(/[\ue749\ue6a1\ue607]/g, '');
+	var text = str
 	var texts = str.split('\r\n')
 	if (texts && texts.length > 0) {
-		text = texts[0]		
-	} else {
-		text = str
+		text = texts[0]
 	}
 	if (level_type == 'struct') {
 		const pattern = /^[一二三四五六七八九十0-9]+.*?(?=[：:])/
@@ -2644,6 +2661,9 @@ function GetDefaultName(level_type, str) {
 // 获取作答模式
 function getQuesMode(question_type) {
 	question_type = question_type * 1
+	if (question_type == 6) {
+		return 6
+	}
 	var ques_mode = 0
 	if (question_type > 0) {
 		var mark_type_info = Asc.scope.subject_mark_types
@@ -2651,7 +2671,7 @@ function getQuesMode(question_type) {
 			var find = mark_type_info.list.find(e => {
 				return e.question_type_id == question_type
 			})
-			ques_mode = find ? find.ques_mode : 3
+			return find ? find.ques_mode : 3
 		}
 	}
 	return ques_mode
@@ -2735,6 +2755,7 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 	Asc.scope.node_list = window.BiyueCustomData.node_list || []
 	Asc.scope.ids = ids ? ids : Object.keys(Asc.scope.question_map)
 	Asc.scope.choice_blank = window.BiyueCustomData.choice_blank
+	console.log('deleteChoiceOtherWrite begin')
 	return biyueCallCommand(window, function() {
 		var question_map = Asc.scope.question_map
 		var node_list = Asc.scope.node_list
@@ -2743,6 +2764,7 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 		var ids = Asc.scope.ids
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls() || []
+		var updateInteraction = false
 		function getJsonData(str) {
 			if (!str || str == '' || typeof str != 'string') {
 				return {}
@@ -2765,6 +2787,7 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 					var titleObj = getJsonData(title)
 					if (titleObj.feature && titleObj.feature.sub_type == 'ask_accurate') {
 						oRun.Delete()
+						updateInteraction = true
 						return true
 					}
 				}
@@ -2781,6 +2804,49 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 				if (deleteAccurateRun(oRun)) {
 					break
 				}
+			}
+		}
+
+		function updateAccurateText(blankControlId) {
+			var blankControl = Api.LookupObject(blankControlId)
+			if (!blankControl) {
+				return
+			}
+			if (blankControl.GetClassType() == 'inlineLvlSdt') {
+				var elementcount = blankControl.GetElementsCount()
+				for (var i = 0; i < elementcount; ++i) {
+					var oChild = blankControl.GetElement(i)
+					if (oChild.GetClassType() == 'run' && oChild.Run.Content && oChild.Run.Content.length) { // ParaRun
+						var drawing = oChild.Run.Content[0]
+						if (drawing.docPr && drawing.docPr.title && drawing.GraphicObj) {
+							var titleObj = getJsonData(drawing.docPr.title)
+							if (titleObj.feature && titleObj.feature.sub_type == 'ask_accurate') {
+								var content = drawing.GraphicObj.textBoxContent // shapeContent
+								if (content.Content && content.Content.length) {
+									var paragraph = content.Content[0]
+									if (paragraph) {
+										if (paragraph.GetElementsCount()) {
+											var run = paragraph.GetElement(0)
+											if (run) {
+												if (run.GetText() * 1 != 1) { // 序号run
+													paragraph.ReplaceCurrentWord(0, '1')
+												}
+											}
+										} else {
+											var oPara = Api.LookupObject(paragraph.Id)
+											oPara.AddText('1')
+											oPara.SetColor(153, 153, 153, false)
+											oPara.SetJc('center')
+											oPara.SetSpacingAfter(0)
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			} else {
+				// todo.. write为blockLvlSdt时需要另外处理
 			}
 		}
 		for (var i = 0; i < ids.length; ++i) {
@@ -2842,12 +2908,15 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 					}
 				} else {
 					deleteControlAccurate(childControls[j])
-					Api.asc_RemoveContentControlWrapper(childControls[j].Sdt.GetId())
+					if (childTag.regionType != 'num') {
+						Api.asc_RemoveContentControlWrapper(childControls[j].Sdt.GetId())
+					}
 				}
 			}
 			if (validIds.length > 1) {
 				var begin
 				var end
+				var blankIndex = 0
 				if (choice_blank == 'first') {
 					begin = 1
 					end = validIds.length -1
@@ -2855,6 +2924,7 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 				} else if (choice_blank == 'last') {
 					begin = 0
 					end = validIds.length - 2
+					blankIndex = validIds.length - 1
 					question_map[id].ask_list = [].concat(question_map[id].ask_list[validIds[validIds.length - 1].child_index])
 				}
 				for (var k = begin; k <= end; ++k) {
@@ -2867,12 +2937,16 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 					deleteControlAccurate(Api.LookupObject(validIds[k].control_id))
 					Api.asc_RemoveContentControlWrapper(validIds[k].control_id)
 				}
+				if (question_map[id].interaction != 'none') {
+					updateAccurateText(validIds[blankIndex].control_id)
+				}
 			}
 			nodeData.write_list = write_list
 		}
 		return {
 			node_list,
-			question_map
+			question_map,
+			updateInteraction
 		}
 	}, false, recalc).then(res => {
 		return new Promise((resolve, reject) => {
@@ -2880,7 +2954,7 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 				window.BiyueCustomData.node_list = res.node_list
 				window.BiyueCustomData.question_map = res.question_map
 			}
-			resolve()
+			resolve(res)
 		})
 	})
 }
@@ -4245,7 +4319,7 @@ function changeProportion(idList, proportion) {
 	})
 }
 
-function deleteAsks(askList, notify = true) {
+function deleteAsks(askList, recalc = true, notify = true) {
 	if (!askList || askList.length == 0) {
 		return new Promise((resolve, reject) => {
 			return resolve({})	
@@ -4554,7 +4628,7 @@ function deleteAsks(askList, notify = true) {
 			node_list: node_list,
 			ques_id: delete_ask_list[delete_ask_list.length - 1].ques_id
 		}
-	}, false, true).then(res => {
+	}, false, recalc).then(res => {
 		if (res) {
 			window.BiyueCustomData.question_map = res.question_map
 			window.BiyueCustomData.node_list = res.node_list
@@ -4565,7 +4639,7 @@ function deleteAsks(askList, notify = true) {
 					}
 				}))
 			}
-			if (res.question_map[res.ques_id] && res.question_map[res.ques_id].interaction == 'accurate') {
+			if (recalc && res.question_map[res.ques_id] && res.question_map[res.ques_id].interaction == 'accurate') {
 				return setInteraction('accurate', [res.ques_id])
 			} else {
 				return new Promise((resolve, reject) => {
