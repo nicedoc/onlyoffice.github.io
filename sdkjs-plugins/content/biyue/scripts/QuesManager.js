@@ -2598,22 +2598,21 @@ function confirmLevelSet(levels) {
 }
 
 function getNumberingText(text) {
-	if (text.length && text[0] == '\ue749') {
-		return text.substring(1)
+	if (!text || typeof text != 'string') {
+		return null
 	}
-	return text
+	return text.replace(/[\ue749\ue6a1\ue607]/g, '');
 }
 
 function GetDefaultName(level_type, str) {
 	if (!str || typeof str != 'string') {
 		return ''
 	}
-	var text
+	str = str.replace(/[\ue749\ue6a1\ue607]/g, '');
+	var text = str
 	var texts = str.split('\r\n')
 	if (texts && texts.length > 0) {
-		text = texts[0]		
-	} else {
-		text = str
+		text = texts[0]
 	}
 	if (level_type == 'struct') {
 		const pattern = /^[一二三四五六七八九十0-9]+.*?(?=[：:])/
