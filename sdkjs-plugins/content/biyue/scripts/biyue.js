@@ -41,14 +41,16 @@ import {
 	onContextMenuClick,
 	layoutRepair,
 	tagImageCommon,
-	updateDataBySavedData
+	updateDataBySavedData,
+	deleteChoiceOtherWrite
 } from './QuesManager.js'
 
 import { reqSaveInfo } from './api/paper.js'
 
 import { initView, onSaveData } from './pageView.js'
 
-;(function (window, undefined) {
+;import { setInteraction, updateChoice } from './featureManager.js'
+(function (window, undefined) {
 	var styleEnable = false
 	let activeQuesItem = ''
 	let windows = {
@@ -151,11 +153,24 @@ import { initView, onSaveData } from './pageView.js'
 				break
       		case 'changeQuestionMap': // 更新question_map
         		if (message.data){
-          			window.BiyueCustomData.question_map = message.data
+          			window.BiyueCustomData.question_map = message.data.question_map
           			console.log('更新question_map', message.data)
                     StoreCustomData(() => {
                         window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
                         console.log('store custom data done')
+						if (message.data.needUpdateInteraction) {
+							setInteraction('useself').then(() => {
+								if (message.data.needUpdateChoice) {
+									deleteChoiceOtherWrite(null, false).then(() => {
+										updateChoice(true)
+									})
+								}
+							})
+						} else if (message.data.needUpdateChoice) {
+							deleteChoiceOtherWrite(null, false).then((res) => {
+								updateChoice(true)
+							})
+						}
                     })
         		}
         		break

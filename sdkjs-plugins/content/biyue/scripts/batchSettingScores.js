@@ -280,7 +280,9 @@
     // 将窗口的信息传递出去
     window.Asc.plugin.sendToPlugin('onWindowMessage', {
       type: 'changeQuestionMap',
-      data: question_map,
+      data: {
+		question_map: question_map
+	  },
     })
   }
 

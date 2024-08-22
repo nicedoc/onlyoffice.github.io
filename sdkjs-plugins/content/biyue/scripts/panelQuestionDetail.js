@@ -444,23 +444,40 @@ function changeQuestionType(data) {
 		if (window.BiyueCustomData.question_map && window.BiyueCustomData.question_map[g_ques_id]) {
 			window.BiyueCustomData.question_map[g_ques_id].ques_mode = quesMode
 		}
-		if (quesMode == 1 || quesMode == 5) {
-			deleteChoiceOtherWrite([g_ques_id], false).then(() => {
-				updateAllChoice().then(() => {
-					autoSave()
-					showQuesData({
-						client_id: g_client_id,
-						regionType: 'question'
-					})
-				})
-			})
-		} else if (oldMode == 1 || oldMode == 5) {
-			updateAllChoice().then(() => {
-				autoSave()
+		var interaction = window.BiyueCustomData.question_map[g_ques_id].interaction
+		var need_update_interaction = false
+		if (interaction != 'none') {
+			if (oldMode == 6 || quesMode == 6) {
+				need_update_interaction = true
+			}
+		}
+		if (need_update_interaction) {
+			setInteraction('useself', [g_ques_id]).then(() => {
+				updateQuesType(quesMode, oldMode)
 			})
 		} else {
-			autoSave()
+			updateQuesType(quesMode, oldMode)
 		}
+	}
+}
+
+function updateQuesType(quesMode, oldMode) {
+	if (quesMode == 1 || quesMode == 5) {
+		deleteChoiceOtherWrite([g_ques_id], false).then(() => {
+			updateAllChoice().then(() => {
+				autoSave()
+				showQuesData({
+					client_id: g_client_id,
+					regionType: 'question'
+				})
+			})
+		})
+	} else if (oldMode == 1 || oldMode == 5) {
+		updateAllChoice().then(() => {
+			autoSave()
+		})
+	} else {
+		autoSave()
 	}
 }
 // 修改占比
@@ -887,7 +904,7 @@ function resplitQues() {
 	deleteAsks([{
 		ques_id: g_ques_id,
 		ask_id: 0
-	}], false).then(() => {
+	}], false, false).then(() => {
 		splitControl(g_ques_id).then(res => {
 			if (window.BiyueCustomData.question_map[g_ques_id] && window.BiyueCustomData.question_map[g_ques_id].interaction == 'accurate') {
 				setInteraction(window.BiyueCustomData.question_map[g_ques_id].interaction, [g_ques_id])
