@@ -1899,8 +1899,9 @@ function handleChangeType(res, res2) {
 								}
 								question_map[parent_id].ask_list.splice(toIndex, 0, {
 									id: item.client_id,
-									score: 0
+									score: 1
 								})
+								updateScore(parent_id)
 							} else if (item.type == 'remove') {
 								question_map[parent_id].ask_list.splice(index2, 1)
 								updateScore(parent_id)
