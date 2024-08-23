@@ -2259,7 +2259,22 @@ function updateDataBySavedData(str) {
 	try {
 		var data = JSON.parse(str)
 		if (data.client_node_id) {
-			window.BiyueCustomData.client_node_id = data.client_node_id
+			var maxId = 0
+			for (var i = 0; i < data.node_list.length; i++) {
+				if (data.node_list[i].id > maxId) {
+					maxId = data.node_list[i].id * 1
+				}
+				if (data.node_list[i].write_list) {
+					for (var j = 0; j < data.node_list[i].write_list.length; j++) {
+						if (data.node_list[i].write_list[j].sub_type != 'cell') {
+							if (data.node_list[i].write_list[j].id * 1 > maxId) {
+								maxId = data.node_list[i].id * 1
+							}
+						}
+					}
+				}
+			}
+			window.BiyueCustomData.client_node_id = maxId >= data.client_node_id ? (maxId + 1) : data.client_node_id
 			window.BiyueCustomData.node_list = data.node_list
 			window.BiyueCustomData.question_map = data.question_map	
 		}
@@ -2270,12 +2285,15 @@ function updateDataBySavedData(str) {
 // 由于从BiyueCustomData中获取的中文取出后会是乱码，需要在初始化时，再根据controls刷新一次数据
 function initControls() {
 	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
+	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
 	return biyueCallCommand(window, function() {
 		var question_map = Asc.scope.question_map || {}
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls()
 		var nodeList = []
 		var ids = {}
+		var client_node_id = Asc.scope.client_node_id
+		var maxid = client_node_id
 		function getJsonData(str) {
 			if (!str || str == '' || typeof str != 'string') {
 				return {}
@@ -2333,6 +2351,11 @@ function initControls() {
 
 			// tagInfo.color = '#ff0000'
 			// oControl.Sdt.SetColor(colors[oControl.GetClassType()])
+			if (tagInfo.client_id) {
+				if (maxid < tagInfo.client_id * 1) {
+					maxid = tagInfo.client_id * 1
+				}
+			}
 			var parentid = 0
 			if (tagInfo.regionType) {
 				if (tagInfo.regionType == 'question') {
@@ -2390,6 +2413,11 @@ function initControls() {
 		drawings.forEach(oDrawing => {
 			var title = oDrawing.Drawing.docPr.title || '{}'
 			var titleObj = getJsonData(title)
+			if (titleObj.feature && titleObj.feature.client_id) {
+				if (maxid < tagInfo.feature.client_id * 1) {
+					maxid = tagInfo.feature.client_id * 1
+				}
+			}
 			if(titleObj && titleObj.feature && titleObj.feature.zone_type == 'question' && (titleObj.feature.sub_type == 'write' || titleObj.feature.sub_type == 'identify')) {
 				drawingList.push({
 					id: titleObj.feature.client_id,
@@ -2399,15 +2427,22 @@ function initControls() {
 				})
 			}
 		})
+		if (maxid > client_node_id) {
+			client_node_id = maxid + 1
+		}
 		return {
 			nodeList,
 			drawingList,
-			ids
+			ids,
+			client_node_id
 		}
 	}, false, false).then(res => {
 		console.log('initControls   nodeList', res)
 		return new Promise((resolve, reject) => {
 			// todo.. 这里暂不考虑上次的数据未保存或保存失败的情况，只假设此时的control数据和nodelist里的是一致的，只是乱码而已，其他的后续再处理
+			if (res.client_node_id) {
+				window.BiyueCustomData.client_node_id = res.client_node_id
+			}
 			var nodeList = res.nodeList
 			var drawingList = res.drawingList
 			var ids = res.ids || {}
