@@ -836,6 +836,15 @@ function updateRangeControlType(typeName) {
 					}
 				}
 			})
+			var oTable = oCell.GetParentTable()
+			if (oTable && oTable.GetPosInParent() >= 0) {
+				var desc = getJsonData(oTable.GetTableDescription())
+				var key = `${oCell.GetRowIndex()}_${oCell.GetIndex()}`
+				if (desc[key]) {
+					delete desc[key]
+				}
+				oTable.SetTableDescription(JSON.stringify(desc))
+			}
 		}
 		function removeControl(oRemove) {
 			if (!oRemove) {
@@ -978,10 +987,16 @@ function updateRangeControlType(typeName) {
 				result.change_list.push({
 					parent_id: parent_id,
 					table_id: table_id,
+					cell_row: oCell.GetRowIndex(),
+					cell_index: oCell.GetIndex(),
 					cell_id: oCell.Cell.Id,
 					client_id: 'c_' + oCell.Cell.Id,
 					regionType: 'write'
 				})
+				var oTable = Api.LookupObject(table_id)
+				var desc = getJsonData(oTable.GetTableDescription())
+				desc[`${oCell.GetRowIndex()}_${oCell.GetIndex()}`] = `c_${oCell.Cell.Id}`
+				oTable.SetTableDescription(JSON.stringify(desc))
 			}
 		}
 
@@ -1001,13 +1016,12 @@ function updateRangeControlType(typeName) {
 				}
 			}
 		}
-		// 判定单元格是小问
-		function getCellWriteQuestion(cellId) {
+		function getCellNode(cellClientId) {
 			for (var i = 0, imax = node_list.length; i < imax; ++i) {
 				var nodeData = node_list[i]
 				if (nodeData.level_type == 'question' && nodeData.write_list) {
 					var writeData = nodeData.write_list.find(e => {
-						return e.sub_type == 'cell' && e.cell_id == cellId
+						return e.sub_type == 'cell' && e.id == cellClientId
 					})
 					if (writeData) {
 						if (question_map[nodeData.id] && question_map[nodeData.id].ask_list) {
@@ -1018,11 +1032,46 @@ function updateRangeControlType(typeName) {
 								return nodeData
 							}
 						}
-						return null
+						break
 					}
 				}
 			}
 			return null
+		}
+		// 判定单元格是小问
+		function getCellWriteQuestion(cellId) {
+			var oCell = Api.LookupObject(cellId)
+			if (!oCell || oCell.GetClassType() != 'tableCell') {
+				return null
+			}
+			var colorAsk = false
+			var shd = oCell.Cell.Get_Shd()
+			if (shd) {
+				var fill = shd.Fill
+				if (fill && fill.r == 255 && fill.g == 191 && fill.b == 191) {
+					colorAsk = true
+				}
+			}
+			var node = getCellNode(`c_${cellId}`)
+			var clientId = node ? `c_${cellId}` : null
+			if (!node && colorAsk) {
+				var oTable = oCell.GetParentTable()
+				var desc = getJsonData(oTable.GetTableDescription())
+				var rowIndex = oCell.GetRowIndex()
+				var cIndex = oCell.GetIndex()
+				if (desc[`${rowIndex}_${cIndex}`]) {
+					var rClientId = desc[`${rowIndex}_${cIndex}`]
+					node = getCellNode(rClientId)
+					if (node) {
+						clientId = rClientId
+					}
+				}
+			}
+			return {
+				colorAsk: colorAsk,
+				clientId: clientId,
+				node: node
+			}
 		}
 		function getQuestion(list, index) {
 			for (var i = index - 1; i >= 0; --i) {
@@ -1085,7 +1134,7 @@ function updateRangeControlType(typeName) {
 			result.change_list.push(obj)
 		}
 		function setBig(oControl) {
-			if (!oControl) {
+			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
 				return
 			}
 			var posinparent = oControl.GetPosInParent()
@@ -1149,7 +1198,7 @@ function updateRangeControlType(typeName) {
 			}
 		}
 		function clearBig(oControl) {
-			if (!oControl) {
+			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
 				return
 			}
 			var posinparent = oControl.GetPosInParent()
@@ -1239,15 +1288,17 @@ function updateRangeControlType(typeName) {
 						if (container_type == 'tableCell') {
 							// 判断是否是小问，若是，删除小问，todo..
 							var cellQuestion = getCellWriteQuestion(container.Cell.Id)
-							if (cellQuestion) {
+							if (cellQuestion && (cellQuestion.node || cellQuestion.colorAsk)) {
 								removeCellInteraction(container)
-								result.change_list.push({
-									parent_id: cellQuestion.id,
-									table_id: container.GetParentTable().Table.Id,
-									cell_id: container.Cell.Id,
-									client_id: 'c_' + container.Cell.Id,
-									regionType: 'write'
-								})
+								if (cellQuestion.node) {
+									result.change_list.push({
+										parent_id: cellQuestion.node.id,
+										table_id: container.GetParentTable().Table.Id,
+										cell_id: container.Cell.Id,
+										client_id: cellQuestion.clientId,
+										regionType: 'write'
+									})
+								}
 							} else {
 								var secondContainer = getFirstElement(elementData.list, containerIndex - 1)
 								if (secondContainer && secondContainer.container_type == 'blockLvlSdt') {
@@ -2249,6 +2300,8 @@ function initControls() {
 						return getParentBlock(parentControl)
 					}
 				}
+			} else if (oControl.GetClassType() == 'blockLvlSdt') {
+				return oControl.GetParentContentControl()
 			}
 			return null
 		}
@@ -2303,7 +2356,7 @@ function initControls() {
 			}
 			var changecolor = false
 			if (tagInfo.client_id) {
-				if (oControl.GetClassType() == 'inlineLvlSdt') {
+				if (tagInfo.regionType == 'write') {
 					var isWrite = false
 					if (question_map[parentid] && question_map[parentid].level_type == 'question' && question_map[parentid].ask_list) {
 						isWrite = question_map[parentid].ask_list.find(e => {
@@ -3808,7 +3861,7 @@ function batchProportion(idList, proportion) {
 			}
 			var oControl = oControls.find(e => {
 				var tag = getJsonData(e.GetTag())
-				return tag.client_id == id
+				return tag.client_id == id && e.GetClassType() == 'blockLvlSdt'
 			})
 			if (!oControl) {
 				continue
@@ -3965,6 +4018,9 @@ function changeProportion(idList, proportion) {
 			}
 		}
 		function AddControlToCell(oControl, oCell) {
+			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
+				return
+			}
 			var templist = []
 			templist.push(oControl)
 			var posinparent = oControl.GetPosInParent()
@@ -4000,6 +4056,9 @@ function changeProportion(idList, proportion) {
 		}
 		// 上一个表格有足够的空间可以放，需要将上一个表格的最后一个单元格拆分，然后下面的表格内容挪到上面
 		function func1(startTable, oControl) {
+			if (!startTable || !oControl || oControl.GetClassType() != 'blockLvlSdt') {
+				return
+			}
 			var templist = []
 			var iTable = 0
 			var tables = {}
@@ -4234,7 +4293,7 @@ function changeProportion(idList, proportion) {
 			}
 			var oControl = oControls.find(e => {
 				var tag = getJsonData(e.GetTag())
-				return tag.client_id == id
+				return tag.client_id == id && e.GetClassType() == 'blockLvlSdt'
 			})
 			if (!oControl) {
 				continue
@@ -4430,6 +4489,17 @@ function deleteAsks(askList, recalc = true, notify = true) {
 				}
 			}
 		}
+		function removeCellAskRecord(oCell) {
+			var oTable = oCell.GetParentTable()
+			if (oTable && oTable.GetPosInParent() >= 0) {
+				var desc = getJsonData(oTable.GetTableDescription())
+				var key = `${oCell.GetRowIndex()}_${oCell.GetIndex()}`
+				if (desc[key]) {
+					delete desc[key]
+				}
+				oTable.SetTableDescription(JSON.stringify(desc))
+			}
+		}
 		function removeCellInteraction(oCell) {
 			if (!oCell) {
 				return
@@ -4444,13 +4514,14 @@ function deleteAsks(askList, recalc = true, notify = true) {
 					deleteAccurateRun(oRun)
 				}
 			})
+			removeCellAskRecord(oCell)
 		}
 		function getControl(client_id, control_id) {
 			if (client_id) {
 				if (control_id) {
 					var oControl = Api.LookupObject(control_id)
 					if (oControl && oControl.GetTag) {
-						var pos = oControl.GetPosInParent()
+						var pos = oControl.GetClassType() == 'inlineLvlSdt' ? oControl.Sdt.GetPosInParent() : oControl.GetPosInParent()
 						if (pos >= 0) {
 							var tag = getJsonData(oControl.GetTag())
 							if (tag.client_id == client_id) {
@@ -4510,9 +4581,11 @@ function deleteAsks(askList, recalc = true, notify = true) {
 				// 删除除订正框外的所有inlineControl
 				var childControls = quesControl.GetAllContentControls() || []
 				childControls.forEach(e => {
-					if (e.GetClassType() == 'inlineLvlSdt' && e.Sdt) {
+					if (e.Sdt) {
 						var tag = getJsonData(e.GetTag())
-						if (tag.regionType != 'num') {
+						if (e.GetClassType() == 'inlineLvlSdt' && tag.regionType != 'num') {
+							Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
+						} else if (e.GetClassType() == 'blockLvlSdt' && tag.regionType == 'write') {
 							Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
 						}
 					}
@@ -4564,6 +4637,7 @@ function deleteAsks(askList, recalc = true, notify = true) {
 										var fill = shd.Fill
 										if (fill && fill.r == 255 && fill.g == 191 && fill.b == 191) {
 											oCell.SetBackgroundColor(255, 191, 191, true)
+											removeCellAskRecord(oCell)
 										}
 									}
 								}
@@ -4675,7 +4749,13 @@ function focusAsk(writeData) {
 		if (write_data.sub_type == 'control') {
 			var oControls = controls.filter(e => {
 				var tag = getJsonData(e.GetTag())
-				return tag.client_id == write_data.id
+				if (tag.client_id == write_data.id && e.Sdt) {
+					if (e.GetClassType() == 'blockLvlSdt') {
+						return e.GetPosInParent() >= 0
+					} else if (e.GetClassType() == 'inlineLvlSdt') {
+						return e.Sdt.GetPosInParent() >= 0
+					}
+				}
 			})
 			if (oControls && oControls.length) {
 				if (oControls.length == 1) {
@@ -4685,10 +4765,13 @@ function focusAsk(writeData) {
 		} else if (write_data.sub_type == 'cell') {
 			if (write_data.cell_id) {
 				var oCell = Api.LookupObject(write_data.cell_id)
-				if (oCell) {
-					var cellContent = oCell.GetContent()
-					if (cellContent) {
-						cellContent.GetRange().Select()
+				if (oCell && oCell.GetClassType() == 'tableCell') {
+					var table = oCell.GetParentTable()
+					if (table && table.GetPosInParent() >= 0) {
+						var cellContent = oCell.GetContent()
+						if (cellContent) {
+							cellContent.GetRange().Select()
+						}
 					}
 				}
 			}
@@ -4810,7 +4893,7 @@ function layoutDetect() {
 					result.has32 = true
 					find = true
 				} else {
-					if (result[`has${runContent[k].Value}`]) {
+					if (!result[`has${runContent[k].Value}`]) {
 						result[`has${runContent[k].Value}`] = true
 						find = true
 					}
@@ -4848,7 +4931,15 @@ function layoutRepair(cmdData) {
 	return biyueCallCommand(window, function() {
 		var cmdData = Asc.scope.cmdData
 		var oDocument = Api.GetDocument()
-		var paragrahs = oDocument.GetAllParagraphs() || []
+		var oRange = oDocument.GetRangeBySelect()
+		if (!oRange) {
+			var currentContentControl = oDocument.Document.GetContentControl()
+			oRange = Api.LookupObject(currentContentControl.Id).GetRange()
+		}
+		if (!oRange) {
+			return null
+		}
+		var paragrahs = oRange.Paragraphs || []
 
 		function handleRun(oRun, parent, pos) {
 			if (!oRun || oRun.GetClassType() != 'run') {
@@ -5090,7 +5181,7 @@ function updateQuesScore(ids) {
 				return tag.regionType == 'score' && tag.ques_id == id
 			})
 			if (control) {
-				var posinparent = control.GetPosInParent()
+				var posinparent = oControl.GetClassType() == 'blockLvlSdt' ? control.GetPosInParent() : control.Sdt.GetPosInParent()
 				var parent = control.Sdt.Parent
 				if (parent) {
 					var oParent = Api.LookupObject(parent.Id)
@@ -5313,7 +5404,7 @@ function updateQuesScore(ids) {
 				oTable.SetHAlign('right')
 				oTable.SetJc('right')
 				var parent = oControl.Sdt.GetParent()
-				var posinparent = oControl.GetPosInParent()
+				var posinparent = oControl.GetClassType() == 'blockLvlSdt' ? oControl.GetPosInParent() : oControl.Sdt.GetPosInParent()
 				var oParent = Api.LookupObject(parent.Id)
 				var blockcontrol = oTable.InsertInContentControl(1)
 				blockcontrol.SetTag(JSON.stringify({
@@ -5459,7 +5550,7 @@ function splitControl(qid) {
 			if (controls) {
 				control = controls.find(e => {
 					var tag = getJsonData(e.GetTag())
-					return tag.client_id == qid
+					return tag.client_id == qid && e.GetClassType() == 'blockLvlSdt' && e.GetPosInParent() >= 0
 				})
 			}
 		}
@@ -5745,10 +5836,254 @@ function clearRepeatControl(reclac = false) {
 	})
 }
 
+function tidyTree() {
+	Asc.scope.node_list = window.BiyueCustomData.node_list || []
+	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
+	return biyueCallCommand(window, function() {
+		var node_list = Asc.scope.node_list
+		var question_map = Asc.scope.question_map
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls() || []
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
+		function deleteAccurateRun(oRun) {
+			if (oRun &&
+				oRun.Run &&
+				oRun.Run.Content &&
+				oRun.Run.Content[0] &&
+				oRun.Run.Content[0].docPr) {
+				var title = oRun.Run.Content[0].docPr.title
+				if (title) {
+					var titleObj = getJsonData(title)
+					if (titleObj.feature && titleObj.feature.sub_type == 'ask_accurate') {
+						oRun.Delete()
+						return true
+					}
+				}
+			}
+			return false
+		}
+		function deleteControlAccurate(oControl) {
+			if (!oControl || !oControl.GetElementsCount) {
+				return
+			}
+			var elementCount = oControl.GetElementsCount()
+			for (var idx = 0; idx < elementCount; ++idx) {
+				var oRun = oControl.GetElement(idx)
+				if (deleteAccurateRun(oRun)) {
+					break
+				}
+			}
+		}
+		function deleShape(oShape) {
+			if (!oShape) {
+				return
+			}
+			var run = oShape.Drawing.GetRun()
+			if (run) {
+				var runParent = run.GetParent()
+				if (runParent) {
+					var oParent = Api.LookupObject(runParent.Id)
+					if (oParent && oParent.GetClassType() == 'inlineLvlSdt') {
+						var count = oParent.GetElementsCount()
+						for (var c = 0; c < count; ++c) {
+							var child = oParent.GetElement(c)
+							if (child.GetClassType() == 'run' && child.Run.Id == run.Id) {
+								deleteAccurateRun(child)
+								break
+							}
+						}
+						return true
+					}
+				}
+				var paragraph = run.GetParagraph()
+				if (paragraph) {
+					var oParagraph = Api.LookupObject(paragraph.Id)
+					var ipos = run.GetPosInParent()
+					if (ipos >= 0) {
+						oShape.Delete()
+						if (oParagraph) {
+							oParagraph.RemoveElement(ipos)
+						}
+						return true
+					}
+				}
+			}
+			oShape.Delete()
+			return true
+		}
+		function deleteAskAccurate(drawing) {
+			var tag = getJsonData(drawing.Drawing.docPr.title)
+			if (tag.feature && tag.feature.zone_type == 'question' && tag.feature.sub_type == 'ask_accurate') {
+				deleShape(drawing)
+			}
+		}
+		function deleteCellAsk(oTable, write_list) {
+			var rowcount = oTable.GetRowsCount()
+			for (var r = 0; r < rowcount; ++r) {
+				var oRow = oTable.GetRow(r)
+				var cellcount = oRow.GetCellsCount()
+				for (var c = 0; c < cellcount; ++c) {
+					var oCell = oRow.GetCell(c)
+					if (!oCell) {
+						continue
+					}
+					var shd = oCell.Cell.Get_Shd()
+					if (shd) {
+						var fill = shd.Fill
+						if (fill && fill.r == 255 && fill.g == 191 && fill.b == 191) {
+							var flag = 0
+							if (!write_list) {
+								flag = 1
+							} else {
+								var index = write_list.findIndex(e => {
+									return e.cell_id == oCell.Cell.Id && e.table_id == oTable.Table.Id
+								})
+								flag = index == -1
+							}
+							if (flag) {
+								oCell.SetBackgroundColor(255, 191, 191, true)
+								var cellContent = oCell.GetContent()
+								var shapes = cellContent.GetAllShapes() || []
+								shapes.forEach(e => {
+									deleShape(e)
+								})
+							}
+						}
+					}
+				}
+			}
+		}
+		// 删除题目control的相关子控件
+		function deleteControlChild(quesControl) {
+			var control_id = quesControl.Sdt.GetId()
+			// 删除所有小问，遍历出所有小问，全部删除
+			// 删除所有精准互动
+			var childDrawings = quesControl.GetAllDrawingObjects() || []
+			for (var j = 0; j < childDrawings.length; ++j) {
+				deleteAskAccurate(childDrawings[j])
+			}
+			// 删除除订正框外的所有inlineControl
+			var childControls = quesControl.GetAllContentControls() || []
+			childControls.forEach(e => {
+				var childTag = getJsonData(e.GetTag()) 
+				if (childTag.regionType != 'question') {
+					var parentControl = e.GetParentContentControl()
+					if (parentControl && parentControl.Sdt.GetId() == control_id) {
+						Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
+					}
+				}
+			})
+			// 删除所有write 和 identify
+			childDrawings = quesControl.GetAllDrawingObjects() || []
+			for (var j = 0; j < childDrawings.length; ++j) {
+				var tag = getJsonData(childDrawings[j].Drawing.docPr.title)
+				if (tag.feature && tag.feature.zone_type == 'question') {
+					if (tag.feature.sub_type == 'write') {
+						var run = childDrawings[j].Drawing.GetRun()
+						if (run) {
+							var paragraph = run.GetParagraph()
+							if (paragraph) {
+								var oParagraph = Api.LookupObject(paragraph.Id)
+								var ipos = run.GetPosInParent()
+								if (ipos >= 0) {
+									childDrawings[j].Delete()
+									if (oParagraph) {
+										oParagraph.RemoveElement(ipos)
+									}
+								}
+							}
+						}
+					} else if (tag.feature.sub_type == 'identify') {
+						childDrawings[j].Delete()
+					}
+				}
+			}
+			// 删除所有单元格小问
+			var pageCount = quesControl.Sdt.getPageCount()
+			for (var p = 0; p < pageCount; ++p) {
+				var page = quesControl.Sdt.GetAbsolutePage(p)
+				var tables = quesControl.GetAllTablesOnPage(page)
+				if (tables) {
+					for (var t = 0; t < tables.length; ++t) {
+						var oTable = tables[t]
+						deleteCellAsk(oTable)
+					}
+				}
+			}
+		}
+		for (var i = controls.length - 1; i >= 0; --i) {
+			var oControl = controls[i]
+			if (!oControl || !oControl.Sdt) {
+				continue
+			}
+			var tagInfo = getJsonData(oControl.GetTag())
+			if (!tagInfo.client_id) { // 无client_id，直接删除
+				deleteControlChild(oControl)
+				Api.asc_RemoveContentControlWrapper(oControl.Sdt.GetId())
+				continue
+			}
+			if (oControl.GetClassType() == 'blockLvlSdt' && tagInfo.regionType == 'question') {
+				var index = node_list.findIndex(e => e.id == tagInfo.client_id)
+				if (!question_map[tagInfo.client_id] || index == -1) { // 分配的ID不在业务记录里，删除control
+					deleteControlChild(oControl)
+					Api.asc_RemoveContentControlWrapper(oControl.Sdt.GetId())
+					if (index >= 0) {
+						node_list.splice(index, 1)
+					}
+					if (question_map[tagInfo.client_id]) {
+						delete question_map[tagInfo.client_id]
+					}
+					continue
+				}
+			} else {
+				var parentControl = oControl.GetParentContentControl()
+				if (!parentControl) {
+					deleteControlAccurate(oControl)
+					Api.asc_RemoveContentControlWrapper(oControl.Sdt.GetId())
+					continue
+				}
+			}
+		}
+		var tables = oDocument.GetAllTables() || []
+		if (tables) {
+			for (var t = 0; t < tables.length; ++t) {
+				var oTable = tables[t]
+				var tableParentControl = oTable.GetParentContentControl()
+				if (!tableParentControl) {
+					deleteCellAsk(oTable)
+				} else {
+					var tagInfo = getJsonData(tableParentControl.GetTag())
+					if (tagInfo.client_id) {
+						var index = node_list.findIndex(e => e.id == tagInfo.client_id)
+						if (!question_map[tagInfo.client_id] || index == -1) {
+							deleteCellAsk(oTable)
+						} else {
+							deleteCellAsk(oTable, node_list[index].write_list)
+						}
+					}
+				}
+			}
+		}
+	}, false, false)
+}
+
 function tidyNodes() {
 	return clearRepeatControl(false).then(() => {
+		return tidyTree()
+	}).then(() => {
 		return getNodeList()
-	}).then(list => {
+	})
+	.then(list => {
 		console.log('tidyNodes', list)
 		if (list) {
 			var node_list = window.BiyueCustomData.node_list || []
