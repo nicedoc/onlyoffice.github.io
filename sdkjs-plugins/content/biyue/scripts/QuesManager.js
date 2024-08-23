@@ -4810,7 +4810,7 @@ function layoutDetect() {
 					result.has32 = true
 					find = true
 				} else {
-					if (result[`has${runContent[k].Value}`]) {
+					if (!result[`has${runContent[k].Value}`]) {
 						result[`has${runContent[k].Value}`] = true
 						find = true
 					}
@@ -4848,7 +4848,15 @@ function layoutRepair(cmdData) {
 	return biyueCallCommand(window, function() {
 		var cmdData = Asc.scope.cmdData
 		var oDocument = Api.GetDocument()
-		var paragrahs = oDocument.GetAllParagraphs() || []
+		var oRange = oDocument.GetRangeBySelect()
+		if (!oRange) {
+			var currentContentControl = oDocument.Document.GetContentControl()
+			oRange = Api.LookupObject(currentContentControl.Id).GetRange()
+		}
+		if (!oRange) {
+			return null
+		}
+		var paragrahs = oRange.Paragraphs || []
 
 		function handleRun(oRun, parent, pos) {
 			if (!oRun || oRun.GetClassType() != 'run') {
