@@ -3771,8 +3771,32 @@ function getAllPositions() {
 					return {}
 				}
 			}
+			function getBlockControlBounds(oControl, bounds) {
+				if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
+					return
+				}
+				var oControlContent = oControl.GetContent()
+				var Pages = oControlContent.Document.Pages
+				if (Pages) {
+					Pages.forEach((page, index) => {
+						if (page.Bounds) {
+							let w = page.Bounds.Right - page.Bounds.Left
+							let h = page.Bounds.Bottom - page.Bounds.Top
+							if (w > 0 && h > 0) {
+								bounds.push({
+									Page: oControl.Sdt.GetAbsolutePage(index),
+									X: mmToPx(page.Bounds.Left),
+									Y: mmToPx(page.Bounds.Top),
+									W: mmToPx(page.Bounds.Right - page.Bounds.Left),
+									H: mmToPx(page.Bounds.Bottom - page.Bounds.Top),
+								})
+							}
+						}
+					})
+				}
+			}
 			function getCellBounds(oCell, ask_score, order) {
-				if (!oCell) {
+				if (!oCell || oCell.GetClassType() != 'tableCell') {
 					return []
 				}
 				var bounds = []
@@ -3920,17 +3944,33 @@ function getAllPositions() {
 					identify_region,
 				}
 			}
+			function getControlsByClientId(cid) {
+				var findControls = controls.filter(e => {
+					var tag = getJsonData(e.GetTag())
+					if (e.GetClassType() == 'blockLvlSdt') {
+						return tag.client_id == cid && e.GetPosInParent() >= 0
+					} else if (e.GetClassType() == 'inlineLvlSdt') {
+						return e.Sdt && e.Sdt.GetPosInParent() >= 0 && tag.client_id == cid
+					}
+				})
+				if (findControls && findControls.length) {
+					return findControls[0]
+				}
+			}
 			// 集中作答区坐标
 			function getGatherCellRegion(nodeId) {
 				var nodeData = node_list.find((e) => {
 					return e.id == nodeId
 				})
 				if (!nodeData || !nodeData.use_gather || !nodeData.gather_cell_id) {
-					return
+					return null
+				}
+				if (question_map[nodeId].ques_mode != 1 && question_map[nodeId].ques_mode != 5) {
+					return null
 				}
 				var oCell = Api.LookupObject(nodeData.gather_cell_id)
 				if (!oCell || oCell.GetClassType() != 'tableCell') {
-					return
+					return null
 				}
 				// 单元格区域
 				var cell_region = getCellBounds(oCell, question_map[nodeId].score, '1')
@@ -3959,128 +3999,114 @@ function getAllPositions() {
 
 			for (var i = 0, imax = controls.length; i < imax; ++i) {
 				var oControl = controls[i]
+				var tag = getJsonData(oControl.GetTag() || '{}')
+				var question_obj = question_map[tag.client_id]
+					? question_map[tag.client_id]
+					: {}
+				// 当前题目必须是blockLvlSdt
+				if (tag.regionType != 'question' || oControl.GetClassType() != 'blockLvlSdt' || question_obj.level_type != 'question') {
+					continue
+				}
 				var bounds = []
 				if (oControl.GetClassType() == 'blockLvlSdt') {
-					var oControlContent = oControl.GetContent()
-					var Pages = oControlContent.Document.Pages
-					if (Pages) {
-						Pages.forEach((page, index) => {
-							let w = page.Bounds.Right - page.Bounds.Left
-							let h = page.Bounds.Bottom - page.Bounds.Top
-							if (w > 0 && h > 0) {
-								bounds.push({
-									Page: oControl.Sdt.GetAbsolutePage(index),
-									X: mmToPx(page.Bounds.Left),
-									Y: mmToPx(page.Bounds.Top),
-									W: mmToPx(page.Bounds.Right - page.Bounds.Left),
-									H: mmToPx(page.Bounds.Bottom - page.Bounds.Top),
-								})
-							}
-						})
-					}
+					getBlockControlBounds(oControl, bounds)
 				} else if (oControl.GetClassType() == 'inlineLvlSdt') {
 					if (oControl.Sdt.Bounds) {
 						bounds = Object.values(oControl.Sdt.Bounds)
 					}
 				}
 				// todo..分数框的尚未添加
-				var tag = getJsonData(oControl.GetTag() || '{}')
-				var question_obj = question_map[tag.client_id]
-					? question_map[tag.client_id]
-					: {}
+				var oRange = oControl.GetRange()
+				oRange.Select()
+				let text_data = {
+					data: '',
+					// 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
+					pushData: function (format, value) {
+						this.data = value
+							? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, '')
+							: ''
+					},
+				}
+				Api.asc_CheckCopy(text_data, 2)
+				var correctPos = GetCorrectRegion(oControl)
+				var gatherRegion = getGatherCellRegion(tag.client_id)
+				var is_gather_region = false
 				if (
-					tag.regionType == 'question' &&
-					question_obj.level_type == 'question'
+					Asc.scope.choice_params &&
+					Asc.scope.choice_params.style === 'show_choice_region' &&
+					gatherRegion
 				) {
-					var oRange = oControl.GetRange()
-					oRange.Select()
-					let text_data = {
-						data: '',
-						// 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
-						pushData: function (format, value) {
-							this.data = value
-								? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, '')
-								: ''
-						},
+					// 开启集中作答区并且有集中作答区的坐标信息
+					is_gather_region = true
+					if (question_map[tag.client_id]) {
+						question_map[tag.client_id].ask_list = []
 					}
-					Api.asc_CheckCopy(text_data, 2)
-					var correctPos = GetCorrectRegion(oControl)
-					var gatherRegion = getGatherCellRegion(tag.client_id)
-					var is_gather_region = false
-					if (
-						Asc.scope.choice_params &&
-						Asc.scope.choice_params.style === 'show_choice_region' &&
-						gatherRegion
-					) {
-						// 开启集中作答区并且有集中作答区的坐标信息
-						is_gather_region = true
-						if (question_map[tag.client_id]) {
-							question_map[tag.client_id].ask_list = []
-						}
-					}
-					var item = {
-						id: tag.client_id,
-						control_id: oControl.Sdt.GetId(),
-						text: oControl.GetRange().GetText(), // 如果需要html, 请参考ExamTree.js的reqUploadTree
-						// content: `${text_data.data || ''}`,
-						title_region: [],
-						correct_region: correctPos.correct_region || {},
-						correct_ask_region: correctPos.correct_ask_region,
-						score: parseFloat(question_obj.score) || 0,
-						ask_num: 0,
-						additional: false, // 是否为附加题
-						answer: '',
-						ref_id: question_obj.uuid || '',
-						ques_type: question_obj.question_type || '',
-						ques_mode: question_obj.ques_mode || 3,
-						ques_name: question_obj.ques_name || question_obj.ques_default_name,
-						mark_method: '1',
-						mark_ask_region: {},
-						write_ask_region: [],
-					}
-					bounds.forEach((e) => {
-						item.title_region.push({
-							page: e.Page + 1,
-							x: e.X,
-							y: e.Y,
-							w: e.W,
-							h: e.H,
+				}
+				var item = {
+					id: tag.client_id,
+					control_id: oControl.Sdt.GetId(),
+					text: oControl.GetRange().GetText(), // 如果需要html, 请参考ExamTree.js的reqUploadTree
+					// content: `${text_data.data || ''}`,
+					title_region: [],
+					correct_region: correctPos.correct_region || {},
+					correct_ask_region: correctPos.correct_ask_region,
+					score: parseFloat(question_obj.score) || 0,
+					ask_num: 0,
+					additional: false, // 是否为附加题
+					answer: '',
+					ref_id: question_obj.uuid || '',
+					ques_type: question_obj.question_type || '',
+					ques_mode: question_obj.ques_mode || 3,
+					ques_name: question_obj.ques_name || question_obj.ques_default_name,
+					mark_method: '1',
+					mark_ask_region: {},
+					write_ask_region: [],
+				}
+				bounds.forEach((e) => {
+					item.title_region.push({
+						page: e.Page + 1,
+						x: e.X,
+						y: e.Y,
+						w: e.W,
+						h: e.H,
+					})
+				})
+				if (is_gather_region) {
+					// 集中作答区的题目
+					let cell_region = gatherRegion.cell_region || []
+					cell_region.forEach((e) => {
+						item.write_ask_region.push({
+							page: e.page,
+							order: e.order + '',
+							v: item.score + '',
+							x: e.x,
+							y: e.y,
+							w: e.w,
+							h: e.h,
 						})
 					})
-					if (is_gather_region) {
-						// 集中作答区的题目
-						let cell_region = gatherRegion.cell_region || []
-						cell_region.forEach((e) => {
-							item.write_ask_region.push({
-								page: e.page,
-								order: e.order + '',
-								v: item.score + '',
-								x: e.x,
-								y: e.y,
-								w: e.w,
-								h: e.h,
+					let mark_ask_region = {}
+					mark_ask_region['1'] = item.write_ask_region
+					item.mark_ask_region = mark_ask_region
+				} else if (question_obj.ask_list && question_obj.ask_list.length) {
+					var nodeData = node_list.find((e) => {
+						return e.id == tag.client_id
+					})
+					if (nodeData && nodeData.write_list) {
+						let mark_order = 1
+						for (var iask = 0; iask < question_obj.ask_list.length; ++iask) {
+							var askData = nodeData.write_list.find((e) => {
+								return e.id == question_obj.ask_list[iask].id
 							})
-						})
-						let mark_ask_region = {}
-						mark_ask_region['1'] = item.write_ask_region
-						item.mark_ask_region = mark_ask_region
-					} else if (question_obj.ask_list && question_obj.ask_list.length) {
-						var nodeData = node_list.find((e) => {
-							return e.id == tag.client_id
-						})
-						if (nodeData && nodeData.write_list) {
-							let mark_order = 1
-							for (var iask = 0; iask < question_obj.ask_list.length; ++iask) {
-								var askData = nodeData.write_list.find((e) => {
-									return e.id == question_obj.ask_list[iask].id
-								})
-								if (askData) {
-									var ask_score = question_obj.ask_list[iask].score || ''
-									if (askData.sub_type == 'control') {
-										var oAskControl = Api.LookupObject(askData.control_id)
-										if (oAskControl && oAskControl.Sdt) {
+							if (askData) {
+								var ask_score = question_obj.ask_list[iask].score || ''
+								if (askData.sub_type == 'control') {
+									// 这里可能出现的BUG，control拖动后，业务ID不变，但control_id已改变
+									var oAskControl = getControlsByClientId(askData.id)
+									if (oAskControl && oAskControl.Sdt) {
+										// todo..需要考虑小问区域合并的情况
+										if (oAskControl.GetClassType() == 'inlineLvlSdt') {
 											var askBounds = Object.values(oAskControl.Sdt.Bounds)
-											// todo..需要考虑小问区域合并的情况
 											askBounds.forEach((e) => {
 												if (e.W) {
 													item.write_ask_region.push({
@@ -4095,136 +4121,114 @@ function getAllPositions() {
 													})
 												}
 											})
-											mark_order++
-										}
-									} else if (askData.sub_type == 'cell') {
-										var oCell = Api.LookupObject(askData.cell_id)
-										var d = getCellBounds(oCell, ask_score, mark_order)
-										item.write_ask_region = item.write_ask_region.concat(d)
-										mark_order++
-									} else if (
-										askData.sub_type == 'write' ||
-										askData.sub_type == 'identify'
-									) {
-										var oShape = oShapes.find(e => {
-											if (e.Drawing) {
-												var shapetitle = getJsonData(e.Drawing.docPr.title)
-												return shapetitle.feature && shapetitle.feature.client_id == askData.id
-											}
-										})
-										if (oShape && oShape.Drawing) {
-											item.write_ask_region.push({
-												order: mark_order + '',
-												page: oShape.Drawing.PageNum + 1,
-												x: mmToPx(oShape.Drawing.X),
-												y: mmToPx(oShape.Drawing.Y),
-												w: mmToPx(oShape.Drawing.Width),
-												h: mmToPx(oShape.Drawing.Height),
-												v: ask_score + '',
-												mark_order: mark_order,
+										} else if (oAskControl.GetClassType() == 'blockLvlSdt') {
+											var rects2 = []
+											getBlockControlBounds(oAskControl, rects2)
+											rects2.forEach(e => {
+												item.write_ask_region.push({
+													order: mark_order + '',
+													page: e.Page + 1,
+													x: e.X,
+													y: e.Y,
+													w: e.W,
+													h: e.H,
+													v: ask_score + '',
+													mark_order: mark_order,
+												})
 											})
-											mark_order++
 										}
+										mark_order++
+									}
+								} else if (askData.sub_type == 'cell') {
+									var oCell = Api.LookupObject(askData.cell_id)
+									var d = getCellBounds(oCell, ask_score, mark_order)
+									item.write_ask_region = item.write_ask_region.concat(d)
+									mark_order++
+								} else if (
+									askData.sub_type == 'write' ||
+									askData.sub_type == 'identify'
+								) {
+									var oShape = oShapes.find(e => {
+										if (e.Drawing) {
+											var shapetitle = getJsonData(e.Drawing.docPr.title)
+											return shapetitle.feature && shapetitle.feature.client_id == askData.id
+										}
+									})
+									if (oShape && oShape.Drawing) {
+										item.write_ask_region.push({
+											order: mark_order + '',
+											page: oShape.Drawing.PageNum + 1,
+											x: mmToPx(oShape.Drawing.X),
+											y: mmToPx(oShape.Drawing.Y),
+											w: mmToPx(oShape.Drawing.Width),
+											h: mmToPx(oShape.Drawing.Height),
+											v: ask_score + '',
+											mark_order: mark_order,
+										})
+										mark_order++
 									}
 								}
 							}
 						}
-						// 在先不考虑出现有小问跨页的情况下，一个书写区算做一个小问批改区
-						let mark_ask_region = item.write_ask_region.map((e) => {
-							return { ...e, order: e.order + '' }
-						})
-						item.mark_ask_region = mark_ask_region.reduce((acc, obj) => {
-							const order = obj.mark_order
-							if (!acc.hasOwnProperty(order)) {
-								acc[order] = []
-							}
-							// 过滤mark_order
-							const { mark_order, ...newObj } = obj
-							acc[order].push(newObj)
-							return acc
-						}, {})
-
-						// 过滤不需要传出去的标记
-						const removeField = (arr) => {
-							return arr.map(({ mark_order, ...rest }) => rest)
+					}
+					// 在先不考虑出现有小问跨页的情况下，一个书写区算做一个小问批改区
+					let mark_ask_region = item.write_ask_region.map((e) => {
+						return { ...e, order: e.order + '' }
+					})
+					item.mark_ask_region = mark_ask_region.reduce((acc, obj) => {
+						const order = obj.mark_order
+						if (!acc.hasOwnProperty(order)) {
+							acc[order] = []
 						}
-						item.write_ask_region = removeField(item.write_ask_region)
-					} else {
-						// 没有小问的题目 暂时使用当前的题干区域作为批改和作答区 同时如果存在多个题干区，也只算作一个题目的批改区
-						bounds.forEach((e) => {
-							item.write_ask_region.push({
-								page: e.Page + 1,
-								order: '1',
-								v: item.score + '',
-								x: e.X,
-								y: e.Y,
-								w: e.W,
-								h: e.H,
-							})
+						// 过滤mark_order
+						const { mark_order, ...newObj } = obj
+						acc[order].push(newObj)
+						return acc
+					}, {})
+
+					// 过滤不需要传出去的标记
+					const removeField = (arr) => {
+						return arr.map(({ mark_order, ...rest }) => rest)
+					}
+					item.write_ask_region = removeField(item.write_ask_region)
+				} else {
+					// 没有小问的题目 暂时使用当前的题干区域作为批改和作答区 同时如果存在多个题干区，也只算作一个题目的批改区
+					bounds.forEach((e) => {
+						item.write_ask_region.push({
+							page: e.Page + 1,
+							order: '1',
+							v: item.score + '',
+							x: e.X,
+							y: e.Y,
+							w: e.W,
+							h: e.H,
 						})
-						let mark_ask_region = {}
-						mark_ask_region['1'] = item.write_ask_region
-						item.mark_ask_region = mark_ask_region
-					}
-
-					item.ask_num = Object.keys(item.mark_ask_region).length
-					item.mark_method = '1'
-
-					if (item.ques_type === 3) {
-						// bounds.forEach((e) => {
-						// 	item.write_ask_region.push({
-						// 		order: item.write_ask_region.length + 1 + '',
-						// 		page: e.Page + 1,
-						// 		x: e.X,
-						// 		y: e.Y,
-						// 		w: e.W,
-						// 		h: e.H,
-						// 		v: '1',
-						// 	})
-						// })
-						// let mark_ask_region = item.write_ask_region.map((e) => {
-						// 	return { ...e, order: e.order + '' }
-						// })
-					}
-					ques_list.push(item)
+					})
+					let mark_ask_region = {}
+					mark_ask_region['1'] = item.write_ask_region
+					item.mark_ask_region = mark_ask_region
 				}
-				// else if (tag.regionType == 'write') {
-				// 	var parentControl = oControl.GetParentContentControl()
-				// 	if (parentControl) {
-				// 		var id = parentControl.Sdt.GetId()
-				// 		var item = ques_list.find((e) => {
-				// 			return e.control_id == id
-				// 		})
-				// 		if (item) {
-				// 			bounds.forEach((e) => {
-				// 				item.write_ask_region.push({
-				// 					order: item.write_ask_region.length + 1 + '',
-				// 					page: e.Page + 1,
-				// 					x: mmToPx(e.X),
-				// 					y: mmToPx(e.Y),
-				// 					w: mmToPx(e.W),
-				// 					h: mmToPx(e.H),
-				// 					v: '1',
-				// 				})
-				// 			})
-				// 			let mark_ask_region = item.write_ask_region.map((e) => {
-				// 				return { ...e, order: e.order + '' }
-				// 			})
-				// 			item.mark_ask_region = mark_ask_region.reduce((acc, obj) => {
-				// 				const order = obj.order
-				// 				if (!acc.hasOwnProperty(order)) {
-				// 					acc[order] = []
-				// 				}
-				// 				acc[order].push(obj)
-				// 				return acc
-				// 			}, {})
 
-				// 			item.ask_num = Object.keys(item.mark_ask_region).length
-				// 			item.score = item.ask_num // 模拟分数为1问1分
-				// 			item.mark_method = '1'
-				// 		}
-				// 	}
-				// }
+				item.ask_num = Object.keys(item.mark_ask_region).length
+				item.mark_method = '1'
+
+				if (item.ques_type === 3) {
+					// bounds.forEach((e) => {
+					// 	item.write_ask_region.push({
+					// 		order: item.write_ask_region.length + 1 + '',
+					// 		page: e.Page + 1,
+					// 		x: e.X,
+					// 		y: e.Y,
+					// 		w: e.W,
+					// 		h: e.H,
+					// 		v: '1',
+					// 	})
+					// })
+					// let mark_ask_region = item.write_ask_region.map((e) => {
+					// 	return { ...e, order: e.order + '' }
+					// })
+				}
+				ques_list.push(item)
 			}
 			var feature_list = []
 			var partical_no_dot_list = []

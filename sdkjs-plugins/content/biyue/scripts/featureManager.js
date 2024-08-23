@@ -244,7 +244,7 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 				if (paragraph) {
 					var oParagraph = Api.LookupObject(paragraph.Id)
 					var ipos = run.GetPosInParent()
-					if (ipos >= 0) {
+					if (ipos >= 0 && oParagraph.GetClassType() == 'paragraph') {
 						oDrawing.Delete()
 						var element2 = oParagraph.GetElement(ipos)
 						if (element2 && element2.GetClassType() == 'run' && element2.Run.Id == run.Id) {
@@ -1379,6 +1379,10 @@ function setInteraction(type, quesIds) {
 			if (!oCell || oCell.GetClassType() != 'tableCell') {
 				return
 			}
+			var oTable = oCell.GetParentTable()
+			if (oTable.GetPosInParent() == -1) {
+				return
+			}
 			oCell.SetCellMarginLeft(0)
 			var paragraphs3 = oCell.GetContent().GetAllParagraphs()
 			if (paragraphs3 && paragraphs3.length) {
@@ -1396,10 +1400,19 @@ function setInteraction(type, quesIds) {
 			}
 		}
 
+		function getControl(client_id, regionType) {
+			return controls.find(e => {
+				var tag = getJsonData(e.GetTag())
+				if ((e.GetClassType() == 'blockLvlSdt' && e.GetPosInParent() >= 0) || (e.GetClassType() == 'inlineLvlSdt' && e.Sdt.GetPosInParent() >= 0)) {
+					return tag.client_id == client_id && tag.regionType == regionType
+				}
+			})
+		}
+
 		function addAskInteraction(oControl, askData, index, write_id) {
 			var oDrawing = getAccurateDrawing(index, write_id)
 			if (askData.sub_type == 'control') {
-				var askControl = Api.LookupObject(askData.control_id)
+				var askControl = getControl(askData.id, 'write') // Api.LookupObject(askData.control_id)
 				if(!askControl) {
 					return
 				}
