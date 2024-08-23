@@ -2258,6 +2258,12 @@ function updateDataBySavedData(str) {
 	}
 	try {
 		var data = JSON.parse(str)
+		var recordtime = new Date(data.time).getTime()
+		var nowtime = new Date(window.BiyueCustomData.time).getTime()
+		if (recordtime < nowtime) {
+			console.log('当前保存的时间比后端存储的新，忽略')
+			return
+		}
 		if (data.client_node_id) {
 			var maxId = 0
 			for (var i = 0; i < data.node_list.length; i++) {
