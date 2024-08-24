@@ -64,33 +64,31 @@ function handleContextMenuShow(options) {
 }
 
 function getContextMenuItems(type) {
-	if (type == 'Shape') {
-		return {
-			guid: window.Asc.plugin.guid,
+	if (type =='Image' || type == 'Shape') {
+		var items = [{
+			separator: true,
+			id: 'handleImageIgnore',
+			text: '图片铺码',
 			items: [{
-				separator: true,
+				id: 'handleImageIgnore_del',
+				text: '开启'
+			}, {
+				id: 'handleImageIgnore_add',
+				text: '关闭'
+			}]
+		}, {
+			id: 'imageRelation',
+			text: '图片关联'
+		}]
+		if (type == 'Shape') {
+			items.push({
 				id: 'handleWrite_del',
 				text: '删除作答区'
-			}],
+			})
 		}
-	} else if (type == 'Image') {
 		return {
 			guid: window.Asc.plugin.guid,
-			items: [{
-				separator: true,
-				id: 'handleImageIgnore',
-				text: '图片铺码',
-				items: [{
-					id: 'handleImageIgnore_del',
-					text: '开启'
-				}, {
-					id: 'handleImageIgnore_add',
-					text: '关闭'
-				}]
-			}, {
-				id: 'imageRelation',
-				text: '图片关联'
-			}],
+			items: items
 		}
 	} else if (type == 'Target' && !g_click_value) {
 		return {
@@ -3547,7 +3545,9 @@ function reqUploadTree() {
 	}
   // 先关闭智批元素，避免智批元素在全量更新的时候被带到题目里 更新之后再打开
   setBtnLoading('uploadTree', true)
-  setInteraction('none')
+  setInteraction('none').then(() => {
+	return showAskCells('hide')
+  })
   .then(() => {
       Asc.scope.node_list = window.BiyueCustomData.node_list
       Asc.scope.question_map = window.BiyueCustomData.question_map
@@ -3627,15 +3627,18 @@ function reqUploadTree() {
         console.log('target_list', target_list)
         return target_list
       }, false, false).then( control_list => {
-        if (control_list && control_list.length) {
-          upload_control_list = control_list
-          getXml(control_list[0].control_id)
-        } else {
+		if (control_list && control_list.length) {
+			upload_control_list = control_list
+			generateTreeForUpload(upload_control_list)
+		} else {
 			upload_control_list = []
-			setBtnLoading('uploadTree', false)
 			window.biyue.showMessageBox({
 				content: '未找到可更新的题目，请检查题目列表',
 				showCancel: false
+			})
+			setBtnLoading('uploadTree', false)
+			setInteraction('useself').then(() => {
+				return showAskCells('hide')
 			})
 		}
       })
@@ -3746,7 +3749,9 @@ function generateTreeForUpload(control_list) {
 			content: '全量更新成功',
 			showCancel: false
 		})
-    	setInteraction('useself')
+    	setInteraction('useself').then(res => {
+			showAskCells('show')
+		})
 	}).catch(res => {
 		console.log('reqComplete fail', res)
 		console.log('[reqUploadTree end]', Date.now())
@@ -3755,7 +3760,9 @@ function generateTreeForUpload(control_list) {
 			content: res && res.message && res.message != '' ? res.message : '全量更新失败',
 			showCancel: false
 		})
-    	setInteraction('useself')
+    	setInteraction('useself').then(res => {
+			showAskCells('show')
+		})
 	})
 	console.log(tree)
 }
