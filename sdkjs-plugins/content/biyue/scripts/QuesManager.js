@@ -2421,8 +2421,8 @@ function initControls() {
 			var title = oDrawing.Drawing.docPr.title || '{}'
 			var titleObj = getJsonData(title)
 			if (titleObj.feature && titleObj.feature.client_id) {
-				if (maxid < tagInfo.feature.client_id * 1) {
-					maxid = tagInfo.feature.client_id * 1
+				if (maxid < titleObj.feature.client_id * 1) {
+					maxid = titleObj.feature.client_id * 1
 				}
 			}
 			if(titleObj && titleObj.feature && titleObj.feature.zone_type == 'question' && (titleObj.feature.sub_type == 'write' || titleObj.feature.sub_type == 'identify')) {
