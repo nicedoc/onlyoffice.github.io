@@ -1384,6 +1384,7 @@ function setInteraction(type, quesIds) {
 				return
 			}
 			oCell.SetCellMarginLeft(0)
+			oCell.SetVerticalAlign('top')
 			var paragraphs3 = oCell.GetContent().GetAllParagraphs()
 			if (paragraphs3 && paragraphs3.length) {
 				var pParagraph = paragraphs3[0]
