@@ -2435,7 +2435,6 @@ function initControls() {
 		if (maxid > client_node_id) {
 			client_node_id = maxid + 1
 		}
-		Api.asc_SetGlobalContentControlShowHighlight(true, 255, 191, 191)
 		return {
 			nodeList,
 			drawingList,
@@ -2444,7 +2443,6 @@ function initControls() {
 		}
 	}, false, false).then(res => {
 		console.log('initControls   nodeList', res)
-		Asc.scope.control_hightlight = true
 		return new Promise((resolve, reject) => {
 			// todo.. 这里暂不考虑上次的数据未保存或保存失败的情况，只假设此时的control数据和nodelist里的是一致的，只是乱码而已，其他的后续再处理
 			if (res.client_node_id) {

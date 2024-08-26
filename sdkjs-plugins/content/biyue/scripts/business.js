@@ -76,6 +76,7 @@ function initPaperInfo() {
 
 function updatePageSizeMargins() {
 	Asc.scope.workbook = window.BiyueCustomData.workbook_info
+	Asc.scope.control_hightlight = true
 	return biyueCallCommand(
 		window,
 		function () {
@@ -109,6 +110,7 @@ function updatePageSizeMargins() {
 					oSection.RemoveHeader('default')
 				})
 			}
+			Api.asc_SetGlobalContentControlShowHighlight(true, 255, 191, 191)
 			return null
 		},
 		false,
