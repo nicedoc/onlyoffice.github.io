@@ -4237,6 +4237,15 @@ function getAllPositions() {
 					var oDrawing = drawings[j]
 					if (oDrawing.Drawing.docPr) {
 						var title = oDrawing.Drawing.docPr.title
+						if (title && title.indexOf('partical_no_dot') >= 0) {
+							partical_no_dot_list.push({
+								page: oDrawing.Drawing.PageNum + 1,
+								x: mmToPx(oDrawing.Drawing.X),
+								y: mmToPx(oDrawing.Drawing.Y),
+								w: mmToPx(oDrawing.Drawing.Width),
+								h: mmToPx(oDrawing.Drawing.Height),
+							})
+						}
 						if (title && title.indexOf('feature') >= 0) {
 							var titleObj = getJsonData(title)
 							if (
@@ -4312,14 +4321,6 @@ function getAllPositions() {
 									feature_list.push(featureObj)
 								}
 							}
-						} else if (title && title.indexOf('partical_no_dot') >= 0) {
-							partical_no_dot_list.push({
-								page: oDrawing.Drawing.PageNum + 1,
-								x: mmToPx(oDrawing.Drawing.X),
-								y: mmToPx(oDrawing.Drawing.Y),
-								w: mmToPx(oDrawing.Drawing.Width),
-								h: mmToPx(oDrawing.Drawing.Height),
-							})
 						}
 					}
 				}
