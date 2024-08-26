@@ -110,6 +110,14 @@ function updatePageSizeMargins() {
 					oSection.RemoveHeader('default')
 				})
 			}
+			var odrawings = oDocument.GetAllDrawingObjects() || []
+			odrawings.forEach(oDrawing => {
+				if (oDrawing.Drawing && oDrawing.Drawing.docPr && oDrawing.Drawing.docPr.descr && oDrawing.Drawing.docPr.descr.indexOf('biyue') == -1) {
+					oDrawing.Drawing.Set_Props({
+						description: ''
+					})
+				}
+			})
 			Api.asc_SetGlobalContentControlShowHighlight(true, 255, 191, 191)
 			return null
 		},

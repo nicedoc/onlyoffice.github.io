@@ -837,6 +837,7 @@ function updateRangeControlType(typeName) {
 			var oTable = oCell.GetParentTable()
 			if (oTable && oTable.GetPosInParent() >= 0) {
 				var desc = getJsonData(oTable.GetTableDescription())
+				desc.biyue = 1
 				var key = `${oCell.GetRowIndex()}_${oCell.GetIndex()}`
 				if (desc[key]) {
 					delete desc[key]
@@ -994,6 +995,7 @@ function updateRangeControlType(typeName) {
 				var oTable = Api.LookupObject(table_id)
 				var desc = getJsonData(oTable.GetTableDescription())
 				desc[`${oCell.GetRowIndex()}_${oCell.GetIndex()}`] = `c_${oCell.Cell.Id}`
+				desc.biyue = 1
 				oTable.SetTableDescription(JSON.stringify(desc))
 			}
 		}
