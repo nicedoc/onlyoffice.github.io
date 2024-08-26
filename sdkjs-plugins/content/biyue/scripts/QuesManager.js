@@ -4929,29 +4929,57 @@ function layoutDetect() {
 			has160: false, // 存在ASCII码160，这是一个不可打印字符，称为不间断空格（NBSP）
 			has65307: false, // 中文分号
 			has12288: false, // 中文空格
+			hasTab: false, // 存在tab键
 		}
+		var bflag = []
 		function handleRun(oRun) {
 			if (!oRun || oRun.GetClassType() != 'run') {
 				return
 			}
 			var runContent = oRun.Run.Content || []
 			var isUnderline = oRun.GetUnderline()
-			var find = false
+			// 判断是否在括号内存在tab
 			for (var k = 0, kmax = runContent.length; k < kmax; ++k) {
-				if (isUnderline && runContent[k].Value == 32) {
-					result.has32 = true
-					find = true
-				} else {
-					if (!result[`has${runContent[k].Value}`]) {
-						result[`has${runContent[k].Value}`] = true
+				var type = runContent[k].GetType()
+				if (type == 1) {
+					if (runContent[k].Value == 40 || runContent[k].Value == 65288) {
+						bflag.push(1)
+					} else if (runContent[k].Value == 41 || runContent[k].Value == 65289) {
+						if (bflag.length) {
+							if (bflag[bflag.length - 1] == 1) {
+								bflag.pop()
+							} else if (bflag[bflag.length - 1] == 2) {
+								result.hasTab = true
+								find = true
+								break
+							}
+						}
+					}
+				} else if (type == 21) {
+					if (isUnderline) {
+						result.has32 = true
 						find = true
 					}
+					if (bflag.length) {
+						if (bflag[bflag.length - 1] == 1) {
+							bflag.push(2)
+						}
+					}
+				}
+				if (runContent[k].Value == 32) {
+					if (isUnderline) {
+						result.has32 = true
+						find = true
+					}
+				} else if (!result[`has${runContent[k].Value}`]) {
+					result[`has${runContent[k].Value}`] = true
+					find = true
 				}
 			}
-			// 需要调整样式
 		}
 		for (var i = 0, imax = paragraphs.length; i < imax; ++i) {
 			var oParagraph = paragraphs[i]
+			bflag = []
 			var controls = oParagraph.GetAllContentControls() || []
 			controls.forEach(oControl => {
 				if (oControl.GetClassType() == 'inlineLvlSdt') {
@@ -4989,59 +5017,85 @@ function layoutRepair(cmdData) {
 			return null
 		}
 		var paragrahs = oRange.Paragraphs || []
-
-		function handleRun(oRun, parent, pos) {
+		var oneSpaceWidth = 2.11 // 一个空格的宽度
+		var bflag = []
+		function getTabReplaceTarget(width, target) {
+			var str = ''
+			var count = Math.ceil(width / oneSpaceWidth)
+			for (var i = 0; i < count; ++i) {
+				str += target
+			}
+			return str
+		}
+		// 将tab下划线替换为真的下划线
+		function replaceUnderline(oRun, parent, pos) {
 			if (!oRun || oRun.GetClassType() != 'run') {
 				return
 			}
 			var runContent = oRun.Run.Content || []
-			if (cmdData.type == 1) {
-				if (cmdData.value == 32) {
-					if (!oRun.GetUnderline()) {
+			if (!oRun.GetUnderline()) {
+				return
+			}
+			var find = false
+			var split = false
+			for (var k = 0; k < runContent.length; ++k) {
+				var len = runContent.length
+				var element2 = runContent[k]
+				var elementType = element2.GetType()
+				if (elementType == 21 || elementType == 2) {
+					if (!find && k > 0) {
+						var newRun = oRun.Run.Split_Run(k + 1)
+						parent.Add_ToContent(pos + 1, newRun)
+						oRun.Run.RemoveElement(element2)
+						var str = elementType == 2 ? '_' : getTabReplaceTarget(element2.Width, '_')
+						oRun.Run.AddText(str, k)
 						return
 					}
-					var find = false
-					var split = false
-					for (var k = 0, kmax = runContent.length; k < kmax; ++k) {
-						var element2 = runContent[k]
-						if (element2.Value == 32) {
-							if (!find && k > 0) {
-								var newRun = oRun.Run.Split_Run(k + 1)
-								parent.Add_ToContent(pos + 1, newRun)
-								return
-							}
-							find = true
-							oRun.Run.RemoveElement(element2)
-							oRun.Run.AddText('_', k)
-							if (k < kmax - 1) {
-								var nextValue = runContent[k + 1].Value
-								if (nextValue != 32) {
-									oRun.SetUnderline(false)
-									var newRun = oRun.Run.Split_Run(k + 1)
-									newRun.SetUnderline(true)
-									parent.Add_ToContent(pos + 1, newRun)
-									split = true
-									break
-								}
-							}
-						}
-					}
-					if (find) {
-						if (!split) {
+					find = true
+					oRun.Run.RemoveElement(element2)
+					var str = elementType == 2 ? '_' : getTabReplaceTarget(element2.Width, '_')
+					oRun.Run.AddText(str, k)
+					var addCount = str.length - 1
+					if (k < len - 1) {
+						var nextType = runContent[k + 1 + addCount].GetType()
+						if (nextType != 2 && nextType != 21) {
 							oRun.SetUnderline(false)
+							var newRun = oRun.Run.Split_Run(k + 1 + addCount)
+							newRun.SetUnderline(true)
+							parent.Add_ToContent(pos + 1, newRun)
+							split = true
+							break
+						} else {
+							k += addCount
 						}
 					}
-				} else {
-					for (var k = 0, kmax = runContent.length; k < kmax; ++k) {
+				}
+			}
+			if (find) {
+				if (!split) {
+					oRun.SetUnderline(false)
+				}
+			}
+		}
+		function handleRun(oRun, parent, pos) {
+			if (!oRun || oRun.GetClassType() != 'run') {
+				return
+			}
+			if (cmdData.type == 1 && cmdData.value == 32) {
+				replaceUnderline(oRun, parent, pos)
+				return
+			}
+ 			var runContent = oRun.Run.Content || []
+			if (cmdData.type == 1) {
+				if (cmdData.value != 32) {
+					for (var k = 0; k < runContent.length; ++k) {
 						var element2 = runContent[k]
 						if (element2.Value == cmdData.value) {
 							oRun.Run.RemoveElement(element2)
 							if (cmdData.newValue == 32) {
-								if (cmdData.value == 12288) {
-									oRun.Run.AddText('  ', k)
-								} else {
-									oRun.Run.AddText(' ', k)
-								}
+								var replaceStr = cmdData.value == 12288 ? '  ' : ' '
+								oRun.Run.AddText(replaceStr, k)
+								k += replaceStr.length - 1
 							} else if (cmdData.newValue == 59) {
 								oRun.Run.AddText(';', k)
 							}
@@ -5050,21 +5104,97 @@ function layoutRepair(cmdData) {
 				}
 			}
 		}
-		for (var i = 0, imax = paragrahs.length; i < imax; ++i) {
-			var oParagraph = paragrahs[i]
-			var controls = oParagraph.GetAllContentControls() || []
-			controls.forEach(oControl => {
-				if (oControl.GetClassType() == 'inlineLvlSdt') {
-					var count1 = oControl.GetElementsCount()
-					if (count1) {
-						for (var k = 0; k < oControl.GetElementsCount(); ++k) {
-							handleRun(oControl.GetElement(k), oControl.Sdt, k)
+		function hasRightBracket2(begin, runContents) {
+			for (var k = begin; k < runContents.length; ++k) {
+				if (runContents[k].GetType() == 1 && (runContents[k].Value == 41 || runContents[k].Value == 65289)) {
+					return true
+				}
+			}
+		}
+		// 之后是否存在右括号
+		function hasRightBracket(oParagraph, iElement, jRun, idxParent) {
+			for (var j = iElement; j < oParagraph.GetElementsCount(); ++j) {
+				var oElement = oParagraph.GetElement(j)
+				if (oElement.GetClassType() == 'run') {
+					var runContents = oElement.Run.Content || []
+					var begin = iElement == j ? jRun : 0
+					if (hasRightBracket2(begin, runContents)) {
+						return true
+					}
+				} else if (oElement.GetClassType() == 'inlineLvlSdt') {
+					var count2 = oElement.GetElementsCount()
+					var begin = iElement == j ? idxParent : 0
+					for (var idx = begin; idx < count2; ++idx) {
+						if (oElement.GetElement(idx).GetClassType() == 'run') {
+							var runContents = oElement.GetElement(idx).Run.Content || []
+							var begin = iElement == j ? idxParent : 0
+							if (hasRightBracket2(begin, runContents)) {
+								return true
+							}
 						}
 					}
 				}
-			})
-			for (var j = 0; j < oParagraph.GetElementsCount(); ++j) {
-				handleRun(oParagraph.GetElement(j), oParagraph.Paragraph, j)
+			}
+		}
+		function handleRun2(oParagraph, j, oElement, bflag, idxParent) {
+			var runContents = oElement.Run.Content || []
+			for (var k = 0; k < runContents.length; ++k) {
+				var type = runContents[k].GetType()
+				if (type == 1) {
+					var value = runContents[k].Value
+					if (value == 65288 || value == 40) { // 左括号
+						bflag.push(1)
+					} else if (value == 65289 || value == 41) { // 右括号
+						bflag.pop()
+					}
+				} else if (type == 21 && bflag.length) {
+					// 段落之后是否存在右括号
+					var findRight = hasRightBracket(oParagraph, j, k, idxParent)
+					if (findRight) {
+						var element2 = runContents[k]
+						oElement.Run.RemoveElement(element2)
+						var str = getTabReplaceTarget(element2.Width, ' ')
+						oElement.Run.AddText(str, k)
+						k += str.length - 1
+					}
+				}
+			}
+		}
+		if (cmdData.type == 1 && cmdData.value == 'tab') { // 将括号里的tab替换为空格
+			var bflag = []
+			for (var i = 0, imax = paragrahs.length; i < imax; ++i) {
+				var oParagraph = paragrahs[i]
+				for (var j = 0; j < oParagraph.GetElementsCount(); ++j) {
+					var oElement = oParagraph.GetElement(j)
+					if (oElement.GetClassType() == 'run') {
+						handleRun2(oParagraph, j, oElement, bflag)
+					} else if (oElement.GetClassType() == 'inlineLvlSdt') {
+						var count2 = oElement.GetElementsCount()
+						for (var idx = 0; idx < count2; ++idx) {
+							if (oElement.GetElement(idx).GetClassType() == 'run') {
+								handleRun2(oParagraph, j, oElement.GetElement(idx), bflag)
+							}
+						}
+					}
+				}
+			}
+		} else {
+			for (var i = 0, imax = paragrahs.length; i < imax; ++i) {
+				var oParagraph = paragrahs[i]
+				var controls = oParagraph.GetAllContentControls() || []
+				controls.forEach(oControl => {
+					if (oControl.GetClassType() == 'inlineLvlSdt') {
+						var count1 = oControl.GetElementsCount()
+						if (count1) {
+							for (var k = 0; k < oControl.GetElementsCount(); ++k) {
+								handleRun(oControl.GetElement(k), oControl.Sdt, k)
+							}
+						}
+					}
+				})
+				for (var j = 0; j < oParagraph.GetElementsCount(); ++j) {
+					handleRun(oParagraph.GetElement(j), oParagraph.Paragraph, j)
+				}
 			}
 		}
 	}, false, true)

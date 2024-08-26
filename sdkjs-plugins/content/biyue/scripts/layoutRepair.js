@@ -1,41 +1,111 @@
 ;(function (window, undefined) {
 	var layout = 'layout_repair'
+	var detect_list = [{
+		idname: 'nbsp',
+		replace: true,
+		ignore: false,
+		type: 'error',
+		keyname: 'has160',
+		text1: '不间断空格，',
+		text2: '建议替换为空格',
+		value: 160,
+		newValue: 32
+	}, {
+		idname: 'tab',
+		replace: true,
+		ignore: false,
+		type: 'error',
+		keyname: 'hasTab',
+		text1: '括号里使用了tab，',
+		text2: '建议替换为空格',
+		value: 'tab',
+		newValue: 32
+	}, {
+		idname: 'underSpace',
+		replace: true,
+		ignore: false,
+		type: 'error',
+		keyname: 'has32',
+		text1: '空格下划线，',
+		text2: '建议替换为等长的下划线',
+		value: 32,
+		newValue: 95
+	}, {
+		idname: 'chineseSemicolon',
+		replace: true,
+		ignore: true,
+		type: 'warnint',
+		keyname: 'has65307',
+		text1: '中文分号，',
+		text2: '建议替换为英文',
+		value: 65307,
+		newValue: 59
+	}, {
+		idname: 'chineseSpace',
+		replace: true,
+		ignore: true,
+		type: 'warnint',
+		keyname: 'has12288',
+		text1: '中文空格，',
+		text2: '建议替换为英文',
+		value: 12288,
+		newValue: 32
+	}]
 	window.Asc.plugin.init = function () {
 		console.log('layoutRepair init')
 		window.Asc.plugin.sendToPlugin('onWindowMessage', { type: 'LayoutRepairMessage' })
 	}
 
 	function init(info) {
-		if (!info || !info.has32) {
-			$('#underSpace').hide()
+		var str = ``
+		for (var i = 0; i < detect_list.length; ++i) {
+			var item = detect_list[i]
+			if (info && info[item.keyname]) {
+				str += `<div id=${item.idname} style="margin: 4px 0">`
+				if (item.type == 'error') {
+					str += `<span style="color: #F56C6C;">Error：</span>`
+				} else if (item.type == 'warning') {
+					str += `<span style="color: #E6A23C;">Warning：</span>`
+				}
+				str +='<span>检查到</span>'
+				str += `<span style="font-weight: bold;">${item.text1}</span>`
+				str += `<span>${item.text2}</span>`
+				if (item.ignore) {
+					str +='<span class="ignore">忽略></span>'
+				}
+				if (item.replace) {
+					str +='<span class="replace">替换></span>'
+				}
+				str += '</div>'
+			}
 		}
-		if (!info || !info.has160) {
-			$('#nbsp').hide()
-		}
-		if (!info || !info.has65307) {
-			$('#chineseSemicolon').hide()
-		}
+		$('#list').html(str)
 		$('#cancel').on('click', onCancel)
 		$('#confirm').on('click', onConfirm)
-		$('#underSpace .replace').on('click', () => {
-			onReplaceOrIgnore(1, 32, 95, '#underSpace')
-		})
-		$('#nbsp .replace').on('click', () => {
-			onReplaceOrIgnore(1, 160, 32, '#nbsp')
-		})
-		$('#chineseSemicolon .replace').on('click', () => {
-			onReplaceOrIgnore(1, 65307, 59, '#chineseSemicolon')
-		})
-		$('#chineseSemicolon .ignore').on('click', () => {
-			onReplaceOrIgnore(0, 65307, 59, '#chineseSemicolon')
-		})
-		$('#chineseSpace .replace').on('click', () => {
-			onReplaceOrIgnore(1, 12288, 32, '#chineseSpace')
-		})
+		for (var i = 0; i < detect_list.length; ++i){
+			addItemClick(i)	
+		}
+	}
+
+	function addItemClick(i) {
+		var com = $(`#${detect_list[i].idname} .replace`)
+		var value = detect_list[i].value
+		var newValue = detect_list[i].newValue
+		var idName = `#${detect_list[i].idname}`
+		if (com) {
+			com.on('click', () => {
+				onReplaceOrIgnore(1, value, newValue, idName)
+			})
+		}
+		var com2 = $(`#${detect_list[i].idname} .ignore`)
+		if (com2) {
+			com2.on('click', () => {
+				onReplaceOrIgnore(0, value, newValue, idName)
+			})
+		}
 	}
 
 	function onReplaceOrIgnore(type, val, newValue, comId) {
-		console.log('onReplaceOrIgnore', type, val, newValue)
 		window.Asc.plugin.sendToPlugin('onWindowMessage', {
 			type: 'LayoutRepairMessage',
 			cmd: {
