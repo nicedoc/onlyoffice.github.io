@@ -1,13 +1,21 @@
 ;(function (window, undefined) {
 	var layout = 'layout_repair'
 	var detect_list = [{
+		idname: 'smallImg',
+		delete: true,
+		type: 'error',
+		keyname: 'hasSmallImage',
+		text1: '宽高过小的图片，',
+		text2: '建议删除，',
+		value: 'smallimg'
+	}, {
 		idname: 'nbsp',
 		replace: true,
 		ignore: false,
 		type: 'error',
 		keyname: 'has160',
 		text1: '不间断空格，',
-		text2: '建议替换为空格',
+		text2: '建议替换为空格，',
 		value: 160,
 		newValue: 32
 	}, {
@@ -17,7 +25,7 @@
 		type: 'error',
 		keyname: 'hasTab',
 		text1: '括号里使用了tab，',
-		text2: '建议替换为空格',
+		text2: '建议替换为空格，',
 		value: 'tab',
 		newValue: 32
 	}, {
@@ -27,29 +35,37 @@
 		type: 'error',
 		keyname: 'has32',
 		text1: '空格下划线，',
-		text2: '建议替换为等长的下划线',
+		text2: '建议替换为等长的下划线，',
 		value: 32,
 		newValue: 95
 	}, {
 		idname: 'chineseSemicolon',
 		replace: true,
 		ignore: true,
-		type: 'warnint',
+		type: 'warning',
 		keyname: 'has65307',
 		text1: '中文分号，',
-		text2: '建议替换为英文',
+		text2: '建议替换为英文，',
 		value: 65307,
 		newValue: 59
 	}, {
 		idname: 'chineseSpace',
 		replace: true,
 		ignore: true,
-		type: 'warnint',
+		type: 'warning',
 		keyname: 'has12288',
 		text1: '中文空格，',
-		text2: '建议替换为英文',
+		text2: '建议替换为英文，',
 		value: 12288,
 		newValue: 32
+	}, {
+		idname: 'whiteBg',
+		replace: true,
+		type: 'warning',
+		keyname: 'hasWhiteBg',
+		text1: '段落背景为白色，',
+		text2: '建议替换为透明色，',
+		value: 'whitebg'
 	}]
 	window.Asc.plugin.init = function () {
 		console.log('layoutRepair init')
@@ -76,6 +92,9 @@
 				if (item.replace) {
 					str +='<span class="replace">替换></span>'
 				}
+				if (item.delete) {
+					str +='<span class="delete">删除></span>'
+				}
 				str += '</div>'
 			}
 		}
@@ -87,25 +106,26 @@
 		}
 	}
 
-	function addItemClick(i) {
-		var com = $(`#${detect_list[i].idname} .replace`)
-		var value = detect_list[i].value
-		var newValue = detect_list[i].newValue
-		var idName = `#${detect_list[i].idname}`
+	function addCmdEvent(idname, classname, cmdType, value, newValue, idName) {
+		var com = $(`#${idname} ${classname}`)
 		if (com) {
 			com.on('click', () => {
-				onReplaceOrIgnore(1, value, newValue, idName)
-			})
-		}
-		var com2 = $(`#${detect_list[i].idname} .ignore`)
-		if (com2) {
-			com2.on('click', () => {
-				onReplaceOrIgnore(0, value, newValue, idName)
+				onCommand(cmdType, value, newValue, idName)
 			})
 		}
 	}
 
-	function onReplaceOrIgnore(type, val, newValue, comId) {
+	function addItemClick(i) {
+		var value = detect_list[i].value
+		var newValue = detect_list[i].newValue
+		var idName = `#${detect_list[i].idname}`
+		var classlist = ['.ignore', '.replace', '.delete']
+		for (var j = 0; j < classlist.length; ++j) {
+			addCmdEvent(detect_list[i].idname, classlist[j], j, value, newValue, idName)
+		}
+	}
+
+	function onCommand(type, val, newValue, comId) {
 		window.Asc.plugin.sendToPlugin('onWindowMessage', {
 			type: 'LayoutRepairMessage',
 			cmd: {

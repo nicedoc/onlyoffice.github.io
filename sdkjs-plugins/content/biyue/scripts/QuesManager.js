@@ -4932,6 +4932,8 @@ function layoutDetect() {
 			has65307: false, // 中文分号
 			has12288: false, // 中文空格
 			hasTab: false, // 存在tab键
+			hasWhiteBg: false, // 存在背景为白色的段落
+			hasSmallImage: false, // 存在宽高过小的图片
 		}
 		var bflag = []
 		function handleRun(oRun) {
@@ -4943,7 +4945,12 @@ function layoutDetect() {
 			// 判断是否在括号内存在tab
 			for (var k = 0, kmax = runContent.length; k < kmax; ++k) {
 				var type = runContent[k].GetType()
-				if (type == 1) {
+				if (type == 22) { // drawing
+					if (runContent[k].Width <= 1 && runContent[k].Height <= 1) {
+						result.hasSmallImage = true
+						find = true
+					}
+				} else if (type == 1) {
 					if (runContent[k].Value == 40 || runContent[k].Value == 65288) {
 						bflag.push(1)
 					} else if (runContent[k].Value == 41 || runContent[k].Value == 65289) {
@@ -4973,7 +4980,7 @@ function layoutDetect() {
 						result.has32 = true
 						find = true
 					}
-				} else if (!result[`has${runContent[k].Value}`]) {
+				} else if ( runContent[k].Value && !result[`has${runContent[k].Value}`]) {
 					result[`has${runContent[k].Value}`] = true
 					find = true
 				}
@@ -4995,6 +5002,14 @@ function layoutDetect() {
 			})
 			for (var j = 0; j < oParagraph.GetElementsCount(); ++j) {
 				handleRun(oParagraph.GetElement(j))
+			}
+			// 判断是否为白色背景
+			var shd = oParagraph.GetShd()
+			if (shd) {
+				var rgb = shd.GetRGB()
+				if (rgb == 0xFFFFFF) {
+					result.hasWhiteBg = true
+				}
 			}
 		}
 		return result
@@ -5088,19 +5103,25 @@ function layoutRepair(cmdData) {
 				return
 			}
  			var runContent = oRun.Run.Content || []
-			if (cmdData.type == 1) {
-				if (cmdData.value != 32) {
-					for (var k = 0; k < runContent.length; ++k) {
-						var element2 = runContent[k]
-						if (element2.Value == cmdData.value) {
+			for (var k = 0; k < runContent.length; ++k) {
+				var element2 = runContent[k]
+				if (element2.GetType() == 22) { // drawing
+					if (cmdData.type == 2 && cmdData.value == 'smallimg') {
+						if (element2.Width <= 1 && element2.Height <= 1) {
+							element2.PreDelete();
 							oRun.Run.RemoveElement(element2)
-							if (cmdData.newValue == 32) {
-								var replaceStr = cmdData.value == 12288 ? '  ' : ' '
-								oRun.Run.AddText(replaceStr, k)
-								k += replaceStr.length - 1
-							} else if (cmdData.newValue == 59) {
-								oRun.Run.AddText(';', k)
-							}
+						}
+					}
+				}
+				if (cmdData.type == 1 && cmdData.value != 32) {
+					if (element2.Value == cmdData.value) {
+						oRun.Run.RemoveElement(element2)
+						if (cmdData.newValue == 32) {
+							var replaceStr = cmdData.value == 12288 ? '  ' : ' '
+							oRun.Run.AddText(replaceStr, k)
+							k += replaceStr.length - 1
+						} else if (cmdData.newValue == 59) {
+							oRun.Run.AddText(';', k)
 						}
 					}
 				}
@@ -5183,6 +5204,13 @@ function layoutRepair(cmdData) {
 		} else {
 			for (var i = 0, imax = paragrahs.length; i < imax; ++i) {
 				var oParagraph = paragrahs[i]
+				if (cmdData.type == 1 && cmdData.value == 'whitebg') {
+					var oParaPr = oParagraph.GetParaPr();
+					if (oParaPr) {
+						oParaPr.SetShd("clear", 255, 255, 255, true);
+					}
+					continue
+				}
 				var controls = oParagraph.GetAllContentControls() || []
 				controls.forEach(oControl => {
 					if (oControl.GetClassType() == 'inlineLvlSdt') {
