@@ -37,7 +37,6 @@ import {
 	handleDocClick,
 	handleContextMenuShow,
 	handleAllWrite,
-	showAskCells,
 	onContextMenuClick,
 	layoutRepair,
 	tagImageCommon,
@@ -49,7 +48,8 @@ import { reqSaveInfo } from './api/paper.js'
 
 import { initView, onSaveData } from './pageView.js'
 
-;import { setInteraction, updateChoice } from './featureManager.js'
+import { setInteraction, updateChoice } from './featureManager.js'
+import { getInfoForServerSave } from './model/util.js'
 (function (window, undefined) {
 	var styleEnable = false
 	let activeQuesItem = ''
@@ -631,7 +631,7 @@ import { initView, onSaveData } from './pageView.js'
 			return
 		}
 		window.BiyueCustomData.time = new Date().toString()
-		console.log('[StoreCustomData]', window.BiyueCustomData.time)
+		console.log('[StoreCustomData time]', window.BiyueCustomData.time)
 		Asc.scope.BiyueCustomId = window.BiyueCustomId
 		Asc.scope.BiyueCustomData = window.BiyueCustomData
 		window.Asc.plugin.callCommand(
@@ -1181,6 +1181,10 @@ import { initView, onSaveData } from './pageView.js'
 			var tables = oDocument.GetAllTables() || []
 			for (var t = 0, tmax = tables.length; t < tmax; ++t) {
 				var oTable = tables[t]
+				var desc = oTable.GetTableDescription()
+				if (desc && desc != '') {
+					oTable.SetTableDescription('{}')
+				}
 				var rowcount = oTable.GetRowsCount()
 				for (var r = 0; r < rowcount; ++r) {
 					var oRow = oTable.GetRow(r)
@@ -1425,31 +1429,21 @@ import { initView, onSaveData } from './pageView.js'
       handleAllWrite(type).then(()=>{
         // 隐藏浮动的识别框
         if (params && params.saveData) {
-          // 保存数据
-          var quesmap = window.BiyueCustomData.question_map || {}
-          var treemap = {}
-          Object.keys(quesmap).forEach(id => {
-            treemap[id] = Object.assign({}, quesmap[id])
-            delete treemap[id].text
-            delete treemap[id].ques_default_name
-          })
-          var info = {
-            node_list: window.BiyueCustomData.node_list || [],
-            question_map: treemap,
-            client_node_id: window.BiyueCustomData.client_node_id
-          }
-          var str = JSON.stringify(info)
-          reqSaveInfo(window.BiyueCustomData.paper_uuid, str).then(res => {
-            window.biyue.showMessageBox({
-              content: params.message,
-              showCancel: params.showCancel
-            })
-          }).catch(res => {
-            window.biyue.showMessageBox({
-              content: '上传成功，但是试卷保存数据失败',
-              showCancel: false
-            })
-          })
+			// 保存数据
+			StoreCustomData(() => {
+				var str = getInfoForServerSave()
+				reqSaveInfo(window.BiyueCustomData.paper_uuid, str).then(res => {
+					window.biyue.showMessageBox({
+						content: params.message,
+						showCancel: params.showCancel
+					})
+				}).catch(res => {
+					window.biyue.showMessageBox({
+					content: '上传成功，但是试卷保存数据失败',
+					showCancel: false
+					})
+				})
+			})
         }
       })
     })
@@ -2219,6 +2213,7 @@ import { initView, onSaveData } from './pageView.js'
       var drawings = oDocument.GetAllDrawingObjects() || []
       var question_map = Asc.scope.question_map || {}
       var node_list = Asc.scope.node_list || []
+	  var oTables = oDocument.GetAllTables() || []
 
       function getJsonData(str) {
         if (!str || str == '' || typeof str != 'string') {
@@ -2231,6 +2226,29 @@ import { initView, onSaveData } from './pageView.js'
           return {}
         }
       }
+	  function getCell(write_data) {
+		for (var i = 0; i < oTables.length; ++i) {
+			var oTable = oTables[i]
+			if (oTable.GetPosInParent() == -1) { continue }
+			var desc = getJsonData(oTable.GetTableDescription())
+			var keys = Object.keys(desc)
+			if (keys.length) {
+				for (var j = 0; j < keys.length; ++j) {
+					var key = keys[j]
+					if (desc[key] == write_data.id) {
+						var rc = key.split('_')
+						if (write_data.row_index == undefined) {
+							return oTable.GetCell(rc[0], rc[1])
+						} else if (write_data.row_index == rc[0] && write_data.cell_index == rc[1]) {
+							return oTable.GetCell(rc[0], rc[1])
+						}
+						
+					}
+				}
+			}
+		}
+		return null
+	}
       // 图片不铺码的标识
       drawings.forEach(oDrawing => {
         let title = oDrawing.Drawing.docPr.title || ''
@@ -2276,7 +2294,12 @@ import { initView, onSaveData } from './pageView.js'
                 if (writeData && writeData.sub_type == 'cell' && writeData.cell_id) {
                   var oCell = Api.LookupObject(writeData.cell_id)
                   if (oCell && oCell.GetClassType && oCell.GetClassType() == 'tableCell') {
-                    oCell.SetBackgroundColor(255, 191, 191, cmdType == 'show' ? false : true)
+					if (oCell.GetParentTable() && oCell.GetParentTable().GetPosInParent() == -1) {
+						oCell = getCell(writeData)
+					}
+					if (oCell) {
+						oCell.SetBackgroundColor(255, 191, 191, cmdType == 'show' ? false : true)
+					}
                   }
                 }
               })

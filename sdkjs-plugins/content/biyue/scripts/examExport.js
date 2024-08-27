@@ -278,10 +278,8 @@ import { setXToken } from './auth.js'
       })
     })
     .catch((error) => {
-      if (error.message) {
-        alert('上传失败:', error.message)
-      }
-      console.log(error)
+		alert(error && error.message ? `上传失败:${error.message}` : '上传失败')
+      	console.log(error)
     })
   }
 

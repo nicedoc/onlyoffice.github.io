@@ -3762,6 +3762,7 @@ function getAllPositions() {
 			var pageCount = oDocument.GetPageCount()
 			var question_map = Asc.scope.question_map
 			var node_list = Asc.scope.node_list
+			var oTables = oDocument.GetAllTables() || []
 			console.log('------------------------------')
 			function mmToPx(mm) {
 				// 1 英寸 = 25.4 毫米
@@ -3805,12 +3806,34 @@ function getAllPositions() {
 					})
 				}
 			}
+			function getCell(write_data) {
+				for (var i = 0; i < oTables.length; ++i) {
+					var oTable = oTables[i]
+					if (oTable.GetPosInParent() == -1) { continue }
+					var desc = getJsonData(oTable.GetTableDescription())
+					var keys = Object.keys(desc)
+					if (keys.length) {
+						for (var j = 0; j < keys.length; ++j) {
+							var key = keys[j]
+							if (desc[key] == write_data.id) {
+								var rc = key.split('_')
+								if (write_data.row_index == undefined) {
+									return oTable.GetCell(rc[0], rc[1])
+								} else if (write_data.row_index == rc[0] && write_data.cell_index == rc[1]) {
+									return oTable.GetCell(rc[0], rc[1])
+								}
+								
+							}
+						}
+					}
+				}
+				return null
+			}
 			function getCellBounds(oCell, ask_score, order) {
 				if (!oCell || oCell.GetClassType() != 'tableCell') {
 					return []
 				}
 				var bounds = []
-				var oTable = oCell.GetParentTable()
 				var pagesCount = oCell.Cell.PagesCount
 				for (var p = 0; p < pagesCount; ++p) {
 					var pagebounds = oCell.Cell.GetPageBounds(p)
@@ -4151,9 +4174,15 @@ function getAllPositions() {
 									}
 								} else if (askData.sub_type == 'cell') {
 									var oCell = Api.LookupObject(askData.cell_id)
-									var d = getCellBounds(oCell, ask_score, mark_order)
-									item.write_ask_region = item.write_ask_region.concat(d)
+									if (!oCell || oCell.GetClassType() != 'tableCell' || oCell.GetParentTable().GetPosInParent() == -1) {
+										oCell = getCell(askData)
+									}
+									if (oCell) {
+										var d = getCellBounds(oCell, ask_score, mark_order)
+										item.write_ask_region = item.write_ask_region.concat(d)
+									}
 									mark_order++
+									
 								} else if (
 									askData.sub_type == 'write' ||
 									askData.sub_type == 'identify'

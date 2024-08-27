@@ -377,7 +377,7 @@ function getNodeList() {
 				parent_id = parentTag.client_id || 0
 			}
 			return parent_id
-		}
+		}		
 		function getParagraphWriteList(oElement, write_list) {
 			if (!oElement || !oElement.GetClassType || oElement.GetClassType() != 'paragraph') {
 				return
@@ -460,7 +460,9 @@ function getNodeList() {
 										id: 'c_' + oCell.Cell.Id,
 										sub_type: 'cell',
 										table_id: oElement.Table.Id,
-										cell_id: oCell.Cell.Id
+										cell_id: oCell.Cell.Id,
+										row_index: i1,
+										cell_index: i2
 									})
 								} else {
 									var oCellContent = oCell.GetContent()
@@ -986,7 +988,7 @@ function updateRangeControlType(typeName) {
 				result.change_list.push({
 					parent_id: parent_id,
 					table_id: table_id,
-					cell_row: oCell.GetRowIndex(),
+					row_index: oCell.GetRowIndex(),
 					cell_index: oCell.GetIndex(),
 					cell_id: oCell.Cell.Id,
 					client_id: 'c_' + oCell.Cell.Id,
@@ -2261,11 +2263,13 @@ function updateDataBySavedData(str) {
 		var data = JSON.parse(str)
 		var recordtime = new Date(data.time).getTime()
 		var nowtime = new Date(window.BiyueCustomData.time).getTime()
+		console.log('recordtime', recordtime, 'nowtime', nowtime)
 		if (recordtime < nowtime) {
 			console.log('当前保存的时间比后端存储的新，忽略')
 			return
 		}
 		if (data.client_node_id) {
+			console.log('========== 使用后端存储的')
 			var maxId = 0
 			for (var i = 0; i < data.node_list.length; i++) {
 				if (data.node_list[i].id > maxId) {
@@ -2297,6 +2301,7 @@ function initControls() {
 		var question_map = Asc.scope.question_map || {}
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls()
+		var oTables = oDocument.GetAllTables() || []
 		var nodeList = []
 		var ids = {}
 		var client_node_id = Asc.scope.client_node_id
@@ -2434,6 +2439,31 @@ function initControls() {
 				})
 			}
 		})
+		var cellAskMap = {}
+		oTables.forEach(oTable => {
+			if (oTable.GetPosInParent() >= 0) {
+				var desc = getJsonData(oTable.GetTableDescription())
+				Object.keys(desc).forEach(key => {
+					if (key != 'biyue') {
+						var rc = key.split('_')
+						var oCell = oTable.GetCell(rc[0], rc[1])
+						if (oCell) {
+							var obj = {
+								table_id: oTable.Table.Id,
+								row_index: rc[0],
+								cell_index: rc[1],
+								cell_id: oCell.Cell.Id
+							}
+							if (cellAskMap[desc[key]]) {
+								cellAskMap[desc[key]].push(obj)
+							} else {
+								cellAskMap[desc[key]] = [obj]
+							}
+						}
+					}
+				})
+			}
+		})
 		if (maxid > client_node_id) {
 			client_node_id = maxid + 1
 		}
@@ -2441,7 +2471,8 @@ function initControls() {
 			nodeList,
 			drawingList,
 			ids,
-			client_node_id
+			client_node_id,
+			cellAskMap
 		}
 	}, false, false).then(res => {
 		console.log('initControls   nodeList', res)
@@ -2452,6 +2483,7 @@ function initControls() {
 			}
 			var nodeList = res.nodeList
 			var drawingList = res.drawingList
+			var cellAskMap = res.cellAskMap
 			var ids = res.ids || {}
 			if (nodeList && nodeList.length > 0) {
 				var question_map = window.BiyueCustomData.question_map || {}
@@ -2494,6 +2526,16 @@ function initControls() {
 									}
 								} else if (writeData.sub_type == 'cell') {
 									// todo..目前还没办法处理单元格ID改变后如何对应的情况
+									var celldata = cellAskMap[writeData.id]
+									if (celldata && celldata.length == 1) {
+										var cdata = celldata[0]
+										if (writeData.cell_index == undefined || (writeData.cell_index == cdata.cell_index && writeData.row_index == cdata.row_index)) {
+											writeData.table_id = cdata.table_id
+											writeData.row_index = cdata.row_index
+											writeData.cell_index = cdata.cell_index
+											writeData.cell_id = cdata.cell_id
+										}
+									}
 								}
 							}
 						}
@@ -3143,6 +3185,41 @@ function showAskCells(cmdType) {
 		var question_map = Asc.scope.question_map || {}
 		var node_list = Asc.scope.node_list || []
 		var cmdType = Asc.scope.cmdType
+		var oTables = Api.GetDocument().GetAllTables() || []
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+			  return {}
+			}
+			try {
+			  return JSON.parse(str)
+			} catch (error) {
+			  console.log('json parse error', error)
+			  return {}
+			}
+		  }
+		  function getCell(write_data) {
+			for (var i = 0; i < oTables.length; ++i) {
+				var oTable = oTables[i]
+				if (oTable.GetPosInParent() == -1) { continue }
+				var desc = getJsonData(oTable.GetTableDescription())
+				var keys = Object.keys(desc)
+				if (keys.length) {
+					for (var j = 0; j < keys.length; ++j) {
+						var key = keys[j]
+						if (desc[key] == write_data.id) {
+							var rc = key.split('_')
+							if (write_data.row_index == undefined) {
+								return oTable.GetCell(rc[0], rc[1])
+							} else if (write_data.row_index == rc[0] && write_data.cell_index == rc[1]) {
+								return oTable.GetCell(rc[0], rc[1])
+							}
+							
+						}
+					}
+				}
+			}
+			return null
+		}
 		Object.keys(question_map).forEach(id => {
 			if (question_map[id].level_type == 'question') {
 				var nodeData = node_list.find(item => {
@@ -3157,7 +3234,13 @@ function showAskCells(cmdType) {
 							if (writeData && writeData.sub_type == 'cell' && writeData.cell_id) {
 								var oCell = Api.LookupObject(writeData.cell_id)
 								if (oCell && oCell.GetClassType && oCell.GetClassType() == 'tableCell') {
-									oCell.SetBackgroundColor(255, 191, 191, cmdType == 'show' ? false : true)
+									var oTable = oCell.GetParentTable()
+									if (oTable && oTable.GetPosInParent() == -1) {
+										oCell = getCell(writeData)
+									}
+									if (oCell) {
+										oCell.SetBackgroundColor(255, 191, 191, cmdType == 'show' ? false : true)
+									}
 								}
 							}
 						})
@@ -4675,6 +4758,7 @@ function deleteAsks(askList, recalc = true, notify = true) {
 						for (var t = 0; t < tables.length; ++t) {
 							var oTable = tables[t]
 							var rowcount = oTable.GetRowsCount()
+							var find = false
 							for (var r = 0; r < rowcount; ++r) {
 								var oRow = oTable.GetRow(r)
 								var cellcount = oRow.GetCellsCount()
@@ -4689,9 +4773,13 @@ function deleteAsks(askList, recalc = true, notify = true) {
 										if (fill && fill.r == 255 && fill.g == 191 && fill.b == 191) {
 											oCell.SetBackgroundColor(255, 191, 191, true)
 											removeCellAskRecord(oCell)
+											find = true
 										}
 									}
 								}
+							}
+							if (find) {
+								oTable.SetTableDescription('{}')
 							}
 						}
 					}
@@ -4785,7 +4873,7 @@ function focusAsk(writeData) {
 		var oDocument = Api.GetDocument()
 		var drawings = oDocument.GetAllDrawingObjects() || []
 		var controls = oDocument.GetAllContentControls() || []
-		
+		var oTables = oDocument.GetAllTables() || []
 		function getJsonData(str) {
 			if (!str || str == '' || typeof str != 'string') {
 				return {}
@@ -4796,6 +4884,29 @@ function focusAsk(writeData) {
 				console.log('json parse error', error)
 				return {}
 			}
+		}
+		function getCell(write_data) {
+			for (var i = 0; i < oTables.length; ++i) {
+				var oTable = oTables[i]
+				if (oTable.GetPosInParent() == -1) { continue }
+				var desc = getJsonData(oTable.GetTableDescription())
+				var keys = Object.keys(desc)
+				if (keys.length) {
+					for (var j = 0; j < keys.length; ++j) {
+						var key = keys[j]
+						if (desc[key] == write_data.id) {
+							var rc = key.split('_')
+							if (write_data.row_index == undefined) {
+								return oTable.GetCell(rc[0], rc[1])
+							} else if (write_data.row_index == rc[0] && write_data.cell_index == rc[1]) {
+								return oTable.GetCell(rc[0], rc[1])
+							}
+							
+						}
+					}
+				}
+			}
+			return null
 		}
 		if (write_data.sub_type == 'control') {
 			var oControls = controls.filter(e => {
@@ -4818,7 +4929,10 @@ function focusAsk(writeData) {
 				var oCell = Api.LookupObject(write_data.cell_id)
 				if (oCell && oCell.GetClassType() == 'tableCell') {
 					var table = oCell.GetParentTable()
-					if (table && table.GetPosInParent() >= 0) {
+					if (table.GetPosInParent() == -1) {
+						oCell = getCell(write_data)
+					}
+					if (oCell) {
 						var cellContent = oCell.GetContent()
 						if (cellContent) {
 							cellContent.GetRange().Select()
@@ -6136,8 +6250,9 @@ function tidyTree() {
 				deleShape(drawing)
 			}
 		}
-		function deleteCellAsk(oTable, write_list) {
+		function deleteCellAsk(oTable, write_list, nodeIndex) {
 			var rowcount = oTable.GetRowsCount()
+			var desc = getJsonData(oTable.GetTableDescription())
 			for (var r = 0; r < rowcount; ++r) {
 				var oRow = oTable.GetRow(r)
 				var cellcount = oRow.GetCellsCount()
@@ -6157,6 +6272,18 @@ function tidyTree() {
 								var index = write_list.findIndex(e => {
 									return e.cell_id == oCell.Cell.Id && e.table_id == oTable.Table.Id
 								})
+								if (index == -1) {
+									var cid = desc[`${r}_${c}`]
+									if (cid) {
+										var index = write_list.findIndex(e => {
+											return e.id == cid
+										})
+										if (index >= 0) {
+											node_list[nodeIndex].write_list[index].cell_id = oCell.Cell.Id
+											node_list[nodeIndex].write_list[index].table_id = oTable.Table.Id
+										}
+									}
+								}
 								flag = index == -1
 							}
 							if (flag) {
@@ -6174,6 +6301,9 @@ function tidyTree() {
 		}
 		// 删除题目control的相关子控件
 		function deleteControlChild(quesControl) {
+			if (!quesControl || quesControl.GetClassType() != 'blockLvlSdt') {
+				return
+			}
 			var control_id = quesControl.Sdt.GetId()
 			// 删除所有小问，遍历出所有小问，全部删除
 			// 删除所有精准互动
@@ -6237,8 +6367,20 @@ function tidyTree() {
 			}
 			var tagInfo = getJsonData(oControl.GetTag())
 			if (!tagInfo.client_id) { // 无client_id，直接删除
-				deleteControlChild(oControl)
-				Api.asc_RemoveContentControlWrapper(oControl.Sdt.GetId())
+				var del = true
+				if (tagInfo.regionType == 'num') {
+					var parentControl = oControl.GetParentContentControl()
+					if (parentControl && parentControl.GetClassType() == 'blockLvlSdt') {
+						var ptag = getJsonData(parentControl.GetTag())
+						if (ptag.regionType == 'question') {
+							del = false
+						}
+					}
+				}
+				if (del) {
+					deleteControlChild(oControl)
+					Api.asc_RemoveContentControlWrapper(oControl.Sdt.GetId())
+				}
 				continue
 			}
 			if (oControl.GetClassType() == 'blockLvlSdt' && tagInfo.regionType == 'question') {
@@ -6277,11 +6419,14 @@ function tidyTree() {
 						if (!question_map[tagInfo.client_id] || index == -1) {
 							deleteCellAsk(oTable)
 						} else {
-							deleteCellAsk(oTable, node_list[index].write_list)
+							deleteCellAsk(oTable, node_list[index].write_list, index)
 						}
 					}
 				}
 			}
+		}
+		return {
+			node_list: node_list
 		}
 	}, false, false)
 }
@@ -6289,7 +6434,10 @@ function tidyTree() {
 function tidyNodes() {
 	return clearRepeatControl(false).then(() => {
 		return tidyTree()
-	}).then(() => {
+	}).then((res) => {
+		if (res && res.node_list) {
+			window.BiyueCustomData.node_list = res.node_list
+		}
 		return getNodeList()
 	})
 	.then(list => {
@@ -6311,7 +6459,7 @@ function tidyNodes() {
 				if (oldNodeData.write_list) {
 					for (var j = oldNodeData.write_list.length - 1; j >= 0; --j) {
 						var writeData = oldNodeData.write_list[j]
-						var writeIndex = write_list.findIndex(e => e.id == writeData.id)
+						var writeIndex = write_list.findIndex(e => e.cell_id == writeData.cell_id)
 						if (writeIndex == -1) { // 找不到，删除
 							oldNodeData.write_list.splice(j, 1)
 						}
@@ -6320,10 +6468,15 @@ function tidyNodes() {
 				if (question_map[id].ask_list) {
 					for (var k = question_map[id].ask_list.length - 1; k >= 0; --k) {
 						var askData = question_map[id].ask_list[k]
-						var askIndex = write_list.findIndex(e => e.id == askData.id)
-						if (askIndex == -1) { // 找不到，删除
-							question_map[id].ask_list.splice(k, 1)
-						}	
+						var wd = oldNodeData.write_list.find(e => {
+							return e.id == askData.id
+						})
+						if (windex >= 0) {
+							var askIndex = write_list.findIndex(e => e.cell_id == wd.cell_id)
+							if (askIndex == -1) { // 找不到，删除
+								question_map[id].ask_list.splice(k, 1)
+							}
+						}
 					}
 				}
 			}

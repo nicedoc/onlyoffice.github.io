@@ -56,4 +56,21 @@ function getListByMap(map, keyname = 'value', labelname = 'label') {
 	return list
 }
 
-export { showCom, updateText, addClickEvent, closeOtherSelect, getListByMap }
+function getInfoForServerSave() {
+	var quesmap = window.BiyueCustomData.question_map || {}
+	var treemap = {}
+	Object.keys(quesmap).forEach(id => {
+		treemap[id] = Object.assign({}, quesmap[id])
+		delete treemap[id].text
+		delete treemap[id].ques_default_name
+	})
+	var info = {
+		node_list: window.BiyueCustomData.node_list || [],
+		question_map: treemap,
+		client_node_id: window.BiyueCustomData.client_node_id,
+		time: window.BiyueCustomData.time
+	}
+	return JSON.stringify(info)
+}
+
+export { showCom, updateText, addClickEvent, closeOtherSelect, getListByMap, getInfoForServerSave }

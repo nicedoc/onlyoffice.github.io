@@ -13,7 +13,7 @@ import {
 	clearRepeatControl,
 	tidyNodes
 } from './QuesManager.js'
-import { showCom, updateText, addClickEvent } from './model/util.js'
+import { showCom, updateText, addClickEvent, getInfoForServerSave } from './model/util.js'
 import { reqSaveInfo } from './api/paper.js'
 import { resetStack } from './command.js'
 function initView() {
@@ -150,20 +150,7 @@ function onViewQuesType() {
 }
 
 function onSaveData(print = true) {
-	var quesmap = window.BiyueCustomData.question_map || {}
-	var treemap = {}
-	Object.keys(quesmap).forEach(id => {
-		treemap[id] = Object.assign({}, quesmap[id])
-		delete treemap[id].text
-		delete treemap[id].ques_default_name
-	})
-	var info = {
-		node_list: window.BiyueCustomData.node_list || [],
-		question_map: treemap,
-		client_node_id: window.BiyueCustomData.client_node_id,
-		time: window.BiyueCustomData.time
-	}
-	var str = JSON.stringify(info)
+	var str = getInfoForServerSave()
 	return new Promise((resolve, reject) => {
 		reqSaveInfo(window.BiyueCustomData.paper_uuid, str).then(res => {
 			console.log('保存数据到后端成功', str)

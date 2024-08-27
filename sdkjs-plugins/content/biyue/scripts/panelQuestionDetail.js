@@ -685,8 +685,13 @@ function onFocusAsk(id, idx) {
 		var writeData = nodeData.write_list.find(e => {
 			return e.id == quesData.ask_list[index].id
 		})
-		focusAsk(writeData)
-		updateAskSelect(idx)
+		if (writeData) {
+			focusAsk(writeData)
+			updateAskSelect(idx)
+		} else {
+			console.log('找不到小问数据,node_list和question_map里的数据不一致')
+		}
+		
 	}
 }
 
