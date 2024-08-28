@@ -377,7 +377,7 @@ function getNodeList() {
 				parent_id = parentTag.client_id || 0
 			}
 			return parent_id
-		}		
+		}
 		function getParagraphWriteList(oElement, write_list) {
 			if (!oElement || !oElement.GetClassType || oElement.GetClassType() != 'paragraph') {
 				return
@@ -2197,7 +2197,7 @@ function batchChangeQuesType(type) {
 			if (res && res.choice_ids && res.choice_ids.length) {
 				return deleteChoiceOtherWrite(res.choice_ids, false).then(() => {
 					resolve(res)
-				})	
+				})
 			} else {
 				resolve(res)
 			}
@@ -2207,7 +2207,7 @@ function batchChangeQuesType(type) {
 			if (res && res.judgeChoiceAll) {
 				return updateAllChoice().then(() => {
 					resolve(res)
-				})	
+				})
 			} else {
 				resolve(res)
 			}
@@ -2217,7 +2217,7 @@ function batchChangeQuesType(type) {
 			if (res && res.interaction_ids && res.interaction_ids.length) {
 				return setInteraction('useself', res.interaction_ids).then(() => {
 					resolve(res)
-				})	
+				})
 			} else {
 				resolve(res)
 			}
@@ -2287,7 +2287,7 @@ function updateDataBySavedData(str) {
 			}
 			window.BiyueCustomData.client_node_id = maxId >= data.client_node_id ? (maxId + 1) : data.client_node_id
 			window.BiyueCustomData.node_list = data.node_list
-			window.BiyueCustomData.question_map = data.question_map	
+			window.BiyueCustomData.question_map = data.question_map
 		}
 	} catch (error) {
 		console.log(error)
@@ -3213,7 +3213,7 @@ function showAskCells(cmdType) {
 							} else if (write_data.row_index == rc[0] && write_data.cell_index == rc[1]) {
 								return oTable.GetCell(rc[0], rc[1])
 							}
-							
+
 						}
 					}
 				}
@@ -3713,7 +3713,13 @@ function reqUploadTree() {
         return target_list
       }, false, false).then( control_list => {
 		if (control_list && control_list.length) {
-			upload_control_list = control_list
+			upload_control_list = control_list.map((e) => {
+        let content_html = cleanHtml(e.content_html || '')
+        return {
+          ...e,
+          content_html: content_html
+        }
+      })
 			generateTreeForUpload(upload_control_list)
 		} else {
 			upload_control_list = []
@@ -3728,6 +3734,103 @@ function reqUploadTree() {
 		}
       })
   })
+}
+
+// 清洗输出的html
+function cleanHtml(html) {
+  // 创建一个临时的div用以装载需要处理的HTML内容
+  var tempDiv = document.createElement('div');
+
+  tempDiv.innerHTML = html
+
+  //如果没有子节点或者文本内容就可以删除的元素
+  const removeEmpty = { div: 1, a: 1, abbr: 1, acronym: 1, address: 1, b: 1, bdo: 1, big: 1, cite: 1, code: 1, del: 1, dfn: 1, em: 1, font: 1, i: 1, ins: 1, label: 1, kbd: 1, q: 1, s: 1, samp: 1, small: 1, span: 1, strike: 1, strong: 1, sub: 1, sup: 1, tt: 1, u: 1, 'var': 1 };
+
+  // 替换部分标签 为 p 标签
+  tempDiv.querySelectorAll('h1, h2, h3, h4, h5, li').forEach(el => {
+    const p = document.createElement('p');
+    while(el.firstChild) {
+      p.appendChild(el.firstChild);
+    }
+    el.parentNode.replaceChild(p, el);
+  });
+
+  // 移除所有 div, ul, ol 标签但是保留内容
+  tempDiv.querySelectorAll('div, ul, ol').forEach(el => {
+    while(el.firstChild) {
+      el.parentNode.insertBefore(el.firstChild, el);
+    }
+    el.parentNode.removeChild(el);
+  });
+
+  // 移除 span 标签但保留内容
+  tempDiv.querySelectorAll('span').forEach(el => {
+    while(el.firstChild) {
+      el.parentNode.insertBefore(el.firstChild, el);
+    }
+    el.parentNode.removeChild(el);
+  });
+
+  // 移除所有带data-属性的元素属性
+  tempDiv.querySelectorAll('*').forEach(el => {
+    Array.from(el.attributes).forEach(attr => {
+      if (attr.name.startsWith('data-')) {
+        el.removeAttribute(attr.name);
+      }
+    });
+  });
+
+  // // 移除所有style属性
+  // tempDiv.querySelectorAll('[style]').forEach(el => {
+  //   el.removeAttribute('style');
+  // });
+
+  // 只保留特定的 style 属性
+  tempDiv.querySelectorAll('[style]').forEach(el => {
+    const style = el.getAttribute('style');
+    const allowedStyles = extractAllowedStyles(style);
+    if (allowedStyles) {
+      el.setAttribute('style', allowedStyles);
+    } else {
+      el.removeAttribute('style');
+    }
+  });
+
+  // 移除无内容的特定标签
+  Object.keys(removeEmpty).forEach(tag => {
+    tempDiv.querySelectorAll(tag).forEach(el => {
+      if (!el.textContent.trim()) {
+        el.parentNode.removeChild(el);
+      }
+    });
+  });
+
+  flattenNestedP(tempDiv)
+
+  return tempDiv.innerHTML
+}
+
+function extractAllowedStyles(style) {
+  // 允许保留的样式属性列表
+  const allowedProperties = ['text-align'];
+  const styleRules = style.split(';');
+  const filteredStyles = styleRules.filter(rule => {
+    const [property] = rule.split(':');
+    return allowedProperties.includes(property.trim());
+  });
+  return filteredStyles.join(';').trim();
+}
+
+function flattenNestedP(node) {
+  // 如果有重复嵌套的p标签则保留最里面那层
+  node.querySelectorAll('p').forEach(p => {
+    if (p.querySelector('p')) {
+      let childP = p.querySelector('p');
+      p.parentNode.insertBefore(childP, p);
+      p.parentNode.removeChild(p);
+      flattenNestedP(node);
+    }
+  });
 }
 
 function getXml(controlId) {
@@ -4515,7 +4618,7 @@ function changeProportion(idList, proportion) {
 function deleteAsks(askList, recalc = true, notify = true) {
 	if (!askList || askList.length == 0) {
 		return new Promise((resolve, reject) => {
-			return resolve({})	
+			return resolve({})
 		})
 	}
 	Asc.scope.question_map = window.BiyueCustomData.question_map
@@ -4660,7 +4763,7 @@ function deleteAsks(askList, recalc = true, notify = true) {
 							var tag = getJsonData(oControl.GetTag())
 							if (tag.client_id == client_id) {
 								return oControl
-							}	
+							}
 						}
 					}
 				}
@@ -4856,7 +4959,7 @@ function deleteAsks(askList, recalc = true, notify = true) {
 				return setInteraction('accurate', [res.ques_id])
 			} else {
 				return new Promise((resolve, reject) => {
-					return resolve({})	
+					return resolve({})
 				})
 			}
 		}
@@ -4901,7 +5004,7 @@ function focusAsk(writeData) {
 							} else if (write_data.row_index == rc[0] && write_data.cell_index == rc[1]) {
 								return oTable.GetCell(rc[0], rc[1])
 							}
-							
+
 						}
 					}
 				}
@@ -5403,7 +5506,7 @@ function tagImageCommon(params) {
 			client_node_id: client_node_id,
 			drawing_id: tag_params.drawing_id,
 			ques_use: tag_params.ques_use
-		} 
+		}
 	}, false, false).then(res => {
 		if (res) {
 			window.BiyueCustomData.client_node_id = res.client_node_id
@@ -5542,7 +5645,7 @@ function updateQuesScore(ids) {
 			var scores = [0]
 			var score = Math.floor(quesData.score)
 			var vInteger = Math.trunc(score) // 整数部分
-			var score_mode_use = !quesData.score_mode ? (score >= 15 ? 2 : 1) : quesData.score_mode 
+			var score_mode_use = !quesData.score_mode ? (score >= 15 ? 2 : 1) : quesData.score_mode
 			if (score_mode_use == 2) {
 				var ten = (vInteger / 10) >> 0
 				for (var i1 = 1; i1 <= ten; ++i1) {
@@ -5563,7 +5666,7 @@ function updateQuesScore(ids) {
 					}
 				})
 			}
-			
+
 			var rect = Api.asc_GetContentControlBoundingRect(
 				nodeData.control_id,
 				true
@@ -5961,13 +6064,13 @@ function splitControl(qid) {
 						if (includeRange(all[i], all[j])) {
 							newE = false;
 						}
-					}    
+					}
 					if (newE)
 						ret.push(all[i]);
 				}
 				return ret;
 			};
-			
+
 
 			//debugger;
 			var apiRanges = [];
@@ -5977,7 +6080,7 @@ function splitControl(qid) {
 				apiRanges = mergeRange(apiRanges, ranges);
 			});
 
-				// search 有bug少返回一个字符            
+				// search 有bug少返回一个字符
 			apiRanges.reverse().forEach(apiRange => {
 					apiRange.Select();
 					client_node_id += 1
@@ -6112,7 +6215,7 @@ function clearRepeatControl(reclac = false) {
 					if (list[i].type == 'blockLvlSdt' || list[i].type == 'inlineLvlSdt') {
 						Api.asc_RemoveContentControlWrapper(list[i].id)
 					} else if (list[i].type == 'drawing') {
-						
+
 					}
 				}
 				for (var i = node_list.length - 1; i >= 0; --i) {
@@ -6154,7 +6257,7 @@ function clearRepeatControl(reclac = false) {
 				window.BiyueCustomData.node_list = res.node_list
 				window.BiyueCustomData.question_map = res.question_map
 			}
-			resolve()	
+			resolve()
 		})
 	})
 }
@@ -6314,7 +6417,7 @@ function tidyTree() {
 			// 删除除订正框外的所有inlineControl
 			var childControls = quesControl.GetAllContentControls() || []
 			childControls.forEach(e => {
-				var childTag = getJsonData(e.GetTag()) 
+				var childTag = getJsonData(e.GetTag())
 				if (childTag.regionType != 'question') {
 					var parentControl = e.GetParentContentControl()
 					if (parentControl && parentControl.Sdt.GetId() == control_id) {
