@@ -3771,6 +3771,11 @@ function cleanHtml(html) {
     el.parentNode.removeChild(el);
   });
 
+  // 移除所有带data-zone_type="question"属性的标签
+  tempDiv.querySelectorAll('[data-zone_type="question"]').forEach(el => {
+    el.parentNode.removeChild(el);
+  });
+
   // 移除所有带data-属性的元素属性
   tempDiv.querySelectorAll('*').forEach(el => {
     Array.from(el.attributes).forEach(attr => {
