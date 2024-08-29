@@ -1064,7 +1064,7 @@ function setLoading(v) {
 	loading = v
 }
 
-function setInteraction(type, quesIds) {
+function setInteraction(type, quesIds, recalc = true) {
 	Asc.scope.interaction_type_use = type
 	Asc.scope.interaction_quesIds = quesIds
 	Asc.scope.question_map = window.BiyueCustomData.question_map
@@ -1618,7 +1618,7 @@ function setInteraction(type, quesIds) {
 			handleControlAccurate(oControl, ask_list, write_list, type)
 		}
 
-	}, false, true).then(res => {
+	}, false, recalc).then(res => {
 		console.log('setInteraction result:', res)
 	})
 }

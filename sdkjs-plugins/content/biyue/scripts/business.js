@@ -8,7 +8,6 @@ import {
 	structDelete,
 	paperCanConfirm,
 	structRename,
-	paperSavePosition,
 	examQuestionsUpdate,
 	reqSubjectMarkTypes
 } from './api/paper.js'
@@ -618,117 +617,6 @@ async function getQuesUuid() {
 	}
 	console.log('所有结构和题目都更新完')
 	initPaperInfo()
-}
-// 保存位置信息
-function savePositons() {
-	Asc.scope.customData = window.BiyueCustomData
-	biyueCallCommand(
-		window,
-		function () {
-			var oDocument = Api.GetDocument()
-			let controls = oDocument.GetAllContentControls()
-			const isPageCoord = true
-			let mmToPx = function (mm) {
-				// 1 英寸 = 25.4 毫米
-				// 1 英寸 = 96 像素（常见的屏幕分辨率）
-				// 因此，1 毫米 = (96 / 25.4) 像素
-				const pixelsPerMillimeter = 96 / 25.4
-				return Math.floor(mm * pixelsPerMillimeter)
-			}
-			var list = []
-			controls.forEach((control) => {
-				let control_id = control.Sdt.GetId()
-				let rect_format = {}
-				let rect = Api.asc_GetContentControlBoundingRect(
-					control_id,
-					isPageCoord
-				)
-				rect_format = {
-					page: rect.Page ? rect.Page + 1 : 1,
-					x: mmToPx(rect.X0),
-					y: mmToPx(rect.Y0),
-					w: mmToPx(rect.X1 - rect.X0),
-					h: mmToPx(rect.Y1 - rect.Y0),
-				}
-				list.push({
-					rect: rect_format,
-					control_id: control.Sdt.GetId(),
-				})
-			})
-			return list
-		},
-		false,
-		false
-	).then((list) => {
-		var customData = window.BiyueCustomData
-		var questionPositions = {}
-		customData.control_list.forEach((e) => {
-			if (e.regionType == 'question') {
-				var rectInfo = list.find((item) => {
-					return item.control_id == e.control_id
-				})
-				var title_region = [rectInfo.rect]
-				var mark_ask_region = {}
-				if (e.ask_controls && e.ask_controls.length > 0) {
-					e.ask_controls.forEach((ask, askindex) => {
-						var askfind = list.find((askItm) => () => {
-							return askItm.control_id == ask.control_id
-						})
-						if (askfind) {
-							mark_ask_region[askindex + 1 + ''] = [
-								Object.assign({}, askfind.rect, {
-									v: ask.v + '',
-									order: askindex + 1 + '',
-								}),
-							]
-						}
-					})
-				} else {
-					mark_ask_region = {
-						1: [
-							Object.assign({}, rectInfo.rect, {
-								v: e.score + '',
-								order: '1',
-							}),
-						],
-					}
-				}
-				var write_ask_region = [
-					Object.assign({}, rectInfo.rect, {
-						v: e.score + '',
-						order: '1',
-					}),
-				]
-
-				questionPositions[e.ques_uuid] = {
-					ques_type: 1,
-					itemId: 3,
-					ques_no: e.ques_no,
-					ques_name: e.ques_name,
-					content: encodeURIComponent(e.text), // 网络请求时提示（无法将值解码），改成'111'后，接口可以正常调用
-					score: parseFloat(e.score) || 0,
-					ref_id: e.uuid,
-					answer: '',
-					additional: false,
-					mark_method: 1, // 标错还是打分
-					title_region: title_region,
-					correct_region: {},
-					grade_positions: [],
-					mark_ask_region: mark_ask_region,
-					write_ask_region: write_ask_region,
-					ask_num: e.ask_controls ? e.ask_controls.length || 1 : 1,
-				}
-			}
-		})
-		console.log('positions:', questionPositions)
-		paperSavePosition(customData.paper_uuid, questionPositions, '', '')
-			.then((res) => {
-				console.log('保存位置成功')
-			})
-			.catch((error) => {
-				console.log(error)
-			})
-	})
 }
 
 function showQuestionTree() {
@@ -3747,8 +3635,84 @@ function setSectionColumn(num) {
 		true
 	)
 }
-// 获取所有相关坐标，用于铺码使用，这里只给出如何获取的代码演示
+// 提取单独的大题的control
+function addOnlyBigControl(recalc = true) {
+	Asc.scope.node_list = window.BiyueCustomData.node_list || []
+	return biyueCallCommand(window, function() {
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls() || []
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
+		controls.forEach(oControl => {
+			var controlTag = getJsonData(oControl.GetTag())
+			if (controlTag.big) {
+				var oRange = null
+				var count = oControl.Sdt.GetElementsCount()
+				for (var i = 0; i < count; ++i) {
+					var element = oControl.Sdt.GetElement(i)
+					if (element.Id) {
+						var oElement = Api.LookupObject(element.Id)
+						if (oElement) {
+							if (oElement.GetClassType() == 'paragraph') {
+								if (!oRange) {
+									oRange = oElement.GetRange()
+								} else {
+									oRange = oRange.ExpandTo(oElement.GetRange())
+								}
+							} else {
+								break
+							}
+						}
+					}
+				}
+				if (oRange) {
+					oRange.Select()
+					var tag = JSON.stringify({
+						onlybig: 1,
+						link_id: controlTag.client_id,
+					})
+					var oResult = Api.asc_AddContentControl(1, { Tag: tag })
+					console.log('添加onlybig', oResult)
+				} else {
+					console.log('oRange is null')
+				}
+			}
+		})
+	}, false, recalc)
+}
+function removeOnlyBigControl() {
+	return biyueCallCommand(window, function() {
+		var oDocument = Api.GetDocument()
+		var oControls = oDocument.GetAllContentControls()
+		if (oControls) {
+			oControls.forEach(e => {
+				var tag = e.GetTag()
+				if (tag && tag.indexOf('onlybig') >= 0) {
+					Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
+				}
+			})
+		}
+	}, false, true)
+}
 function getAllPositions() {
+	return addOnlyBigControl()
+	.then(() => {
+		return getAllPositions2() 
+	}).then(() => {
+		return removeOnlyBigControl()
+	})
+}
+// 获取所有相关坐标，用于铺码使用，这里只给出如何获取的代码演示
+function getAllPositions2() {
 	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
 	Asc.scope.node_list = window.BiyueCustomData.node_list || []
 	return biyueCallCommand(
@@ -3798,8 +3762,8 @@ function getAllPositions() {
 									Page: oControl.Sdt.GetAbsolutePage(index),
 									X: mmToPx(page.Bounds.Left),
 									Y: mmToPx(page.Bounds.Top),
-									W: mmToPx(page.Bounds.Right - page.Bounds.Left),
-									H: mmToPx(page.Bounds.Bottom - page.Bounds.Top),
+									W: mmToPx(w),
+									H: mmToPx(h),
 								})
 							}
 						}
@@ -3884,7 +3848,6 @@ function getAllPositions() {
 											oParagraph.Paragraph.Id,
 											1
 										) || {}
-									console.log('numberingRect x:', numberingRect.X0, 'y:',numberingRect.Y0, 'w:', numberingRect.X1 - numberingRect.X0, 'h: ',  numberingRect.Y1 - numberingRect.Y0)
 									return {
 										page: oParagraph.Paragraph.GetAbsolutePage(numberPage) + 1,
 										x: mmToPx(numberingRect.X0),
@@ -4041,26 +4004,47 @@ function getAllPositions() {
 					continue
 				}
 				var bounds = []
+				var useControl = oControl
 				if (oControl.GetClassType() == 'blockLvlSdt') {
-					getBlockControlBounds(oControl, bounds)
+					var nodeData = node_list.find((e) => {
+						return e.id == tag.client_id
+					})
+					if (nodeData && nodeData.is_big) {
+						var childcontrols = oControl.GetAllContentControls() || []
+						var bigControl = childcontrols.find(e => {
+							var btag = getJsonData(e.GetTag())
+							return e.GetClassType() == 'blockLvlSdt' && btag.onlybig == 1 && btag.link_id == nodeData.id
+						})
+						if (bigControl) {
+							useControl = bigControl
+							console.log('===== 使用bigControl')
+							getBlockControlBounds(bigControl, bounds)
+						} else {
+							console.log('未找到bigControl')
+							getBlockControlBounds(oControl, bounds)
+						}
+					} else {
+						getBlockControlBounds(oControl, bounds)
+					}
 				} else if (oControl.GetClassType() == 'inlineLvlSdt') {
 					if (oControl.Sdt.Bounds) {
 						bounds = Object.values(oControl.Sdt.Bounds)
 					}
 				}
 				// todo..分数框的尚未添加
-				var oRange = oControl.GetRange()
-				oRange.Select()
-				let text_data = {
-					data: '',
-					// 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
-					pushData: function (format, value) {
-						this.data = value
-							? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, '')
-							: ''
-					},
-				}
-				Api.asc_CheckCopy(text_data, 2)
+				var oRange = useControl.GetRange()
+				// oRange.Select()
+				// 由于数据太大或异常可能导致后端数据无法写入，因此上传卷面时不再上传Html，所有这里也不再读取
+				// let text_data = {
+				// 	data: '',
+				// 	// 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
+				// 	pushData: function (format, value) {
+				// 		this.data = value
+				// 			? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, '')
+				// 			: ''
+				// 	},
+				// }
+				// Api.asc_CheckCopy(text_data, 2)
 				var correctPos = GetCorrectRegion(oControl)
 				var gatherRegion = getGatherCellRegion(tag.client_id)
 				var is_gather_region = false
@@ -4078,7 +4062,7 @@ function getAllPositions() {
 				var item = {
 					id: tag.client_id,
 					control_id: oControl.Sdt.GetId(),
-					text: oControl.GetRange().GetText(), // 如果需要html, 请参考ExamTree.js的reqUploadTree
+					text: oRange.GetText(), // 如果需要html, 请参考ExamTree.js的reqUploadTree
 					// content: `${text_data.data || ''}`,
 					title_region: [],
 					correct_region: correctPos.correct_region || {},
@@ -4386,7 +4370,6 @@ function getAllPositions() {
 	// })
 }
 
-
 export {
 	getPaperInfo,
 	initPaperInfo,
@@ -4394,7 +4377,6 @@ export {
 	updateCustomControls,
 	clearStruct,
 	getStruct,
-	savePositons,
 	showQuestionTree,
 	updateQuestionScore,
 	testAddTable,
@@ -4413,4 +4395,7 @@ export {
 	deletePositions,
 	setSectionColumn,
 	getAllPositions,
+	addOnlyBigControl,
+	removeOnlyBigControl,
+	getAllPositions2
 }

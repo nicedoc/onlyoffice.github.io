@@ -3,6 +3,7 @@ import { biyueCallCommand, dispatchCommandResult } from "./command.js";
 import { getQuesType, reqComplete } from '../scripts/api/paper.js'
 import { handleChoiceUpdateResult, setInteraction, updateChoice } from "./featureManager.js";
 import { initExtroInfo } from "./panelFeature.js";
+import { addOnlyBigControl, removeOnlyBigControl, getAllPositions2 } from './business.js'
 var levelSetWindow = null
 var layoutRepairWindow = null
 var imageRelationWindow = null
@@ -1123,6 +1124,13 @@ function updateRangeControlType(typeName) {
 				obj.sub_type = 'control'
 				tag.color = '#ff000040'
 			} else {
+				if (typeName == 'setBig') {
+					tag.big = 1
+				} else {
+					if (tag.big) {
+						delete tag.big
+					}
+				}
 				if (typeName == 'question' || typeName == 'setBig' || typeName == 'clearBig') {
 					tag.color = '#d9d9d940'
 				} else if (typeName == 'struct') {
@@ -1137,7 +1145,7 @@ function updateRangeControlType(typeName) {
 		}
 		function setBig(oControl) {
 			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
-				return
+				return null
 			}
 			var posinparent = oControl.GetPosInParent()
 			var oParent = Api.LookupObject(oControl.Sdt.GetParent().Id)
@@ -1178,14 +1186,16 @@ function updateRangeControlType(typeName) {
 							}
 						}
 					}
-				} else if (element.GetClassType() == 'paragraph') {
-					var NumPr = element.GetNumbering()
-					if (NumPr && NumPr.Lvl <= tag.lvl) {
-						break
-					}
-					if (!NumPr) {
-						break
-					}
+				}
+				else if (element.GetClassType() == 'paragraph') {
+					break
+					// var NumPr = element.GetNumbering()
+					// if (NumPr && NumPr.Lvl <= tag.lvl) {
+					// 	break
+					// }
+					// if (!NumPr) {
+					// 	break
+					// }
 				}
 				templist.push(element)
 			}
@@ -2358,8 +2368,13 @@ function initControls() {
 			}
 			return null
 		}
-		controls.forEach((oControl) => {
+		for (var i = 0, imax = controls.length; i < imax; ++i) {
+			var oControl = controls[i]
 			var tagInfo = getJsonData(oControl.GetTag())
+			if (tagInfo.onlybig == 1) {
+				Api.asc_RemoveContentControlWrapper(oControl.Sdt.GetId())
+				continue
+			}
 
 			// tagInfo.color = '#ff0000'
 			// oControl.Sdt.SetColor(colors[oControl.GetClassType()])
@@ -2419,7 +2434,7 @@ function initControls() {
 				delete tagInfo.color
 			}
 			oControl.SetTag(JSON.stringify(tagInfo))
-		})
+		}
 		var drawings = oDocument.GetAllDrawingObjects() || []
 		var drawingList = []
 		drawings.forEach(oDrawing => {
@@ -3612,7 +3627,6 @@ function setBtnLoading(elementId, isLoading) {
 			children.remove()
 		}
  	}
-
 }
 
 function isLoading(elementId) {
@@ -3628,112 +3642,117 @@ function reqUploadTree() {
 	if (isLoading('uploadTree')) {
 		return
 	}
-  // 先关闭智批元素，避免智批元素在全量更新的时候被带到题目里 更新之后再打开
-  setBtnLoading('uploadTree', true)
-  setInteraction('none').then(() => {
-	return showAskCells('hide')
-  })
-  .then(() => {
-      Asc.scope.node_list = window.BiyueCustomData.node_list
-      Asc.scope.question_map = window.BiyueCustomData.question_map
-      upload_control_list = []
-      console.log('[reqUploadTree start]', Date.now())
-      biyueCallCommand(window, function() {
-        var target_list = []
-        var oDocument = Api.GetDocument()
-        var controls = oDocument.GetAllContentControls()
-        var question_map = Asc.scope.question_map
-        console.log('question_map', question_map)
-        function getJsonData(str) {
-          if (!str || str == '' || typeof str != 'string') {
-            return {}
-          }
-          try {
-            return JSON.parse(str)
-          } catch (error) {
-            console.log('json parse error', error)
-            return {}
-          }
-        }
-        for (var i = 0, imax = controls.length; i < imax; ++i) {
-          var oControl = controls[i]
-          var tag = getJsonData(oControl.GetTag() || '{}')
-          if (tag.regionType != 'question' || !tag.client_id) {
-            continue
-          }
-          var quesData = question_map[tag.client_id]
-          if (!quesData) {
-            continue
-          }
-		  if (!question_map[tag.client_id].level_type) {
-			continue
-		  }
-          var oParentControl = oControl.GetParentContentControl()
-          var parent_id = 0
-          if (oParentControl) {
-            var parentTag = getJsonData(oParentControl.GetTag() || '{}')
-            parent_id = parentTag.client_id
-          } else {
-            // 根据level, 查找在它前面的比它lvl小的struct
-            for (var j = target_list.length - 1; j >= 0; --j) {
-              var preNode = target_list[j]
-              if (preNode.lvl < tag.lvl && preNode.content_type == 'struct') {
-                parent_id = preNode.id
-                break
-              }
-            }
-          }
-          var oRange = oControl.GetRange()
-          oRange.Select()
-          let text_data = {
-            data:     "",
-            // 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
-            pushData: function (format, value) {
-              this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : "";
-            }
-          };
-          Api.asc_CheckCopy(text_data, 2);
-          var content_html = text_data.data
-          target_list.push({
-            id: tag.client_id,
-            parent_id: parent_id,
-            uuid: question_map[tag.client_id].uuid || '',
-            regionType: question_map[tag.client_id].level_type,
-            content_type: question_map[tag.client_id].level_type,
-            content_xml: '',
-            content_html: content_html,
-            content_text: oControl.GetRange().GetText(),
-            question_type: question_map[tag.client_id].question_type,
-            question_name: question_map[tag.client_id].ques_name || question_map[tag.client_id].ques_default_name,
-            control_id: oControl.Sdt.GetId(),
-            lvl: tag.lvl
-          })
-        }
-        console.log('target_list', target_list)
-        return target_list
-      }, false, false).then( control_list => {
+  	// 先关闭智批元素，避免智批元素在全量更新的时候被带到题目里 更新之后再打开
+  	setBtnLoading('uploadTree', true)
+	setInteraction('none', null, false).then(() => {
+		return addOnlyBigControl(false)
+	}).then(() => {
+		return handleUploadPrepare('hide')
+	}).then(() => {
+		return getControlListForUpload()
+	}).then(control_list => {
 		if (control_list && control_list.length) {
-			upload_control_list = control_list.map((e) => {
-        let content_html = cleanHtml(e.content_html || '')
-        return {
-          ...e,
-          content_html: content_html
-        }
-      })
-			generateTreeForUpload(upload_control_list)
-		} else {
-			upload_control_list = []
-			window.biyue.showMessageBox({
-				content: '未找到可更新的题目，请检查题目列表',
-				showCancel: false
-			})
-			setBtnLoading('uploadTree', false)
-			setInteraction('useself').then(() => {
-				return showAskCells('hide')
+			generateTreeForUpload(control_list).then(() => {
+				handleCompleteResult('全量更新成功')
+			  }).catch((res) => {
+				handleCompleteResult(res && res.message && res.message != '' ? res.message : '全量更新失败')
+			  })
+		  } else {
+			handleCompleteResult('未找到可更新的题目，请检查题目列表')
+			  
+		  }
+	})
+}
+
+function getControlListForUpload() {
+	Asc.scope.node_list = window.BiyueCustomData.node_list
+    Asc.scope.question_map = window.BiyueCustomData.question_map
+	return biyueCallCommand(window, function() {
+		var target_list = []
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls()
+		var question_map = Asc.scope.question_map
+		console.log('question_map', question_map)
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+			return {}
+			}
+			try {
+			return JSON.parse(str)
+			} catch (error) {
+			console.log('json parse error', error)
+			return {}
+			}
+		}
+		for (var i = 0, imax = controls.length; i < imax; ++i) {
+			var oControl = controls[i]
+			var tag = getJsonData(oControl.GetTag() || '{}')
+			if (tag.regionType != 'question' || !tag.client_id) {
+				continue
+			}
+			var quesData = question_map[tag.client_id]
+			if (!quesData) {
+				continue
+			}
+			if (!question_map[tag.client_id].level_type) {
+				continue
+			}
+			var oParentControl = oControl.GetParentContentControl()
+			var parent_id = 0
+			if (oParentControl) {
+				var parentTag = getJsonData(oParentControl.GetTag() || '{}')
+				parent_id = parentTag.client_id
+			} else {
+				// 根据level, 查找在它前面的比它lvl小的struct
+				for (var j = target_list.length - 1; j >= 0; --j) {
+					var preNode = target_list[j]
+					if (preNode.lvl < tag.lvl && preNode.content_type == 'struct') {
+						parent_id = preNode.id
+						break
+					}
+				}
+			}
+			var useControl = oControl
+			if (tag.big) {
+				var childcontrols = oControl.GetAllContentControls() || []
+				var bigControl = childcontrols.find(e => {
+					var btag = getJsonData(e.GetTag())
+					console.log('btag', e.GetTag())
+					return e.GetClassType() == 'blockLvlSdt' && btag.onlybig == 1 && btag.link_id == tag.client_id
+				})
+				if (bigControl) {
+					useControl = bigControl
+				}
+			}
+			var oRange = useControl.GetRange()
+			oRange.Select()
+			let text_data = {
+				data:     "",
+				// 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
+				pushData: function (format, value) {
+				this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : "";
+				}
+			};
+			Api.asc_CheckCopy(text_data, 2);
+			var content_html = text_data.data
+			target_list.push({
+				id: tag.client_id,
+				parent_id: parent_id,
+				uuid: question_map[tag.client_id].uuid || '',
+				regionType: question_map[tag.client_id].level_type,
+				content_type: question_map[tag.client_id].level_type,
+				content_xml: '',
+				content_html: content_html,
+				content_text: oRange.GetText(),
+				question_type: question_map[tag.client_id].question_type,
+				question_name: question_map[tag.client_id].ques_name || question_map[tag.client_id].ques_default_name,
+				control_id: oControl.Sdt.GetId(),
+				lvl: tag.lvl
 			})
 		}
-      })
-  })
+		console.log('target_list', target_list)
+		return target_list
+	  }, false, false)
 }
 
 // 清洗输出的html
@@ -3896,68 +3915,70 @@ function handleXmlError() {
 }
 
 function generateTreeForUpload(control_list) {
-	if (!control_list) {
-		setBtnLoading('uploadTree', false)
-		return null
-	}
-	var tree = []
-	control_list.forEach((e) => {
-		if (e.parent_id == 0) {
-			e.id = e.id + ''
-			tree.push(e)
-		} else {
-			var parent = getDataById(tree, e.parent_id)
-			if (parent) {
-				if (!parent.children) {
-					parent.children = []
-				}
+	return new Promise((resolve, reject) => {
+		if (!control_list) {
+			reject(null)
+		}
+		var tree = []
+		control_list.forEach((e) => {
+			e.content_html = cleanHtml(e.content_html || '')
+			if (e.parent_id == 0) {
 				e.id = e.id + ''
-				parent.children.push(e)
+				tree.push(e)
+			} else {
+				var parent = getDataById(tree, e.parent_id)
+				if (parent) {
+					if (!parent.children) {
+						parent.children = []
+					}
+					e.id = e.id + ''
+					parent.children.push(e)
+				}
 			}
+		})
+		var uploadTree = {
+			id: "",
+			uuid: window.BiyueCustomData.paper_uuid,
+			question_type:0,
+			question_name:"",
+			content_type:"paper",
+			content_text:"",
+			content_xml:"",
+			content_html:"",
+			children: tree
 		}
+		console.log('               uploadTree', uploadTree)
+		var version = getTimeString()
+		reqComplete(uploadTree, version).then(res => {
+			console.log('reqComplete', res)
+			console.log('[reqUploadTree end]', Date.now())
+			if (res.data.questions) {
+				res.data.questions.forEach(e => {
+					window.BiyueCustomData.question_map[e.id].uuid = e.uuid
+				})
+			}
+			resolve(res)
+		}).catch(res => {
+			console.log('reqComplete fail', res)
+			console.log('[reqUploadTree end]', Date.now())
+			reject(res)
+		})
 	})
-	var uploadTree = {
-		id: "",
-        uuid: window.BiyueCustomData.paper_uuid,
-        question_type:0,
-        question_name:"",
-        content_type:"paper",
-        content_text:"",
-        content_xml:"",
-        content_html:"",
-		children: tree
+}
+
+function handleCompleteResult(message) {
+	setBtnLoading('uploadTree', false)
+	if (message) {
+		window.biyue.showMessageBox({
+			content: message,
+			showCancel: false
+		})
 	}
-	console.log('               uploadTree', uploadTree)
-	var version = getTimeString()
-	reqComplete(uploadTree, version).then(res => {
-		console.log('reqComplete', res)
-		console.log('[reqUploadTree end]', Date.now())
-		if (res.data.questions) {
-			res.data.questions.forEach(e => {
-				window.BiyueCustomData.question_map[e.id].uuid = e.uuid
-			})
-		}
-		setBtnLoading('uploadTree', false)
-		window.biyue.showMessageBox({
-			content: '全量更新成功',
-			showCancel: false
-		})
-    	setInteraction('useself').then(res => {
-			showAskCells('show')
-		})
-	}).catch(res => {
-		console.log('reqComplete fail', res)
-		console.log('[reqUploadTree end]', Date.now())
-		setBtnLoading('uploadTree', false)
-		window.biyue.showMessageBox({
-			content: res && res.message && res.message != '' ? res.message : '全量更新失败',
-			showCancel: false
-		})
-    	setInteraction('useself').then(res => {
-			showAskCells('show')
-		})
+	removeOnlyBigControl().then(() => {
+		return handleUploadPrepare('show')
+	}).then(() => {
+		return setInteraction('useself')
 	})
-	console.log(tree)
 }
 
 function getDataById(list, id) {
@@ -6579,7 +6600,7 @@ function tidyNodes() {
 						var wd = oldNodeData.write_list.find(e => {
 							return e.id == askData.id
 						})
-						if (windex >= 0) {
+						if (!wd) {
 							var askIndex = write_list.findIndex(e => e.cell_id == wd.cell_id)
 							if (askIndex == -1) { // 找不到，删除
 								question_map[id].ask_list.splice(k, 1)
@@ -6603,6 +6624,170 @@ function tidyNodes() {
 			})
 			window.BiyueCustomData.node_list = node_list
 			window.BiyueCustomData.question_map = question_map
+		}
+	})
+}
+// 处理上传前准备工作，包括 
+// 1、图片不铺码颜色
+// 2、单元格小问颜色
+// 3、作答区颜色
+// 4、隐藏页码
+function handleUploadPrepare(cmdType) {
+	Asc.scope.cmdType = cmdType
+	Asc.scope.node_list = window.BiyueCustomData.node_list || []
+	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
+	return biyueCallCommand(window, function() {
+		var cmdType = Asc.scope.cmdType
+		var oDocument = Api.GetDocument()
+		var drawings = oDocument.GetAllDrawingObjects() || []
+		var question_map = Asc.scope.question_map || {}
+		var node_list = Asc.scope.node_list || []
+		var oTables = oDocument.GetAllTables() || []
+		var vshow = cmdType == 'show'
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+			  return {}
+			}
+			try {
+			  return JSON.parse(str)
+			} catch (error) {
+			  console.log('json parse error', error)
+			  return {}
+			}
+		}
+		function updateFill(drawing, oFill) {
+			if (!oFill || !oFill.GetClassType || oFill.GetClassType() !== 'fill') {
+				return false
+			}
+			drawing.GraphicObj.spPr.setFill(oFill.UniFill)
+		}
+		drawings.forEach(oDrawing => {
+			let title = oDrawing.Drawing.docPr.title || ''
+			var titleObj = getJsonData(title)
+			// 图片不铺码的标识
+			if (title.includes('partical_no_dot')) {
+			  	var oFill = Api.CreateSolidFill(Api.CreateRGBColor(255, 255, 255))
+			  	oFill.UniFill.transparent = 0 // 透明度
+			  	var oStroke = Api.CreateStroke(10000, vshow ? Api.CreateSolidFill(Api.CreateRGBColor(255, 111, 61)) : oFill);
+			  	oDrawing.SetOutLine(oStroke);
+			} else if (titleObj.feature) {
+				if (titleObj.feature.zone_type == 'pagination') { // 试卷页码
+					var oShape = Api.LookupObject(oDrawing.Drawing.GraphicObj.Id)
+					if (oShape) {
+						var oShapeContent = oShape.GetContent()
+						if (oShapeContent) {
+							var paragraphs = oShapeContent.GetAllParagraphs() || []
+							paragraphs.forEach(p => {p.SetColor(3, 3, 3, !vshow)})
+						}
+					}
+				} else if (titleObj.feature.zone_type == 'question' && titleObj.feature.sub_type == 'write') { // 作答区
+					if (cmdType == 'show') {
+						var oFill = Api.CreateSolidFill(Api.CreateRGBColor(255, 0, 0))
+						oFill.UniFill.transparent = 255 * 0.2 // 透明度
+						updateFill(oDrawing.Drawing, oFill)
+					} else if (cmdType == 'hide') {
+						updateFill(oDrawing.Drawing, Api.CreateNoFill())
+					}
+				}
+			}
+		})
+		// 处理单元格小问
+		function getCell(write_data) {
+			for (var i = 0; i < oTables.length; ++i) {
+				var oTable = oTables[i]
+				if (oTable.GetPosInParent() == -1) { continue }
+				var desc = getJsonData(oTable.GetTableDescription())
+				var keys = Object.keys(desc)
+				if (keys.length) {
+					for (var j = 0; j < keys.length; ++j) {
+						var key = keys[j]
+						if (desc[key] == write_data.id) {
+							var rc = key.split('_')
+							if (write_data.row_index == undefined) {
+								return oTable.GetCell(rc[0], rc[1])
+							} else if (write_data.row_index == rc[0] && write_data.cell_index == rc[1]) {
+								return oTable.GetCell(rc[0], rc[1])
+							}
+
+						}
+					}
+				}
+			}
+			return null
+		}
+		Object.keys(question_map).forEach(id => {
+			if (question_map[id].level_type == 'question') {
+				var nodeData = node_list.find(item => {
+					return item.id == id
+				})
+				if (nodeData && nodeData.write_list) {
+					if (question_map[id].ask_list) {
+						question_map[id].ask_list.forEach(ask => {
+							var writeData = nodeData.write_list.find(w => {
+								return w.id == ask.id
+							})
+							if (writeData && writeData.sub_type == 'cell' && writeData.cell_id) {
+								var oCell = Api.LookupObject(writeData.cell_id)
+								if (oCell && oCell.GetClassType && oCell.GetClassType() == 'tableCell') {
+									var oTable = oCell.GetParentTable()
+									if (oTable && oTable.GetPosInParent() == -1) {
+										oCell = getCell(writeData)
+									}
+								} else {
+									oCell = getCell(writeData)
+								}
+								if (oCell) {
+									oCell.SetBackgroundColor(255, 191, 191, cmdType == 'show' ? false : true)
+								}
+							}
+						})
+					}
+				}
+			}
+		})
+
+	}, false, true)
+}
+
+function importExam() {
+	setBtnLoading('uploadTree', true)
+	setBtnLoading('importExam', true)
+	setInteraction('none', null, false).then(() => {
+		return addOnlyBigControl(false)
+	}).then(() => {
+		return handleUploadPrepare('hide')
+	}).then(() => {
+		return getControlListForUpload()
+	}).then(control_list => {
+		if (control_list && control_list.length) {
+			generateTreeForUpload(control_list).then(() => {
+				setBtnLoading('uploadTree', false)
+				setInteraction('useself').then(() => {
+					return getAllPositions2()
+				}).then(res => {
+					Asc.scope.questionPositions = res
+					return removeOnlyBigControl()
+				}).then(() => {
+					window.biyue.showDialog('exportExamWindow', '上传试卷', 'examExport.html', 1000, 800, true)
+					setBtnLoading('importExam', false)
+				})
+			}).catch((res) => {
+				setBtnLoading('uploadTree', false)
+				handleCompleteResult(res && res.message && res.message != '' ? res.message : '全量更新失败')
+				setBtnLoading('importExam', false)
+			})
+		} else {
+			setBtnLoading('uploadTree', false)
+			setBtnLoading('importExam', false)
+			window.biyue.showMessageBox({
+				content: '未找到可更新的题目，请检查题目列表',
+				showCancel: false
+			})
+			removeOnlyBigControl().then(() => {
+				return handleUploadPrepare('show')
+			}).then(() => {
+				return setInteraction('useself')
+			})
 		}
 	})
 }
@@ -6633,5 +6818,8 @@ export {
 	splitControl,
 	updateDataBySavedData,
 	clearRepeatControl,
-	tidyNodes
+	tidyNodes,
+	handleUploadPrepare,
+	importExam,
+	setBtnLoading,
 }

@@ -309,6 +309,12 @@ import { setXToken } from './auth.js'
           positions[item.ref_id] = {}
         }
         item.ques_no = index++
+		if (item.content) {
+			delete item.content
+		}
+		if (item.text) {
+			delete item.text
+		}
         positions[item.ref_id] = item
       }
     }

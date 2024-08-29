@@ -12,13 +12,12 @@ import {
 	initPaperInfo,
 	updatePageSizeMargins,
 	updateCustomControls,
-	savePositons,
 	updateQuestionScore,
 	drawPositions,
 	handleContentControlChange,
 	deletePositions,
 	setSectionColumn,
-	getAllPositions
+	getAllPositions,
 } from './business.js'
 import { getVersion } from "./ver.js"
 import {
@@ -36,12 +35,13 @@ import {
 	initControls,
 	handleDocClick,
 	handleContextMenuShow,
-	handleAllWrite,
 	onContextMenuClick,
 	layoutRepair,
 	tagImageCommon,
 	updateDataBySavedData,
-	deleteChoiceOtherWrite
+	deleteChoiceOtherWrite,
+	handleUploadPrepare,
+	importExam
 } from './QuesManager.js'
 
 import { reqSaveInfo } from './api/paper.js'
@@ -63,7 +63,7 @@ import { getInfoForServerSave } from './model/util.js'
 	let timeout_controlchange = null
 	let contextMenu_options = null
   	let questionPositions = {}
-
+	let timeout_ratio = null
 
 	function NewDefaultCustomData() {
 		return {
@@ -85,7 +85,7 @@ import { getInfoForServerSave } from './model/util.js'
 				modal.command('initPaper', {
 					paper_info: getPaperInfo(),
 					xtoken: getToken(),
-          			questionPositions: questionPositions,
+          			questionPositions: Asc.scope.questionPositions || {},
           			biyueCustomData: window.BiyueCustomData,
                 subject_mark_types: Asc.scope.subject_mark_types
 				})
@@ -1037,7 +1037,22 @@ import { getInfoForServerSave } from './model/util.js'
 		addBtnClickEvent('importExam', importExam)
 		addBtnClickEvent('batchScoreSet', onBatchScoreSet)
 		addBtnClickEvent('batchQuesType', onBatchQuesTypeSet)
+
+		detectDevicePixelRatio()
+		window.addEventListener('resize', () => {
+			detectDevicePixelRatio()
+		})
 	})
+
+	function detectDevicePixelRatio() {
+		clearTimeout(timeout_ratio)
+		timeout_ratio = setTimeout(() => {
+			console.log('detectDevicePixelRatio', window.devicePixelRatio * 100, window)
+			if (window.devicePixelRatio != 1) {
+				alert('检测到浏览器缩放不为100%，这会导致部分功能不可用，请手动缩放至100%')
+			}
+		}, 5000)
+	}
 
 	function addBtnClickEvent(btnName, func) {
 		var btn = document.getElementById(btnName)
@@ -1423,31 +1438,29 @@ import { getInfoForServerSave } from './model/util.js'
 		}
 	}
 
-  function showOrHiddenRegion(type, params) {
-    // 在上传前隐藏标识区域 关闭窗口后需要重新开启
-    changeImageIgnoreMark(type).then(()=>{
-      handleAllWrite(type).then(()=>{
-        // 隐藏浮动的识别框
-        if (params && params.saveData) {
-			// 保存数据
-			StoreCustomData(() => {
-				var str = getInfoForServerSave()
-				reqSaveInfo(window.BiyueCustomData.paper_uuid, str).then(res => {
-					window.biyue.showMessageBox({
-						content: params.message,
-						showCancel: params.showCancel
-					})
-				}).catch(res => {
-					window.biyue.showMessageBox({
-					content: '上传成功，但是试卷保存数据失败',
-					showCancel: false
+  	function showOrHiddenRegion(type, params) {
+    	// 在上传前隐藏标识区域 关闭窗口后需要重新开启
+		handleUploadPrepare(type).then(()=>{
+        	// 隐藏浮动的识别框
+        	if (params && params.saveData) {
+				// 保存数据
+				StoreCustomData(() => {
+					var str = getInfoForServerSave()
+					reqSaveInfo(window.BiyueCustomData.paper_uuid, str).then(res => {
+						window.biyue.showMessageBox({
+							content: params.message,
+							showCancel: params.showCancel
+						})
+					}).catch(res => {
+						window.biyue.showMessageBox({
+							content: '上传成功，但是试卷保存数据失败',
+							showCancel: false
+						})
 					})
 				})
-			})
-        }
-      })
-    })
-  }
+        	}
+    	})
+  	}
 
 	function showPosition(window, onGetPos) {
 		window.Asc.plugin.executeMethod(
@@ -2131,20 +2144,7 @@ import { getInfoForServerSave } from './model/util.js'
 		return windows[winName]
 	}
 
-	function importExam() {
-    changeImageIgnoreMark('hidden').then(_res=> {
-      console.log('关闭图片忽略区的边框红线标识')
-
-      handleAllWrite('hide').then(() => {
-        console.log('隐藏浮动的识别框')
-        getAllPositions().then(res=>{
-          questionPositions = res
-          showDialog('exportExamWindow', '上传试卷', 'examExport.html', 1000, 800, true)
-		  console.log('importExam  exportExamWindow:', windows.exportExamWindow)
-        })
-      })
-    })
-	}
+	
   function onBatchScoreSet() {
     showDialog('batchSettingScoresWindow', '批量操作 - 修改分数', 'batchSettingScores.html', 800, 600)
   }
@@ -2202,114 +2202,6 @@ import { getInfoForServerSave } from './model/util.js'
 		}
 		showDialog('messageBoxWindow', params.title || '提示', 'message.html', 200, 100, ismodal)
 	}
-
-  function changeImageIgnoreMark(type) {
-	  Asc.scope.cmdType = type
-    Asc.scope.question_map = window.BiyueCustomData.question_map
-    Asc.scope.node_list = window.BiyueCustomData.node_list
-    return biyueCallCommand(window, function() {
-      var cmdType = Asc.scope.cmdType
-      var oDocument = Api.GetDocument()
-      var drawings = oDocument.GetAllDrawingObjects() || []
-      var question_map = Asc.scope.question_map || {}
-      var node_list = Asc.scope.node_list || []
-	  var oTables = oDocument.GetAllTables() || []
-
-      function getJsonData(str) {
-        if (!str || str == '' || typeof str != 'string') {
-          return {}
-        }
-        try {
-          return JSON.parse(str)
-        } catch (error) {
-          console.log('json parse error', error)
-          return {}
-        }
-      }
-	  function getCell(write_data) {
-		for (var i = 0; i < oTables.length; ++i) {
-			var oTable = oTables[i]
-			if (oTable.GetPosInParent() == -1) { continue }
-			var desc = getJsonData(oTable.GetTableDescription())
-			var keys = Object.keys(desc)
-			if (keys.length) {
-				for (var j = 0; j < keys.length; ++j) {
-					var key = keys[j]
-					if (desc[key] == write_data.id) {
-						var rc = key.split('_')
-						if (write_data.row_index == undefined) {
-							return oTable.GetCell(rc[0], rc[1])
-						} else if (write_data.row_index == rc[0] && write_data.cell_index == rc[1]) {
-							return oTable.GetCell(rc[0], rc[1])
-						}
-						
-					}
-				}
-			}
-		}
-		return null
-	}
-      // 图片不铺码的标识
-      drawings.forEach(oDrawing => {
-        let title = oDrawing.Drawing.docPr.title || ''
-        if (title.includes('partical_no_dot')) {
-          var oFill = Api.CreateSolidFill(Api.CreateRGBColor(255, 255, 255))
-          oFill.UniFill.transparent = 0 // 透明度
-          var oStroke = Api.CreateStroke(10000, cmdType == 'show' ? Api.CreateSolidFill(Api.CreateRGBColor(255, 111, 61)) : oFill);
-          oDrawing.SetOutLine(oStroke);
-        }
-      })
-
-      // 试卷页码
-      var vshow = cmdType == 'show'
-      drawings.forEach(e => {
-        var title = e.Drawing.docPr.title
-        var titleObj = getJsonData(title)
-        if (titleObj.feature && titleObj.feature.zone_type == 'pagination') {
-          var oShape = Api.LookupObject(e.Drawing.GraphicObj.Id)
-          if (oShape) {
-            var oShapeContent = oShape.GetContent()
-            if (oShapeContent) {
-              var paragraphs = oShapeContent.GetAllParagraphs() || []
-              paragraphs.forEach(p => {
-                p.SetColor(3, 3, 3, !vshow)
-              })
-            }
-          }
-        }
-      })
-
-      // 显示或隐藏所有单元格小问
-      Object.keys(question_map).forEach(id => {
-        if (question_map[id].level_type == 'question') {
-          var nodeData = node_list.find(item => {
-            return item.id == id
-          })
-          if (nodeData && nodeData.write_list) {
-            if (question_map[id].ask_list) {
-              question_map[id].ask_list.forEach(ask => {
-                var writeData = nodeData.write_list.find(w => {
-                  return w.id == ask.id
-                })
-                if (writeData && writeData.sub_type == 'cell' && writeData.cell_id) {
-                  var oCell = Api.LookupObject(writeData.cell_id)
-                  if (oCell && oCell.GetClassType && oCell.GetClassType() == 'tableCell') {
-					if (oCell.GetParentTable() && oCell.GetParentTable().GetPosInParent() == -1) {
-						oCell = getCell(writeData)
-					}
-					if (oCell) {
-						oCell.SetBackgroundColor(255, 191, 191, cmdType == 'show' ? false : true)
-					}
-                  }
-                }
-              })
-            }
-          }
-        }
-      })
-
-      }, false, false)
-  }
 
 	window.biyue = {
 		showDialog: showDialog,

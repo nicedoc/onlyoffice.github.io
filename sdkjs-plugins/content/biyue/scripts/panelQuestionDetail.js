@@ -391,7 +391,7 @@ function showQuesData(params) {
 		for (var i = 0; i < keys.length; ++i) {
 			var ask_list = question_map[keys[i]].ask_list || []
 			var findIndex = ask_list.findIndex(e => {
-				return e.id == params.client_id
+				return e.id == g_client_id
 			})
 			if (findIndex >= 0) {
 				ques_client_id = keys[i]
@@ -400,7 +400,7 @@ function showQuesData(params) {
 			}
 		}
 	} else if (params.regionType == 'question') {
-		ques_client_id = params.client_id
+		ques_client_id = g_client_id
 	}
 	if (!ques_client_id) {
 		updateElements(null)
