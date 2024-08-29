@@ -81,8 +81,8 @@
 					"resources/store/screenshots/screen_2.png"
 				],
 				"icons" : {
-					"light" : "resources/store/icons",
-					"dark"  : "resources/store/icons"
+					"light" : "resources/store/logo",
+					"dark"  : "resources/store/logo"
 				},
 				"categories": ["specAbilities"]
 			},
