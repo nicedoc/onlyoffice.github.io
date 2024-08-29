@@ -598,6 +598,8 @@ import { getInfoForServerSave } from './model/util.js'
 		if (window.BiyueCustomData === undefined) {
 			this.callCommand(
 				function () {
+					Api.zoom100()
+					console.log('调整缩放到100%')
 					var oDocument = Api.GetDocument()
 					var customData = Api.asc_GetBiyueCustomDataExt(undefined)
 					if (customData === undefined || customData.length === 0)
@@ -1037,22 +1039,7 @@ import { getInfoForServerSave } from './model/util.js'
 		addBtnClickEvent('importExam', importExam)
 		addBtnClickEvent('batchScoreSet', onBatchScoreSet)
 		addBtnClickEvent('batchQuesType', onBatchQuesTypeSet)
-
-		detectDevicePixelRatio()
-		window.addEventListener('resize', () => {
-			detectDevicePixelRatio()
-		})
 	})
-
-	function detectDevicePixelRatio() {
-		clearTimeout(timeout_ratio)
-		timeout_ratio = setTimeout(() => {
-			console.log('detectDevicePixelRatio', window.devicePixelRatio * 100, window)
-			if (window.devicePixelRatio != 1) {
-				alert('检测到浏览器缩放不为100%，这会导致部分功能不可用，请手动缩放至100%')
-			}
-		}, 5000)
-	}
 
 	function addBtnClickEvent(btnName, func) {
 		var btn = document.getElementById(btnName)

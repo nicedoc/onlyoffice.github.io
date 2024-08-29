@@ -57,6 +57,9 @@ function getListByMap(map, keyname = 'value', labelname = 'label') {
 }
 
 function getInfoForServerSave() {
+	if (!window.BiyueCustomData) {
+		return
+	}
 	var quesmap = window.BiyueCustomData.question_map || {}
 	var treemap = {}
 	Object.keys(quesmap).forEach(id => {
