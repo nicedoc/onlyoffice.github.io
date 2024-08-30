@@ -5293,9 +5293,14 @@ function layoutDetect() {
 						result.has32 = true
 						find = true
 					}
-				} else if ( runContent[k].Value && !result[`has${runContent[k].Value}`]) {
-					result[`has${runContent[k].Value}`] = true
-					find = true
+				} else if (runContent[k].Value) {
+					var vkey = `has${runContent[k].Value}`
+					if (result[vkey] != undefined) {
+						if (!result[vkey]) {
+							result[vkey] = true
+							find
+						}
+					}
 				}
 			}
 		}
