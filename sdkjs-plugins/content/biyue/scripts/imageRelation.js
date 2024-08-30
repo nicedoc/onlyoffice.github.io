@@ -9,7 +9,8 @@
 	}
 	let ques_use = []
 	let hidden_empty_struct = false
-	let drawing_id = 0
+	let target_id = 0
+	let target_type = 'drawing'
 	window.Asc.plugin.init = function () {
 	  console.log('imageRelation init')
 	  window.Asc.plugin.sendToPlugin('onWindowMessage', { type: 'BiyueMessage' })
@@ -39,7 +40,37 @@
 					return {
 						html: text_data.data,
 						title: drawing.docPr.title,
-						drawing_id: drawing.Id
+						type: 'drawing',
+						target_id: drawing.Id
+					}
+				}
+			} else if (selectionInfo.curPos) {
+				var oTable = null
+				for (var i = 0; i < selectionInfo.curPos.length; ++i) {
+					if (selectionInfo.curPos[i].Class) {
+						var oElement = Api.LookupObject(selectionInfo.curPos[i].Class.Id)
+						if (oElement && oElement.GetClassType && oElement.GetClassType() == 'table') {
+							oTable = oElement
+							break
+						}
+					}
+				}
+				if (oTable) {
+					var oRange = oTable.GetRange()
+					oRange.Select()
+					let text_data = {
+						data:     "",
+						// 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
+						pushData: function (format, value) {
+							this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : "";
+						}
+					};
+					Api.asc_CheckCopy(text_data, 2);
+					return {
+						html: text_data.data,
+						title: oTable.GetTableTitle(),
+						type: 'table',
+						target_id: oTable.Table.Id
 					}
 				}
 			}
@@ -66,14 +97,20 @@
 		if (!res) {
 			return
 		}
-		drawing_id = res.drawing_id
+		target_id = res.target_id
+		target_type = res.type
 		var titleObj = getJsonData(res.title)
-		if (titleObj.feature && titleObj.feature.ques_use) {
-			ques_use = titleObj.feature.ques_use.split('_')
+		if (target_type == 'table') {
+			ques_use = titleObj.ques_use ? titleObj.ques_use.split('_') : []
 		} else {
-			ques_use = []
+			if (titleObj.feature && titleObj.feature.ques_use) {
+				ques_use = titleObj.feature.ques_use.split('_')
+			} else {
+				ques_use = []
+			}
 		}
 		getOptions()
+		$('#header').html(target_type == 'table' ? '当前表格：' : '当前图片：')
 		$('#imageContainer').html(res.html)
 		$('#confirm').on('click', onConfirm)
 		$('#hidden_empty_struct').on('click', onSwitchStruct)
@@ -156,11 +193,11 @@
 				dom.style.color = ''
 				}
 			})
-      if (dom.value > 0) {
-        dom.style.color = '#4CAF50'
-      } else {
-        dom.style.color = ''
-      }
+			if (dom.value > 0) {
+				dom.style.color = '#4CAF50'
+			} else {
+				dom.style.color = ''
+			}
 		})
 	  }
 
@@ -224,7 +261,8 @@
 		window.Asc.plugin.sendToPlugin('onWindowMessage', {
 			type: 'imageRelationMessage',
 			data: {
-				drawing_id: drawing_id,
+				target_id: target_id,
+				target_type: target_type,
 				ques_use: ques_use
 			}
 		})

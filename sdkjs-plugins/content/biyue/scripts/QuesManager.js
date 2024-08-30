@@ -293,13 +293,22 @@ function getContextMenuItems(type) {
 			],
 		})
 	}
+	if (type == 'Selection') {
+		settings.items.push({
+			id: 'tableRelation',
+			text: '表格关联'
+		})
+	}
 	settings.items.push({
-		id: 'setSectionColumn_2',
-		text: '分为2栏'
-	})
-	settings.items.push({
-		id: 'setSectionColumn_1',
-		text: '取消分栏'
+		id: 'setSectionColumn',
+		text: '分栏',
+		items: [{
+			id: 'setSectionColumn_2',
+			text: '分为2栏'	
+		}, {
+			id: 'setSectionColumn_1',
+			text: '取消分栏'
+		}]
 	})
 	return settings
 }
@@ -341,6 +350,9 @@ function onContextMenuClick(id) {
 				break
 			case 'imageRelation':
 				imageRelation()
+				break
+			case 'tableRelation':
+				tableRelation()
 				break
 			default:
 				break
@@ -5510,6 +5522,10 @@ function imageRelation() {
 	window.biyue.showDialog('imageRelationWindow', '图片关联', 'imageRelation.html', 800, 600, false)
 }
 
+function tableRelation() {
+	window.biyue.showDialog('imageRelationWindow', '表格关联', 'imageRelation.html', 800, 600, false)
+}
+
 function tagImageCommon(params) {
 	Asc.scope.tag_params = params
 	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
@@ -5518,9 +5534,6 @@ function tagImageCommon(params) {
 		var client_node_id = Asc.scope.client_node_id
 		var oDocument = Api.GetDocument()
 		var drawings = oDocument.GetAllDrawingObjects() || []
-		var  oDrawing = drawings.find(e => {
-			return e.Drawing.Id == tag_params.drawing_id
-		})
 		function getJsonData(str) {
 			if (!str || str == '' || typeof str != 'string') {
 				return {}
@@ -5532,30 +5545,46 @@ function tagImageCommon(params) {
 				return {}
 			}
 		}
-		if (oDrawing) {
-			var tag = getJsonData(oDrawing.Drawing.docPr.title)
-			if (tag.feature) {
-				if (!tag.feature.client_id) {
+		if (tag_params.target_type == 'table') {
+			var oTable = Api.LookupObject(tag_params.target_id)
+			if (oTable && oTable.GetClassType && oTable.GetClassType() == 'table') {
+				var title = getJsonData(oTable.GetTableTitle())
+				if (!title.client_id) {
 					client_node_id += 1
-					tag.feature.client_id = client_node_id
+					title.client_id = client_node_id
 				}
-				tag.feature.ques_use = tag_params.ques_use.join('_')
-			} else {
-				client_node_id += 1
-				tag = {
-					feature: {
-						ques_use: tag_params.ques_use.join('_'),
-						client_id: client_node_id
+				title.ques_use = tag_params.ques_use.join('_')
+				oTable.SetTableTitle(JSON.stringify(title))
+			}
+		} else {
+			var oDrawing = drawings.find(e => {
+				return e.Drawing.Id == tag_params.target_id
+			})
+			if (oDrawing) {
+				var tag = getJsonData(oDrawing.Drawing.docPr.title)
+				if (tag.feature) {
+					if (!tag.feature.client_id) {
+						client_node_id += 1
+						tag.feature.client_id = client_node_id
+					}
+					tag.feature.ques_use = tag_params.ques_use.join('_')
+				} else {
+					client_node_id += 1
+					tag = {
+						feature: {
+							ques_use: tag_params.ques_use.join('_'),
+							client_id: client_node_id
+						}
 					}
 				}
+				oDrawing.Drawing.Set_Props({
+					title: JSON.stringify(tag)
+				})
 			}
-			oDrawing.Drawing.Set_Props({
-				title: JSON.stringify(tag)
-			})
 		}
 		return {
 			client_node_id: client_node_id,
-			drawing_id: tag_params.drawing_id,
+			drawing_id: tag_params.target_id,
 			ques_use: tag_params.ques_use
 		}
 	}, false, false).then(res => {
