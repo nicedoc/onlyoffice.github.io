@@ -16,6 +16,8 @@ import {
 import { showCom, updateText, addClickEvent, getInfoForServerSave } from './model/util.js'
 import { reqSaveInfo } from './api/paper.js'
 import { resetStack } from './command.js'
+import ComponentSelect from '../components/Select.js'
+var select_ask_shortcut = null
 function initView() {
 	showCom('#initloading', true)
 	showCom('#hint1', false)
@@ -85,6 +87,24 @@ function initView() {
 	})
 	addClickEvent('#clearStack', resetStack)
 	addClickEvent('#tidyNodes', tidyNodes)
+	var vShortcut = '0'
+	if (window.BiyueCustomData && window.BiyueCustomData.ask_shortcut) {
+		vShortcut = window.BiyueCustomData.ask_shortcut
+	}
+	select_ask_shortcut = new ComponentSelect({
+		id: 'shortcutKeyDiv',
+		options: [
+			{ value: '0', label: '未定义' },
+			{ value: 'ctrl', label: '双击 + ctrl' },
+			{ value: 'alt', label: '双击 + alt' },
+			{ value: 'shift', label: '双击 + shift' }
+		],
+		value_select: vShortcut,
+		callback_item: (data) => {
+			changeAskShortcut(data)
+		},
+		width: '60%',
+	})
 }
 
 function handlePaperInfoResult(success, res) {
@@ -180,6 +200,10 @@ function showExtroButtons() {
 		return
 	}
 	com.toggle()
+}
+
+function changeAskShortcut(data) {
+	window.BiyueCustomData.ask_shortcut = data.value
 }
 
 export {

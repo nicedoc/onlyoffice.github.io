@@ -1773,9 +1773,9 @@ import { getInfoForServerSave } from './model/util.js'
 		})
 	}
 
-	window.Asc.plugin.event_onClick = function (isSelectionUse) {
-		console.log('event click', isSelectionUse)
-		handleDocClick(isSelectionUse)
+	window.Asc.plugin.event_onClick = function (options) {
+		console.log('event click', options)
+		handleDocClick(options)
 	}
 
 	// 将一行多题目的控件转为表格

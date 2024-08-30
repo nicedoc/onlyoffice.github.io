@@ -15,7 +15,7 @@ function initExamTree() {
 }
 
 // 处理文档点击
-function handleDocClick(isSelectionUse) {
+function handleDocClick(options) {
 	window.Asc.plugin.executeMethod('GetCurrentContentControlPr', [], function(returnValue) {
 		console.log('GetCurrentContentControlPr', returnValue)
 		if (returnValue && returnValue.Tag) {
@@ -41,6 +41,16 @@ function handleDocClick(isSelectionUse) {
 						},
 					})
 					document.dispatchEvent(event)
+				}
+				if (options.isSelectionUse) {
+					var shortcutKey = window.BiyueCustomData ? window.BiyueCustomData.ask_shortcut : null
+					if (shortcutKey && shortcutKey != '') {
+						var sckey = `${shortcutKey}Key`
+						if (options[sckey]) {
+							// 划分小问
+							updateRangeControlType('write')
+						}
+					}
 				}
 			} catch (error) {
 				console.log(error)
