@@ -3681,7 +3681,7 @@ function reqUploadTree() {
 			  })
 		  } else {
 			handleCompleteResult('未找到可更新的题目，请检查题目列表')
-			  
+
 		  }
 	})
 }
@@ -3818,9 +3818,10 @@ function cleanHtml(html) {
   });
 
   // 移除所有带data-属性的元素属性
+  let data_ignore_list = ['data-client_id', 'data-ques_use'] // 需要保留的data属性
   tempDiv.querySelectorAll('*').forEach(el => {
     Array.from(el.attributes).forEach(attr => {
-      if (attr.name.startsWith('data-')) {
+      if (attr.name.startsWith('data-') && !data_ignore_list.includes(attr.name)) {
         el.removeAttribute(attr.name);
       }
     });
@@ -6681,7 +6682,7 @@ function tidyNodes() {
 		}
 	})
 }
-// 处理上传前准备工作，包括 
+// 处理上传前准备工作，包括
 // 1、图片不铺码颜色
 // 2、单元格小问颜色
 // 3、作答区颜色
