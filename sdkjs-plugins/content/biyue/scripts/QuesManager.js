@@ -5188,10 +5188,19 @@ function layoutDetect() {
 			hasWhiteBg: false, // 存在背景为白色的段落
 			hasSmallImage: false, // 存在宽高过小的图片
 		}
+		function isWhite(shd) {
+			return shd && shd.Fill && shd.Fill.r == 255 && shd.Fill.g == 255 && shd.Fill.b == 255 && shd.Fill.Auto == false
+		}
 		var bflag = []
 		function handleRun(oRun) {
 			if (!oRun || oRun.GetClassType() != 'run') {
 				return
+			}
+			var textpr = oRun.GetTextPr()
+			if (textpr && textpr.TextPr) {
+				if (isWhite(textpr.TextPr.Shd)) {
+					result.hasWhiteBg = true
+				}
 			}
 			var runContent = oRun.Run.Content || []
 			var isUnderline = oRun.GetUnderline()
@@ -5257,12 +5266,9 @@ function layoutDetect() {
 				handleRun(oParagraph.GetElement(j))
 			}
 			// 判断是否为白色背景
-			var shd = oParagraph.GetShd()
-			if (shd) {
-				var rgb = shd.GetRGB()
-				if (rgb == 0xFFFFFF) {
-					result.hasWhiteBg = true
-				}
+			var paraPr = oParagraph.GetParaPr()
+			if (paraPr && paraPr.ParaPr && isWhite(paraPr.ParaPr.Shd)) {
+				result.hasWhiteBg = true
 			}
 		}
 		return result
@@ -5349,6 +5355,16 @@ function layoutRepair(cmdData) {
 		}
 		function handleRun(oRun, parent, pos) {
 			if (!oRun || oRun.GetClassType() != 'run') {
+				return
+			}
+			if (cmdData.type == 1 && cmdData.value == 'whitebg') {
+				var textpr = oRun.GetTextPr()
+				if (textpr && textpr.TextPr) {
+					var shd = textpr.TextPr.Shd
+					if (shd && shd.Fill && shd.Fill.r == 255 && shd.Fill.g == 255 && shd.Fill.b == 255 && shd.Fill.Auto == false) {
+						oRun.Run.Set_Shd(undefined);
+					}
+				}
 				return
 			}
 			if (cmdData.type == 1 && cmdData.value == 32) {
@@ -5462,7 +5478,6 @@ function layoutRepair(cmdData) {
 					if (oParaPr) {
 						oParaPr.SetShd("clear", 255, 255, 255, true);
 					}
-					continue
 				}
 				var controls = oParagraph.GetAllContentControls() || []
 				controls.forEach(oControl => {
