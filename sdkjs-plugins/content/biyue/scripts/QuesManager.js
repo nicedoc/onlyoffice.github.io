@@ -1293,6 +1293,42 @@ function updateRangeControlType(typeName) {
 				})
 			}
 		}
+		function removeTableAsk(quesControl) {
+			// 删除所有单元格小问
+			var pageCount = quesControl.Sdt.getPageCount()
+			for (var p = 0; p < pageCount; ++p) {
+				var page = quesControl.Sdt.GetAbsolutePage(p)
+				var tables = quesControl.GetAllTablesOnPage(page)
+				if (tables) {
+					for (var t = 0; t < tables.length; ++t) {
+						var oTable = tables[t]
+						var rowcount = oTable.GetRowsCount()
+						var find = false
+						for (var r = 0; r < rowcount; ++r) {
+							var oRow = oTable.GetRow(r)
+							var cellcount = oRow.GetCellsCount()
+							for (var c = 0; c < cellcount; ++c) {
+								var oCell = oRow.GetCell(c)
+								if (!oCell) {
+									continue
+								}
+								var shd = oCell.Cell.Get_Shd()
+								if (shd) {
+									var fill = shd.Fill
+									if (fill && fill.r == 255 && fill.g == 191 && fill.b == 191) {
+										oCell.SetBackgroundColor(255, 191, 191, true)
+										find = true
+									}
+								}
+							}
+						}
+						if (find) {
+							oTable.SetTableDescription('{}')
+						}
+					}
+				}
+			}
+		}
 		var allControls = oDocument.GetAllContentControls()
 		var selectionInfo = oDocument.Document.getSelectionInfo()
 		if (!oRange) {
@@ -1345,6 +1381,7 @@ function updateRangeControlType(typeName) {
 								for (var i = 0; i < childControls.length; ++i) {
 									removeControl(childControls[i])
 								}
+								removeTableAsk(container)
 							}
 							removeControl(container)
 						}
@@ -1617,6 +1654,7 @@ function updateRangeControlType(typeName) {
 						controls.push(completeOverlapControl)
 					}
 					controls.forEach(e => {
+						removeTableAsk(e)
 						removeControl(e)
 					})
 				} else {
