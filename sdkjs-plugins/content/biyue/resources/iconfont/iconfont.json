@@ -6,6 +6,48 @@
   "description": "",
   "glyphs": [
     {
+      "icon_id": "9657904",
+      "name": "选中",
+      "font_class": "xuanzhong2",
+      "unicode": "e69b",
+      "unicode_decimal": 59035
+    },
+    {
+      "icon_id": "10683219",
+      "name": "选中 (1)",
+      "font_class": "xuanzhong11",
+      "unicode": "e6f3",
+      "unicode_decimal": 59123
+    },
+    {
+      "icon_id": "764449",
+      "name": "线框",
+      "font_class": "xiankuang",
+      "unicode": "e85b",
+      "unicode_decimal": 59483
+    },
+    {
+      "icon_id": "4236617",
+      "name": "构件树",
+      "font_class": "goujianshu",
+      "unicode": "e602",
+      "unicode_decimal": 58882
+    },
+    {
+      "icon_id": "18176381",
+      "name": "井号",
+      "font_class": "number-sign",
+      "unicode": "ea7b",
+      "unicode_decimal": 60027
+    },
+    {
+      "icon_id": "36737871",
+      "name": "h1",
+      "font_class": "h1",
+      "unicode": "e61c",
+      "unicode_decimal": 58908
+    },
+    {
       "icon_id": "666884",
       "name": "删除",
       "font_class": "shanchu",

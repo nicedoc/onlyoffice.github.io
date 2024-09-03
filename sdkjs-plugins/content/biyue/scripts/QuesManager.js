@@ -5554,6 +5554,299 @@ function layoutRepair(cmdData) {
 		}
 	}, false, true)
 }
+// 设置选择题选项布局
+function setChoiceOptionLayout(options) {
+	Asc.scope.choice_align_options = options
+	return biyueCallCommand(window, function() {
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
+		var options = Asc.scope.choice_align_options
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls()
+		var part = options.part
+		var identifyLeft = options.indLeft / ((25.4 / 72 / 20))
+		var AF = [65, 66, 67, 68, 69, 70] // A-F
+		var DOTS = [46, 65294] // 半角和全角的.
+		function removeTabAndBreak(oParagraph) {
+			for (var i = 0; i < oParagraph.Paragraph.Content.length; ++i) {
+				var content = oParagraph.Paragraph.Content
+				if (!content[i]) {
+					oParagraph.RemoveElement(i)
+					--i
+					continue
+				}
+				if (content[i].Type != 39) { // 不是run
+					continue
+				}
+				var children1 = content[i].Content
+				if (!children1) {
+					oParagraph.RemoveElement(i)
+					--i
+					continue
+				}
+				for (var j = 0; j < content[i].Content.length; ++j) {
+					var type2 = content[i].Content[j].GetType()
+					if (type2 == 21 || type2 == 16) { // tab or break
+						content[i].RemoveElement(content[i].Content[j])
+						--j
+					}
+				}
+				if (content[i].Content.length == 0) {
+					oParagraph.RemoveElement(i)
+					--i
+					continue
+				}
+			}
+		}
+		function addTabBreak(count, oRun) {
+			if (part == 1 || ((count + 1) % part == 0)) {
+				oRun.AddLineBreak()
+			} else {
+				oRun.AddTabStop()
+			}
+		}
+		function addTab(oParagraph, addrun, id, i, count) {
+			if (addrun) {
+				var newRun = Api.CreateRun()
+				addTabBreak(count, newRun)
+				oParagraph.AddElement(newRun, i + 1)
+				return i + 1
+			} else {
+				var oRun = Api.LookupObject(id)
+				addTabBreak(count, oRun)
+				return i
+			}
+		}
+		// 之后是否存在某个values中的某个字符
+		function afterHasValue(content, idx, jdx, values) {
+			for (var i = idx; i < content.length; ++i) {
+				if (!content[i]) {
+					continue
+				}
+				if (content[i].Type != 39) { // 不是run
+					continue
+				}
+				var begin = i == idx ? (jdx + 1) : 0
+				for (var j = begin; j < content[i].Content.length; ++j) {
+					if (values.indexOf(content[i].Content[j].Value) != -1) {
+						return {
+							idx: i,
+							jdx: j,
+							v: content[i].Content[j].Value
+						}
+					} else {
+						return null
+					}
+				}
+			}
+			return null
+		}
+		function needAdd(content, idx, jdx) {
+			for (var i = idx; i < content.length; ++i) {
+				if (!content[i]) {
+					continue
+				}
+				if (content[i].Type != 39) { // 不是run
+					continue
+				}
+				var begin = i == idx ? (jdx + 1) : 0
+				for (var j = begin; j < content[i].Content.length; ++j) {
+					var type3 = content[i].Content[j].GetType()
+					if (type3 == 2) { // 空格
+						continue
+					}
+					if (type3 == 1) {
+						if (content[i].Content[j].Value >= 65 &&
+							content[i].Content[j].Value <= 70 && 
+							afterHasValue(content, i, j, DOTS)) {
+							return false
+						} else {
+							return true
+						}
+					} else if (type3 == 22) { // drawing
+						return true
+					}
+				}
+			}
+			return false
+		}
+		for (var qdx = 0; qdx < controls.length; ++qdx) {
+			var oControl = controls[qdx]
+			if (oControl.GetClassType() != 'blockLvlSdt') {
+				continue
+			}
+			if (oControl.GetPosInParent() < 0) {
+				continue
+			}
+			var tag = getJsonData(oControl.GetTag())
+			if (!tag.client_id) {
+				continue
+			}
+			if (!(options.list.includes(tag.client_id))) {
+				continue
+			}
+			var controlContent = oControl.GetContent()
+			var oParagraph = null
+			for (var index = 0; index < controlContent.GetElementsCount(); ++index) {
+				var oElement = controlContent.GetElement(index)
+				if (!oElement) {
+					continue
+				}
+				if (oElement.GetClassType() == 'paragraph') {
+					var text = oElement.GetText()
+					var auto_align_patt = new RegExp(/(?<!data-latex="[^"]*)[A-F][.．].*?/g)
+					var autoAlignRegionArr = text.match(auto_align_patt) || []
+					if (autoAlignRegionArr.length) {
+						if (options.from == 'indLeft') {
+							if (options.indLeft >= 0) {
+								oElement.SetIndLeft(identifyLeft)
+								oElement.SetIndFirstLine(0)
+							}
+						} else if (part > 0) {
+							if (oParagraph) {
+								controlContent.RemoveElement(index)
+								var elCount = oElement.GetElementsCount()
+								var insertPos = oParagraph.GetElementsCount()
+								for (var i = elCount; i >= 0; --i) {
+									oParagraph.AddElement(oElement.GetElement(i), insertPos)
+								}
+								--index
+							} else {
+								oParagraph = oElement
+							}
+						}
+					}
+				} else {
+					break
+				}
+			}
+			if (options.from == 'indLeft') {
+				continue
+			}
+			if (!oParagraph) {
+				continue
+			}
+			// var text = oParagraph.GetRange().GetText()
+			if (options.indLeft >= 0) {
+				oParagraph.SetIndLeft(identifyLeft)
+				oParagraph.SetIndFirstLine(0)
+			}
+			if (part == 0) {
+				continue
+			}
+			var section = oParagraph.GetSection()
+			var PageMargins = section.Section.PageMargins
+			var PageSize = section.Section.PageSize
+			var count = 0
+			var w = PageSize.W - PageMargins.Left - PageMargins.Right
+			var tabs = []
+			for (var i = 1; i < part; ++i) {
+				tabs.push(i / part)
+			}
+			var newTabs = []
+			var aligns = []
+			tabs.forEach(e => {
+				newTabs.push((w * e) / (25.4 / 72 / 20) + identifyLeft)
+				aligns.push('left')
+			})
+			oParagraph.SetTabs(newTabs, aligns)
+			// 先删除所有的tab和break
+			removeTabAndBreak(oParagraph)
+			for (var i = 0; i < oParagraph.Paragraph.Content.length; ++i) {
+				var content = oParagraph.Paragraph.Content
+				if (!content[i]) {
+					oParagraph.RemoveElement(i)
+					--i
+					continue
+				}
+				if (content[i].Type != 39) { // 不是run
+					continue
+				}
+				var children1 = content[i].Content
+				if (!children1 || children1.length == 0) {
+					oParagraph.RemoveElement(i)
+					--i
+					continue
+				}
+				for (var j = 0; j < content[i].Content.length; ++j) {
+					var type2 = content[i].Content[j].GetType()
+					if (type2 == 1) { // text
+						var condition1 = afterHasValue(content, i, j, AF)
+						if (condition1) {
+							var condition2 = afterHasValue(content, condition1.idx, condition1.jdx, DOTS)
+							if (condition2) {
+								i = addTab(oParagraph, true, content[i].Id, i, count)
+								count++
+								break
+							}
+						}
+					} else if (type2 == 2) { // space
+						if (!needAdd(content, i, j)) {
+							if (j + 1 < content[i].Content.length) {
+								if (content[i].Content[j + 1].GetType() == 2) { // 下一个也是空格
+									content[i].RemoveElement(content[i].Content[j])
+									--j
+									continue
+								}
+							}
+							var condition1 = afterHasValue(content, i, j, AF)
+							if (condition1 && condition1.v != 65) {
+								var condition2 = afterHasValue(content, condition1.idx, condition1.jdx, DOTS)
+								if (condition2) {
+									content[i].RemoveElement(content[i].Content[j])
+									if (j < content[i].Content.length) {
+										var newRun = content[i].Split_Run(j)
+										var newRun1 = Api.CreateRun()
+										addTabBreak(count, newRun1)
+										oParagraph.AddElement(newRun1, i + 1)
+										oParagraph.Paragraph.Add_ToContent(i + 2, newRun)
+										--i
+									} else if (content[i].Content.length == 0) {
+										addTabBreak(count, Api.LookupObject(content[i].Id))
+									} else {
+										var newRun = Api.CreateRun()
+										addTabBreak(count, newRun)
+										oParagraph.AddElement(newRun, i + 1)
+										i++
+									}
+									count++
+									break
+								}
+							}
+							content[i].RemoveElement(content[i].Content[j])
+							if (content[i].Content.length == 0) {
+								oParagraph.RemoveElement(i)
+								--i
+								break
+							} else {
+								--j
+							}
+						}
+					} else if (type2 == 22) { // drawing
+						var condition1 = afterHasValue(content, i, j, AF)
+						if (condition1) {
+							var condition2 = afterHasValue(content, condition1.idx, condition1.jdx, DOTS)
+							if (condition2) {
+								i = addTab(oParagraph, condition1.idx == i, content[i].Id, i, count)
+								count++
+								break
+							}
+						}
+					}
+				}
+			}
+		}
+	}, false, true)
+}
 
 function batchChangeScore() {
 	if (g_click_value && g_click_value.Tag && g_click_value.Tag.client_id) {
@@ -6921,4 +7214,5 @@ export {
 	handleUploadPrepare,
 	importExam,
 	setBtnLoading,
+	setChoiceOptionLayout
 }

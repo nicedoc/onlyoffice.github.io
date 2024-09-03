@@ -2,7 +2,7 @@ import ComponentSelect from '../components/Select.js'
 import NumberInput from '../components/NumberInput.js'
 import { reqSaveQuestion } from './api/paper.js'
 import { setInteraction } from './featureManager.js'
-import { changeProportion, deleteAsks, focusAsk, updateAllChoice, deleteChoiceOtherWrite, getQuesMode, updateQuesScore, splitControl } from './QuesManager.js'
+import { changeProportion, deleteAsks, focusAsk, updateAllChoice, deleteChoiceOtherWrite, getQuesMode, updateQuesScore, splitControl, setChoiceOptionLayout } from './QuesManager.js'
 import { addClickEvent, getListByMap, showCom } from '../scripts/model/util.js'
 // 单题详情
 var proportionTypes = [
@@ -20,6 +20,23 @@ var interactionTypes = [
 	{	value: 'simple', label: '简单互动'},
 	{	value: 'accurate', label: '精准互动'}
 ]
+var choiceAlignTypes = [
+	{ value: '0', label: '未定义'},
+	{ value: '4', label: '一行4个'},
+	{ value: '2', label: '一行2个'},
+	{ value: '1', label: '一行1个'},
+	{ value: '3', label: '一行3个'},
+	{ value: '5', label: '一行5个'},
+	{ value: '6', label: '一行6个'},
+]
+var choiceIndLeftTypes = [
+	{ value: '-1', label: '未定义'},
+	{ value: '0', label: '无缩进'},
+	{ value: '5', label: '0.5厘米'},
+	{ value: '10', label: '1厘米'},
+	{ value: '15', label: '1.5厘米'},
+	{ value: '20', label: '2厘米'},
+]
 var g_client_id
 var g_ques_id
 var select_type = null // 题型
@@ -29,6 +46,8 @@ var select_interaction = null // 互动
 var select_mark_mode = null // 批改模式
 var select_score_mode = null // 打分方式
 var select_score_layout = null // 分数布局
+var select_choice_align = null // 选择题对齐选项
+var select_choice_ind_left = null // 选择题自动缩进
 var score_list = [] // 分数选项
 var input_score = null // 分数/权重
 var list_ask = [] // 小问
@@ -36,6 +55,7 @@ var inited = false
 var timeout_save = null
 var workbook_id = 0
 var select_ask_index = -1
+var choice_check = false
 
 function initElements() {
 	console.log('====================================================== panelquestiondetail initElements')
@@ -98,6 +118,23 @@ function initElements() {
             <div id="scoreLayout"></div>
           </td>
         </tr>
+		<tr id="choiceTr" style="border-top:1px solid #bbb">
+          <td class="padding-small" colspan="1" width="50%" style="padding-top:8px">
+            <label class="header">选择题自动对齐</label>
+            <div id="choiceAlign"></div>
+          </td>
+		  <td class="padding-small" colspan="1" width="50%" style="padding-top:8px">
+            <label class="header">选择题自动缩进</label>
+            <div id="choiceIndLeft"></div>
+          </td>
+        </tr>
+		<tr id="applyToAllQues">
+			<td colspan="2">
+				<div style="text-align: center;border-bottom:1px solid #bbb;padding-bottom:4px;margin-bottom:4px">
+				<i class="iconfont icon-xuanzhong2 icheck"></i>
+				 应用到所有同题型的题目</div>
+			</td>
+		</tr>
       </tbody>
     </table>
 	<div id="scores">
@@ -212,8 +249,27 @@ function initElements() {
 		},
 		width: '110px',
 	})
+	select_choice_align = new ComponentSelect({
+		id: 'choiceAlign',
+		options: choiceAlignTypes,
+		value_select: '0',
+		callback_item: (data) => {
+			changeChoiceAlign(data)
+		},
+		width: '110px',
+	})
+	select_choice_ind_left = new ComponentSelect({
+		id: 'choiceIndLeft',
+		options: choiceIndLeftTypes,
+		value_select: '0',
+		callback_item: (data) => {
+			changeChoiceIndLeft(data)
+		},
+		width: '110px',
+	})
 	addClickEvent('#cancelAllScore', cancelAllScore)
 	addClickEvent('#resplitQues', resplitQues)
+	addClickEvent('#applyToAllQues', onApplyAllQues)
 	inited = true
 	workbook_id = window.BiyueCustomData.workbook_info ? window.BiyueCustomData.workbook_info.id : 0
 }
@@ -256,6 +312,7 @@ function updateElements(quesData, hint, ignore_ask_list) {
 		$('#panelQues .hint').hide()
 		$('#panelQuesWrapper').show()
 		showQuesCom(false)
+		showChoiceAlign(false)
 		if (quesData.text) {
 			$('#texttitle').html('题组：')
 			$('#nametitle').html('题组名')
@@ -327,11 +384,11 @@ function updateElements(quesData, hint, ignore_ask_list) {
 			$(`#ask${index}_delete`).on('click', () => {
 				deleteAsk(index)
 			})
-      $(`#ask${index} input`).on('input', () => {
-        let val = $(`#ask${index} input`).val()
-        val = checkInputValue(val, 100)
-        $(`#ask${index} input`).val(val)
-      })
+			$(`#ask${index} input`).on('input', () => {
+				let val = $(`#ask${index} input`).val()
+				val = checkInputValue(val, 100)
+				$(`#ask${index} input`).val(val)
+			})
 		})
 		if (list_ask && list_ask.length > askcount) {
 			for (var i = list_ask.length - 1; i >= askcount; --i) {
@@ -351,6 +408,7 @@ function updateElements(quesData, hint, ignore_ask_list) {
 	$('#clearAllAsks').on('click', () => {
 		onClearAllAsks()
 	})
+	updateChoiceCheck()
 }
 
 function showQuesData(params) {
@@ -372,7 +430,7 @@ function showQuesData(params) {
 		console.log('nodeData', nodeData)
 		if (nodeData) {
 			if (nodeData.level_type == 'struct') {
-				g_ques_id = g_client_id
+				setQueId(g_client_id)
 				updateElements(question_map[nodeData.id], `当前选中为题组`)
 				return
 			} else if (nodeData.level_type == 'text') {
@@ -412,7 +470,7 @@ function showQuesData(params) {
 		return
 	}
 	console.log('=========== showQuesData ques:', quesData)
-	g_ques_id = ques_client_id
+	setQueId(ques_client_id)
 	if (quesData.level_type == 'question') {
     	if ((quesData.ques_mode == 1 || quesData.ques_mode == 5) && choice_display.style && choice_display.style === 'show_choice_region') {
       		// 如果是开启了集中作答区状态，则需要忽略对应题目的小问
@@ -426,12 +484,19 @@ function showQuesData(params) {
 		updateElements(quesData, null, ignore_ask_list)
 		updateAskSelect(findIndex)
 	} else if (quesData.level_type == 'struct') {
-		g_ques_id = ques_client_id
+		setQueId(ques_client_id)
 		updateElements(quesData, `当前选中为题组：${quesData ? quesData.ques_default_name : ''}`)
 		return
 	} else {
 		updateElements(null)
 	}
+}
+
+function setQueId(id) {
+	if (id != g_ques_id) {
+		choice_check = false
+	}
+	g_ques_id = id
 }
 
 function changeQuestionType(data) {
@@ -699,7 +764,13 @@ function updateQuesMode(ques_mode) {
 	if (select_ques_mode) {
 		select_ques_mode.setSelect(ques_mode + '')
 	}
+	showChoiceAlign(ques_mode == 1 || ques_mode == 5)
 	return ques_mode
+}
+
+function showChoiceAlign(vShow) {
+	showCom('#choiceTr', vShow)
+	showCom('#applyToAllQues', vShow)
 }
 
 function changeMarkMode(data) {
@@ -915,6 +986,54 @@ function resplitQues() {
 				setInteraction(window.BiyueCustomData.question_map[g_ques_id].interaction, [g_ques_id])
 			}
 		})
+	})
+}
+
+function changeChoiceAlign(data) {
+	if (data.value == '0') {
+		return
+	}
+	notifyChoiceAlign('part')
+}
+
+function changeChoiceIndLeft(data) {
+	notifyChoiceAlign('indLeft')
+}
+
+function onApplyAllQues() {
+	choice_check = !choice_check
+	updateChoiceCheck()
+	notifyChoiceAlign('all')
+}
+
+function updateChoiceCheck() {
+	var iconNode = $('#applyToAllQues .icheck')
+	if (iconNode) {
+		if (choice_check) {
+			iconNode.removeClass('icon-xuanzhong2').addClass('icon-xuanzhong11')
+		} else {
+			iconNode.removeClass('icon-xuanzhong11').addClass('icon-xuanzhong2')
+		}
+	}
+}
+
+function notifyChoiceAlign(from) {
+	var question_map = window.BiyueCustomData.question_map || {}
+	var list = []
+	if (choice_check) {
+		Object.keys(question_map).forEach(id => {
+			if (question_map[id].ques_mode == 1 || question_map[id].ques_mode == 5) {
+				list.push(id * 1)
+			}
+		})
+	} else {
+		list = [g_ques_id * 1]
+	}
+	setChoiceOptionLayout({
+		list: list,
+		part: select_choice_align.getValue() * 1,
+		indLeft: select_choice_ind_left.getValue() * 1,
+		from: from
 	})
 }
 
