@@ -3766,7 +3766,8 @@ function getControlListForUpload() {
 				// 根据level, 查找在它前面的比它lvl小的struct
 				for (var j = target_list.length - 1; j >= 0; --j) {
 					var preNode = target_list[j]
-					if (preNode.lvl < tag.lvl && preNode.content_type == 'struct') {
+					// 由于struct未必有lvl，因此先将Lvl的判断移除
+					if (preNode.content_type == 'struct') {
 						parent_id = preNode.id
 						break
 					}
