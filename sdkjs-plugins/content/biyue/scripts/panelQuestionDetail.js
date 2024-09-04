@@ -1021,8 +1021,9 @@ function notifyChoiceAlign(from) {
 	var question_map = window.BiyueCustomData.question_map || {}
 	var list = []
 	if (choice_check) {
+		var qmode = question_map[g_ques_id]
 		Object.keys(question_map).forEach(id => {
-			if (question_map[id].ques_mode == 1 || question_map[id].ques_mode == 5) {
+			if (question_map[id].ques_mode == qmode) {
 				list.push(id * 1)
 			}
 		})
