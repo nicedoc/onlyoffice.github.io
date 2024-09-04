@@ -6,36 +6,50 @@ import { changeProportion, deleteAsks, focusAsk, updateAllChoice, deleteChoiceOt
 import { addClickEvent, getListByMap, showCom } from '../scripts/model/util.js'
 // 单题详情
 var proportionTypes = [
-	{ value: '1', label: '默认' },
-	{ value: '2', label: '1/2' },
-	{ value: '3', label: '1/3' },
-	{ value: '4', label: '1/4' },
-	{ value: '5', label: '1/5' },
-	{ value: '6', label: '1/6' },
-	{ value: '7', label: '1/7' },
-	{ value: '8', label: '1/8' },
+	{ value: 1, label: '默认' },
+	{ value: 2, label: '1/2' },
+	{ value: 3, label: '1/3' },
+	{ value: 4, label: '1/4' },
+	{ value: 5, label: '1/5' },
+	{ value: 6, label: '1/6' },
+	{ value: 7, label: '1/7' },
+	{ value: 8, label: '1/8' },
 ]
 var interactionTypes = [
-	{ 	value: 'none', label: '无互动'},
-	{	value: 'simple', label: '简单互动'},
-	{	value: 'accurate', label: '精准互动'}
+	{ value: 'none', label: '无互动'},
+	{ value: 'simple', label: '简单互动'},
+	{ value: 'accurate', label: '精准互动'}
+]
+var scoreModes = [
+	{ value: 0, label: '自动选择'},
+	{ value: 1, label: '普通模式'},
+	{ value: 2, label: '大分值模式'}
+]
+var scoreLayoutTypes = [
+	{ value: 1,	label: '顶部浮动'},
+	{ value: 2,	label: '嵌入式'}
 ]
 var choiceAlignTypes = [
-	{ value: '0', label: '未定义'},
-	{ value: '4', label: '一行4个'},
-	{ value: '2', label: '一行2个'},
-	{ value: '1', label: '一行1个'},
-	{ value: '3', label: '一行3个'},
-	{ value: '5', label: '一行5个'},
-	{ value: '6', label: '一行6个'},
+	{ value: 0, label: '未设置'},
+	{ value: 4, label: '一行4个'},
+	{ value: 2, label: '一行2个'},
+	{ value: 1, label: '一行1个'},
+	{ value: 3, label: '一行3个'},
+	{ value: 5, label: '一行5个'},
+	{ value: 6, label: '一行6个'},
 ]
 var choiceIndLeftTypes = [
-	{ value: '-1', label: '未定义'},
-	{ value: '0', label: '无缩进'},
-	{ value: '5', label: '0.5厘米'},
-	{ value: '10', label: '1厘米'},
-	{ value: '15', label: '1.5厘米'},
-	{ value: '20', label: '2厘米'},
+	{ value: -1, label: '未设置'},
+	{ value: 0, label: '无缩进'},
+	{ value: 5, label: '0.5厘米'},
+	{ value: 10, label: '1厘米'},
+	{ value: 15, label: '1.5厘米'},
+	{ value: 20, label: '2厘米'},
+]
+var choiceBracketTypes = [
+	{ value: 'none', label: '未设置'},
+	{ value: 'eng', label: '英文括号'},
+	{ value: 'ch', label: '中文括号'},
 ]
 var g_client_id
 var g_ques_id
@@ -48,6 +62,8 @@ var select_score_mode = null // 打分方式
 var select_score_layout = null // 分数布局
 var select_choice_align = null // 选择题对齐选项
 var select_choice_ind_left = null // 选择题自动缩进
+var select_choice_bracket = null // 选择题括号样式
+var input_choice_space = null // 选择题括号空格数量
 var score_list = [] // 分数选项
 var input_score = null // 分数/权重
 var list_ask = [] // 小问
@@ -57,96 +73,82 @@ var workbook_id = 0
 var select_ask_index = -1
 var choice_check = false
 
+function getTdText(colspan, width, title, id) {
+	return `<td class="padding-small" colspan=${colspan} width=${width}>
+				<label class="header">${title}</label>
+				<div id=${id}></div>
+			</td>`
+}
 function initElements() {
 	console.log('====================================================== panelquestiondetail initElements')
 	var content = ''
 	content = `
-  <div class="hint" style="text-align:center">请先选中一道题</div>
-  <div id="panelQuesWrapper">
-    <div><span id="texttitle">题目：</span><span id="ques_text"></span></div>
-    <table style="width: 100%">
-      <tbody>
-	  	<tr>
-          <td class="padding-small" colspan="2" width="100%">
-            <label class="header" id="nametitle">题号</label>
-			<div id="ques_name" class="spinner" style="width: 100%">
-      			<input type="text" class="form-control" spellcheck="false">
-    		</div>
-          </td>
-        </tr>
-        <tr id="quesTypeTr">
-          <td class="padding-small" colspan="2" width="100%">
-            <label class="header">题型</label>
-            <div id="questionType"></div>
-          </td>
-        </tr>
-		<tr id="quesModeTr">
-          <td class="padding-small" colspan="2" width="100%">
-            <label class="header">作答模式</label>
-            <div id="questionMode"></div>
-          </td>
-        </tr>
-        <tr id="proportionTr">
-          <td class="padding-small" colspan="1" width="50%">
-            <label class="header">占比</label>
-            <div id="proportion"></div>
-          </td>
-		  <td class="padding-small" colspan="1" width="50%">
-            <label class="header">互动</label>
-            <div id="quesInteraction"></div>
-          </td>
-        </tr>
-        <tr id="weightTr">
-          <td class="padding-small" colspan="2" width="100%">
-            <label class="header">权重/分数</label>
-            <div id="ques_weight"></div>
-          </td>
-        </tr>
-		<tr id="markModeTr">
-          <td class="padding-small" colspan="2" width="100%">
-            <label class="header">批改模式</label>
-            <div id="markMode"></div>
-          </td>
-        </tr>
-		<tr id="scoreTr">
-          <td class="padding-small" colspan="1" width="50%">
-            <label class="header">打分模式</label>
-            <div id="scoreMode"></div>
-          </td>
-		  <td class="padding-small" colspan="1" width="50%">
-            <label class="header">分数布局</label>
-            <div id="scoreLayout"></div>
-          </td>
-        </tr>
-		<tr id="choiceTr" style="border-top:1px solid #bbb">
-          <td class="padding-small" colspan="1" width="50%" style="padding-top:8px">
-            <label class="header">选择题自动对齐</label>
-            <div id="choiceAlign"></div>
-          </td>
-		  <td class="padding-small" colspan="1" width="50%" style="padding-top:8px">
-            <label class="header">选择题自动缩进</label>
-            <div id="choiceIndLeft"></div>
-          </td>
-        </tr>
-		<tr id="applyToAllQues">
-			<td colspan="2">
-				<div style="text-align: center;border-bottom:1px solid #bbb;padding-bottom:4px;margin-bottom:4px">
-				<i class="iconfont icon-xuanzhong2 icheck"></i>
-				 应用到所有同题型的题目</div>
-			</td>
-		</tr>
-      </tbody>
-    </table>
-	<div id="scores">
-		<div class="row-between">
-			<div>分数选项</div>
-			<div class="clicked under" id="cancelAllScore">取消全选</div>
+  	<div class="hint" style="text-align:center">请先选中一道题</div>
+  	<div id="panelQuesWrapper">
+    	<div><span id="texttitle">题目：</span><span id="ques_text"></span></div>
+    	<table style="width: 100%">
+      		<tbody>
+	  			<tr>
+          			<td class="padding-small" colspan="2" width="100%">
+            			<label class="header" id="nametitle">题号</label>
+						<div id="ques_name" class="spinner" style="width: 100%">
+      						<input type="text" class="form-control" spellcheck="false">
+    					</div>
+          			</td>
+        		</tr>
+        		<tr id="quesTypeTr">
+					${getTdText("2", "100%", '题型', "questionType")}
+        		</tr>
+				<tr id="quesModeTr">
+					${getTdText("2", "100%", '作答模式', "questionMode")}
+        		</tr>
+				<tr id="proportionTr">
+					${getTdText("1", "50%", '占比', "proportion")}
+					${getTdText("1", "50%", '互动', "quesInteraction")}
+				</tr>
+				<tr id="weightTr">
+					${getTdText("2", "100%", '权重/分数', "ques_weight")}
+				</tr>
+				<tr id="markModeTr">
+					${getTdText("2", "100%", '批改模式', "markMode")}
+				</tr>
+				<tr id="scoreTr">
+					${getTdText("1", "50%", '打分模式', "scoreMode")}
+					${getTdText("1", "50%", '分数布局', "scoreLayout")}
+				</tr>
+				<tr class="choicetr" style="border-top:1px solid #bbb;">
+					<td colspan="2" style="padding-top:8px">
+						<label>选择题设置项</label>
+					</td>
+				</tr>
+				<tr class="choicetr">
+					${getTdText("1", "50%", '自动对齐', "choiceAlign")}
+					${getTdText("1", "50%", '自动缩进', "choiceIndLeft")}
+				</tr>
+				<tr class="choicetr">
+					${getTdText("1", "50%", '括号样式', "choiceBracket")}
+					${getTdText("1", "50%", '括号空格个数', "bracketSpace")}
+				</tr>
+				<tr class="choicetr">
+					<td colspan="2" style="padding-bottom:8px">
+						<div class="row-arround" style="padding-bottom:8px;border-bottom:1px solid #bbb;">
+							<div id="applyToQues" class="btn2 clicked">只应用到本题</div>
+							<div id="applyToAllQues" class="btn2 clicked">应用到同模式题目</div>
+						</div>
+					</td>
+				</tr>
+      		</tbody>
+    	</table>
+		<div id="scores">
+			<div class="row-between">
+				<div>分数选项</div>
+				<div class="clicked under" id="cancelAllScore">取消全选</div>
+			</div>
+			<div id="scorelist"></div>
 		</div>
-		<div id="scorelist"></div>
-	</div>
-    <div id="panelQuesAsks"></div>
-	<div id="resplitQues" class="under clicked">重新切题</div>
-  </div>
+    	<div id="panelQuesAsks"></div>
+		<div id="resplitQues" class="under clicked">重新切题</div>
+  	</div>
   `
 	$('#panelQues').html(content)
 	var paper_options = window.BiyueCustomData.paper_options || {}
@@ -155,15 +157,7 @@ function initElements() {
 		questionTypes = questionTypes.concat(paper_options.question_type)
 	}
 	questionTypes.unshift({ value: '0', label: '未定义' })
-	select_type = new ComponentSelect({
-		id: 'questionType',
-		options: questionTypes,
-		value_select: '0',
-		callback_item: (data) => {
-			changeQuestionType(data)
-		},
-		width: '100%',
-	})
+	select_type = createSelect('questionType', questionTypes, '0', changeQuestionType, '100%')
 	var mark_type_info = Asc.scope.subject_mark_types
 	select_ques_mode = new ComponentSelect({
 		id: 'questionMode',
@@ -172,15 +166,7 @@ function initElements() {
 		width: '100%',
 		enabled: false,
 	})
-	select_proportion = new ComponentSelect({
-		id: 'proportion',
-		options: proportionTypes,
-		value_select: '0',
-		callback_item: (data) => {
-			onChangeProportion(data)
-		},
-		width: '110px',
-	})
+	select_proportion = createSelect('proportion', proportionTypes, '0', onChangeProportion)
 	input_score = new NumberInput('ques_weight', {
 		width: '100%',
 		min: 0,
@@ -198,80 +184,39 @@ function initElements() {
 		val = checkInputValue(val, 100)
     	$(`#ques_weight input`).val(val)
   	})
-	select_interaction = new ComponentSelect({
-		id: 'quesInteraction',
-		options: interactionTypes,
-		value_select: 'none',
-		callback_item: (data) => {
-			changeInteraction(data)
-		},
+	select_interaction = createSelect('quesInteraction', interactionTypes, 'none', changeInteraction)
+	var markModes = mark_type_info ? getListByMap(mark_type_info.mark_type_map) : []
+	select_mark_mode = createSelect('markMode', markModes, 'none', changeMarkMode, '100%')
+	select_score_mode = createSelect('scoreMode', scoreModes, 0, changeScoreMode)
+	select_score_layout = createSelect('scoreLayout', scoreLayoutTypes, 1, changeScoreLayout)
+	select_choice_align = createSelect('choiceAlign', choiceAlignTypes, '0', null)
+	select_choice_ind_left = createSelect('choiceIndLeft', choiceIndLeftTypes, '-1', null)
+	select_choice_bracket = createSelect('choiceBracket', choiceBracketTypes, 'none', null)
+	input_choice_space = new NumberInput('bracketSpace', {
 		width: '110px',
-	})
-	select_mark_mode = new ComponentSelect({
-		id: 'markMode',
-		options: mark_type_info ? getListByMap(mark_type_info.mark_type_map) : [],
-		value_select: 'none',
-		callback_item: (data) => {
-			changeMarkMode(data)
+		min: 0,
+		change: (id, data) => {
+      		let val = data
+		  	val = checkInputValueNumber(data, 20)
+			changeBracketSpace(id, val)
 		},
-		width: '100%',
-	})
-	select_score_mode = new ComponentSelect({
-		id: 'scoreMode',
-		options: [{
-			value: 0,
-			label: '自动选择'
-		}, {
-			value: 1,
-			label: '普通模式'
-		}, {
-			value: 2,
-			label: '大分值模式'
-		}],
-		value_select: 0,
-		callback_item: (data) => {
-			changeScoreMode(data)
-		},
-		width: '110px',
-	})
-	select_score_layout = new ComponentSelect({
-		id: 'scoreLayout',
-		options: [{
-			value: 1,
-			label: '顶部浮动'
-		}, {
-			value: 2,
-			label: '嵌入式'
-		}],
-		value_select: 1,
-		callback_item: (data) => {
-			changeScoreLayout(data)
-		},
-		width: '110px',
-	})
-	select_choice_align = new ComponentSelect({
-		id: 'choiceAlign',
-		options: choiceAlignTypes,
-		value_select: '0',
-		callback_item: (data) => {
-			changeChoiceAlign(data)
-		},
-		width: '110px',
-	})
-	select_choice_ind_left = new ComponentSelect({
-		id: 'choiceIndLeft',
-		options: choiceIndLeftTypes,
-		value_select: '0',
-		callback_item: (data) => {
-			changeChoiceIndLeft(data)
-		},
-		width: '110px',
 	})
 	addClickEvent('#cancelAllScore', cancelAllScore)
 	addClickEvent('#resplitQues', resplitQues)
-	addClickEvent('#applyToAllQues', onApplyAllQues)
+	addClickEvent('#applyToQues', () => {onApplyAllQues(false)})
+	addClickEvent('#applyToAllQues', () => {onApplyAllQues(true)})
 	inited = true
 	workbook_id = window.BiyueCustomData.workbook_info ? window.BiyueCustomData.workbook_info.id : 0
+}
+
+function createSelect(id, options, vSelect, callback, width = '110px') {
+	return new ComponentSelect({
+		id: id,
+		options: options,
+		value_select: vSelect,
+		callback_item: callback,
+		width: width,
+	})
 }
 
 function resetEvent() {
@@ -312,7 +257,7 @@ function updateElements(quesData, hint, ignore_ask_list) {
 		$('#panelQues .hint').hide()
 		$('#panelQuesWrapper').show()
 		showQuesCom(false)
-		showChoiceAlign(false)
+		showCom('.choicetr', false)
 		if (quesData.text) {
 			$('#texttitle').html('题组：')
 			$('#nametitle').html('题组名')
@@ -351,7 +296,7 @@ function updateElements(quesData, hint, ignore_ask_list) {
 	}
 	if (quesData.ask_list && quesData.ask_list.length > 0 && !ignore_ask_list) {
 		var content = ''
-		content += '<div class="row-between"><label class="header">每空权重/分数</label><div class="clicked under" id="clearAllAsks">删除所有小问</div></div>'
+		content += '<div class="row-between"><label class="header" style="margin-bottom:0px">每空权重/分数</label><div class="clicked under" id="clearAllAsks">删除所有小问</div></div>'
 		content += '<div class="asks">'
 		quesData.ask_list.forEach((ask, index) => {
 			content += `<div class="item"><span id="asklabel${index}" class="asklabel">(${
@@ -408,7 +353,6 @@ function updateElements(quesData, hint, ignore_ask_list) {
 	$('#clearAllAsks').on('click', () => {
 		onClearAllAsks()
 	})
-	updateChoiceCheck()
 }
 
 function showQuesData(params) {
@@ -683,6 +627,16 @@ function checkInputValue(val = '', max) {
   return sanitizedValue
 }
 
+function checkInputValueNumber(val = '', max) {
+	// 只允许数字，且不允许点
+	var sanitizedValue = val.replace(/[^\d]/g, '');
+	if (max) {
+		sanitizedValue = sanitizedValue > max ? max : sanitizedValue
+	}
+	input_choice_space.setValue(sanitizedValue)
+	return sanitizedValue
+}
+
 function autoSave(updatescore) {
 	var quesData = window.BiyueCustomData.question_map[g_ques_id]
 	if (!quesData) {
@@ -764,13 +718,8 @@ function updateQuesMode(ques_mode) {
 	if (select_ques_mode) {
 		select_ques_mode.setSelect(ques_mode + '')
 	}
-	showChoiceAlign(ques_mode == 1 || ques_mode == 5)
+	showCom('.choicetr', ques_mode == 1 || ques_mode == 5)
 	return ques_mode
-}
-
-function showChoiceAlign(vShow) {
-	showCom('#choiceTr', vShow)
-	showCom('#applyToAllQues', vShow)
 }
 
 function changeMarkMode(data) {
@@ -989,39 +938,16 @@ function resplitQues() {
 	})
 }
 
-function changeChoiceAlign(data) {
-	if (data.value == '0') {
-		return
-	}
-	notifyChoiceAlign('part')
-}
-
-function changeChoiceIndLeft(data) {
-	notifyChoiceAlign('indLeft')
-}
-
-function onApplyAllQues() {
-	choice_check = !choice_check
-	updateChoiceCheck()
+function onApplyAllQues(forAll) {
+	choice_check = forAll
 	notifyChoiceAlign('all')
-}
-
-function updateChoiceCheck() {
-	var iconNode = $('#applyToAllQues .icheck')
-	if (iconNode) {
-		if (choice_check) {
-			iconNode.removeClass('icon-xuanzhong2').addClass('icon-xuanzhong11')
-		} else {
-			iconNode.removeClass('icon-xuanzhong11').addClass('icon-xuanzhong2')
-		}
-	}
 }
 
 function notifyChoiceAlign(from) {
 	var question_map = window.BiyueCustomData.question_map || {}
 	var list = []
-	if (choice_check) {
-		var qmode = question_map[g_ques_id]
+	if (choice_check && question_map[g_ques_id]) {
+		var qmode = question_map[g_ques_id].ques_mode
 		Object.keys(question_map).forEach(id => {
 			if (question_map[id].ques_mode == qmode) {
 				list.push(id * 1)
@@ -1030,12 +956,27 @@ function notifyChoiceAlign(from) {
 	} else {
 		list = [g_ques_id * 1]
 	}
+	var spaceNum = 0
+	if (input_choice_space) {
+		spaceNum = input_choice_space.getValue()
+		if (spaceNum == '') {
+			spaceNum = 0
+		} else {
+			spaceNum *= 1
+		}
+	}
 	setChoiceOptionLayout({
 		list: list,
-		part: select_choice_align.getValue() * 1,
-		indLeft: select_choice_ind_left.getValue() * 1,
+		part: select_choice_align ? select_choice_align.getValue() * 1 : 0,
+		indLeft: select_choice_ind_left ? select_choice_ind_left.getValue() * 1 : -1,
+		bracket: select_choice_bracket ? select_choice_bracket.getValue() : 'none',
+		spaceNum: spaceNum,
 		from: from
 	})
+}
+
+function changeBracketSpace(id, val) {
+	console.log('changeBracketSpace', id, val)
 }
 
 export { showQuesData, initListener }

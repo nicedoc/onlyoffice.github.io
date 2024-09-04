@@ -814,6 +814,13 @@ a {
 	align-items: center;
 }
 
+.row-arround {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-around;
+	align-items: center;
+}
+
 .under {
 	text-decoration: underline;
 }

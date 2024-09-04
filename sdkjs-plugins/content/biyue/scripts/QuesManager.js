@@ -5574,6 +5574,8 @@ function setChoiceOptionLayout(options) {
 		var controls = oDocument.GetAllContentControls()
 		var part = options.part
 		var identifyLeft = options.indLeft / ((25.4 / 72 / 20))
+		var spaceNum = options.spaceNum
+		var bracket = options.bracket
 		var AF = [65, 66, 67, 68, 69, 70] // A-F
 		var DOTS = [46, 65294] // 半角和全角的.
 		function removeTabAndBreak(oParagraph) {
@@ -5679,6 +5681,77 @@ function setChoiceOptionLayout(options) {
 			}
 			return false
 		}
+		function handleBracket(oControl) {
+			if (bracket == 'none' && spaceNum == 0) {
+				return
+			}
+			var askControls = (oControl.GetAllContentControls() || []).filter(e => {
+				if (e.GetClassType() == 'inlineLvlSdt') {
+					var askTag = getJsonData(e.GetTag())
+					return askTag.regionType == 'write' && askTag.client_id
+				}
+			})
+			if (!askControls || askControls.length == 0) {
+				return
+			}
+			for (var i = 0; i < askControls.length; ++i) {
+				var askControl = askControls[i]
+				var count = askControl.GetElementsCount()
+				var flag = 0
+				var spaceCount = 0
+				for (var j = 0; j < count; ++j) {
+					var oRun = askControl.GetElement(j)
+					if (!oRun.GetClassType || oRun.GetClassType() != 'run') {
+						continue
+					}
+					for (var k = 0; k < oRun.Run.GetElementsCount(); ++k) {
+						var oElement2 = oRun.Run.GetElement(k)
+						var newBarcket = null
+						if (oElement2.Value == 65288 || oElement2.Value == 40) { // 左括号
+							flag = 1
+							if (oElement2.Value == 65288 && bracket == 'eng') {
+								newBarcket = '('
+							} else if (oElement2.Value == 40 && bracket == 'ch') {
+								newBarcket = '（'
+							}
+						} else if (oElement2.Value == 65289 || oElement2.Value == 41) { // 右括号
+							if (flag == 1 && spaceCount < spaceNum) {
+								var str = ''
+								for (var k2 = 0; k2 < spaceNum - spaceCount; ++k2) {
+									str += ' '
+								}
+								spaceCount = spaceNum
+								oRun.Run.AddText(str, k)
+								k += str.length
+								continue
+							}
+							if (oElement2.Value == 65289 && bracket == 'eng') {
+								newBarcket = ')'
+							} else if (oElement2.Value == 41 && bracket == 'ch') {
+								newBarcket = '）'
+							}
+
+						} else if (flag == 1 && spaceNum > 0) {
+							if (oElement2.Value == 32) { // 空格
+								if (spaceCount >= spaceNum) {
+									oRun.Run.RemoveElement(oElement2)
+									--k
+								} else {
+									spaceCount++
+								}
+							} else {
+								oRun.Run.RemoveElement(oElement2)
+								--k
+							}
+						}
+						if (newBarcket) {
+							oRun.Run.RemoveElement(oElement2)
+							oRun.Run.AddText(newBarcket, k)
+						}
+					}
+				}
+			}
+		}
 		for (var qdx = 0; qdx < controls.length; ++qdx) {
 			var oControl = controls[qdx]
 			if (oControl.GetClassType() != 'blockLvlSdt') {
@@ -5695,6 +5768,7 @@ function setChoiceOptionLayout(options) {
 				continue
 			}
 			var controlContent = oControl.GetContent()
+			handleBracket(oControl)
 			var oParagraph = null
 			for (var index = 0; index < controlContent.GetElementsCount(); ++index) {
 				var oElement = controlContent.GetElement(index)
