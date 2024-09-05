@@ -13,7 +13,6 @@ import {
 } from './api/paper.js'
 import { getBase64, map_base64 } from '../resources/list_base64.js'
 import { biyueCallCommand } from './command.js'
-import { initExamTree } from './QuesManager.js'
 import { handlePaperInfoResult } from './pageView.js'
 let paper_info = {} // 从后端返回的试卷信息
 let select_ques_ids = []
@@ -520,7 +519,6 @@ function updateCustomControls() {
 		false
 	).then((res) => {
 		window.BiyueCustomData.control_list = res
-		initExamTree()
 	})
 }
 
@@ -4112,16 +4110,23 @@ function getAllPositions2() {
 					if (nodeData && nodeData.write_list) {
 						let mark_order = 1
 						for (var iask = 0; iask < question_obj.ask_list.length; ++iask) {
-							var askData = nodeData.write_list.find((e) => {
-								return e.id == question_obj.ask_list[iask].id
-							})
-							if (askData) {
-								var ask_score = question_obj.ask_list[iask].score || ''
+							var ids = [question_obj.ask_list[iask].id]
+							if (question_obj.ask_list[iask].other_fileds) {
+								ids = ids.concat(question_obj.ask_list[iask].other_fileds)
+							}
+							var ask_score = question_obj.ask_list[iask].score || ''
+							var find = false
+							for (var idx2 = 0; idx2 < ids.length; ++idx2) {
+								var askData = nodeData.write_list.find((e) => {
+									return e.id == ids[idx2]
+								})
+								if (!askData) {
+									continue
+								}
 								if (askData.sub_type == 'control') {
 									// 这里可能出现的BUG，control拖动后，业务ID不变，但control_id已改变
 									var oAskControl = getControlsByClientId(askData.id)
 									if (oAskControl && oAskControl.Sdt) {
-										// todo..需要考虑小问区域合并的情况
 										if (oAskControl.GetClassType() == 'inlineLvlSdt') {
 											var askBounds = Object.values(oAskControl.Sdt.Bounds)
 											askBounds.forEach((e) => {
@@ -4154,7 +4159,7 @@ function getAllPositions2() {
 												})
 											})
 										}
-										mark_order++
+										find = true
 									}
 								} else if (askData.sub_type == 'cell') {
 									var oCell = Api.LookupObject(askData.cell_id)
@@ -4164,13 +4169,9 @@ function getAllPositions2() {
 									if (oCell) {
 										var d = getCellBounds(oCell, ask_score, mark_order)
 										item.write_ask_region = item.write_ask_region.concat(d)
+										find = true
 									}
-									mark_order++
-									
-								} else if (
-									askData.sub_type == 'write' ||
-									askData.sub_type == 'identify'
-								) {
+								} else if ( askData.sub_type == 'write' || askData.sub_type == 'identify') {
 									var oShape = oShapes.find(e => {
 										if (e.Drawing) {
 											var shapetitle = getJsonData(e.Drawing.docPr.title)
@@ -4188,9 +4189,12 @@ function getAllPositions2() {
 											v: ask_score + '',
 											mark_order: mark_order,
 										})
-										mark_order++
+										find = true
 									}
 								}
+							}
+							if (find) {
+								mark_order++
 							}
 						}
 					}

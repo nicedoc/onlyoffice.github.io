@@ -1481,10 +1481,10 @@ function setInteraction(type, quesIds, recalc = true) {
 				return
 			}
 			var drawings = oControl.GetAllDrawingObjects()
+			var dlist1 = getExistDrawing(drawings, ['ask_accurate'])
 			if (type == 'none' || type == 'simple') {
-				var dlist = getExistDrawing(drawings, ['ask_accurate'])
-				if (dlist && dlist.length) {
-					dlist.forEach(e => {
+				if (dlist1 && dlist1.length) {
+					dlist1.forEach(e => {
 						deleShape(e)
 					})
 				}
@@ -1525,13 +1525,28 @@ function setInteraction(type, quesIds, recalc = true) {
 								}
 							}
 						}
+						var fidx = dlist1.findIndex(e => {
+							return e.Drawing.Id == dlist[0].Drawing.Id
+						})
+						if (fidx >= 0) {
+							dlist1.splice(fidx, 1)
+						}
 					}
 				} else {
 					for (var j = 0; j < dlist.length; ++j) {
 						deleShape(dlist[j])
+						var fidx = dlist1.findIndex(e => {
+							return e.Drawing.Id == dlist[j].Drawing.Id
+						})
+						if (fidx >= 0) {
+							dlist1.splice(fidx, 1)
+						}
 					}
 				}
 			}
+			dlist1.forEach(e => {
+				deleShape(e)
+			})
 		}
 
 		function getFirstParagraph(oControl) {

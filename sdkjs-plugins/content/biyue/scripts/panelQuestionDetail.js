@@ -393,6 +393,9 @@ function showQuesData(params) {
 		for (var i = 0; i < keys.length; ++i) {
 			var ask_list = question_map[keys[i]].ask_list || []
 			var findIndex = ask_list.findIndex(e => {
+				if (e.other_fileds && e.other_fileds.includes(g_client_id)) {
+					return true
+				}
 				return e.id == g_client_id
 			})
 			if (findIndex >= 0) {
@@ -685,10 +688,20 @@ function deleteAsk(index) {
 	if (!quesData || !quesData.ask_list || index >= quesData.ask_list.length) {
 		return
 	}
-	deleteAsks([{
+	var askdata = quesData.ask_list[index]
+	var list = [{
 		ques_id: g_ques_id,
-		ask_id: quesData.ask_list[index].id
-	}])
+		ask_id: askdata.id
+	}]
+	if (askdata.other_fileds) {
+		askdata.other_fileds.forEach(e => {
+			list.push({
+				ques_id: g_ques_id,
+				ask_id: e
+			})
+		})
+	}
+	deleteAsks(list)
 }
 
 function onFocusAsk(id, idx) {

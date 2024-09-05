@@ -4,15 +4,8 @@ import { getQuesType, reqComplete } from '../scripts/api/paper.js'
 import { handleChoiceUpdateResult, setInteraction, updateChoice } from "./featureManager.js";
 import { initExtroInfo } from "./panelFeature.js";
 import { addOnlyBigControl, removeOnlyBigControl, getAllPositions2 } from './business.js'
-var levelSetWindow = null
-var layoutRepairWindow = null
-var imageRelationWindow = null
-var level_map = {}
 var g_click_value = null
 var upload_control_list = []
-function initExamTree() {
-
-}
 
 // 处理文档点击
 function handleDocClick(options) {
@@ -117,6 +110,7 @@ function getContextMenuItems(type) {
 
 	var nodeData = null
 	var currentType = ''
+	var askdata = null
 	if (type == 'Target' && g_click_value) {
 		var client_id = g_click_value.Tag.client_id
 		var node_list = window.BiyueCustomData.node_list || []
@@ -134,11 +128,26 @@ function getContextMenuItems(type) {
 			var keys = Object.keys(question_map)
 			for (var i = 0, imax = keys.length; i < imax; ++i ) {
 				if (question_map[keys[i]].ask_list) {
+					var isMerge = false
 					var askIndex = question_map[keys[i]].ask_list.findIndex(e => {
-						return e.id == g_click_value.Tag.client_id
+						return e.id == client_id
 					})
+					if (askIndex == -1) {
+						askIndex = question_map[keys[i]].ask_list.findIndex(e => {
+							return e.other_fileds && e.other_fileds.includes(client_id)
+						})
+						if (askIndex >= 0) {
+							isMerge = true
+						}
+					}
 					if (askIndex >= 0) {
 						currentType = '(现为小问)'
+						askdata = {
+							ques_id: keys[i],
+							ask_id: client_id,
+							ask_index: askIndex,
+							is_merge: isMerge
+						}
 						break
 					}
 				}
@@ -299,6 +308,20 @@ function getContextMenuItems(type) {
 			text: '表格关联'
 		})
 	}
+	if (askdata) {
+		if (askdata.ask_index > 0 && !askdata.is_merge) {
+			settings.items.push({
+				id: `mergeAsk_${askdata.ques_id}_${askdata.ask_id}_1`,
+				text: '向前合并'
+			})
+		}
+		if (askdata.is_merge) {
+			settings.items.push({
+				id: `mergeAsk_${askdata.ques_id}_${askdata.ask_id}_0`,
+				text: '取消合并'
+			})
+		}
+	}
 	settings.items.push({
 		id: 'setSectionColumn',
 		text: '分栏',
@@ -353,6 +376,9 @@ function onContextMenuClick(id) {
 				break
 			case 'tableRelation':
 				tableRelation()
+				break
+			case 'mergeAsk':
+				mergeAsk(strs)
 				break
 			default:
 				break
@@ -1040,6 +1066,7 @@ function updateRangeControlType(typeName) {
 					}
 				}
 			}
+			return {}
 		}
 		function getCellNode(cellClientId) {
 			for (var i = 0, imax = node_list.length; i < imax; ++i) {
@@ -1383,7 +1410,38 @@ function updateRangeControlType(typeName) {
 								}
 								removeTableAsk(container)
 							}
-							removeControl(container)
+							var removeIds = []
+							if (container) {
+								var tag2 = getJsonData(container.GetTag())
+								if (tag2.regionType == 'write' && tag2.client_id) {
+									var qids = Object.keys(question_map)
+									for (var i = 0; i < qids.length; ++i) {
+										var qid = qids[i]
+										if (question_map[qid].ask_list) {
+											var find = question_map[qid].ask_list.find(e => {
+												return (e.id == tag2.client_id) || (e.other_fileds && e.other_fileds.includes(tag2.client_id))
+											})
+											if (find) {
+												removeIds = [find.id].concat(find.other_fileds)
+												break
+											}
+										}
+									}
+								}
+							}
+							if (removeIds.length > 1) {
+								var quesControl = getParentBlock(container)
+								if (quesControl) {
+									quesControl.GetAllContentControls().forEach(e => {
+										var tag3 = getJsonData(e.GetTag())
+										if (removeIds.includes(tag3.client_id)) {
+											removeControl(e)
+										}
+									})
+								}
+							} else {
+								removeControl(container)
+							}
 						}
 					}
 					break
@@ -1896,7 +1954,7 @@ function handleChangeType(res, res2) {
 				if (!question_map[item.client_id]) {
 					var write_list = nodeData.write_list || []
 					question_map[item.client_id] = {
-						text: item.text,
+						text: getQuesText(item.text),
 						level_type: targetLevel,
 						ques_default_name: item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(targetLevel, item.text),
 						interaction: window.BiyueCustomData.interaction,
@@ -1909,7 +1967,7 @@ function handleChangeType(res, res2) {
 				} else {
 					updateAskList(item.client_id, ask_list)
 					if (level_type == 'setBig' || level_type == 'clearBig') {
-						question_map[item.client_id].text = item.text
+						question_map[item.client_id].text = getQuesText(item.text)
 						question_map[item.client_id].ques_default_name = item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(targetLevel, item.text)
 						question_map[item.client_id].level_type = targetLevel
 					} else {
@@ -1918,7 +1976,7 @@ function handleChangeType(res, res2) {
 				}
 			} else if (targetLevel == 'struct') {
 				question_map[item.client_id] = {
-					text: item.text,
+					text: GetText(item.text),
 					level_type: targetLevel,
 					ques_default_name: item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(targetLevel, item.text)
 				}
@@ -2010,7 +2068,7 @@ function handleChangeType(res, res2) {
 			}
 			if (targetLevel == 'question' || targetLevel == 'struct') {
 				question_map[item.client_id] = {
-					text: item.text,
+					text: getQuesText(item.text),
 					level_type: targetLevel,
 					ques_default_name: item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(targetLevel, item.text)
 				}
@@ -2565,7 +2623,7 @@ function initControls() {
 				var node_list = window.BiyueCustomData.node_list || []
 				nodeList.forEach(node => {
 					if (question_map[node.id]) {
-						question_map[node.id].text = node.text
+						question_map[node.id].text = getQuesText(node.text)
 						question_map[node.id].ques_default_name = node.numbing_text ? getNumberingText(node.numbing_text) : GetDefaultName(question_map[node.id].level_type, node.text)
 					}
 				})
@@ -2825,6 +2883,13 @@ function confirmLevelSet(levels) {
 		console.log("================================ StoreCustomData")
 		window.biyue.StoreCustomData()
 	})
+}
+
+function getQuesText(text) {
+	if (!text || typeof text != 'string') {
+		return ''
+	}
+	return text.replace(/[\ue749\ue6a1\ue607]/g, '');
 }
 
 function getNumberingText(text) {
@@ -7257,11 +7322,76 @@ function importExam() {
 		}
 	})
 }
+// 合并小问
+function mergeAsk(options) {
+	// 合并小问纯粹只是逻辑上的改动，和OO无关
+	var node_list = window.BiyueCustomData.node_list || []
+	var nodeData = node_list.find(item => {
+		return item.id == options[1]
+	})
+	if (!nodeData) {
+		return
+	}
+	var write_id = options[2] * 1
+	var writeIndex = nodeData.write_list.findIndex(e => {
+		return e.id == write_id
+	})
+	if (writeIndex == -1) {
+		return
+	}
+	var question_map = window.BiyueCustomData.question_map || {}
+	var quesData = question_map[options[1]]
+	if (!quesData || !quesData.ask_list) {
+		return
+	}
+	if (options[3] == 1) { // 向前合并
+		var askIndex = quesData.ask_list.findIndex(e => {
+			return e.id == write_id
+		})
+		if (askIndex > 0) {
+			quesData.ask_list.splice(askIndex, 1)
+			var preAsk = quesData.ask_list[askIndex - 1]
+			if (!preAsk.other_fileds) {
+				preAsk.other_fileds = []
+			}
+			preAsk.other_fileds.push(write_id)
+		}
+	} else { // 取消合并
+		for (var i = 0; i < quesData.ask_list.length; ++i) {
+			if (quesData.ask_list[i].other_fileds) {
+				var fidx = quesData.ask_list[i].other_fileds.findIndex(e => {
+					return e == write_id
+				})
+				if (fidx >= 0) {
+					quesData.ask_list[i].other_fileds.splice(fidx, 1)
+					quesData.ask_list.splice(i + 1, 0, {
+						id: write_id,
+						score: 1
+					})
+					break
+				}
+			}
+		}
+	}
+	var sumScore = 0
+	quesData.ask_list.forEach(e => {
+		sumScore += e.score
+	})
+	quesData.score = sumScore
+	document.dispatchEvent(
+		new CustomEvent('clickSingleQues', {
+			detail: {
+				client_id: write_id,
+				regionType: "write"
+			}
+		})
+	)
+	setInteraction('useself', [options[1]], true)
+}
 
 export {
 	handleDocClick,
 	handleContextMenuShow,
-	initExamTree,
 	reqGetQuestionType,
 	reqUploadTree,
 	splitEnd,
