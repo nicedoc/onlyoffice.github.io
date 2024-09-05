@@ -804,7 +804,9 @@ function updateRangeControlType(typeName) {
 			var find = false
 			for (var i = 0; i < LvlText.length; ++i) {
 				if (LvlText[i].Type == 2) {
-					str += `%${level+1}`
+					if (LvlText[i].Value == level) {
+						str += `%${level+1}`
+					}
 				} else {
 					if (LvlText[i].Value == ' ') {
 						if (find) {
