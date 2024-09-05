@@ -912,21 +912,6 @@ function updateRangeControlType(typeName) {
 			oRemove.Sdt.GetLogicDocument().PreventPreDelete = true
 			Api.asc_RemoveContentControlWrapper(oRemove.Sdt.GetId())
 		}
-		function getNewNodeList() {
-			var controls = oDocument.GetAllContentControls() || []
-			var nodeList = []
-			controls.forEach((oControl) => {
-				var tagInfo = getJsonData(oControl.GetTag() || '{}')
-				if (tagInfo.regionType) {
-					nodeList.push({
-						id: tagInfo.client_id,
-						parentId: getParentId(oControl),
-						regionType: tagInfo.regionType
-					})
-				}
-			})
-			return nodeList
-		}
 		function getOElements(Pos) {
 			if (!Pos || Pos.length == 0) {
 				return {
@@ -1322,6 +1307,9 @@ function updateRangeControlType(typeName) {
 		}
 		function removeTableAsk(quesControl) {
 			// 删除所有单元格小问
+			if (!quesControl || quesControl.GetClassType() != 'blockLvlSdt') {
+				return
+			}
 			var pageCount = quesControl.Sdt.getPageCount()
 			for (var p = 0; p < pageCount; ++p) {
 				var page = quesControl.Sdt.GetAbsolutePage(p)
@@ -1356,6 +1344,63 @@ function updateRangeControlType(typeName) {
 				}
 			}
 		}
+		function deleShape(oShape) {
+			if (!oShape) {
+				return
+			}
+			var run = oShape.Drawing.GetRun()
+			if (run) {
+				var runParent = run.GetParent()
+				if (runParent) {
+					var oParent = Api.LookupObject(runParent.Id)
+					if (oParent && oParent.GetClassType() == 'inlineLvlSdt') {
+						var count = oParent.GetElementsCount()
+						for (var c = 0; c < count; ++c) {
+							var child = oParent.GetElement(c)
+							if (child.GetClassType() == 'run' && child.Run.Id == run.Id) {
+								deleteAccurateRun(child)
+								break
+							}
+						}
+						return true
+					}
+				}
+				var paragraph = run.GetParagraph()
+				if (paragraph) {
+					var oParagraph = Api.LookupObject(paragraph.Id)
+					var ipos = run.GetPosInParent()
+					if (ipos >= 0) {
+						oShape.Delete()
+						if (oParagraph) {
+							oParagraph.RemoveElement(ipos)
+						}
+						return true
+					}
+				}
+			}
+			oShape.Delete()
+			return true
+		}
+		function getQuesByAskId(askId) {
+			var qids = Object.keys(question_map)
+			for (var i = 0; i < qids.length; ++i) {
+				var qid = qids[i]
+				if (question_map[qid].ask_list) {
+					var find = question_map[qid].ask_list.find(e => {
+						return (e.id == askId) || (e.other_fileds && e.other_fileds.includes(askId))
+					})
+					if (find) {
+						return {
+							ques_id: qid,
+							ask_ids: [find.id].concat(find.other_fileds)
+						}
+					}
+				}
+			}
+			return {
+				ask_ids: []
+			}
+		}
 		var allControls = oDocument.GetAllContentControls()
 		var selectionInfo = oDocument.Document.getSelectionInfo()
 		if (!oRange) {
@@ -1370,6 +1415,22 @@ function updateRangeControlType(typeName) {
 					container = firstContainerData.container
 					container_type = firstContainerData.container_type
 					containerIndex = firstContainerData.index
+				} else if (elementData.list.length && elementData.list[0].container_type == 'shape' && elementData.list[0].container.Drawing && (typeName == 'clear' || typeName == 'clearAll')) {
+					var dtitle = getJsonData(elementData.list[0].container.Drawing.docPr.title)
+					if (dtitle.feature && dtitle.feature.client_id && (dtitle.feature.sub_type == 'identify' || dtitle.feature.sub_type == 'write')) {
+						var adata = getQuesByAskId(dtitle.feature.client_id)
+						deleShape(elementData.list[0].container)
+						if (adata.ques_id) {
+							result.change_list.push({
+								shape_id: elementData.list[0].container.Shape.Id,
+								client_id: dtitle.feature.client_id,
+								parent_id: adata.ques_id,
+								regionType: 'write',
+								type: 'remove'
+							})
+						}
+						return result
+					}
 				}
 			}
 			if (!container) {
@@ -1414,19 +1475,7 @@ function updateRangeControlType(typeName) {
 							if (container) {
 								var tag2 = getJsonData(container.GetTag())
 								if (tag2.regionType == 'write' && tag2.client_id) {
-									var qids = Object.keys(question_map)
-									for (var i = 0; i < qids.length; ++i) {
-										var qid = qids[i]
-										if (question_map[qid].ask_list) {
-											var find = question_map[qid].ask_list.find(e => {
-												return (e.id == tag2.client_id) || (e.other_fileds && e.other_fileds.includes(tag2.client_id))
-											})
-											if (find) {
-												removeIds = [find.id].concat(find.other_fileds)
-												break
-											}
-										}
-									}
+									removeIds = getQuesByAskId(tag2.client_id).ask_ids
 								}
 							}
 							if (removeIds.length > 1) {
@@ -1703,6 +1752,10 @@ function updateRangeControlType(typeName) {
 				if (typeName == 'clear') {
 					if (completeOverlapControl) {
 						removeControl(completeOverlapControl)
+					} else if (containControls.length) {
+						containControls.forEach(e => {
+							removeControl(e)
+						})
 					} else if (parentControls.length) {
 						removeControl(parentControls[parentControls.length - 1])
 					}
@@ -1841,7 +1894,6 @@ function updateRangeControlType(typeName) {
 				}
 			}
 		}
-		result.new_node_list = getNewNodeList()
 		return result
 	}, false, true).then(res1 => {
 		console.log('handleChangeType result', res1)
