@@ -754,22 +754,25 @@ function updateRangeControlType(typeName) {
 			}
 			return sType
 		}
+		function delSimpleControl(oControl) {
+			var parent = oControl.Sdt.Parent
+			if (parent && parent.GetType() == 1) {
+				var oParent = Api.LookupObject(parent.Id)
+				if (oParent) {
+					var pos = oControl.Sdt.GetPosInParent()
+					if (pos >= 0) {
+						oParent.RemoveElement(pos)
+					}
+				}
+			}
+		}
 		function hideSimpleControl(oControl) {
 			var childControls = oControl.GetAllContentControls() || []
 			if (childControls.length) {
 				for (var c = childControls.length - 1; c >= 0; --c) {
 					var tag = getJsonData(childControls[c].GetTag())
 					if (tag.regionType == 'num' && childControls[c].GetClassType() == 'inlineLvlSdt') {
-						var parent = childControls[c].Sdt.Parent
-						if (parent && parent.GetType() == 1) {
-							var oParent = Api.LookupObject(parent.Id)
-							if (oParent) {
-								var pos = childControls[c].Sdt.GetPosInParent()
-								if (pos >= 0) {
-									oParent.RemoveElement(pos)
-								}
-							}
-						}
+						delSimpleControl(childControls[c])			
 					}
 				}
 			}
@@ -838,7 +841,10 @@ function updateRangeControlType(typeName) {
 						}
 					}
 				}
-			} else if (tag.regionType =='question') {
+			} else if (tag.regionType == 'num') {
+				delSimpleControl(oControl)
+			}
+			else if (tag.regionType =='question') {
 				if (oControl.GetClassType() == 'blockLvlSdt') {
 					hideSimpleControl(oControl)
 					var oParagraph = oControl.GetAllParagraphs()[0]
@@ -861,7 +867,7 @@ function updateRangeControlType(typeName) {
 												oDrawing.Delete()
 											}
 										} else {
-											oDrawing.Delete()
+											deleShape(oDrawing)
 										}
 									}
 								}
@@ -1373,7 +1379,7 @@ function updateRangeControlType(typeName) {
 					var ipos = run.GetPosInParent()
 					if (ipos >= 0) {
 						oShape.Delete()
-						if (oParagraph) {
+						if (oParagraph && run.GetElementsCount() == 0) {
 							oParagraph.RemoveElement(ipos)
 						}
 						return true
@@ -3468,10 +3474,32 @@ function handleWrite(cmdType) {
 				return {}
 			}
 		}
+		function deleteShape(oDrawing) {
+			var run = oDrawing.Drawing.GetRun()
+			if (run) {
+				var paragraph = run.GetParagraph()
+				if (paragraph) {
+					var oParagraph = Api.LookupObject(paragraph.Id)
+					var ipos = run.GetPosInParent()
+					if (ipos >= 0) {
+						var cnt = oParagraph.GetElementsCount()
+						oDrawing.Delete()
+						cnt = oParagraph.GetElementsCount()
+						var element2 = oParagraph.GetElement(ipos)
+						if (element2 && element2.GetClassType() == 'run' && element2.Run.Id == run.Id) {
+							oParagraph.RemoveElement(ipos)
+							cnt = oParagraph.GetElementsCount()
+						}
+						return
+					}
+				}
+			}
+			oDrawing.Delete()
+		}
 		var oControl = Api.LookupObject(curControl.Id)
-		if (oControl) {
-			var tag = getJsonData(oControl.GetTag() || '{}')
-			if (write_cmd == 'add') {
+		var tag = oControl ? getJsonData(oControl.GetTag()) : {}
+		if (write_cmd == 'add') {
+			if (oControl) {
 				client_node_id += 1
 				var oFill = Api.CreateSolidFill(Api.CreateRGBColor(255, 0, 0))
 				oFill.UniFill.transparent = 255 * 0.2 // 透明度
@@ -3530,45 +3558,43 @@ function handleWrite(cmdType) {
 					drawing_id: oDrawing.Drawing.Id,
 					shape_id: oDrawing.Shape.Id,
 				}
-			} else if (write_cmd == 'del') {
-				var selectDrawings = oDocument.GetSelectedDrawings()
-				var drawings = []
-				if (selectDrawings && selectDrawings.length) {
-					for (var i = 0; i < selectDrawings.length; ++i) {
-						if (selectDrawings[i].GetClassType() == 'shape') {
-							drawings.push(selectDrawings[i])
-						}
-					}
-				} else {
-					drawings = oControl.GetAllDrawingObjects()
-				}
-				var allDrawings = oDocument.GetAllDrawingObjects()
-				if (drawings && drawings.length > 0) {
-					var result = {
-						client_node_id: client_node_id,
-						cmdType: write_cmd,
-						ques_id: tag.client_id,
-						remove_ids: []
-					}
-					for (var i = 0; i < drawings.length; ++i) {
-						var title = drawings[i].Drawing.docPr.title || '{}'
-						var titleObj = getJsonData(title)
-						if (titleObj.feature && titleObj.feature.zone_type == 'question' && titleObj.feature.sub_type == 'write') {
-							var drawingId = drawings[i].Drawing.Id
-							var oDrawing = allDrawings.find(e => {
-								return e.Drawing.Id == drawingId
-							})
-							if (oDrawing) {
-								oDrawing.Delete()
-								result.remove_ids.push(titleObj.feature.client_id)
-							}
-						}
-					}
-					return result
-				}
 			}
-		} else {
-			console.log('======== oControl is null ========')
+		} else if (write_cmd == 'del') {
+			var selectDrawings = oDocument.GetSelectedDrawings()
+			var drawings = []
+			if (selectDrawings && selectDrawings.length) {
+				for (var i = 0; i < selectDrawings.length; ++i) {
+					if (selectDrawings[i].GetClassType() == 'shape') {
+						drawings.push(selectDrawings[i])
+					}
+				}
+			} else if (oControl) {
+				drawings = oControl.GetAllDrawingObjects()
+			}
+			var allDrawings = oDocument.GetAllDrawingObjects()
+			if (drawings && drawings.length > 0) {
+				var result = {
+					client_node_id: client_node_id,
+					cmdType: write_cmd,
+					ques_id: tag.client_id,
+					remove_ids: []
+				}
+				for (var i = 0; i < drawings.length; ++i) {
+					var title = drawings[i].Drawing.docPr.title || '{}'
+					var titleObj = getJsonData(title)
+					if (titleObj.feature && titleObj.feature.zone_type == 'question' && titleObj.feature.sub_type == 'write') {
+						var drawingId = drawings[i].Drawing.Id
+						var oDrawing = allDrawings.find(e => {
+							return e.Drawing.Id == drawingId
+						})
+						if (oDrawing) {
+							result.remove_ids.push(titleObj.feature.client_id)
+							deleteShape(oDrawing)
+						}
+					}
+				}
+				return result
+			}
 		}
 		return null
 	}, false, true).then(res => {
@@ -3767,7 +3793,7 @@ function handleWriteResult(res) {
 				}
 				question_map[res.ques_id].ask_list.push({
 					id: res.write_id,
-					score: 0
+					score: 1
 				})
 			} else if (question_map[res.ques_id].ask_list) {
 				res.remove_ids.forEach(removeid => {
@@ -3778,6 +3804,13 @@ function handleWriteResult(res) {
 						question_map[res.ques_id].ask_list.splice(askIndex, 1)
 					}
 				})
+			}
+			if (question_map[res.ques_id].ask_list) {
+				var sumscore = 0
+				question_map[res.ques_id].ask_list.forEach(e => {
+					sumscore += e.score
+				})
+				question_map[res.ques_id].score = sumscore
 			}
 		}
 		setInteraction(question_map[res.ques_id].interaction, [res.ques_id])
