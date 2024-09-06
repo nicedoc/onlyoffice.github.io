@@ -3878,17 +3878,19 @@ function getControlListForUpload() {
 			}
 			var oParentControl = oControl.GetParentContentControl()
 			var parent_id = 0
-			if (oParentControl) {
-				var parentTag = getJsonData(oParentControl.GetTag() || '{}')
-				parent_id = parentTag.client_id
-			} else {
-				// 根据level, 查找在它前面的比它lvl小的struct
-				for (var j = target_list.length - 1; j >= 0; --j) {
-					var preNode = target_list[j]
-					// 由于struct未必有lvl，因此先将Lvl的判断移除
-					if (preNode.content_type == 'struct') {
-						parent_id = preNode.id
-						break
+			if (question_map[tag.client_id].level_type == 'question') {
+				if (oParentControl) {
+					var parentTag = getJsonData(oParentControl.GetTag() || '{}')
+					parent_id = parentTag.client_id
+				} else {
+					// 根据level, 查找在它前面的比它lvl小的struct
+					for (var j = target_list.length - 1; j >= 0; --j) {
+						var preNode = target_list[j]
+						// 由于struct未必有lvl，因此先将Lvl的判断移除
+						if (preNode.content_type == 'struct') {
+							parent_id = preNode.id
+							break
+						}
 					}
 				}
 			}
