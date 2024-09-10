@@ -746,7 +746,7 @@ import { getInfoForServerSave } from './model/util.js'
 			function getNewRange(range, e) {
 				if (range.StartPos && range.EndPos) {
 					for (var j = 0; j < range.StartPos.length; ++j) {
-						if (range.StartPos[j].Class == range.EndPos[j].Class) {
+						if (j < range.EndPos.length && range.StartPos[j].Class == range.EndPos[j].Class) {
 							if (range.StartPos[j].Position > range.EndPos[j].Position) {
 								e.end = "$['content'][-1]['content'][-1]['content'][-1]"
 								return MakeRange(e.beg, e.end)
