@@ -575,15 +575,15 @@ import { getInfoForServerSave } from './model/util.js'
                             }
                         }
 
-                        if (j < elements - 1) {
-                            var range = content.GetElement(j + 1).GetRange();
-                            var endRange = content.GetElement(elements - 1).GetRange();
-                            range = range.ExpandTo(endRange);
-                            range.Select();
-                            var tag = JSON.stringify({ 'regionType': 'write', 'mode': 5 });
-                            Api.asc_AddContentControl(1, { "Tag": tag });
-                            Api.asc_RemoveSelection();
-                        }
+                        // if (j < elements - 1) {
+                        //     var range = content.GetElement(j + 1).GetRange();
+                        //     var endRange = content.GetElement(elements - 1).GetRange();
+                        //     range = range.ExpandTo(endRange);
+                        //     range.Select();
+                        //     var tag = JSON.stringify({ 'regionType': 'write', 'mode': 5 });
+                        //     Api.asc_AddContentControl(1, { "Tag": tag });
+                        //     Api.asc_RemoveSelection();
+                        // }
                     }
                 }
             }

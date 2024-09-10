@@ -563,13 +563,14 @@ let newSplit = function (text) {
                 // 如果下一个开始符号在低下一个层级 
                 //array to string
                 boundary=toPathString(nextA.slice(0,thisA.length));     
-                range.end = prev_paragraph(boundary, 1);                
+                range.end = prev_paragraph(boundary, 1);
             } else {
                 // 如果下一个开始符号在高一个层级
                 range.end = last_paragraph(range.beg);
             }
         } else {
-           range.end = `$['content'][-2]['content'][-1]['content'][-1]`;
+			// range.end = `$['content'][-2]['content'][-1]['content'][-1]`;
+           	range.end = `$['content'][-1]['content'][-1]['content'][-1]`;
         }
     }
 
