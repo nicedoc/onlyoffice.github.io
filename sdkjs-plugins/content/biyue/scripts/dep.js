@@ -569,8 +569,8 @@ let newSplit = function (text) {
                 range.end = last_paragraph(range.beg);
             }
         } else {
-			// range.end = `$['content'][-2]['content'][-1]['content'][-1]`;
-           	range.end = `$['content'][-1]['content'][-1]['content'][-1]`;
+			range.end = `$['content'][-2]['content'][-1]['content'][-1]`;
+           	// range.end = `$['content'][-1]['content'][-1]['content'][-1]`;
         }
     }
 

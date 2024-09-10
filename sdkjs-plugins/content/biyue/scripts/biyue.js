@@ -743,6 +743,19 @@ import { getInfoForServerSave } from './model/util.js'
 				}
 				return null
 			}
+			function getNewRange(range, e) {
+				if (range.StartPos && range.EndPos) {
+					for (var j = 0; j < range.StartPos.length; ++j) {
+						if (range.StartPos[j].Class == range.EndPos[j].Class) {
+							if (range.StartPos[j].Position > range.EndPos[j].Position) {
+								e.end = "$['content'][-1]['content'][-1]['content'][-1]"
+								return MakeRange(e.beg, e.end)
+							}
+						}
+					}
+				}
+				return range
+			}
             var results = [];
             // reverse order loop to keep the order
             for (var i = ranges.length - 1; i >= 0; i--) {
@@ -750,6 +763,9 @@ import { getInfoForServerSave } from './model/util.js'
                 var e = ranges[i];
                 //console.log('createContentControl:', e);
                 var range = MakeRange(e.beg, e.end);
+				if (e.end == "$['content'][-2]['content'][-1]['content'][-1]") {
+					range = getNewRange(range, e)
+				}
                 range.Select()
 				var startCellId = getCellId(range.StartPos)
 				var endCellId = getCellId(range.EndPos)
