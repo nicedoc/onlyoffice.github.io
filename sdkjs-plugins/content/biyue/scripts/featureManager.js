@@ -301,7 +301,7 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 			}
 		}
 		function getFirstParagraph(oControl) {
-			if (!oControl) {
+			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
 				return null
 			}
 			var paragraphs = oControl.GetAllParagraphs()
@@ -1483,7 +1483,7 @@ function setInteraction(type, quesIds, recalc = true) {
 		}
 
 		function handleControlAccurate(oControl, ask_list, write_list, type) {
-			if (!oControl) {
+			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
 				return
 			}
 			var drawings = oControl.GetAllDrawingObjects()
@@ -1556,7 +1556,7 @@ function setInteraction(type, quesIds, recalc = true) {
 		}
 
 		function getFirstParagraph(oControl) {
-			if (!oControl) {
+			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
 				return null
 			}
 			var paragraphs = oControl.GetAllParagraphs()

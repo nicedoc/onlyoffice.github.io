@@ -56,284 +56,355 @@ function handleDocClick(options) {
 // 右建显示菜单
 function handleContextMenuShow(options) {
 	console.log('handleContextMenuShow', options)
-	if (options.type == 'Target') { // 只是点击，未选中范围，处理g_click_value
-		console.log('g_click_value', g_click_value)
-		// if (!g_click_value) {
-		// 	return
-		// }
-		window.Asc.plugin.executeMethod('AddContextMenuItem', [getContextMenuItems(options.type)])
-	} else if (options.type == 'Selection' || options.type == 'Shape' || options.type == 'Image') { // 选中范围，针对所选范围处理
-		window.Asc.plugin.executeMethod('AddContextMenuItem', [getContextMenuItems(options.type)])
+	Asc.scope.menu_options = options
+	return biyueCallCommand(window, function() {
+		var options = Asc.scope.menu_options
+		var bTable = false
+		var oDocument = Api.GetDocument()
+		var selectContent = oDocument.Document.GetSelectedContent()
+		var drawings = []
+		var parentSdts = []
+		var column_num = 0
+		var paragraph = oDocument.Document.GetCurrentParagraph()
+		if (paragraph) {
+			var oParagraph = Api.LookupObject(paragraph.Id)
+			var oSection = oParagraph.GetSection()
+			if(oSection) {
+				column_num =  oSection.Section.GetColumnsCount()
+			}
+		}
+		if (options.type == 'Image' || options.type == 'Shape') {
+			var DrawingObjects = selectContent.DrawingObjects || []
+			if (DrawingObjects.length) {
+				DrawingObjects.forEach(e => {
+					if (e.docPr) {
+						drawings.push(e.docPr.title)
+					}
+				})
+			}
+		} else {
+			var elementsInfo = oDocument.Document.GetSelectedElementsInfo()
+			if (elementsInfo.m_arrSdts && elementsInfo.m_arrSdts.length) {
+				elementsInfo.m_arrSdts.forEach(e => {
+					parentSdts.push({
+						Id: e.Id,
+						Tag: e.Pr ? e.Pr.Tag : null,
+						classType: Api.LookupObject(e.Id).GetClassType()
+					})
+				})
+			}
+			bTable = elementsInfo.m_bTable
+		}
+		return {
+			bTable,
+			drawings,
+			parentSdts,
+			column_num
+		}
+	}, false, false).then(res => {
+		window.Asc.plugin.executeMethod('AddContextMenuItem', [getContextMenuItems(options.type, res)])
+	})
+}
+
+function getJsonData(str) {
+	if (!str || str == '' || typeof str != 'string') {
+		return {}
+	}
+	try {
+		return JSON.parse(str)
+	} catch (error) {
+		console.log('json parse error', error)
+		return {}
 	}
 }
 
-function getContextMenuItems(type) {
-	if (type =='Image' || type == 'Shape') {
-		var items = [{
-			separator: true,
+function getContextMenuItems(type, selectedRes) {
+	console.log('getContextMenuItems ', selectedRes)
+	var items = []
+	if (type == 'Image' || type == 'Shape') {
+		var ignoreCount = 0
+		var count = 0
+		var writeCount = 0
+		if (selectedRes) {
+			selectedRes.drawings.forEach(title => {
+				var titleObj = getJsonData(title)
+				if (titleObj.feature) {
+					if (titleObj.feature.partical_no_dot) {
+						ignoreCount++
+					} else if (titleObj.sub_type == 'write' || titleObj.feature.sub_type == 'identify') {
+						writeCount++
+					}
+				}
+				count++
+			})
+		}
+		items.push({
 			id: 'handleImageIgnore',
 			text: '图片铺码',
 			items: [{
 				id: 'handleImageIgnore_del',
-				text: '开启'
+				text: '开启',
+				disabled: ignoreCount == 0
 			}, {
 				id: 'handleImageIgnore_add',
-				text: '关闭'
+				text: '关闭',
+				disabled: ignoreCount == count
 			}]
-		}, {
+		})
+		items.push({
 			id: 'imageRelation',
 			text: '图片关联'
-		}]
-		if (type == 'Shape') {
+		})
+		if (type == 'Shape' && writeCount) {
 			items.push({
 				id: 'handleWrite_del',
 				text: '删除作答区'
 			})
 		}
-		return {
-			guid: window.Asc.plugin.guid,
-			items: items
-		}
-	} else if (type == 'Target' && !g_click_value) {
-		return {
-			guid: window.Asc.plugin.guid,
-			items: [{
-				separator: true,
-				id: 'setSectionColumn_2',
-				text: '分为2栏'
-			}, {
-				id: 'setSectionColumn_1',
-				text: '取消分栏'
-			}]
-		}
-	}
-
-	var nodeData = null
-	var currentType = ''
-	var askdata = null
-	if (type == 'Target' && g_click_value) {
-		var client_id = g_click_value.Tag.client_id
+	} else {
+		var question_map = window.BiyueCustomData.question_map || {}
 		var node_list = window.BiyueCustomData.node_list || []
-		nodeData = node_list.find(e => {
-			return e.id == client_id
-		})
-		if (nodeData) {
-			if (nodeData.level_type == 'struct') {
-				currentType = '(现为题组)'
-			} else if (nodeData.level_type == 'question') {
-				currentType = nodeData.is_big ? '(现为大题)' : '(现为题目)'
+		if ((type == 'Target' && (selectedRes.parentSdts.length || g_click_value)) || (type == 'Selection')) {
+			items.push({
+				id: `layoutRepair`,
+				text: '排版修复'
+			})
+			// 支持划分类型，作答区，识别框
+			var splitType = {
+				id: 'updateControlType',
+				text: '划分类型',
+				items: []
 			}
-		} else if (g_click_value.Tag.regionType == 'write') {
-			var question_map = window.BiyueCustomData.question_map || {}
-			var keys = Object.keys(question_map)
-			for (var i = 0, imax = keys.length; i < imax; ++i ) {
-				if (question_map[keys[i]].ask_list) {
-					var isMerge = false
-					var askIndex = question_map[keys[i]].ask_list.findIndex(e => {
-						return e.id == client_id
-					})
-					if (askIndex == -1) {
-						askIndex = question_map[keys[i]].ask_list.findIndex(e => {
-							return e.other_fileds && e.other_fileds.includes(client_id)
-						})
-						if (askIndex >= 0) {
-							isMerge = true
+			var list = ["question", 'struct', 'setBig', 'write', 'clearBig', 'clear', 'clearAll']
+			var names = ['设置为 - 题目', '设置为 - 题组(结构)', '设置为 - 大题', '设置为 - 小问', '清除 - 大题', '清除 - 选中区域', '清除 - 选中区域(含子级)']
+			var icons = [
+				'rect',
+				'struct',
+				'rect',
+				'rect',
+				'clear',
+				'clear',
+				'clear'
+			]
+			var valueMap = {}
+			list.forEach(e => {
+				valueMap[e] = e == 'clear' || e == 'clearAll' ? 1 : 0
+			})
+			if (type == 'Selection') {
+				if (selectedRes.parentSdts.length == 0) {
+					valueMap['struct'] = 1
+					valueMap['question'] = 1
+				}
+			}
+			var cData = null
+			var curControl = null
+			if (selectedRes.parentSdts.length) {
+				curControl = selectedRes.parentSdts[selectedRes.parentSdts.length - 1]
+			} else if (g_click_value) {
+				curControl = g_click_value
+			}
+			if (curControl) {
+				var tag = getJsonData(curControl.Tag)
+				if (tag.client_id) {
+					var keys = Object.keys(question_map)
+					for (var i = 0, imax = keys.length; i < imax; ++i) {
+						var id = keys[i]
+						if (id == tag.client_id) {
+							cData = { ques_id: id, level_type: question_map[id].level_type }
+							break
+						} else if (tag.regionType == 'write' && question_map[id].ask_list) {
+							var askIndex = question_map[id].ask_list.findIndex(e => {
+								return e.id == tag.client_id
+							})
+							if (askIndex == -1) {
+								askIndex = question_map[id].ask_list.findIndex(e => {
+									return e.other_fileds && e.other_fileds.includes(tag.client_id)
+								})
+								if (askIndex >= 0) {
+									cData = { ques_id: id, ask_id: tag.client_id, is_merge: true, level_type: 'ask'}
+								}
+							} else {
+								cData = { ques_id: id, ask_id: tag.client_id, is_merge: false, ask_index: askIndex, level_type: 'ask'}
+							}
+							if (askIndex >= 0) {
+								break
+							}
 						}
 					}
-					if (askIndex >= 0) {
-						currentType = '(现为小问)'
-						askdata = {
-							ques_id: keys[i],
-							ask_id: client_id,
-							ask_index: askIndex,
-							is_merge: isMerge
+					if (cData) {
+						if (cData.ques_id) {
+							var nodeData = node_list.find(e => {
+								return e.id == cData.ques_id
+							})
+							if (nodeData) {
+								if (cData.level_type == 'question' && nodeData.is_big) {
+									cData.level_type = 'big'
+								}
+							}
 						}
-						break
 					}
 				}
 			}
-		}
-	}
-
-	var splitType = {
-		separator: true,
-		id: 'updateControlType',
-		text: '划分类型' + currentType,
-		items: []
-	}
-	var list = ["question", 'struct', 'setBig', 'write', 'clearBig', 'clear', 'clearAll']
-	var names = ['设置为 - 题目', '设置为 - 题组(结构)', '设置为 - 大题', '设置为 - 小问', '清除 - 大题', '清除 - 选中区域', '清除 - 选中区域(含子级)']
-	var icons = [
-		'rect',
-		'struct',
-		'rect',
-		'rect',
-		'clear',
-		'clear',
-		'clear'
-	]
-	var valueMap = {}
-	list.forEach(e => {
-		valueMap[e] = 1
-		if (e == 'clearBig') {
-			valueMap[e] = 0
-		}
-	})
-	var isQuestion = false
-	var canBatch = false // 是否可批量操作
-	if (type == 'Target') {
-		if (nodeData) {
-			if (nodeData.level_type == 'struct') {
-				valueMap['struct'] = 0
-				canBatch = true
-			} else if (nodeData.level_type == 'question') {
-				valueMap['question'] = 0
-				valueMap['setBig'] = !(nodeData.is_big)
-				valueMap['clearBig'] = nodeData.is_big
-				isQuestion = true
-				canBatch = true
-			} else if (nodeData.level_type == 'write') {
-				valueMap['write'] = 0
+			if (cData) {
+				if (type == 'Selection') {
+					valueMap['question'] = 1
+					valueMap['struct'] = 1
+					if (cData.level_type == 'question') {
+						valueMap['write'] = 1
+					}
+				} else {
+					if (cData.level_type == 'question') {
+						splitType.text += '(现为题目)'
+						valueMap['struct'] = 1
+						valueMap['setBig'] = 1
+					} else if (cData.level_type == 'struct') {
+						splitType.text += '(现为题组)'
+						valueMap['question'] = 1
+					} else if (cData.level_type == 'big') {
+						splitType.text += '(现为大题)'
+						valueMap['struct'] = 1
+						valueMap['clearBig'] = 1
+					} else if (cData.level_type == 'ask') {
+						splitType.text += '(现为小问)'
+						// if (cData.classType == 'blockLvlSdt') {
+						// 	valueMap['question'] = 1
+						// }
+					}
+				}
 			}
-		}
-	} else {
-		valueMap['setBig'] = 0
-		canBatch = true
-	}
-	var items = []
-	list.forEach((e, index) => {
-		if (valueMap[e]) {
-			items.push({
-				icons: `resources/%theme-type%(light|dark)/%state%(normal)${icons[index]}%scale%(100|200).%extension%(png)`,
-				id: `updateControlType_${e}`,
-				text: names[index]
+			
+			list.forEach((e, index) => {
+				if (valueMap[e]) {
+					splitType.items.push({
+						icons: `resources/%theme-type%(light|dark)/%state%(normal)${icons[index]}%scale%(100|200).%extension%(png)`,
+						id: `updateControlType_${e}`,
+						text: names[index]
+					})
+				}
 			})
-		}
-	})
-	splitType.items = items
-	let settings = {
-		guid: window.Asc.plugin.guid,
-		items: [splitType],
-	}
-	if ((type == 'Target' && g_click_value && nodeData && nodeData.level_type == 'question') || type == 'Selection' ) {
-		settings.items.push({
-			id: `layoutRepair`,
-			text: '排版修复'
-		})
-	}
-	if (canBatch) {
-		var questypes = window.BiyueCustomData.paper_options ? window.BiyueCustomData.paper_options.question_type : []
-		var itemsQuesType = questypes.map((e) => {
-			return {
-				id: `batchChangeQuesType_${e.value}`,
-				text: e.label,
+			items.push(splitType)
+			if (cData) {
+				if (cData.level_type == 'ask') {
+					if (!cData.is_merge && cData.ask_index > 0) {
+						items.push({
+							id: `mergeAsk_${cData.ques_id}_${cData.ask_id}_1`,
+							text: '向前合并'
+						})
+					}
+					if (cData.is_merge) {
+						items.push({
+							id: `mergeAsk_${cData.ques_id}_${cData.ask_id}_0`,
+							text: '取消合并'
+						})
+					}
+				} else if (cData.level_type == 'question') {
+					items.push({
+						id: 'write',
+						text: '作答区',
+						items: [{
+							id: 'handleWrite_add',
+							text: '添加',
+						}, {
+							id: 'handleWrite_del',
+							text: '删除',
+						}]
+					})
+					items.push({
+						id: 'identify',
+						text: '识别框',
+						items: [
+							{
+								id: 'handleIdentifyBox_add',
+								text: '添加',
+							},
+							{
+								id: 'handleIdentifyBox_del',
+								text: '删除',
+							},
+						],
+					})
+				}
 			}
-		})
-		var itemsProportion = []
-		for (var i = 1; i <= 8; ++i) {
-			itemsProportion.push({
-				id: `batchChangeProportion_${i}`,
-				text: i == 1 ? '默认' : `1/${i}`,
-			})
-		}
-		settings.items.push({
-			id: 'batchCmd',
-			text: '批量操作',
-			items: [
-				{
-					id: 'batchChangeQuesType',
-					text: '修改题型',
-					items: itemsQuesType,
-				},
-				// {
-				// 	id: 'batchChangeScore',
-				// 	text: '修改分数',
-				// },
-				{
-					id: 'batchChangeProportion',
-					text: '修改占比',
-					items: itemsProportion,
-				},
-				{
-					id: 'batchChangeInteraction',
-					text: '修改互动模式',
+			var canBatch = type == 'Selection' || (cData && ( cData.level_type == 'question' || cData.level_type == 'struct')) 
+			if (canBatch) {
+				var questypes = window.BiyueCustomData.paper_options ? window.BiyueCustomData.paper_options.question_type : []
+				var itemsQuesType = questypes.map((e) => {
+					return {
+						id: `batchChangeQuesType_${e.value}`,
+						text: e.label,
+					}
+				})
+				var itemsProportion = []
+				for (var i = 1; i <= 8; ++i) {
+					itemsProportion.push({
+						id: `batchChangeProportion_${i}`,
+						text: i == 1 ? '默认' : `1/${i}`,
+					})
+				}
+				items.push({
+					id: 'batchCmd',
+					text: '批量操作',
 					items: [
 						{
-							id: 'batchChangeInteraction_none',
-							text: '无互动',
+							id: 'batchChangeQuesType',
+							text: '修改题型',
+							items: itemsQuesType,
 						},
 						{
-							id: 'batchChangeInteraction_simple',
-							text: '简单互动',
+							id: 'batchChangeProportion',
+							text: '修改占比',
+							items: itemsProportion,
 						},
 						{
-							id: 'batchChangeInteraction_accurate',
-							text: '精准互动',
+							id: 'batchChangeInteraction',
+							text: '修改互动模式',
+							items: [
+								{
+									id: 'batchChangeInteraction_none',
+									text: '无互动',
+								},
+								{
+									id: 'batchChangeInteraction_simple',
+									text: '简单互动',
+								},
+								{
+									id: 'batchChangeInteraction_accurate',
+									text: '精准互动',
+								},
+							],
 						},
 					],
-				},
-			],
-		})
-	}
-	if (isQuestion) {
-		settings.items.push({
-			id: 'write',
-			text: '作答区',
-			items: [{
-				id: 'handleWrite_add',
-				text: '添加',
-			}, {
-				id: 'handleWrite_del',
-				text: '删除',
-			}]
-		})
-		settings.items.push({
-			id: 'identify',
-			text: '识别框',
-			items: [
-				{
-					id: 'handleIdentifyBox_add',
-					text: '添加',
-				},
-				{
-					id: 'handleIdentifyBox_del',
-					text: '删除',
-				},
-			],
-		})
-	}
-	if (type == 'Selection') {
-		settings.items.push({
-			id: 'tableRelation',
-			text: '表格关联'
-		})
-	}
-	if (askdata) {
-		if (askdata.ask_index > 0 && !askdata.is_merge) {
-			settings.items.push({
-				id: `mergeAsk_${askdata.ques_id}_${askdata.ask_id}_1`,
-				text: '向前合并'
+				})
+			}
+		}
+		if (selectedRes.bTable) {
+			items.push({
+				id: 'tableRelation',
+				text: '表格关联'
 			})
 		}
-		if (askdata.is_merge) {
-			settings.items.push({
-				id: `mergeAsk_${askdata.ques_id}_${askdata.ask_id}_0`,
-				text: '取消合并'
-			})
+		if (selectedRes.column_num) {
+			if (selectedRes.column_num != 2) {
+				items.push({
+					id: 'setSectionColumn_2',
+					text: '分为2栏'
+				})
+			}
+			if (selectedRes.column_num > 1) {
+				items.push({
+					id: 'setSectionColumn_1',
+					text: '取消分栏'
+				})
+			}
 		}
 	}
-	settings.items.push({
-		id: 'setSectionColumn',
-		text: '分栏',
-		items: [{
-			id: 'setSectionColumn_2',
-			text: '分为2栏'	
-		}, {
-			id: 'setSectionColumn_1',
-			text: '取消分栏'
-		}]
-	})
-	return settings
+	if (items.length) {
+		items[0].separator = true
+	}
+	return {
+		guid: window.Asc.plugin.guid,
+		items: items
+	}
 }
 
 function onContextMenuClick(id) {
@@ -485,7 +556,7 @@ function getNodeList() {
 			var oControl = controls[i]
 			var tagInfo = getJsonData(oControl.GetTag())
 			var parent_id = getParentId(oControl)
-			if (tagInfo.regionType == 'question') {
+			if (tagInfo.regionType == 'question' && oControl.GetClassType() == 'blockLvlSdt') {
 				var write_list = []
 				var controlContent = oControl.GetContent()
 				var elementCount = controlContent.GetElementsCount()
@@ -599,6 +670,8 @@ function updateRangeControlType(typeName) {
 						return getParentBlock(parentControl)
 					}
 				}
+			} else if (oControl.GetClassType() == 'blockLvlSdt') {
+				return oControl.GetParentContentControl()
 			}
 			return null
 		}
@@ -1778,6 +1851,34 @@ function updateRangeControlType(typeName) {
 					})
 				} else {
 					// 若存在完全重叠的区域，只修改tag
+					var isInCell = false
+					var level = 0
+					if (!completeOverlapControl && typeName != 'write' && oRange.Paragraphs.length) { // 未重叠
+						var oParagraph = oRange.Paragraphs[0]
+						var NumPr = oRange.Paragraphs[0].GetNumbering()
+						if (NumPr) {
+							level = NumPr.Lvl
+						}
+						var parent1 = oParagraph.Paragraph.GetParent()
+						if (parent1) {
+							var oParent1 = Api.LookupObject(parent1.Id)
+							if (oParent1 && oParent1.GetClassType && oParent1.GetClassType() == 'documentContent') {
+								var parent2 = parent1.GetParent()
+								if (parent2) {
+									var oParent2 = Api.LookupObject(parent2.Id)
+									if (oParent2 && oParent2.GetClassType) {
+										if (oParent2.GetClassType() == 'tableCell') {
+											isInCell = true
+										} else if (oParent2.GetClassType() == 'blockLvlSdt') {
+											if (oParent2.GetAllParagraphs().length == oRange.Paragraphs.length) {
+												completeOverlapControl = oParent2
+											}
+										}
+									}
+								}
+							}
+						}
+					}
 					if (completeOverlapControl) {
 						if (typeName == 'write') {
 							var elementData = getOElements(completeOverlapControl.GetRange().StartPos)
@@ -1823,29 +1924,25 @@ function updateRangeControlType(typeName) {
 								}
 							}
 						}
-						var isInCell = false
-						var level = 0
-						if (oRange.Paragraphs.length == 1) {
-							var oParagraph = oRange.Paragraphs[0]
-							var parent1 = oParagraph.Paragraph.GetParent()
-							var oParent1 = Api.LookupObject(parent1.Id)
-							if (oParent1 && oParent1.GetClassType && oParent1.GetClassType() == 'documentContent') {
-								var parent2 = parent1.GetParent()
-								if (parent2) {
-									var oParent2 = Api.LookupObject(parent2.Id)
-									if (oParent2 && oParent2.GetClassType && oParent2.GetClassType() == 'tableCell') {
-										isInCell = true
-									}
-								}
-							}
-						}
+						var type = 1
 						if (oRange.Paragraphs.length) {
-							var NumPr = oRange.Paragraphs[0].GetNumbering()
-							if (NumPr) {
-								level = NumPr.Lvl
+							if (typeName == 'write') {
+								var f = oRange.Paragraphs.find((e, index) => {
+									if (!e.Paragraph.IsEmpty()) {
+										var cnt = e.GetElementsCount()
+										if (!e.Paragraph.Selection.Use) {
+											return true
+										}
+										var min = Math.min(e.Paragraph.Selection.StartPos, e.Paragraph.Selection.EndPos)
+										var max = Math.max(e.Paragraph.Selection.StartPos, e.Paragraph.Selection.EndPos)
+										if (min != 0 || max != cnt) {
+											return true
+										}
+									}
+								})
+								type = f ? 2 : 1
 							}
 						}
-						var type = typeName == 'write' ? 2 : 1
 						result.client_node_id += 1
 						var regionType = typeName == 'write' ? 'write' : 'question'
 						var tag = {
@@ -2036,7 +2133,7 @@ function handleChangeType(res, res2) {
 				}
 			} else if (targetLevel == 'struct') {
 				question_map[item.client_id] = {
-					text: GetText(item.text),
+					text: getQuesText(item.text),
 					level_type: targetLevel,
 					ques_default_name: item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(targetLevel, item.text)
 				}
