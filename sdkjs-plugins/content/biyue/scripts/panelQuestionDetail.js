@@ -404,6 +404,8 @@ function showQuesData(params) {
 				break
 			}
 		}
+	} else if (quesData && quesData.level_type == 'question') {
+		ques_client_id = g_client_id
 	} else if (params.regionType == 'question') {
 		ques_client_id = g_client_id
 	}

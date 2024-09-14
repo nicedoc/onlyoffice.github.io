@@ -1151,6 +1151,34 @@ function setInteraction(type, quesIds, recalc = true) {
 			}
 			// 添加
 			if (vshow) {
+				// 删除原有的"\ue749"，多个时暂不处理
+				var elementcount = oParagraph.GetElementsCount()
+				if (elementcount > 0) {
+					for (var i = 0; i < elementcount; ++i) {
+						var oChild = oParagraph.GetElement(i)
+						if (oChild.GetClassType() == 'run') {
+							if (oChild.Run.IsEmpty()) {
+								continue
+							}
+							var find = false
+							for (var j = 0; j < oChild.Run.GetElementsCount(); ++j) {
+								var oElement = oChild.Run.GetElement(j)
+								if (oElement.GetType() == 1) {
+									if (oElement.Value == 59209) {
+										oChild.Run.RemoveElement(oElement)
+										find = true
+										break
+									}
+								}
+							}
+							if (find) {
+								break
+							}
+						} else {
+							break
+						}
+					}
+				}
 				var oInlineLvlSdt = Api.CreateInlineLvlSdt();
 				var oRun = Api.CreateRun();
 				oRun.SetFontFamily('iconfont')
