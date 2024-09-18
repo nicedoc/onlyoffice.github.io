@@ -954,8 +954,9 @@ function handleChangeType(res, res2) {
 	notifyQuestionChange(update_node_id)
 }
 function notifyQuestionChange(update_node_id) {
+	var  eventname = window.tab_select != 'tabQues' ? 'clickSingleQues' : 'updateQuesData'
 	document.dispatchEvent(
-		new CustomEvent('updateQuesData', {
+		new CustomEvent(eventname, {
 			detail: {
 				client_id: update_node_id
 			}
