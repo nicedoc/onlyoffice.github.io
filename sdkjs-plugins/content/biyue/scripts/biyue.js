@@ -711,10 +711,10 @@ import { getInfoForServerSave } from './model/util.js'
                 if (typeof beg === 'number')
                     return Api.GetDocument().GetRange().GetRange(beg, end);
                 try {
-                    return Api.asc_MakeRangeByPath(e.beg, e.end);
+                    return Api.asc_MakeRangeByPath(beg, end);
                 }
                 catch (error) {
-                    console.error('MakeRange error:', error, e.beg, e.end);
+                    console.error('MakeRange error:', error, beg, end);
                     return undefined;
                 }
             }
@@ -744,17 +744,31 @@ import { getInfoForServerSave } from './model/util.js'
 				return null
 			}
 			function getNewRange(range, e) {
-				if (range.StartPos && range.EndPos) {
-					for (var j = 0; j < range.StartPos.length; ++j) {
-						if (j < range.EndPos.length && range.StartPos[j].Class == range.EndPos[j].Class) {
-							if (range.StartPos[j].Position > range.EndPos[j].Position) {
-								e.end = "$['content'][-1]['content'][-1]['content'][-1]"
-								return MakeRange(e.beg, e.end)
-							}
+				var newRange = MakeRange(e.beg, "$['content'][-1]['content'][-1]['content'][-1]")
+				var newEnd = newRange.EndPos
+				for (var i = newEnd.length - 1; i >= 0; --i) {
+					if (newEnd[i].Class.GetType && newEnd[i].Class.GetType() == 1) { // 段落
+						if (newEnd[i].Class.IsEmpty()) {
+							return range
+						} else {
+							e.end = "$['content'][-1]['content'][-1]['content'][-1]"
+							return MakeRange(e.beg, e.end)
 						}
 					}
 				}
-				return range
+				// if (range.StartPos && range.EndPos) {
+				// 	for (var j = 0; j < range.StartPos.length; ++j) {
+				// 		if (j < range.EndPos.length) {
+				// 			if (range.StartPos[j].Class == range.EndPos[j].Class) {
+				// 				if (range.StartPos[j].Position > range.EndPos[j].Position) {
+				// 					e.end = "$['content'][-1]['content'][-1]['content'][-1]"
+				// 					return MakeRange(e.beg, e.end)
+				// 				}
+				// 			}
+				// 		}
+				// 	}
+				// }
+				// return range
 			}
             var results = [];
             // reverse order loop to keep the order
