@@ -549,29 +549,30 @@ let newSplit = function (text) {
         var range = ranges[i];
         if (range.end) continue;
 
+        var next_range = {}
         if (i + 1 < ranges.length) {
-            var next_range = ranges[i + 1];            
-            // 如果下一个开始符号在同一个层级
-            var boundary = next_range.beg;
-            var thisA=toPathArray(range.beg);
-            var nextA=toPathArray(boundary);
-
-            var relation = calc_relation(thisA, nextA);
-            if (relation == "sibling") {
-                range.end = prev_paragraph(boundary, 1);
-            } else if (relation == "parent") {
-                // 如果下一个开始符号在低下一个层级 
-                //array to string
-                boundary=toPathString(nextA.slice(0,thisA.length));     
-                range.end = prev_paragraph(boundary, 1);
-            } else {
-                // 如果下一个开始符号在高一个层级
-                range.end = last_paragraph(range.beg);
-            }
+            next_range = ranges[i + 1];            
         } else {
-			range.end = `$['content'][-2]['content'][-1]['content'][-1]`;
-           	// range.end = `$['content'][-1]['content'][-1]['content'][-1]`;
+            next_range.beg = `$['content'][-2]['content'][-1]['content'][-1]`;
         }
+        
+        // 如果下一个开始符号在同一个层级
+        var boundary = next_range.beg;
+        var thisA=toPathArray(range.beg);
+        var nextA=toPathArray(boundary);
+
+        var relation = calc_relation(thisA, nextA);
+        if (relation == "sibling") {
+            range.end = prev_paragraph(boundary, 1);
+        } else if (relation == "parent") {
+            // 如果下一个开始符号在低下一个层级 
+            //array to string
+            boundary=toPathString(nextA.slice(0,thisA.length));     
+            range.end = prev_paragraph(boundary, 1);                
+        } else {
+            // 如果下一个开始符号在高一个层级
+            range.end = last_paragraph(range.beg);
+        }        
     }
 
     // // 获取子题     
