@@ -14,8 +14,8 @@ import {
 	tidyNodes
 } from './QuesManager.js'
 import { showCom, updateText, addClickEvent, getInfoForServerSave } from './model/util.js'
-import { reqSaveInfo } from './api/paper.js'
-import { resetStack } from './command.js'
+import { reqSaveInfo, onLatexToImg} from './api/paper.js'
+import { biyueCallCommand, resetStack } from './command.js'
 import ComponentSelect from '../components/Select.js'
 var select_ask_shortcut = null
 function initView() {
@@ -87,6 +87,8 @@ function initView() {
 	})
 	addClickEvent('#clearStack', resetStack)
 	addClickEvent('#tidyNodes', tidyNodes)
+	//addClickEvent('#mathpix', onMathpix)
+	addClickEvent('#paste', onPaste)
 	var vShortcut = '0'
 	if (window.BiyueCustomData && window.BiyueCustomData.ask_shortcut) {
 		vShortcut = window.BiyueCustomData.ask_shortcut
@@ -204,6 +206,93 @@ function showExtroButtons() {
 
 function changeAskShortcut(data) {
 	window.BiyueCustomData.ask_shortcut = data.value
+}
+
+async function getClipboardContents() {
+	try {
+		const clipboardItems = await navigator.clipboard.read()
+		for (const clipboardItem of clipboardItems) {
+			for (const type of clipboardItem.types) {
+				const blob = await clipboardItem.getType(type)
+				console.log('blob', blob)
+			}
+		}
+	} catch(err) {
+		console.log(err)
+	}
+}
+
+function onPaste() {
+	console.log('黏贴')
+	setTimeout(async() => {
+        try {
+            const text = await navigator.clipboard.readText()
+            console.log('text', text)
+        } catch (error) {
+            console.log('Failed to read clipboard contents:', error)
+        }
+    }, 2000)
+}
+
+function insertImage(src, width, height) {
+	console.log('insertImage', src, width, height)
+	Asc.scope.insert_data = {
+		type: 'image',
+		scr: src,
+		width: width,
+		height: height
+	}
+	window.Asc.plugin.executeMethod("GetSelectionRange", [], function(range) {
+        if (range) {
+            // 插入图片
+            window.Asc.plugin.executeMethod("InsertImage", [base64Image, width, height]);
+        } else {
+            console.error("Failed to get the selection range or cursor position.");
+        }
+    });
+	return biyueCallCommand(window, function() {
+		var insertData = Asc.scope.insert_data
+		var image = Api.CreateImage(insertData.src, insertData.width * 36e3, insertData.height * 36e3)
+
+
+	})
+}
+
+function onMathpix() {
+	var text = "$\frac{\sqrt{145}}{5}$"
+	onLatexToImg(text).then(res => {
+		console.log('onLatexToImg success', res)
+		var content = res.data.new_content
+		const srcMatch = content.match(/src="([^"]*)"/);
+		// const widthMatch = content.match(/width:(\d+px)/);
+		// const heightMatch = content.match(/height:(\d+px)/);
+		const widthMatch = content.match(/width:(\d+)px/);
+		const heightMatch = content.match(/height:(\d+)px/);
+
+		const src = srcMatch ? srcMatch[1] : null;
+		const width = widthMatch ? widthMatch[1] : null;
+		const height = heightMatch ? heightMatch[1] : null;
+		if (src) {
+			insertImage(src, width, height)
+		}	
+
+	}).catch(res => {
+		console.log('onLatexToImg fail', res)
+	})
+	// var contentInput = $('#paste-target')
+	// if (!contentInput) {
+	// 	return
+	// }
+	// contentInput.select()
+	// contentInput.focus()
+	// setTimeout(async() => {
+	// 	try {
+	// 		const text = await navigator.clipboard.readText()
+	// 		console.log('text', text)
+	// 	} catch (error) {
+	// 		console.log('Failed to read clipboard contents:', error)
+	// 	}
+	// }, 2000)
 }
 
 export {
