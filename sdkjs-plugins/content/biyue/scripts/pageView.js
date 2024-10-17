@@ -18,6 +18,7 @@ import { reqSaveInfo, onLatexToImg} from './api/paper.js'
 import { biyueCallCommand, resetStack } from './command.js'
 import ComponentSelect from '../components/Select.js'
 var select_ask_shortcut = null
+var timeout_paste_hint = null
 function initView() {
 	showCom('#initloading', true)
 	showCom('#hint1', false)
@@ -87,8 +88,9 @@ function initView() {
 	})
 	addClickEvent('#clearStack', resetStack)
 	addClickEvent('#tidyNodes', tidyNodes)
-	//addClickEvent('#mathpix', onMathpix)
+	addClickEvent('#mathpix', onMathpix)
 	addClickEvent('#paste', onPaste)
+	addClickEvent('#pasteclear', onPasteInputClear)
 	var vShortcut = '0'
 	if (window.BiyueCustomData && window.BiyueCustomData.ask_shortcut) {
 		vShortcut = window.BiyueCustomData.ask_shortcut
@@ -224,6 +226,9 @@ async function getClipboardContents() {
 
 function onPaste() {
 	console.log('黏贴')
+	setTimeout(() => {
+		$('#paste-target').focus()
+	}, 1000)
 	setTimeout(async() => {
         try {
             const text = await navigator.clipboard.readText()
@@ -234,65 +239,89 @@ function onPaste() {
     }, 2000)
 }
 
-function insertImage(src, width, height) {
-	console.log('insertImage', src, width, height)
-	Asc.scope.insert_data = {
-		type: 'image',
-		scr: src,
-		width: width,
-		height: height
-	}
-	window.Asc.plugin.executeMethod("GetSelectionRange", [], function(range) {
-        if (range) {
-            // 插入图片
-            window.Asc.plugin.executeMethod("InsertImage", [base64Image, width, height]);
-        } else {
-            console.error("Failed to get the selection range or cursor position.");
-        }
-    });
+function insertContent(str) {
+	Asc.scope.insert_str = str
 	return biyueCallCommand(window, function() {
-		var insertData = Asc.scope.insert_data
-		var image = Api.CreateImage(insertData.src, insertData.width * 36e3, insertData.height * 36e3)
+		var content = Asc.scope.insert_str		
+		const srcMatch = content.match(/src="([^"]*)"/);
+		var src = srcMatch ? srcMatch[1] : null;
+		var oDocument = Api.GetDocument()
+		var pos = oDocument.Document.Get_CursorLogicPosition()
+		if (src) {
+			const widthMatch = content.match(/width:(\d+)px/);
+			const heightMatch = content.match(/height:(\d+)px/);
+			const width = widthMatch ? widthMatch[1] : null;
+			const height = heightMatch ? heightMatch[1] : null;
+			src = src.replace('img.xmdas-link.com', 'img2.xmdas-link.com')
+			var scale = 0.25 * 36000
+			var oDrawing = Api.CreateImage(src, width * scale, height * scale)
+			if (pos && pos.length) {
+				var lastElement = pos[pos.length - 1].Class
+				if (lastElement.Add_ToContent) {
+					lastElement.Add_ToContent(
+						pos[pos.length - 1].Position,
+						oDrawing.Drawing
+					)
+				}
+			}
+		} else { // 不是图片
+			if (pos) {
+				var lastElement = pos[pos.length - 1].Class
+				if (lastElement.AddText) {
+					lastElement.AddText(content, pos[pos.length - 1].Position)
+				}
+			}
+		}
+	}, false, true)
+}
 
-
-	})
+function updatePasteHint(message, color) {
+	var tooltip = document.getElementById('pastehint');
+	if (!tooltip) {
+		return
+	}
+	tooltip.textContent = message;
+	tooltip.style.color = color || '#999';
+	tooltip.style.display = 'block';
+	clearTimeout(timeout_paste_hint)
+	timeout_paste_hint = setTimeout(function() {
+		tooltip.style.display = 'none';
+	}, 1500);
 }
 
 function onMathpix() {
-	var text = "$\frac{\sqrt{145}}{5}$"
-	onLatexToImg(text).then(res => {
-		console.log('onLatexToImg success', res)
-		var content = res.data.new_content
-		const srcMatch = content.match(/src="([^"]*)"/);
-		// const widthMatch = content.match(/width:(\d+px)/);
-		// const heightMatch = content.match(/height:(\d+px)/);
-		const widthMatch = content.match(/width:(\d+)px/);
-		const heightMatch = content.match(/height:(\d+)px/);
-
-		const src = srcMatch ? srcMatch[1] : null;
-		const width = widthMatch ? widthMatch[1] : null;
-		const height = heightMatch ? heightMatch[1] : null;
-		if (src) {
-			insertImage(src, width, height)
-		}	
-
+	var com = $('#paste-target')
+	if (!com) {
+		updatePasteHint('未找到输入框', '#ff0000')
+		return
+	}
+	var text1 = $('#paste-target').val()
+	if (!text1 || !text1.length) {
+		updatePasteHint('输入框内容为空', '#ff0000')
+		return
+	}
+	onLatexToImg(text1).then(res => {
+		insertContent(res.data.new_content).then(() => {
+			console.log('插入成功')
+			updatePasteHint('插入成功', '#0080ff')
+			onPasteInputClear()
+		})
 	}).catch(res => {
+		if (res && res.message) {
+			updatePasteHint(res.message, '#ff0000')
+		} else if (!res) {
+			updatePasteHint('网络不稳定', '#ff0000')
+		}
 		console.log('onLatexToImg fail', res)
 	})
-	// var contentInput = $('#paste-target')
-	// if (!contentInput) {
-	// 	return
-	// }
-	// contentInput.select()
-	// contentInput.focus()
-	// setTimeout(async() => {
-	// 	try {
-	// 		const text = await navigator.clipboard.readText()
-	// 		console.log('text', text)
-	// 	} catch (error) {
-	// 		console.log('Failed to read clipboard contents:', error)
-	// 	}
-	// }, 2000)
+}
+
+function onPasteInputClear() {
+	var com = $('#paste-target')
+	if (!com) {
+		return
+	}
+	com.val('')
 }
 
 export {

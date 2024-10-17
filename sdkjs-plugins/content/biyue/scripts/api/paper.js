@@ -387,7 +387,7 @@ function paperValidatePosition(ques_workbook_id, paper_uuid, position, extra_inf
 }
 /**
  * 题干latex转图片
- * 链接：http://api.dcx.com/#/home/project/inside/api/detail?groupID=719&childGroupID=888&apiID=5737&projectName=%E7%AD%86%E6%9B%B0%20-%20%E9%A2%98%E5%BA%93&projectID=39
+ * 链接：http://api.dcx.com/#/home/project/inside/api/detail?groupID=-1&apiID=5857&projectName=%E7%AD%86%E6%9B%B0%20-%20%E9%A2%98%E5%BA%93&projectID=39
  */
 function onLatexToImg(content) {
 	return request({
