@@ -314,11 +314,6 @@
  <body id="body" style="left:0px; top:0px; margin:0px; padding:0px;">
      <div id="iframe_parent" style="width:100%; height:100%;margin:0;padding:0;overflow-y: auto;">
 		<button id="paste" title="点击后在控制台查看剪贴板内容">黏贴测试</button>
-		<div style="display: flex;flex-direction: row;align-items: center;">
-			<textarea id="paste-target" placeholder="Ctrl+V黏贴要插入的文本"></textarea>
-			<i id="pasteclear" class="iconfont icon-shanchu clicked" style="display: inline-block;" title="清除输入框内容"></i>
-			<button id="mathpix" class="btn-normal clicked" style="margin-left: 4px;" title="点击此按钮可将已黏贴的latex文本转换成图片插入到光标位置" >M导入</button>
-		</div>
 		<div id="pastehint"></div>  
 		<div id="initloading">加载中, 请稍候...</div>
 		<div id="hint1" class="column-center">
@@ -389,6 +384,11 @@
 				<div id="shortcutKeyDiv"></div>
 			</div>
 			<div id="addWord" class="btn-text-default">插入符号</div>
+			<div style="display: flex;flex-direction: row;align-items: center;">
+				<textarea id="paste-target" placeholder="Ctrl+V黏贴要插入的文本"></textarea>
+				<i id="pasteclear" class="iconfont icon-shanchu clicked" style="display: inline-block;" title="清除输入框内容"></i>
+				<button id="mathpix" class="btn-normal clicked" style="margin-left: 4px;" title="点击此按钮可将已黏贴的latex文本转换成图片插入到光标位置" >M导入</button>
+			</div>
             <!--<div id="lockBtn" class="btn-text-default">锁定</div>
             <div id="unlockBtn" class="btn-text-default">解锁</div>
             <div id="showPosition" class="btn-text-default">显示渲染位置</div>
