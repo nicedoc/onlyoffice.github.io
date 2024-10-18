@@ -1,0 +1,156 @@
+{
+  "id": "4623544",
+  "name": "word",
+  "font_family": "iconfont",
+  "css_prefix_text": "icon-",
+  "description": "",
+  "glyphs": [
+    {
+      "icon_id": "42068637",
+      "name": "四线三格",
+      "font_class": "sixiansange2",
+      "unicode": "e751",
+      "unicode_decimal": 59217
+    },
+    {
+      "icon_id": "10973476",
+      "name": "四线三格",
+      "font_class": "sixiansange",
+      "unicode": "e620",
+      "unicode_decimal": 58912
+    },
+    {
+      "icon_id": "12561419",
+      "name": "四线三格",
+      "font_class": "sixiansange1",
+      "unicode": "e650",
+      "unicode_decimal": 58960
+    },
+    {
+      "icon_id": "41503686",
+      "name": "画布14 元素08",
+      "font_class": "a-huabu14yuansu08",
+      "unicode": "e74a",
+      "unicode_decimal": 59210
+    },
+    {
+      "icon_id": "41503685",
+      "name": "画布14-元素12",
+      "font_class": "huabu14-yuansu12",
+      "unicode": "e74b",
+      "unicode_decimal": 59211
+    },
+    {
+      "icon_id": "41501081",
+      "name": "边框12_12",
+      "font_class": "biankuang12_12",
+      "unicode": "e749",
+      "unicode_decimal": 59209
+    },
+    {
+      "icon_id": "41500926",
+      "name": "框12",
+      "font_class": "Frame",
+      "unicode": "e748",
+      "unicode_decimal": 59208
+    },
+    {
+      "icon_id": "41500851",
+      "name": "框8",
+      "font_class": "kuang8",
+      "unicode": "e747",
+      "unicode_decimal": 59207
+    },
+    {
+      "icon_id": "3256001",
+      "name": "老师",
+      "font_class": "laoshi",
+      "unicode": "e602",
+      "unicode_decimal": 58882
+    },
+    {
+      "icon_id": "8235226",
+      "name": "学生",
+      "font_class": "xuesheng",
+      "unicode": "e6a3",
+      "unicode_decimal": 59043
+    },
+    {
+      "icon_id": "8356880",
+      "name": "图像识别",
+      "font_class": "tuxiangshibie",
+      "unicode": "e600",
+      "unicode_decimal": 58880
+    },
+    {
+      "icon_id": "9069765",
+      "name": "人脸识别",
+      "font_class": "renlianshibie1",
+      "unicode": "e607",
+      "unicode_decimal": 58887
+    },
+    {
+      "icon_id": "20247445",
+      "name": "识别错误违法数",
+      "font_class": "shibiecuowuweifashu",
+      "unicode": "e60c",
+      "unicode_decimal": 58892
+    },
+    {
+      "icon_id": "22282399",
+      "name": "田字格-无框",
+      "font_class": "tianzige-wk",
+      "unicode": "e601",
+      "unicode_decimal": 58881
+    },
+    {
+      "icon_id": "29716328",
+      "name": "田字格_米字",
+      "font_class": "tianzige_5",
+      "unicode": "e61b",
+      "unicode_decimal": 58907
+    },
+    {
+      "icon_id": "33458194",
+      "name": "田字格",
+      "font_class": "tianzige",
+      "unicode": "e6ed",
+      "unicode_decimal": 59117
+    },
+    {
+      "icon_id": "10416462",
+      "name": "统计分析",
+      "font_class": "statistical",
+      "unicode": "e628",
+      "unicode_decimal": 58920
+    },
+    {
+      "icon_id": "21830944",
+      "name": "鲜花",
+      "font_class": "xianhua",
+      "unicode": "f626",
+      "unicode_decimal": 63014
+    },
+    {
+      "icon_id": "28784708",
+      "name": "错",
+      "font_class": "cuo",
+      "unicode": "e665",
+      "unicode_decimal": 58981
+    },
+    {
+      "icon_id": "28784709",
+      "name": "半错",
+      "font_class": "bancuo",
+      "unicode": "e666",
+      "unicode_decimal": 58982
+    },
+    {
+      "icon_id": "20219442",
+      "name": "si-glyph-square-dashed-1",
+      "font_class": "si-glyph-square-dashed-1",
+      "unicode": "e6a1",
+      "unicode_decimal": 59041
+    }
+  ]
+}

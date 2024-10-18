@@ -109,6 +109,7 @@ function initView() {
 		},
 		width: '60%',
 	})
+	addClickEvent('#addWord', openSymbol)
 }
 
 function handlePaperInfoResult(success, res) {
@@ -322,6 +323,10 @@ function onPasteInputClear() {
 		return
 	}
 	com.val('')
+}
+
+function openSymbol() {
+	window.biyue.showDialog('addSymbolWindow', '插入符号', 'addSymbol.html', 600, 400, false)
 }
 
 export {

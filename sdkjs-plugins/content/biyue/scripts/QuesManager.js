@@ -5854,6 +5854,55 @@ function mergeAsk(options) {
 	)
 	setInteraction('useself', [options[1]], true)
 }
+// 插入符号
+function insertSymbol(unicode) {
+	Asc.scope.symbol = unicode
+	return biyueCallCommand(window, function() {
+		var unicode = Asc.scope.symbol
+		var oDocument = Api.GetDocument()
+		var pos = oDocument.Document.Get_CursorLogicPosition()
+		if (pos) {
+			var lastElement = pos[pos.length - 1].Class
+			var oRun = Api.LookupObject(lastElement.Id)
+			if (oRun.GetClassType() == 'run') {
+				var lastPos = pos[pos.length - 1].Position
+				var runParent = pos[pos.length - 2].Class
+				var pos2 = pos[pos.length - 2].Position
+				var fontfamily = oRun.GetFontFamily()
+				const unicodeDecimal = parseInt(unicode, 16);
+				const unicodeChar = String.fromCharCode(unicodeDecimal);
+				if (fontfamily == 'iconfont') {
+					oRun.Run.AddText(unicodeChar, lastPos + 1)
+					oDocument.Document.MoveCursorRight()
+				} else {
+					if (lastPos == 0 && pos2 > 0) {
+						// 判断前一个run的字体
+						var oParent = Api.LookupObject(runParent.Id)
+						if (oParent.GetClassType() == 'paragraph') {
+							var oRun3 = oParent.GetElement(pos2 - 1)
+							if (oRun3 && oRun3.GetClassType() == 'run' && oRun3.GetFontFamily() == 'iconfont') {
+								oRun3.AddText(unicodeChar)
+								oDocument.Document.MoveCursorRight()
+								return
+							}
+						}
+					}
+					var newRun2 = Api.CreateRun()
+					newRun2.SetFontFamily('iconfont')
+					newRun2.AddText(unicodeChar)
+					if (lastPos == 0) {
+						pos[pos.length - 2].Class.Add_ToContent(0, newRun2.Run)
+					} else {
+						var newRun = oRun.Run.Split_Run(lastPos)
+						pos[pos.length - 2].Class.Add_ToContent(pos2 + 1, newRun2.Run)
+						pos[pos.length - 2].Class.Add_ToContent(pos2 + 2, newRun)
+						oDocument.Document.MoveCursorRight()
+					}
+				}
+			}
+		}
+	}, false, true)
+}
 
 export {
 	handleDocClick,
@@ -5886,5 +5935,6 @@ export {
 	setBtnLoading,
 	setChoiceOptionLayout,
 	getNodeList,
-	handleChangeType
+	handleChangeType,
+	insertSymbol
 }

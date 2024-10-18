@@ -41,7 +41,8 @@ import {
 	updateDataBySavedData,
 	deleteChoiceOtherWrite,
 	handleUploadPrepare,
-	importExam
+	importExam,
+	insertSymbol
 } from './QuesManager.js'
 
 import { reqSaveInfo } from './api/paper.js'
@@ -64,11 +65,30 @@ import { getInfoForServerSave } from './model/util.js'
 	let contextMenu_options = null
   	let questionPositions = {}
 	let timeout_ratio = null
+	let windowList = []
 
 	function NewDefaultCustomData() {
 		return {
 			controlDesc: {},
 		}
+	}
+
+	function closeWindow(id) {
+		var win = windowList.find(e => {
+			return e.id == id
+		})
+		if (win) {
+			win.visible = false
+		}
+		window.Asc.plugin.executeMethod('CloseWindow', [id])
+	}
+	function closeAllWindows() {
+		windowList.forEach(e => {
+			if (e.visible) {
+				e.visible = false
+				window.Asc.plugin.executeMethod('CloseWindow', [e.id])
+			}
+		})
 	}
 
 	function messageHandler(modal, message) {
@@ -91,7 +111,7 @@ import { getInfoForServerSave } from './model/util.js'
 				})
 				break
       		case 'positionSaveSuccess':
-				window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
+				closeWindow(modal.id)
                 let params = {
                     message: '上传成功',
                     saveData: true,
@@ -105,7 +125,7 @@ import { getInfoForServerSave } from './model/util.js'
 					window.BiyueCustomData.control_list = message.data.control_list
 					updateQuestionScore()
 				}
-				window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
+				closeWindow(modal.id)
 				break
 			case 'exportExamSuccess': // 生成exam_id成功
 				window.BiyueCustomData.exam_id = message.data.exam_id
@@ -133,30 +153,30 @@ import { getInfoForServerSave } from './model/util.js'
 				)
 				break
 			case 'cancelDialog':
-				window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
+				closeWindow(modal.id)
 				break
 			case 'confirmDialog':
-				window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
+				closeWindow(modal.id)
 				break
 			case 'drawPosition': // 绘制区域
 				drawPositions(message.data)
-				window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
+				closeWindow(modal.id)
 				break
 			case 'deletePosition': // 删除区域
 				deletePositions(message.data)
-				window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
+				closeWindow(modal.id)
 				break
 			case 'LevelSetConfirm': // 确定大小题设置
 				window.BiyueCustomData.choice_blank = message.choice
 				confirmLevelSet(message.levels)
-				window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
+				closeWindow(modal.id)
 				break
       		case 'changeQuestionMap': // 更新question_map
         		if (message.data){
           			window.BiyueCustomData.question_map = message.data.question_map
           			console.log('更新question_map', message.data)
                     StoreCustomData(() => {
-                        window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
+						closeWindow(modal.id)
                         console.log('store custom data done')
 						if (message.data.needUpdateInteraction) {
 							setInteraction('useself').then(() => {
@@ -174,11 +194,12 @@ import { getInfoForServerSave } from './model/util.js'
                     })
         		}
         		break
+			
 			case 'showMessageBox':
 				modal.command('initMessageBox', Asc.scope.messageData)
 				break
 			case 'onMessageDialog':
-				window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
+				closeWindow(modal.id)
 				if (message.cmd == 'confirm' && message.extra_data) {
 					if (message.extra_data.func) {
 						if (window.biyue[message.extra_data.func]) {
@@ -195,10 +216,17 @@ import { getInfoForServerSave } from './model/util.js'
 				}
 				break
 			case 'imageRelationMessage':
-				window.Asc.plugin.executeMethod('CloseWindow', [modal.id])
+				closeWindow(modal.id)
 				if (message.data) {
 					tagImageCommon(message.data)
 				}
+				break
+			case 'showSymbols':
+				modal.command('initSymbols')
+				break
+			case 'insertSymbol':
+				closeWindow(modal.id)
+				insertSymbol(message.data)
 				break
 			default:
 				break
@@ -1439,12 +1467,13 @@ import { getInfoForServerSave } from './model/util.js'
 		}
 		if (windowID) {
 			if (id === -1) {
-				window.Asc.plugin.executeMethod('CloseWindow', [windowID])
+				closeWindow(windowID)
 			}
 			return
 		}
 		if (id == -1) {
 			console.log('StoreCustomData', window.BiyueCustomData)
+			closeAllWindows()
 			onSaveData(false).then(() => {
 				StoreCustomData(() => {
 					console.log('store custom data done')
@@ -2158,6 +2187,18 @@ import { getInfoForServerSave } from './model/util.js'
 			})
 		}
 		windows[winName].show(variation)
+		var win = windowList.find(e => {
+			return e.winName == winName
+		})
+		if (win) {
+			win.visible = true
+		} else {
+			windowList.push({
+				name: winName,
+				id: windows[winName].id,
+				visible: true
+			})
+		}
 		return windows[winName]
 	}
 
