@@ -2979,46 +2979,6 @@ function toggleWeight() {
 	})
 }
 
-function getPos() {
-	Asc.scope.control_list = window.BiyueCustomData.control_list
-	biyueCallCommand(
-		window,
-		function () {
-			var control_list = Asc.scope.control_list
-			console.log('control_list', control_list)
-			var oDocument = Api.GetDocument()
-			for (var i = 0; i < control_list.length; ++i) {
-				if (control_list[i].regionType == 'question') {
-					var score_options = control_list[i].score_options
-					if (score_options && score_options.table_id) {
-						var controls = oDocument.GetAllContentControls()
-						var control = controls.find((e) => {
-							return e.Sdt.GetId() == control_list[i].control_id
-						})
-						var tables = control.GetContent().GetAllTables()
-						var oTable
-						if (tables) {
-							oTable = tables.find((e) => {
-								return e.Table.Id == control_list[i].score_options.table_id
-							})
-						}
-						if (oTable) {
-							console.log('oTable', oTable)
-							var rowCount = oTable.GetRowsCount()
-							for (var irow = 0; irow < rowCount; ++irow) {
-								var row = oTable.GetRow(irow)
-								console.log('row', row)
-							}
-						}
-					}
-				}
-			}
-		},
-		false,
-		false
-	)
-}
-
 function handleContentControlChange(params) {
 	var controlId = params.InternalId
 	var control_list = window.BiyueCustomData.control_list
