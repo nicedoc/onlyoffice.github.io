@@ -4109,7 +4109,8 @@ function setChoiceOptionLayout(options) {
 		var bracket = options.bracket
 		var AF = [65, 66, 67, 68, 69, 70] // A-F
 		var DOTS = [46, 65294] // 半角和全角的.
-		function removeTabAndBreak(oParagraph) {
+		function removeTabAndBreak(oParagraph, firstText) {
+			var startFlag = 0
 			for (var i = 0; i < oParagraph.Paragraph.Content.length; ++i) {
 				var content = oParagraph.Paragraph.Content
 				if (!content[i]) {
@@ -4128,6 +4129,22 @@ function setChoiceOptionLayout(options) {
 				}
 				for (var j = 0; j < content[i].Content.length; ++j) {
 					var type2 = content[i].Content[j].GetType()
+					if (type2 == 16 && startFlag == 0) {
+						continue
+					}
+					if (startFlag == 0 && content[i].Content[j].Value == firstText.charCodeAt(startFlag)) {
+						if (startFlag < firstText.length - 1) {
+							if (j + 1 < content[i].Content.length) {
+								if (content[i].Content[j + 1].Value == firstText.charCodeAt(startFlag + 1)) {
+									startFlag += 1
+								}
+							} else if (i + 1 < oParagraph.Paragraph.Content.length) {
+								if (content[i + 1] && content[i + 1].Type == 39 && content[i + 1].Content && content[i + 1].Content.length && content[i + 1].Content[0].Value == firstText.charCodeAt(startFlag + 1)) {
+									startFlag += 1
+								}
+							}
+						}
+					}
 					if (type2 == 21 || type2 == 16) { // tab or break
 						content[i].RemoveElement(content[i].Content[j])
 						--j
@@ -4301,6 +4318,7 @@ function setChoiceOptionLayout(options) {
 			var controlContent = oControl.GetContent()
 			handleBracket(oControl)
 			var oParagraph = null
+			var firstText = ''
 			for (var index = 0; index < controlContent.GetElementsCount(); ++index) {
 				var oElement = controlContent.GetElement(index)
 				if (!oElement) {
@@ -4311,6 +4329,7 @@ function setChoiceOptionLayout(options) {
 					var auto_align_patt = new RegExp(/(?<!data-latex="[^"]*)[A-F][.．].*?/g)
 					var autoAlignRegionArr = text.match(auto_align_patt) || []
 					if (autoAlignRegionArr.length) {
+						firstText = autoAlignRegionArr[0]
 						if (options.from == 'indLeft') {
 							if (options.indLeft >= 0) {
 								oElement.SetIndLeft(identifyLeft)
@@ -4365,7 +4384,7 @@ function setChoiceOptionLayout(options) {
 			})
 			oParagraph.SetTabs(newTabs, aligns)
 			// 先删除所有的tab和break
-			removeTabAndBreak(oParagraph)
+			removeTabAndBreak(oParagraph, firstText)
 			for (var i = 0; i < oParagraph.Paragraph.Content.length; ++i) {
 				var content = oParagraph.Paragraph.Content
 				if (!content[i]) {

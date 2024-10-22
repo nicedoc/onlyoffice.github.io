@@ -100,7 +100,7 @@ function updatePageSizeMargins() {
 							MM2Twips(workbook.margin.right),
 							MM2Twips(workbook.margin.bottom)
 						)
-						oSection.SetFooterDistance(MM2Twips(workbook.margin.bottom - 13))
+						oSection.SetFooterDistance(MM2Twips(workbook.margin.bottom))
 						oSection.SetHeaderDistance(MM2Twips(workbook.margin.top))
 					}
 					oSection.RemoveFooter('default')
