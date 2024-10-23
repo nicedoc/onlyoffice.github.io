@@ -6,6 +6,7 @@ import {
 import { toXml } from "./convert.js";
 import { biyueCallCommand, dispatchCommandResult } from "./command.js";
 import { getVersion } from "./ver.js"
+import { ReplaceRubyField } from "./phonetic.js";
 
 (function (window, undefined) {
     var styleEnable = false;
@@ -956,6 +957,14 @@ import { getVersion } from "./ver.js"
                     execModify(ranges);
                 });
             }
+
+            document.getElementById("phoneticGuide").onclick = function () {
+                ReplaceRubyField(window, undefined, function () {
+                    console.log("ReplaceRubyField done");
+                });
+                
+            }
+
 
             document.getElementById("selectionToHtml").onclick = function () {
                 rangeToHtml(window, undefined, function (html) {
