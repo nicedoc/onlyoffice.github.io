@@ -568,15 +568,43 @@ import { getInfoForServerSave } from './model/util.js'
                         }
                         return ret;
                     };
-
-
+					let mergeRanges2 = function(ranges) {
+						var newRanges = []
+						for (var i = 0; i < ranges.length; ++i) {
+							if (i == 0) {
+								newRanges.push(ranges[i])
+							} else {
+								var lastRange = newRanges[newRanges.length - 1]
+								var canMerge = false
+								if (ranges[i].Element == lastRange.Element && ranges[i].Start == lastRange.End) {
+									var idx = ranges[i].Text.indexOf('\r')
+									if (idx == 0 && ranges[i].Text[idx + 1] == lastRange.Text[lastRange.Text.length - 1]) {
+										var Start = lastRange.Start
+										var End = ranges[i].End
+										var nrange = lastRange.ExpandTo(ranges[i])
+										nrange.Start = Start
+										nrange.End = End
+										newRanges[newRanges.length - 1] = nrange
+										canMerge = true
+									}
+								}
+								if (!canMerge) {
+									newRanges.push(ranges[i])
+								}
+							}
+						}
+						return newRanges
+					}
                     //debugger;
                     var apiRanges = [];
                     textSet.forEach(e => {
                         var ranges = control.Search(e, false);
                         //debugger;;
-                        apiRanges = mergeRange(apiRanges, ranges);
+						apiRanges = mergeRange(apiRanges, ranges);
                     });
+					if (apiRanges.length > 1) {
+						apiRanges = mergeRanges2(apiRanges)
+					}
 
                         // search 有bug少返回一个字符
                     apiRanges.reverse().forEach(apiRange => {

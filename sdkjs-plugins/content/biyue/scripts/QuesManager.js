@@ -5113,7 +5113,33 @@ function splitControl(qid) {
 				return ret;
 			};
 
-
+			let mergeRanges2 = function(ranges) {
+				var newRanges = []
+				for (var i = 0; i < ranges.length; ++i) {
+					if (i == 0) {
+						newRanges.push(ranges[i])
+					} else {
+						var lastRange = newRanges[newRanges.length - 1]
+						var canMerge = false
+						if (ranges[i].Element == lastRange.Element && ranges[i].Start == lastRange.End) {
+							var idx = ranges[i].Text.indexOf('\r')
+							if (idx == 0 && ranges[i].Text[idx + 1] == lastRange.Text[lastRange.Text.length - 1]) {
+								var Start = lastRange.Start
+								var End = ranges[i].End
+								var nrange = lastRange.ExpandTo(ranges[i])
+								nrange.Start = Start
+								nrange.End = End
+								newRanges[newRanges.length - 1] = nrange
+								canMerge = true
+							}
+						}
+						if (!canMerge) {
+							newRanges.push(ranges[i])
+						}
+					}
+				}
+				return newRanges
+			}
 			//debugger;
 			var apiRanges = [];
 			textSet.forEach(e => {
@@ -5121,7 +5147,9 @@ function splitControl(qid) {
 				//debugger;;
 				apiRanges = mergeRange(apiRanges, ranges);
 			});
-
+			if (apiRanges.length > 1) {
+				apiRanges = mergeRanges2(apiRanges)
+			}
 				// search 有bug少返回一个字符
 			apiRanges.reverse().forEach(apiRange => {
 					apiRange.Select();
@@ -5151,25 +5179,24 @@ function splitControl(qid) {
 				}
 			}
 
-			if (j < elements - 1) {
-				var range = content.GetElement(j + 1).GetRange();
-				var endRange = content.GetElement(elements - 1).GetRange();
-				range = range.ExpandTo(endRange);
-				range.Select();
-				client_node_id += 1
-				var tag = JSON.stringify({ regionType: 'write', mode: 5, client_id: client_node_id, color: '#ff000040' })
-
-				var oResult = Api.asc_AddContentControl(1, { Tag: tag })
-				if (oResult) {
-					result.change_list.push({
-						client_id: client_node_id,
-						control_id: oResult.InternalId,
-						parent_id: getParentId(Api.LookupObject(oResult.InternalId)),
-						regionType: 'write'
-					})
-				}
-				Api.asc_RemoveSelection();
-			}
+			// if (j < elements - 1) {
+			// 	var range = content.GetElement(j + 1).GetRange();
+			// 	var endRange = content.GetElement(elements - 1).GetRange();
+			// 	range = range.ExpandTo(endRange);
+			// 	range.Select();
+				// client_node_id += 1
+				// var tag = JSON.stringify({ regionType: 'write', mode: 5, client_id: client_node_id, color: '#ff000040' })
+				// var oResult = Api.asc_AddContentControl(1, { Tag: tag })
+				// if (oResult) {
+				// 	result.change_list.push({
+				// 		client_id: client_node_id,
+				// 		control_id: oResult.InternalId,
+				// 		parent_id: getParentId(Api.LookupObject(oResult.InternalId)),
+				// 		regionType: 'write'
+				// 	})
+				// }
+			// 	Api.asc_RemoveSelection();
+			// }
 		}
 		result.client_node_id = client_node_id
 		return result
