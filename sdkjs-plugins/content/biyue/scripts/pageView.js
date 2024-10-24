@@ -100,6 +100,10 @@ function initView() {
 	addClickEvent('#mathpix', onMathpix)
 	addClickEvent('#paste', onPaste)
 	addClickEvent('#pasteclear', onPasteInputClear)
+	addClickEvent('#showShortcutKey', () => {
+		showButton('func_key_container')
+	})
+	showCom('#func_key_container', false)
 	var vShortcut = '0'
 	if (window.BiyueCustomData && window.BiyueCustomData.ask_shortcut) {
 		vShortcut = window.BiyueCustomData.ask_shortcut
@@ -119,6 +123,10 @@ function initView() {
 		width: '60%',
 		pop_width: '100%'
 	})
+	addClickEvent('#showLinkPop', () => {
+		showButton('link_container')
+	})
+	showCom('#link_container', false)
 	select_image_link = new ComponentSelect({
 		id: 'imageLinkSelect',
 		options: [
@@ -129,7 +137,7 @@ function initView() {
 		callback_item: (data) => {
 			changeImageLink(data)
 		},
-		width: '50%',
+		width: '60%',
 		pop_width: '100%'
 	})
 	enableBtnImageLink(false)

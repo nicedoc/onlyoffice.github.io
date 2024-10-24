@@ -807,6 +807,13 @@ a {
 	align-items: center;
 }
 
+.row-center {
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
+	align-items: center;
+}
+
 .row-between {
 	display: flex;
 	flex-direction: row;
@@ -829,5 +836,9 @@ a {
 	&:hover {
 		cursor: pointer;
 	}
+}
+
+.br2 {
+	border-radius: 2px;
 }
 
