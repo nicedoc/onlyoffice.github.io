@@ -11,7 +11,9 @@ import {
 	showAskCells,
 	g_click_value,
 	clearRepeatControl,
-	tidyNodes
+	tidyNodes,
+	imageAutoLink,
+	onLinkedCheck
 } from './QuesManager.js'
 import { showCom, updateText, addClickEvent, getInfoForServerSave } from './model/util.js'
 import { reqSaveInfo, onLatexToImg} from './api/paper.js'
@@ -19,6 +21,7 @@ import { biyueCallCommand, resetStack } from './command.js'
 import ComponentSelect from '../components/Select.js'
 var select_ask_shortcut = null
 var timeout_paste_hint = null
+var select_image_link = null
 function initView() {
 	showCom('#initloading', true)
 	showCom('#hint1', false)
@@ -76,11 +79,17 @@ function initView() {
 	addClickEvent('#viewQuesType', onViewQuesType)
 	addClickEvent('#saveData', onSaveData)
 	addClickEvent('#clearRepeatControl', clearRepeatControl)
-	addClickEvent('#extroSwitch', showExtroButtons)
+	addClickEvent('#extroSwitch', (e) => {
+		showExtroButtons()
+	})
+	addClickEvent('#tools', (e) => {
+		showTools()
+	})
 	addClickEvent('#printData', () => {
 		console.log('BiyueCustomData', window.BiyueCustomData)
 	})
 	showCom('#extro_buttons', false)
+	showCom('#tool_buttons', false)
 	addClickEvent('#printStack', () => {
 		if (window.commandStack) {
 			console.log('commandStack len:', window.commandStack.length)
@@ -108,7 +117,25 @@ function initView() {
 			changeAskShortcut(data)
 		},
 		width: '60%',
+		pop_width: '100%'
 	})
+	select_image_link = new ComponentSelect({
+		id: 'imageLinkSelect',
+		options: [
+			{ value: '0', label: '关闭就近关联' },
+			{ value: '1', label: '开启就近关联' }
+		],
+		value_select: '0',
+		callback_item: (data) => {
+			changeImageLink(data)
+		},
+		width: '50%',
+		pop_width: '100%'
+	})
+	enableBtnImageLink(false)
+	showCom('#imageLinkTip')
+	addClickEvent('#btnImageLink', onImageLink)
+	addClickEvent('#imageLinkCheck', onImageLinkCheck)
 	addClickEvent('#addWord', openSymbol)
 }
 
@@ -135,6 +162,7 @@ function changeTab(e) {
 		id = e.currentTarget.id
 	}
 	changeTabPanel(id)
+
 }
 
 function changeTabPanel(id) {
@@ -168,6 +196,7 @@ function changeTabPanel(id) {
 			showQuesData()
 		}
 	}
+	scroll(false)
 }
 
 function onViewQuesType() {
@@ -199,12 +228,38 @@ function onSaveData(print = true) {
 	}) 
 }
 
-function showExtroButtons() {
-	var com = $('#extro_buttons')
+function showExtroButtons(bshow) {
+	showButton('extro_buttons', bshow)
+	showButton('tool_buttons', false)
+	scroll(true)
+}
+
+function showTools(bshow) {
+	showButton('tool_buttons', bshow)
+	showButton('extro_buttons', false)
+	scroll(true)
+}
+
+function scroll(isBottom) {
+	var com = $('#iframe_parent')
 	if (!com) {
 		return
 	}
-	com.toggle()
+	com.animate({
+		scrollTop: isBottom ? com[0].scrollHeight : 0
+	}, 200)
+}
+
+function showButton(id, bshow) {
+	var com = $(`#${id}`)
+	if (!com) {
+		return
+	}
+	if (bshow == undefined) {
+		com.toggle()
+	} else {
+		bshow ? com.show() : com.hide()
+	}
 }
 
 function changeAskShortcut(data) {
@@ -276,8 +331,8 @@ function insertContent(str) {
 	}, false, true)
 }
 
-function updatePasteHint(message, color) {
-	var tooltip = document.getElementById('pastehint');
+function updateHintById(id, message, color) {
+	var tooltip = document.getElementById(id);
 	if (!tooltip) {
 		return
 	}
@@ -288,6 +343,10 @@ function updatePasteHint(message, color) {
 	timeout_paste_hint = setTimeout(function() {
 		tooltip.style.display = 'none';
 	}, 1500);
+}
+
+function updatePasteHint(message, color) {
+	updateHintById('pastehint', message, color)
 }
 
 function onMathpix() {
@@ -327,6 +386,35 @@ function onPasteInputClear() {
 
 function openSymbol() {
 	window.biyue.showDialog('addSymbolWindow', '插入符号', 'addSymbol.html', 600, 400, false)
+}
+
+function changeImageLink(data) {
+	enableBtnImageLink(data.value * 1)
+}
+
+function enableBtnImageLink(v) {
+	var btnlink = $('#btnImageLink')
+	if (!btnlink) {
+		return
+	}
+	if (v) {
+		btnlink.removeClass('btn-unable')
+	} else {
+		btnlink.addClass('btn-unable')
+	}
+}
+// 图片就近关联
+function onImageLink() {
+	imageAutoLink().then(res => {
+		if (res) {
+			window.BiyueCustomData.client_node_id = res.client_node_id
+			updateHintById('imageLinkTip', '就近关联完成', '#00ff00')
+		}
+	})
+}
+// 图片关联检查
+function onImageLinkCheck() {
+	onLinkedCheck()
 }
 
 export {

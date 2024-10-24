@@ -302,6 +302,13 @@
             padding: 5px;
             font-size: 12px;
         }
+		#tools {
+			position: fixed;
+			bottom: 20px;
+			left: 0;
+			z-index: 1;
+			padding: 8px 8px 4px 8px;
+		}
 		#extroSwitch {
 			position: fixed;
 			bottom: 0;
@@ -309,11 +316,19 @@
 			z-index: 1;
 			padding: 8px 8px 4px 8px;
 		}
+		#tool_buttons {
+			padding: 0 12px;
+		}
+		.wrapper3 {
+			border-bottom: 1px solid #bbb;
+			margin-bottom: 8px;
+			padding-bottom: 4px;
+		}
      </style>
  </head>
  <body id="body" style="left:0px; top:0px; margin:0px; padding:0px;">
-     <div id="iframe_parent" style="width:100%; height:100%;margin:0;padding:0;overflow-y: auto;">
-		<button id="paste" title="点击后在控制台查看剪贴板内容">黏贴测试</button>
+     <div id="iframe_parent" style="width:100%; height:100%;margin:0;padding:0 0 40px 0;overflow-y: auto;">
+		<button id="paste" title="点击后在控制台查看剪贴板内容">粘贴测试</button>
 		<div id="pastehint"></div>  
 		<div id="initloading">加载中, 请稍候...</div>
 		<div id="hint1" class="column-center">
@@ -351,8 +366,6 @@
 		  </div>
 		  <div id="importExam" class="btn-normal clicked">上传卷面</div>
 		  <div id="saveData" class="btn-normal clicked">保存数据</div>
-		  <div id="extroSwitch" class="clicked">
-			<i class="iconfont icon-qitafuwu" style="color: #aaa;"></i></div>
 		  <!-- <select id="writeSelect">
 			<option value="show">显示所有书写区</option>
 			<option value="hide">隐藏所有书写区</option>
@@ -361,10 +374,37 @@
           <div class="ques-list font-12" id="treeRoot">
           </div> -->
         </div>
+		<div id="extroSwitch" class="clicked">
+			<i class="iconfont icon-qitafuwu" style="color: #aaa;" title="点击显示辅助调试按钮"></i>
+		  </div>
+		  <div id="tools" class="clicked">
+			<i class="iconfont icon-xiaogongju" style="color: #aaa;" title="小工具"></i>
+		  </div>
         <div id="panelQues">
         </div>
         <div id="panelFeature"></div>
         <div class="button_wrapper">
+			<div id="tool_buttons">
+				<div class="wrapper3">
+					<div>图片关联</div>
+					<div style="margin: 4px 0;display: flex;flex-direction: row;justify-content: space-around;align-items: center;">
+						<div id="imageLinkSelect"></div>
+						<div id="btnImageLink" class="btn-text-default" style="width: 46%;margin-bottom: 0;" title="当图片整个在题目范围内时，才会关联">去关联</div>
+					</div>
+					<div id="imageLinkTip"></div>
+					<div id="imageLinkCheck" class="btn-text-default">关联检查</div>
+				</div>
+				<div id="shortcutKey" style="display: flex;flex-direction: row;align-items: center;padding-left: 12px;">
+					小问快捷键：
+					<div id="shortcutKeyDiv"></div>
+				</div>
+				<div id="addWord" class="btn-text-default" style="margin-top: 4px">插入符号</div>
+				<div style="display: flex;flex-direction: row;align-items: center;">
+					<textarea id="paste-target" placeholder="Ctrl+V黏贴要插入的文本"></textarea>
+					<i id="pasteclear" class="iconfont icon-shanchu clicked" style="display: inline-block;" title="清除输入框内容"></i>
+					<button id="mathpix" class="btn-normal clicked" style="margin-left: 4px;" title="点击此按钮可将已黏贴的latex文本转换成图片插入到光标位置" >M导入</button>
+				</div>
+			</div>
           <div id="extro_buttons">
             <!-- <div id="getDocInfo" class="btn-text-default">获取文档信息</div> -->
             <!-- <div id="splitQuestionBtn" class="btn-text-default">切题</div>         -->
@@ -379,16 +419,6 @@
 			<!-- <div id="clearRepeatControl" class="btn-text-default">删除ID重复控件 </div> -->
 			<div id="printData" class="btn-text-default" title="在控制台显示存储的BiyueCustomData数据">输出BiyueCustomData内容</div>
 			<div id="printStack" class="btn-text-default" title="在控制台显示当前stack长度，大于2时，基本可判定插件已死，请关闭再打开插件">输出当前stack length</div>
-			<div id="shortcutKey" style="display: flex;flex-direction: row;align-items: center;padding-left: 12px;">
-				小问快捷键：
-				<div id="shortcutKeyDiv"></div>
-			</div>
-			<div id="addWord" class="btn-text-default">插入符号</div>
-			<div style="display: flex;flex-direction: row;align-items: center;">
-				<textarea id="paste-target" placeholder="Ctrl+V黏贴要插入的文本"></textarea>
-				<i id="pasteclear" class="iconfont icon-shanchu clicked" style="display: inline-block;" title="清除输入框内容"></i>
-				<button id="mathpix" class="btn-normal clicked" style="margin-left: 4px;" title="点击此按钮可将已黏贴的latex文本转换成图片插入到光标位置" >M导入</button>
-			</div>
             <!--<div id="lockBtn" class="btn-text-default">锁定</div>
             <div id="unlockBtn" class="btn-text-default">解锁</div>
             <div id="showPosition" class="btn-text-default">显示渲染位置</div>

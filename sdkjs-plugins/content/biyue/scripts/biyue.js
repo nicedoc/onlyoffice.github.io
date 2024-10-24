@@ -42,7 +42,8 @@ import {
 	deleteChoiceOtherWrite,
 	handleUploadPrepare,
 	importExam,
-	insertSymbol
+	insertSymbol,
+	updateLinkedInfo
 } from './QuesManager.js'
 
 import { reqSaveInfo } from './api/paper.js'
@@ -219,6 +220,17 @@ import { getInfoForServerSave } from './model/util.js'
 				closeWindow(modal.id)
 				if (message.data) {
 					tagImageCommon(message.data)
+				}
+				break
+			case 'elementLinkedMessage':
+				if (message.data) {
+					updateLinkedInfo(message.data)
+					closeWindow(modal.id)
+				} else {
+					modal.command('initLinkedInfo', {
+						biyueCustomData: window.BiyueCustomData,
+						linkedList: Asc.scope.linked_list
+					})
 				}
 				break
 			case 'showSymbols':

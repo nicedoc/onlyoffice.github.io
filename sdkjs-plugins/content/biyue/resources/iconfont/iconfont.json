@@ -6,6 +6,13 @@
   "description": "",
   "glyphs": [
     {
+      "icon_id": "18166121",
+      "name": "公文包,工具箱,手提包,行李包",
+      "font_class": "xiaogongju",
+      "unicode": "e8b7",
+      "unicode_decimal": 59575
+    },
+    {
       "icon_id": "8353908",
       "name": "其他服务",
       "font_class": "qitafuwu",

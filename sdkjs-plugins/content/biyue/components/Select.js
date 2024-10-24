@@ -15,6 +15,7 @@ class ComponentSelect {
 		this.options = params.options
 		this.value_select = params.value_select
 		this.width = params.width || '85px'
+		this.pop_width = params.pop_width || this.width
 		if (params.enabled == false) {
 			this.enabled = false
 		} else {
@@ -51,7 +52,7 @@ class ComponentSelect {
         <button id="${this.id}_button" type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-expanded="true">
           <span class="caret"></span>
         </button>
-        <ul id="${this.id}_ul" class="dropdown-menu ps-container oo" style="min-width: ${this.width}; max-height: 774px;" role="menu">${strOptions}</ul>
+        <ul id="${this.id}_ul" class="dropdown-menu ps-container oo" style="min-width: ${this.pop_width}; max-height: 774px;" role="menu">${strOptions}</ul>
       </span>
     `
 		$(`#${this.id}`).css('width', `${this.width}`)
