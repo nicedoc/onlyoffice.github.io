@@ -12,9 +12,11 @@ import {
 	g_click_value,
 	clearRepeatControl,
 	tidyNodes,
+} from './QuesManager.js'
+import {
 	imageAutoLink,
 	onLinkedCheck
-} from './QuesManager.js'
+} from './linkHandler.js'
 import { showCom, updateText, addClickEvent, getInfoForServerSave } from './model/util.js'
 import { reqSaveInfo, onLatexToImg} from './api/paper.js'
 import { biyueCallCommand, resetStack } from './command.js'
@@ -416,7 +418,7 @@ function onImageLink() {
 	imageAutoLink().then(res => {
 		if (res) {
 			window.BiyueCustomData.client_node_id = res.client_node_id
-			updateHintById('imageLinkTip', '就近关联完成', '#00ff00')
+			updateHintById('imageLinkTip', '就近关联完成', '#4EAB6D')
 		}
 	})
 }

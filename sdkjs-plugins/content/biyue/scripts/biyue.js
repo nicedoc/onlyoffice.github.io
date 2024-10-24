@@ -37,14 +37,16 @@ import {
 	handleContextMenuShow,
 	onContextMenuClick,
 	layoutRepair,
-	tagImageCommon,
 	updateDataBySavedData,
 	deleteChoiceOtherWrite,
 	handleUploadPrepare,
 	importExam,
-	insertSymbol,
-	updateLinkedInfo
+	insertSymbol
 } from './QuesManager.js'
+import {
+	tagImageCommon,
+	updateLinkedInfo
+} from './linkHandler.js'
 
 import { reqSaveInfo } from './api/paper.js'
 
