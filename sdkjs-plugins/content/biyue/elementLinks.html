@@ -18,6 +18,10 @@
 		<link rel="stylesheet" href="resources/css/batchSettingQuestionType.css">
 		<script src="vendor/jQuery-2.2.2-min/jquery-v2.2.2-min.js"></script>
 		<style>
+			.window-body {
+				display: flex;
+				flex-direction: row;
+			}
 			.info {
 				display: flex;
 				flex-direction: column;
@@ -55,27 +59,71 @@
 				}
 			}
 			#linksContainer {
-				display: flex;
-				flex-wrap: wrap;
+				width: 100px;
 				cursor: pointer;
+				padding: 8px;
+				border: 1px solid #bbb;
+				overflow-y: auto;
+				background-color: #fff;
+				margin: 6px 8px 0 0px;
+				border-radius: 4px;
+				height: calc(100% - 48px);
 			}
 			.active {
-				border: 1px solid #4caf50;
+				.link-item {
+					border: 1px solid #4caf50;
+				}
+				.link-index {
+					color: #4caf50;
+				}
 			}
 			.link-item {
 				height: fit-content;
-				margin: 2px;
+				margin: 8px 0;
+				max-width: 96px;
+				max-height: 96px;
+				overflow: hidden;
+				border: 1px solid #bbb;
+				border-radius: 2px;
+			}
+			.link-index {
+				margin-top: 2px;
+				text-align: center;
+				font-size: 12px;
+			}
+			.preview-box {
+				background-color: #fff;
+				border: 1px solid #bbb;
+				padding: 8px;
+				margin-top: 6px;
+				border-radius: 4px;
+			}
+			#preview {
+				height: fit-content;
+			}
+			.ques-title {
+				font-size: 14px;
+				border-bottom: 1px solid #bbb;
+				padding-bottom: 4px;
+				margin-top: 8px;
 			}
 		</style>
 	</head>
 
 	<body>
 		<div class="window-body">
-			<div class="batch-setting-type-header">
-				<div>元素列表：</div>
+			<div>
+				<div style="font-size: 14px;">图片列表</div>
 				<div id="linksContainer"></div>
 			</div>
-			<div class="batch-setting-type-info"></div>
+			<div>
+				<div style="font-size: 14px;">大图预览</div>
+				<div class="preview-box">
+					<div id="preview"></div>
+				</div>
+				<div class="ques-title">关联题目</div>
+				<div class="batch-setting-type-info"></div>
+			</div>
 		</div>
 		<div class="confirm-wrapper">
 			<label class="hidden_empty_struct" for="hidden_empty_struct"

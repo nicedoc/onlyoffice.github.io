@@ -34,8 +34,8 @@
 			return
 		}
 		var strhtml = ''
-		res.forEach(e => {
-			var item = `<div class="link-item linkItem${ e.target_id}">${e.html}</div>`
+		res.forEach((e, index) => {
+			var item = `<div class="link-item-box linkItem${ e.target_id}"><div class="link-item">${e.html}</div><div class="link-index">图片 ${index + 1}</div></div>`
 			strhtml += item
 		})
 		$('#linksContainer').html(strhtml)
@@ -62,6 +62,7 @@
 		
 		target_index = index
 		if (index < linked_list.length) {
+			$(`#preview`).html(linked_list[index].html)
 			$(`.linkItem${linked_list[target_index].target_id}`).addClass('active')
 			target_id = linked_list[index].target_id
 			var use = linked_list[index].ques_use

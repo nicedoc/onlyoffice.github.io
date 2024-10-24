@@ -319,7 +319,7 @@ function onLinkedCheck() {
 		return linkedList
 	}, false, false).then(res => {
 		Asc.scope.linked_list = res
-		window.biyue.showDialog('elementLinks', '关联检查', 'elementLinks.html', 800, 500, false)
+		window.biyue.showDialog('elementLinks', '关联检查', 'elementLinks.html', 900, 500, false)
 	})
 }
 
