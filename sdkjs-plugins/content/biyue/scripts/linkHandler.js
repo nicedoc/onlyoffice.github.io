@@ -289,7 +289,8 @@ function onLinkedCheck() {
 							}
 						}
 						oDrawing.Select()
-						var oRange = oRun.GetRange()
+						var contentpos = oDocument.Document.GetContentPosition()
+						var oRange = oRun.GetRange(contentpos, contentpos)
 						var html = getHtml(oRange)
 						linkedList.push({
 							html: html,
