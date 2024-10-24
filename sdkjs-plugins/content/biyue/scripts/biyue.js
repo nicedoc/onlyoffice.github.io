@@ -45,7 +45,8 @@ import {
 } from './QuesManager.js'
 import {
 	tagImageCommon,
-	updateLinkedInfo
+	updateLinkedInfo,
+	locateItem
 } from './linkHandler.js'
 
 import { reqSaveInfo } from './api/paper.js'
@@ -225,9 +226,15 @@ import { getInfoForServerSave } from './model/util.js'
 				}
 				break
 			case 'elementLinkedMessage':
-				if (message.data) {
-					updateLinkedInfo(message.data)
-					closeWindow(modal.id)
+				if (message.cmd) {
+					if (message.cmd == 'confirm') {
+						if (message.data && message.data.length) {
+							updateLinkedInfo(message.data)	
+						}
+						closeWindow(modal.id)
+					} else if (message.cmd == 'locate') {
+						locateItem(message.data)
+					}
 				} else {
 					modal.command('initLinkedInfo', {
 						biyueCustomData: window.BiyueCustomData,

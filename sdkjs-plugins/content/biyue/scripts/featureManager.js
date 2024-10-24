@@ -791,6 +791,7 @@ function drawList(list) {
 						} else if (options.zone_type == ZONE_TYPE.THER_EVALUATION || options.zone_type == ZONE_TYPE.SELF_EVALUATION) {
 							var flowers = options.flowers || []
 							var oTable = Api.CreateTable(2 + flowers.length, 1)
+							oTable.SetTableTitle('ignore')
 							var scale = 0.25
 							var flowersize = 24
 							var fw = flowersize * scale

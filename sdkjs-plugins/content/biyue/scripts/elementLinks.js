@@ -16,30 +16,24 @@
 	  console.log('elementLinks init')
 	  window.Asc.plugin.sendToPlugin('onWindowMessage', { type: 'elementLinkedMessage' })
 	}
-
-	function getJsonData(str) {
-		if (!str || str == '' || typeof str != 'string') {
-			return {}
-		}
-		try {
-			return JSON.parse(str)
-		} catch (error) {
-			console.log('json parse error', error)
-			return {}
-		}
-	}
-
 	function initData(res) {
 		if (!res) {
 			return
 		}
+		$('#confirm').on('click', onConfirm)
+		if (res.length == 0) {
+			$('.window-body').hide()
+			$('.empty').show()
+			$('.hidden_empty_struct').hide()
+			return
+		}
+		$('.empty').hide()
 		var strhtml = ''
 		res.forEach((e, index) => {
-			var item = `<div class="link-item-box linkItem${ e.target_id}"><div class="link-item">${e.html}</div><div class="link-index">图片 ${index + 1}</div></div>`
+			var item = `<div class="link-item-box linkItem${ e.target_id}"><div class="link-item">${e.html}</div><div class="link-index">${e.type == 'table' ? '表格' : '图片'} ${index + 1}</div></div>`
 			strhtml += item
 		})
 		$('#linksContainer').html(strhtml)
-		$('#confirm').on('click', onConfirm)
 		$('#hidden_empty_struct').on('click', onSwitchStruct)
 		res.forEach((e, index) => {
 			let doms = document.querySelectorAll('.linkItem' + e.target_id) || []
@@ -49,7 +43,19 @@
 				})
 			})
 		})
+		$('#preview').on('click', locateItem)
 		selectItem(0)
+	}
+
+	function locateItem() {
+		window.Asc.plugin.sendToPlugin('onWindowMessage', {
+			type: 'elementLinkedMessage',
+			cmd: 'locate',
+			data: {
+				target_id: target_id,
+				type: linked_list[target_index].type
+			}
+		})
 	}
 
 	function selectItem(index) {
@@ -144,6 +150,10 @@
 	  tree_map = tree
 	  questionList = question_list || []
 	  $('.batch-setting-type-info').html(html)
+	  if (html == '') {
+		$('.batch-setting-type-info').html('<div class="ques-none">暂无题目，请先切题</div>')
+		$('.hidden_empty_struct').hide()
+	  }
 
 	  // 处理题目的下拉选项事件
 	  for (const key in questionList) {
@@ -232,6 +242,7 @@
 		// 将窗口的信息传递出去
 		window.Asc.plugin.sendToPlugin('onWindowMessage', {
 			type: 'elementLinkedMessage',
+			cmd: 'confirm',
 			data: data
 		})
 	}

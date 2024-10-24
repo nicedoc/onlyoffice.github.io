@@ -191,7 +191,7 @@ function imageAutoLink() {
 		for (var i = 0; i < tables.length; ++i) {
 			var oTable = tables[i]
 			var strtitle = oTable.GetTableTitle()
-			if (strtitle == 'questionTable') {
+			if (strtitle == 'questionTable' || tabletitle == 'ignore') {
 				continue
 			}
 			var title = getJsonData(strtitle)
@@ -230,6 +230,105 @@ function imageAutoLink() {
 			client_node_id
 		}
 	}, false, true)
+}
+function onAllCheck() {
+	return biyueCallCommand(window, function() {
+		var oDocument = Api.GetDocument()
+		var allDrawings = oDocument.GetAllDrawingObjects() || []
+		var tables = oDocument.GetAllTables() || []
+		function getJsonData(str) {
+			if (!str || str == '' || typeof str != 'string') {
+				return {}
+			}
+			try {
+				return JSON.parse(str)
+			} catch (error) {
+				console.log('json parse error', error)
+				return {}
+			}
+		}
+		var allList = []
+		function getHtml(oRange) {
+			if (!oRange) {
+				return
+			}
+			oRange.Select()				
+			let text_data = {
+				data:     "",
+				// 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
+				pushData: function (format, value) {
+					if (!value) {
+						console.log('========= value is null')
+					} else {
+						console.log('value is not null')
+					}
+					this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : "";
+				}
+			};
+			Api.asc_CheckCopy(text_data, 2);
+			var rev = text_data.data
+			// Api.asc_RemoveSelection();
+			return rev
+		}
+		var i, j
+		if (allDrawings.length) {
+			for (i = 0; i < allDrawings.length; ++i) {
+				var oDrawing = allDrawings[i]
+				var title = getJsonData(oDrawing.Drawing.docPr.title)
+				if (title.feature && title.feature.zone_type) {
+					continue
+				}
+				var parentRun = oDrawing.Drawing.GetRun()
+				if (parentRun) {
+					var oRun = Api.LookupObject(parentRun.Id)
+					var elementCount = oRun.Run.GetElementsCount()
+					var index = 0
+					for (j = 0; j < elementCount; ++j) {
+						var child = oRun.Run.GetElement(0)
+						if (child.Id == oDrawing.Drawing.Id) {
+							index = j
+							break
+						}
+					}
+					oDrawing.Select()
+					var contentpos = oDocument.Document.GetContentPosition()
+					var oRange = oRun.GetRange(contentpos, contentpos)
+					var html = getHtml(oRange)
+					if (html && html.length > 0) {
+						allList.push({
+							html: html,
+							ques_use: title.feature && title.feature.ques_use ? title.feature.ques_use : '',
+							type: 'drawing',
+							target_id: oDrawing.Drawing.Id
+						})
+					}
+				}
+			}
+		}
+		if (tables.length) {
+			for (i = 0; i < tables.length; ++i) {
+				var oTable = tables[i]
+				var tabletitle = oTable.GetTableTitle()
+				if (tabletitle == 'questionTable' || tabletitle == 'ignore') {
+					continue
+				}
+				var title = getJsonData(tabletitle)
+				var html = getHtml(oTable.GetRange())
+				if (html && html.length > 0) {
+					allList.push({
+						html: html,
+						ques_use: title && title.ques_use ? title.ques_use : '',
+						type: 'table',
+						target_id: oTable.Table.Id
+					})	
+				}
+			}
+		}
+		return allList
+	}, false, false).then(res => {
+		Asc.scope.linked_list = res
+		window.biyue.showDialog('elementLinks', '关联检查', 'elementLinks.html', 900, 500, false)
+	})
 }
 // 获取已关联列表
 function onLinkedCheck() {
@@ -398,9 +497,31 @@ function updateLinkedInfo(info) {
 	})
 }
 
+function locateItem(data) {
+	Asc.scope.locate_data = data
+	return biyueCallCommand(window, function() {
+		var locate_data = Asc.scope.locate_data
+		var oDocument = Api.GetDocument()
+		var allDrawings = oDocument.GetAllDrawingObjects() || []
+		if (locate_data.type == 'drawing') {
+			var oDrawing = allDrawings.find(e => e.Drawing.Id == locate_data.target_id)
+			if (oDrawing) {
+				oDrawing.Select()
+			}
+		} else if (locate_data.type == 'table') {
+			var oTable = Api.LookupObject(locate_data.target_id)
+			if (oTable) {
+				oTable.Select()
+			}
+		}
+	})
+}
+
 export {
 	tagImageCommon,
 	imageAutoLink,
 	onLinkedCheck,
-	updateLinkedInfo
+	updateLinkedInfo,
+	onAllCheck,
+	locateItem
 }

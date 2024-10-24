@@ -16,6 +16,7 @@
 			href="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.css"
 		/>
 		<link rel="stylesheet" href="resources/css/batchSettingQuestionType.css">
+		<link rel="stylesheet" href="./resources/iconfont/iconfont.css">
 		<script src="vendor/jQuery-2.2.2-min/jquery-v2.2.2-min.js"></script>
 		<style>
 			.window-body {
@@ -100,12 +101,31 @@
 			}
 			#preview {
 				height: fit-content;
+				cursor: pointer;
 			}
 			.ques-title {
 				font-size: 14px;
 				border-bottom: 1px solid #bbb;
 				padding-bottom: 4px;
 				margin-top: 8px;
+			}
+			.ques-none {
+				color: #bbb;
+    			text-align: center;
+    			margin-top: 60px;
+			}
+			.empty {
+				display: flex;
+				width: 100%;
+				height: 400px;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				color: #bbb;
+				font-size: 16px;
+				.iconfont {
+					font-size: 100px;
+				}
 			}
 		</style>
 	</head>
@@ -116,14 +136,18 @@
 				<div style="font-size: 14px;">图片列表</div>
 				<div id="linksContainer"></div>
 			</div>
-			<div>
-				<div style="font-size: 14px;">大图预览</div>
+			<div style="width: 100%;">
+				<div style="font-size: 14px;">大图预览(点击图片可选中定位)</div>
 				<div class="preview-box">
 					<div id="preview"></div>
 				</div>
 				<div class="ques-title">关联题目</div>
 				<div class="batch-setting-type-info"></div>
 			</div>
+		</div>
+		<div class="empty">
+			<i class="iconfont icon-weikong" style="font-size: 40px;"></i>
+			<div>该文档暂无需要关联的图片~</div>
 		</div>
 		<div class="confirm-wrapper">
 			<label class="hidden_empty_struct" for="hidden_empty_struct"

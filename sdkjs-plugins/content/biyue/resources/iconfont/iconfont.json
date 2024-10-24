@@ -6,6 +6,13 @@
   "description": "",
   "glyphs": [
     {
+      "icon_id": "39085747",
+      "name": "空盒子",
+      "font_class": "weikong",
+      "unicode": "e609",
+      "unicode_decimal": 58889
+    },
+    {
       "icon_id": "11501359",
       "name": "保存",
       "font_class": "baocun",

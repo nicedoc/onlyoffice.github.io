@@ -15,7 +15,7 @@ import {
 } from './QuesManager.js'
 import {
 	imageAutoLink,
-	onLinkedCheck
+	onAllCheck
 } from './linkHandler.js'
 import { showCom, updateText, addClickEvent, getInfoForServerSave } from './model/util.js'
 import { reqSaveInfo, onLatexToImg} from './api/paper.js'
@@ -419,12 +419,13 @@ function onImageLink() {
 		if (res) {
 			window.BiyueCustomData.client_node_id = res.client_node_id
 			updateHintById('imageLinkTip', '就近关联完成', '#4EAB6D')
+			onImageLink()
 		}
 	})
 }
 // 图片关联检查
 function onImageLinkCheck() {
-	onLinkedCheck()
+	onAllCheck()
 }
 
 export {
