@@ -109,7 +109,7 @@ function getList() {
 			zone_type: ZONE_TYPE.SELF_EVALUATION,
 			id: ZONE_TYPE_NAME[ZONE_TYPE.SELF_EVALUATION],
 			label: extra_info.self_evaluate || '自我评价',
-			icon_url: 'https://by-base-cdn.biyue.tech/xiaoyue.png',
+			icon_url: workbook.self_evaluate_img, // || 'https://by-base-cdn.biyue.tech/xiaoyue_s.png',
 			flowers: Object.values(extra_info.self_filling_imgs || {}),
 			value_select: 'open'
 		})
@@ -117,7 +117,7 @@ function getList() {
 			zone_type: ZONE_TYPE.THER_EVALUATION,
 			id: ZONE_TYPE_NAME[ZONE_TYPE.THER_EVALUATION],
 			label: '教师评价',
-			icon_url: 'https://by-base-cdn.biyue.tech/xiaotao.png',
+			icon_url: workbook.teacher_evaluate_img, // || 'https://by-base-cdn.biyue.tech/xiaotao_s.png',
 			flowers: Object.values(extra_info.teacher_filling_imgs || {}),
 			value_select: 'open'
 		})
