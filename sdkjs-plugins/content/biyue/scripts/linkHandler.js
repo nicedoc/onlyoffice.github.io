@@ -163,20 +163,26 @@ function imageAutoLink() {
 						client_node_id += 1
 						title.feature.client_id = client_node_id
 					}
-					if (title.feature.ques_use) {
-						var uselist = title.feature.ques_use.split('_')
-						if (!(uselist.find(e => { return e == belongControl.ques_id}))) {
-							uselist.push(belongControl.ques_id)
-							title.feature.ques_use = uselist.join('_')
+					var quesuse = title.feature.ques_use
+					if (quesuse) {
+						if (typeof quesuse == 'number') {
+							quesuse = quesuse + ''
+						}
+						if (typeof quesuse == 'string') {
+							var uselist = quesuse.split('_')
+							if (!(uselist.find(e => { return e == belongControl.ques_id}))) {
+								uselist.push(belongControl.ques_id)
+								title.feature.ques_use = uselist.join('_')
+							}
 						}
 					} else {
-						title.feature.ques_use = title.ques_use.join('_')
+						title.feature.ques_use = belongControl.ques_id + ''
 					}
 				} else {
 					client_node_id += 1
 					title = {
 						feature: {
-							ques_use: belongControl.ques_id,
+							ques_use: belongControl.ques_id + '',
 							client_id: client_node_id
 						}
 					}
@@ -191,7 +197,7 @@ function imageAutoLink() {
 		for (var i = 0; i < tables.length; ++i) {
 			var oTable = tables[i]
 			var strtitle = oTable.GetTableTitle()
-			if (strtitle == 'questionTable' || tabletitle == 'ignore') {
+			if (strtitle == 'questionTable' || strtitle == 'ignore') {
 				continue
 			}
 			var title = getJsonData(strtitle)

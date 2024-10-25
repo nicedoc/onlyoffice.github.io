@@ -419,7 +419,7 @@ function onImageLink() {
 		if (res) {
 			window.BiyueCustomData.client_node_id = res.client_node_id
 			updateHintById('imageLinkTip', '就近关联完成', '#4EAB6D')
-			onImageLink()
+			onImageLinkCheck()
 		}
 	})
 }
