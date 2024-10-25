@@ -75,14 +75,22 @@ import { getInfoForServerSave } from './model/util.js'
 		}
 	}
 
-	function closeWindow(id) {
+	function closeWindow(id, cmdtype) {
 		var win = windowList.find(e => {
 			return e.id == id
 		})
+		var winname = ''
 		if (win) {
 			win.visible = false
+			winname = win.name
 		}
-		window.Asc.plugin.executeMethod('CloseWindow', [id])
+		window.Asc.plugin.executeMethod('CloseWindow', [id], function() {
+			if (cmdtype == 'cancel' || cmdtype == 'close') {
+				if (winname == 'levelSetWindow') {
+					clearAllControls()
+				}
+			}
+		})
 	}
 	function closeAllWindows() {
 		windowList.forEach(e => {
@@ -155,7 +163,7 @@ import { getInfoForServerSave } from './model/util.js'
 				)
 				break
 			case 'cancelDialog':
-				closeWindow(modal.id)
+				closeWindow(modal.id, 'cancel')
 				break
 			case 'confirmDialog':
 				closeWindow(modal.id)
@@ -1511,7 +1519,7 @@ import { getInfoForServerSave } from './model/util.js'
 		}
 		if (windowID) {
 			if (id === -1) {
-				closeWindow(windowID)
+				closeWindow(windowID, 'close')
 			}
 			return
 		}
