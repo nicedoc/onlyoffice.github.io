@@ -21,9 +21,7 @@ import {
 } from './business.js'
 import { getVersion } from "./ver.js"
 import {
-	initFeature,
 	initExtroInfo,
-	syncInteractionWhenReSplit,
 } from './panelFeature.js'
 import { biyueCallCommand, dispatchCommandResult } from './command.js'
 import {
@@ -53,7 +51,7 @@ import { reqSaveInfo } from './api/paper.js'
 
 import { initView, onSaveData } from './pageView.js'
 
-import { setInteraction, updateChoice } from './featureManager.js'
+import { setInteraction, updateChoice, deleteAllFeatures } from './featureManager.js'
 import { getInfoForServerSave } from './model/util.js'
 (function (window, undefined) {
 	var styleEnable = false
@@ -833,19 +831,6 @@ import { getInfoForServerSave } from './model/util.js'
 						}
 					}
 				}
-				// if (range.StartPos && range.EndPos) {
-				// 	for (var j = 0; j < range.StartPos.length; ++j) {
-				// 		if (j < range.EndPos.length) {
-				// 			if (range.StartPos[j].Class == range.EndPos[j].Class) {
-				// 				if (range.StartPos[j].Position > range.EndPos[j].Position) {
-				// 					e.end = "$['content'][-1]['content'][-1]['content'][-1]"
-				// 					return MakeRange(e.beg, e.end)
-				// 				}
-				// 			}
-				// 		}
-				// 	}
-				// }
-				// return range
 			}
             var results = [];
             // reverse order loop to keep the order
@@ -856,6 +841,16 @@ import { getInfoForServerSave } from './model/util.js'
                 var range = MakeRange(e.beg, e.end);
 				if (e.end == "$['content'][-2]['content'][-1]['content'][-1]") {
 					range = getNewRange(range, e)
+				} else if (e.end == "$['content'][-1]['content'][-1]['content'][-1]") {
+					for (var j = range.EndPos.length - 1; j >= 0; --j) {
+						if (range.EndPos[j].Class.GetType && range.EndPos[j].Class.GetType() == 1) { // 段落
+							if (range.EndPos[j].Class.IsEmpty()) {
+								e.end = "$['content'][-2]['content'][-1]['content'][-1]"
+								range = MakeRange(e.beg, e.end)
+							}
+							break
+						}
+					}
 				}
                 range.Select()
 				var startCellId = getCellId(range.StartPos)
@@ -2270,8 +2265,9 @@ import { getInfoForServerSave } from './model/util.js'
 	}
 	// 重新切题
 	function reSplitQustion() {
-		return onClearAllControls()
-			.then((result) => {
+		return deleteAllFeatures().then(() => {
+			return onClearAllControls()
+		}).then((result) => {
 				var ranges = newSplit(result.text_json)
 				console.log('splitQuestion:', ranges)
 				return createContentControl(ranges)

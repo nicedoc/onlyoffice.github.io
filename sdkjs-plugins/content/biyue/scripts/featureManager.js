@@ -423,9 +423,7 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 				}
 			}
 		}
-	}, false, true).then(() => {
-		console.log('功能区都已删除')
-	})
+	}, false, true)
 }
 
 function drawList(list) {
