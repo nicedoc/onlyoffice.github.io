@@ -28,7 +28,7 @@ var select_choice_style = null
 var select_choice_area = null
 var input_choice_num = null
 var timeout_change_choice_num = null
-
+var imageDimensionsCache = {} // 图片的宽高比缓存
 function initExtroInfo() {
 	list_feature = getList()
 	return initPositions1()
@@ -50,7 +50,7 @@ function getList() {
 	var extra_info = {}
 	if (workbook.extra_info && workbook.extra_info.length > 0) {
 		try {
-			extra_info = JSON.parse(workbook.extra_info)	
+			extra_info = JSON.parse(workbook.extra_info)
 		} catch (error) {
 			console.log('json parse error', error)
 			return
@@ -535,8 +535,24 @@ function initPositions1() {
 		var vinteraction = window.BiyueCustomData.interaction
 		updateAllInteraction(vinteraction, false)
 		return setInteraction('useself')
-	}).then(() => {
-		return drawExtroInfo(list_feature)
+	})
+	.then(() => { // 插入获取图片宽高比的步骤
+	  	const imageUrls = [];
+	  	list_feature.forEach(e => {
+			if (e.url) {
+				imageUrls.push(e.url)
+			}
+			if (e.icon_url) {
+				imageUrls.push(e.icon_url)
+			}
+			if (e.flowers) {
+				imageUrls.concat(e.flowers)
+			}
+	  	})
+	  	return Promise.all(imageUrls.map(getImageDimensions));
+	})
+	.then(() => {
+		return drawExtroInfo(list_feature, imageDimensionsCache)
 	}).then(() => {
 		setLoading(false)
 		return MoveCursor()
@@ -601,5 +617,24 @@ function changeChoiceNum(id, data) {
 		})
 	}, 400);
 }
-
+// 获取图片宽高比
+function getImageDimensions(url) {
+	if (imageDimensionsCache[url]) {
+		return Promise.resolve(imageDimensionsCache[url]);
+	}
+	return new Promise((resolve, reject) => {
+	  	const img = new Image();
+		img.crossOrigin = "anonymous";  // 设置跨域属性
+	  	img.onload = function() {
+			const dimensions = { width: img.naturalWidth, height: img.naturalHeight, aspectRatio: img.naturalWidth / img.naturalHeight };
+			// 缓存获取的宽高比信息
+			imageDimensionsCache[url] = dimensions;
+			resolve(dimensions);
+		};	  
+		img.onerror = function() {
+			reject(`Failed to load image: ${url}`);
+		};
+		img.src = url;
+	});
+}
 export { initFeature, initExtroInfo, syncInteractionWhenReSplit }

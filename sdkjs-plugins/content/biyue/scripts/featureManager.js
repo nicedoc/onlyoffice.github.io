@@ -49,7 +49,7 @@ function handleFeature(options) {
 	})
 }
 
-function drawExtroInfo(list) {
+function drawExtroInfo(list, imageDimensionsCache) {
 	if (!list) { return }
 	list.forEach(e => {
 		e.page_num = e.p || 0
@@ -60,6 +60,7 @@ function drawExtroInfo(list) {
 		e.type = 'feature'
 		e.type_name = ZONE_TYPE_NAME[e.zone_type]
 	})
+	Asc.scope.imageDimensionsCache = imageDimensionsCache
 	return drawList(list)
 }
 // 整理参数
@@ -431,6 +432,7 @@ function drawList(list) {
 	Asc.scope.feature_wait_handle = list
 	Asc.scope.ZONE_TYPE = ZONE_TYPE
 	return biyueCallCommand(window, function() {
+		var imageDimensionsCache = Asc.scope.imageDimensionsCache || {}
 		var ZONE_TYPE = Asc.scope.ZONE_TYPE
 		var MM2TWIPS = 25.4 / 72 / 20
 		var oDocument = Api.GetDocument()
@@ -477,7 +479,12 @@ function drawList(list) {
 			if (oCellContent) {
 				var p = oCellContent.GetElement(0)
 				if (p && p.GetClassType() == 'paragraph') {
-					var oImage = Api.CreateImage(url, w * 36e3, h * 36e3)
+					var dimension = imageDimensionsCache[url]
+					var h2 = h
+					if (dimension && dimension.aspectRatio != undefined && dimension.aspectRatio != 0) {
+						h2 = w / dimension.aspectRatio
+					}
+					var oImage = Api.CreateImage(url, w * 36e3, h2 * 36e3)
 					p.AddDrawing(oImage)
 				}
 			}
