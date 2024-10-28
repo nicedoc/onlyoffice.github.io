@@ -107,14 +107,9 @@ let InsertRuby = function(ranges) {
                 continue;
             }
 
-            var apiRun = editor.CreateRun();
-            
-            var oPr = new CRubyPr();            
-            oPr.Hps = range.Ruby.Hps;
-            oPr.HpsRaise = range.Ruby.HpsRaise;
-            oPr.HpsBaseText = range.Ruby.HpsBaseText;
-            oPr.FontName = range.Ruby.FontName;            
-            apiRun.Run.AddRuby(range.Ruby.Ruby, range.Ruby.RubyBase, oPr);
+            var apiRun = editor.CreateRun();                       
+
+            apiRun.AddRuby(range.Ruby.Ruby, range.Ruby.RubyBase, range.Ruby)
             
             // 插入ruby
             oParagraph.AddElement(apiRun, begPos);
