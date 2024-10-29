@@ -357,9 +357,21 @@ function updateElements(quesData, hint, ignore_ask_list) {
 
 function showQuesData(params) {
 	console.log('showQuesData', params)
-	if (!params || !params.client_id ) {
+	if(window.tab_select != 'tabQues') {
+		return
+	}
+	if(!params) {
 		updateElements(null)
 		return
+	}
+	if (!params.client_id) {
+		if (params.parentTag) {
+			params.client_id = params.parentTag.client_id
+		}
+		if (!params.client_id) {
+			updateElements(null)
+			return	
+		}
 	}
 	g_client_id = params.client_id
 	var question_map = window.BiyueCustomData.question_map || {}

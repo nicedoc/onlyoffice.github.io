@@ -33,9 +33,8 @@ function initView() {
 	window.tab_select = 'tabList'
 	$('.tabitem').on('click', changeTab)
 	document.addEventListener('clickSingleQues', function (event) {
-		console.log('clickSingleQues', event)
 		if (window.tab_select != 'tabQues') {
-			changeTabPanel('tabQues')
+			changeTabPanel('tabQues', event)
 		}
 	})
 	addClickEvent('#retry', () => {
@@ -175,7 +174,7 @@ function changeTab(e) {
 
 }
 
-function changeTabPanel(id) {
+function changeTabPanel(id, event) {
 	var tabs = ['tabList', 'tabQues', 'tabFeature']
 	tabs.forEach((tab) => {
 		if (tab == window.tab_select && tab != id) {
@@ -197,7 +196,9 @@ function changeTabPanel(id) {
 	if (id == 'tabFeature') {
 		initFeature()
 	} else if (id == 'tabQues') {
-		if (g_click_value) {
+		if (event.detail.parentTag) {
+			showQuesData(event.detail)
+		} else if (g_click_value) {
 			showQuesData(Object.assign({}, g_click_value.Tag, {
 				InternalId: g_click_value.InternalId,
 				Appearance: g_click_value.Appearance,

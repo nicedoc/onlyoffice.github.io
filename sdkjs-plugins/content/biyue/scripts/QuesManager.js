@@ -28,13 +28,25 @@ function handleDocClick(options) {
 						}),
 					})
 					document.dispatchEvent(event)
-				} else if (window.tab_select == 'tabQues') {
-					var event = new CustomEvent('clickSingleQues', {
-						detail: {
-							InternalId: returnValue.InternalId
-						},
+				} else {
+					Asc.scope.controlId = returnValue.InternalId
+					biyueCallCommand(window, function() {
+						var oControl = Api.LookupObject(Asc.scope.controlId)
+						var parentControl = oControl.GetParentContentControl()
+						return parentControl ? parentControl.GetTag() : ''
+					}, false, false).then(res => {
+						var parentTag = getJsonData(res)
+						if (parentTag.client_id || window.tab_select == 'tabQues') {
+							var event = new CustomEvent('clickSingleQues', {
+								detail: {
+									InternalId: returnValue.InternalId,
+									tag: tag,
+									parentTag: parentTag
+								},
+							})
+							document.dispatchEvent(event)
+						}
 					})
-					document.dispatchEvent(event)
 				}
 				if (options.isSelectionUse) {
 					var shortcutKey = window.BiyueCustomData ? window.BiyueCustomData.ask_shortcut : null
