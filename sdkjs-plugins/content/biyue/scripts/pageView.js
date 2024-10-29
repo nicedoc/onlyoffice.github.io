@@ -12,6 +12,7 @@ import {
 	g_click_value,
 	clearRepeatControl,
 	tidyNodes,
+	layoutDetect
 } from './QuesManager.js'
 import {
 	imageAutoLink,
@@ -146,6 +147,9 @@ function initView() {
 	addClickEvent('#btnImageLink', onImageLink)
 	addClickEvent('#imageLinkCheck', onImageLinkCheck)
 	addClickEvent('#addWord', openSymbol)
+	addClickEvent('#fixLayout', () => {
+		layoutDetect(true)
+	})
 }
 
 function handlePaperInfoResult(success, res) {

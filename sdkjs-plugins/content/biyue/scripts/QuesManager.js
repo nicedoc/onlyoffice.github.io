@@ -294,7 +294,7 @@ function getContextMenuItems(type, selectedRes) {
 				cData = getControlData(tag)
 				if (curControl.classType == 'blockLvlSdt') {
 					valueMap['clearChildren'] = 1
-					if (!cData) {
+					if (!cData || !cData.level_type) {
 						valueMap['question'] = 1
 						valueMap['struct'] = 1
 					}
@@ -3762,13 +3762,19 @@ function setSectionColumn(column) {
 		}
 	}, false, true)
 }
-function layoutDetect() {
+function layoutDetect(all) {
+	Asc.scope.layout_all_range = all
 	return biyueCallCommand(window, function() {
 		var oDocument = Api.GetDocument()
-		var oRange = oDocument.GetRangeBySelect()
-		if (!oRange) {
-			var currentContentControl = oDocument.Document.GetContentControl()
-			oRange = Api.LookupObject(currentContentControl.Id).GetRange()
+		var oRange = null
+		if (Asc.scope.layout_all_range) {
+			oRange = oDocument.GetRange()	
+		} else {
+			oRange = oDocument.GetRangeBySelect()
+			if (!oRange) {
+				var currentContentControl = oDocument.Document.GetContentControl()
+				oRange = Api.LookupObject(currentContentControl.Id).GetRange()
+			}
 		}
 		if (!oRange) {
 			return null
@@ -5913,5 +5919,6 @@ export {
 	setChoiceOptionLayout,
 	getNodeList,
 	handleChangeType,
-	insertSymbol
+	insertSymbol,
+	layoutDetect
 }
