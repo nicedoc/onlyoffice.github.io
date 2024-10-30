@@ -12,12 +12,12 @@ import {
 	g_click_value,
 	clearRepeatControl,
 	tidyNodes,
-	layoutDetect
 } from './QuesManager.js'
 import {
 	imageAutoLink,
 	onAllCheck
 } from './linkHandler.js'
+import { layoutDetect } from './layoutFixHandler.js'
 import { showCom, updateText, addClickEvent, getInfoForServerSave } from './model/util.js'
 import { reqSaveInfo, onLatexToImg} from './api/paper.js'
 import { biyueCallCommand, resetStack } from './command.js'

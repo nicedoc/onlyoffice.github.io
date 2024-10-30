@@ -106,11 +106,11 @@
 		}
 	}
 
-	function addCmdEvent(idname, classname, cmdType, value, newValue, idName) {
+	function addCmdEvent(idname, classname, cmdType, value, newValue, idName, keyname) {
 		var com = $(`#${idname} ${classname}`)
 		if (com) {
 			com.on('click', () => {
-				onCommand(cmdType, value, newValue, idName)
+				onCommand(cmdType, value, newValue, idName, keyname)
 			})
 		}
 	}
@@ -121,31 +121,30 @@
 		var idName = `#${detect_list[i].idname}`
 		var classlist = ['.ignore', '.replace', '.delete']
 		for (var j = 0; j < classlist.length; ++j) {
-			addCmdEvent(detect_list[i].idname, classlist[j], j, value, newValue, idName)
+			addCmdEvent(detect_list[i].idname, classlist[j], j, value, newValue, idName, detect_list[i].keyname)
 		}
 	}
 
-	function onCommand(type, val, newValue, comId) {
+	function onCommand(type, val, newValue, comId, keyname) {
 		window.Asc.plugin.sendToPlugin('onWindowMessage', {
 			type: 'LayoutRepairMessage',
 			cmd: {
 				type: type,
 				value: val,
-				newValue: newValue
+				newValue: newValue,
+				keyname: keyname
 			}
 		})
 		$(comId).hide()
 	}
 
 	function onConfirm() {
-		console.log('onConfirm')
 		window.Asc.plugin.sendToPlugin('onWindowMessage', {
 			type: 'confirmDialog'
 		})
 	}
 
 	function onCancel() {
-		console.log('onCancel')
 		window.Asc.plugin.sendToPlugin('onWindowMessage', {
 			type: 'cancelDialog',
 		})

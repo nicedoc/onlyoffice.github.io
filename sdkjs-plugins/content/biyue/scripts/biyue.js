@@ -34,7 +34,6 @@ import {
 	handleDocClick,
 	handleContextMenuShow,
 	onContextMenuClick,
-	layoutRepair,
 	updateDataBySavedData,
 	deleteChoiceOtherWrite,
 	handleUploadPrepare,
@@ -46,7 +45,7 @@ import {
 	updateLinkedInfo,
 	locateItem
 } from './linkHandler.js'
-
+import { layoutRepair, removeAllComment } from './layoutFixHandler.js'
 import { reqSaveInfo } from './api/paper.js'
 
 import { initView, onSaveData } from './pageView.js'
@@ -88,6 +87,8 @@ import { getInfoForServerSave } from './model/util.js'
 			if (cmdtype == 'cancel' || cmdtype == 'close') {
 				if (winname == 'levelSetWindow') {
 					clearAllControls()
+				} else if (winname == 'layoutRepairWindow') {
+					removeAllComment()
 				}
 			}
 		})
@@ -2198,7 +2199,9 @@ import { getInfoForServerSave } from './model/util.js'
 				}
 				if (isFirstLoad) {
 					Asc.scope.split_getdoc = true
-					initExtroInfo()
+					initExtroInfo().then(() => {
+						removeAllComment()
+					})
 					// reSplitQustion()
 				} else {
 					if (res2.data && res2.data.paper && res2.data.paper.info) {
@@ -2206,7 +2209,9 @@ import { getInfoForServerSave } from './model/util.js'
 					}
 					initControls().then(() => {
 						Asc.scope.split_getdoc = false
-						initExtroInfo()
+						return initExtroInfo()
+					}).then(() => {
+						removeAllComment()
 					})
 				}
 			})
