@@ -3890,10 +3890,15 @@ function layoutRepair(cmdData) {
 	return biyueCallCommand(window, function() {
 		var cmdData = Asc.scope.cmdData
 		var oDocument = Api.GetDocument()
-		var oRange = oDocument.GetRangeBySelect()
-		if (!oRange) {
-			var currentContentControl = oDocument.Document.GetContentControl()
-			oRange = Api.LookupObject(currentContentControl.Id).GetRange()
+		var oRange = null
+		if (Asc.scope.layout_all_range) {
+			oRange = oDocument.GetRange()	
+		} else {
+			oRange = oDocument.GetRangeBySelect()
+			if (!oRange) {
+				var currentContentControl = oDocument.Document.GetContentControl()
+				oRange = Api.LookupObject(currentContentControl.Id).GetRange()
+			}
 		}
 		if (!oRange) {
 			return null
