@@ -309,12 +309,6 @@ import { setXToken } from '../auth.js'
           positions[item.ref_id] = {}
         }
         item.ques_no = index++
-		if (item.content) {
-			delete item.content
-		}
-		if (item.text) {
-			delete item.text
-		}
         positions[item.ref_id] = item
       }
     }
@@ -340,6 +334,15 @@ import { setXToken } from '../auth.js'
     if (haveError) {
         return
     }
+	for (const key in preQuestionPositions) {
+		let item = preQuestionPositions[key]
+		if (item.content) {
+			delete item.content
+		}
+		if (item.text) {
+			delete item.text
+		}
+	}
     // 过滤题目选区里的字段类型,如果是数值类型则还会去除小数位
     const need_formatted = ['title_region', 'write_ask_region', 'mark_ask_region', 'correct_region', 'correct_ask_region']
     formattedPositions(preQuestionPositions, need_formatted)
