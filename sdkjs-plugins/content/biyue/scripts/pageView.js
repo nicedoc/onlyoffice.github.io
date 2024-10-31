@@ -200,7 +200,7 @@ function changeTabPanel(id, event) {
 	if (id == 'tabFeature') {
 		initFeature()
 	} else if (id == 'tabQues') {
-		if (event.detail.parentTag) {
+		if (event && event.detail && event.detail.parentTag) {
 			showQuesData(event.detail)
 		} else if (g_click_value) {
 			showQuesData(Object.assign({}, g_click_value.Tag, {

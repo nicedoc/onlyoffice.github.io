@@ -52,7 +52,7 @@ class ComponentSelect {
         <button id="${this.id}_button" type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-expanded="true">
           <span class="caret"></span>
         </button>
-        <ul id="${this.id}_ul" class="dropdown-menu ps-container oo" style="min-width: ${this.pop_width}; max-height: 774px;" role="menu">${strOptions}</ul>
+        <ul id="${this.id}_ul" class="dropdown-menu ps-container oo" style="min-width: ${this.pop_width}; max-height: 400px;overflow-y:auto;" role="menu">${strOptions}</ul>
       </span>
     `
 		$(`#${this.id}`).css('width', `${this.width}`)
