@@ -818,107 +818,6 @@ function addDrawingObj() {
 		true
 	)
 }
-
-// 测试在文档尾部加入表格，显示打分区
-function testAddTable() {
-	biyueCallCommand(
-		window,
-		function () {
-			var oDocument = Api.GetDocument()
-			var oTableStyle = oDocument.CreateStyle('CustomTableStyle', 'table')
-			var num = 3
-			var oTable = Api.CreateTable(num + 2, 1)
-			oTable.SetWidth('percent', 20)
-			var oTableStylePr = oTableStyle.GetConditionalTableStyle('wholeTable')
-			oTable.SetTableLook(true, true, true, true, true, true)
-			oTableStylePr.GetTableRowPr().SetHeight('atLeast', 500)
-			var oTableCellPr = oTableStyle.GetTableCellPr()
-			oTableCellPr.SetVerticalAlign('center')
-			//oTable.SetHAlign("center") // 整个表格相对于段落的水平居中对齐
-			oTable.SetStyle(oTableStyle)
-			var oMyStyle = oDocument.CreateStyle('My style with center')
-			var oParaPr = oMyStyle.GetParaPr()
-			oParaPr.SetJc('center') // 设置段落内容对齐方式。
-			for (var i = 0; i < num + 2; ++i) {
-				var oCellPara = oTable.GetCell(0, i).GetContent().GetElement(0)
-				if (i == num + 1) {
-					oCellPara.AddText('0.5')
-				} else {
-					oCellPara.AddText(i + '')
-				}
-				oCellPara.SetStyle(oMyStyle)
-			}
-
-			oDocument.Push(oTable)
-		},
-		false,
-		true
-	)
-}
-
-function addQuesScore(score = 10) {
-	Asc.scope.score = score
-	biyueCallCommand(
-		window,
-		function () {
-			var oDocument = Api.GetDocument()
-			var controls = oDocument.GetAllContentControls()
-			var score = Asc.scope.score
-			function getJsonData(str) {
-				if (!str || str == '' || typeof str != 'string') {
-					return {}
-				}
-				try {
-					return JSON.parse(str)
-				} catch (error) {
-					console.log('json parse error', error)
-					return {}
-				}
-			}
-			if (controls) {
-				for (var i = 0; i < controls.length; ++i) {
-					var control = controls[i]
-					tag = getJsonData(control.GetTag())
-					if (tag.regionType == 'question') {
-						var range = control.GetRange()
-						var oTableStyle = oDocument.CreateStyle('CustomTableStyle', 'table')
-						var num = score
-						var oTable = Api.CreateTable(num + 2, 1)
-						oTable.SetWidth('percent', 20)
-						var oTableStylePr =
-							oTableStyle.GetConditionalTableStyle('wholeTable')
-						oTable.SetTableLook(true, true, true, true, true, true)
-						oTableStylePr.GetTableRowPr().SetHeight('atLeast', 500)
-						var oTableCellPr = oTableStyle.GetTableCellPr()
-						oTableCellPr.SetVerticalAlign('center')
-						//oTable.SetHAlign("center") // 整个表格相对于段落的水平居中对齐
-						oTable.SetStyle(oTableStyle)
-						var oMyStyle = oDocument.CreateStyle('My style with center')
-						var oParaPr = oMyStyle.GetParaPr()
-						oParaPr.SetJc('center') // 设置段落内容对齐方式。
-						for (var i = 0; i < num + 2; ++i) {
-							var oCellPara = oTable.GetCell(0, i).GetContent().GetElement(0)
-							if (i == num + 1) {
-								oCellPara.AddText('0.5')
-							} else {
-								oCellPara.AddText(i + '')
-							}
-							oCellPara.SetStyle(oMyStyle)
-						}
-						if (range && range.StartPos && range.StartPos.length > 0) {
-							var pos = range.StartPos[0].Position
-							control.AddElement(oTable, 0)
-							// oDocument.AddElement(pos, oTable)
-						}
-						break
-					}
-				}
-			}
-		},
-		false,
-		true
-	).then((res) => {})
-}
 // 添加分数框
 function addScoreField(score, mode, layout, posall) {
 	Asc.scope.control_list = window.BiyueCustomData.control_list
@@ -1238,7 +1137,6 @@ function drawPosition2(data) {
 	} else {
 		Asc.scope.control_id = null
 	}
-	// testAddTable()
 	biyueCallCommand(
 		window,
 		function () {
@@ -1473,7 +1371,6 @@ function drawPosition(data) {
 	} else {
 		Asc.scope.drawing_id = null
 	}
-	// testAddTable()
 	biyueCallCommand(
 		window,
 		function () {
@@ -2742,100 +2639,6 @@ function handleScoreField2(options) {
 	})
 }
 
-function addImage() {
-	// toggleWeight()
-	// return
-	Asc.scope.map_base64 = map_base64
-	biyueCallCommand(
-		window,
-		function () {
-			var oDocument = Api.GetDocument()
-			let controls = oDocument.GetAllContentControls()
-			var map_base64 = Asc.scope.map_base64
-			function getJsonData(str) {
-				if (!str || str == '' || typeof str != 'string') {
-					return {}
-				}
-				try {
-					return JSON.parse(str)
-				} catch (error) {
-					console.log('json parse error', error)
-					return {}
-				}
-			}
-			for (var i = 0; i < controls.length; ++i) {
-				var control = controls[i]
-				var tag = getJsonData(control.GetTag())
-				if (tag.regionType == 'question') {
-					var imgurl = map_base64['1'] //   'https://by-base-cdn.biyue.tech/check.svg'
-					var oDrawing = Api.CreateImage(imgurl, 8 * 36000, 8 * 36000)
-					var paragraphs = control.GetContent().GetAllParagraphs()
-					var paragraph = paragraphs[0]
-					oDrawing.SetWrappingStyle('inline')
-					oDrawing.SetLockValue('noSelect', true)
-					oDrawing.SetLockValue('noResize', true)
-					var oRun = Api.CreateRun()
-					oRun.AddDrawing(oDrawing)
-					var r = paragraph.AddElement(oRun)
-					break
-				}
-			}
-		},
-		false,
-		true
-	)
-}
-// 添加批改区域
-function addMarkField() {
-	// getPos()
-	biyueCallCommand(
-		window,
-		function () {
-			var oDocument = Api.GetDocument()
-			let controls = oDocument.GetAllContentControls()
-			function getJsonData(str) {
-				if (!str || str == '' || typeof str != 'string') {
-					return {}
-				}
-				try {
-					return JSON.parse(str)
-				} catch (error) {
-					console.log('json parse error', error)
-					return {}
-				}
-			}
-			for (var i = 0; i < controls.length; ++i) {
-				var control = controls[i]
-				var tag = getJsonData(control.GetTag())
-				if (tag.regionType == 'question') {
-					var oFill = Api.CreateSolidFill(Api.CreateRGBColor(255, 0, 0))
-					oFill.UniFill.transparent = 20 // 透明度
-					var oFill2 = Api.CreateRGBColor(125, 125, 125)
-					var oStroke = Api.CreateStroke(3600, oFill2)
-					var oDrawing = Api.CreateShape(
-						'rect',
-						20 * 36000,
-						20 * 36000,
-						oFill,
-						oStroke
-					)
-					var paragraphs = control.GetContent().GetAllParagraphs()
-					var paragraph = paragraphs[0]
-					oDrawing.SetWrappingStyle('inFront')
-					var oRun = Api.CreateRun()
-					oRun.AddDrawing(oDrawing)
-					var r = paragraph.AddElement(oRun)
-					var range = oDrawing.GetContent().GetRange()
-					range.Select()
-					break
-				}
-			}
-		},
-		false,
-		true
-	)
-}
-
 // 切换权重显示
 function toggleWeight() {
 	Asc.scope.control_list = window.BiyueCustomData.control_list
@@ -3884,12 +3687,8 @@ export {
 	getStruct,
 	showQuestionTree,
 	updateQuestionScore,
-	testAddTable,
 	drawPosition,
 	addScoreField,
-	addQuesScore,
-	addImage,
-	addMarkField,
 	handleContentControlChange,
 	handleScoreField,
 	drawPositions,
