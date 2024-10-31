@@ -7,8 +7,8 @@ import {
   paperUploadPreview,
   paperSavePosition
   // paperValidatePosition
-} from './api/paper.js'
-import { setXToken } from './auth.js'
+} from '../api/paper.js'
+import { setXToken } from '../auth.js'
 ;(function (window, undefined) {
   let source_data = {}
   let paper_info = null

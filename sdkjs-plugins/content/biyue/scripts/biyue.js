@@ -28,7 +28,6 @@ import {
 	reqGetQuestionType,
 	reqUploadTree,
 	splitEnd,
-	showLevelSetDialog,
 	confirmLevelSet,
 	initControls,
 	handleDocClick,
@@ -56,14 +55,12 @@ import { getInfoForServerSave } from './model/util.js'
 	var styleEnable = false
 	let activeQuesItem = ''
 	let windows = {
-		scoreSetWindow: null,
 		exportExamWindow: null,
 		batchSettingScoresWindow: null,
 		batchSettingQuestionTypeWindow: null,
 		messageBoxWindow: null
 	}
 	let timeout_controlchange = null
-	let contextMenu_options = null
   	let questionPositions = {}
 	let timeout_ratio = null
 	let windowList = []
@@ -89,6 +86,10 @@ import { getInfoForServerSave } from './model/util.js'
 					clearAllControls()
 				} else if (winname == 'layoutRepairWindow') {
 					removeAllComment()
+				} else if (winname == 'exportExamWindow') {
+					// 重新打开上传的时候关闭的识别区域
+    				// 必须保证一个执行完成之后在去开启下一个
+					showOrHiddenRegion('show')
 				}
 			}
 		})
@@ -130,13 +131,6 @@ import { getInfoForServerSave } from './model/util.js'
                     showCancel: false
                 }
                 showOrHiddenRegion('show', params)
-				break
-			case 'scoreSetSuccess': // 分数设置成功
-				if (message.data.control_list) {
-					window.BiyueCustomData.control_list = message.data.control_list
-					updateQuestionScore()
-				}
-				closeWindow(modal.id)
 				break
 			case 'exportExamSuccess': // 生成exam_id成功
 				window.BiyueCustomData.exam_id = message.data.exam_id
@@ -1513,11 +1507,6 @@ import { getInfoForServerSave } from './model/util.js'
 	// 在editor面板的插件按钮被点击
 	window.Asc.plugin.button = function (id, windowID) {
 		console.log('on plugin button id=${id} ${windowID}', id, windowID)
-    	// 重新打开上传的时候关闭的识别区域
-    	// 必须保证一个执行完成之后在去开启下一个
-		if (windows.exportExamWindow && windows.exportExamWindow.id == windowID) {
-			showOrHiddenRegion('show')
-		}
 		if (windowID) {
 			if (id === -1) {
 				closeWindow(windowID, 'close')
