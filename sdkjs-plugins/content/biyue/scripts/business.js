@@ -6,9 +6,7 @@ import {
 	questionDelete,
 	questionUpdateContent,
 	structDelete,
-	paperCanConfirm,
 	structRename,
-	examQuestionsUpdate,
 	reqSubjectMarkTypes
 } from './api/paper.js'
 import { getBase64, map_base64 } from '../resources/list_base64.js'
@@ -773,50 +771,6 @@ function changeStructQuesType(struct_id, v) {
 			$(`#select${control.control_id}`).val(v)
 		}
 	})
-}
-// 更新题目分数
-function updateQuestionScore() {
-	window.BiyueCustomData.control_list.forEach((control) => {
-		if (control.regionType == 'question') {
-			console.log('control', control.ques_no, control.score)
-			control.score = $(`#score${control.control_id}`).val(control.score)
-		}
-	})
-}
-
-function addDrawingObj() {
-	biyueCallCommand(
-		window,
-		function () {
-			var oDocument = Api.GetDocument()
-			var oFill = Api.CreateNoFill()
-			var oFill2 = Api.CreateSolidFill(Api.CreateRGBColor(125, 125, 125))
-			var oStroke = Api.CreateStroke(3600, oFill2)
-			// 目前oStroke.Ln.Join == null, 需要拓展API才能修改Join，实现虚线效果
-			var oDrawing = Api.CreateShape(
-				'rect',
-				36000 * 20,
-				36000 * 10,
-				oFill,
-				oStroke
-			)
-			var drawDocument = oDrawing.GetContent()
-			var oParagraph = Api.CreateParagraph()
-			var oMyStyle = oDocument.CreateStyle('field style')
-			var oTextPr = oMyStyle.GetTextPr()
-			oTextPr.SetColor(0, 0, 0, false)
-			oTextPr.SetFontSize(32)
-			var oParaPr = oMyStyle.GetParaPr()
-			oParaPr.SetJc('center')
-			oParagraph.SetStyle(oMyStyle)
-			oParagraph.AddText('再练')
-			drawDocument.AddElement(0, oParagraph)
-			oDrawing.SetVerticalTextAlign('center')
-			oDocument.AddDrawingToPage(oDrawing, 0, 1070821, 963295)
-		},
-		false,
-		true
-	)
 }
 // 添加分数框
 function addScoreField(score, mode, layout, posall) {
@@ -3686,7 +3640,6 @@ export {
 	clearStruct,
 	getStruct,
 	showQuestionTree,
-	updateQuestionScore,
 	drawPosition,
 	addScoreField,
 	handleContentControlChange,

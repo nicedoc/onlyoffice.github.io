@@ -12,7 +12,6 @@ import {
 	initPaperInfo,
 	updatePageSizeMargins,
 	updateCustomControls,
-	updateQuestionScore,
 	drawPositions,
 	handleContentControlChange,
 	deletePositions,
