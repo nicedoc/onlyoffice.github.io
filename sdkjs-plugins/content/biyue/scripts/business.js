@@ -113,6 +113,13 @@ function updatePageSizeMargins() {
 						description: ''
 					})
 				}
+				if (oDrawing.GetParentTable()) {
+					var oParagraph = oDrawing.GetParentParagraph()
+					if (oParagraph) {
+						var linespacing = oParagraph.GetSpacingLineValue()
+						oParagraph.SetSpacingLine(linespacing, 'atLeast')
+					}
+				}
 			})
 			Api.asc_SetGlobalContentControlShowHighlight(true, 255, 191, 191)
 			return null
