@@ -19,6 +19,7 @@ import {
 	getAllPositions,
 } from './business.js'
 import { getVersion } from "./ver.js"
+import { ReplaceRubyField } from "./phonetic.js";
 import {
 	initExtroInfo,
 } from './panelFeature.js'
@@ -2187,8 +2188,10 @@ import { getInfoForServerSave } from './model/util.js'
 				}
 				if (isFirstLoad) {
 					Asc.scope.split_getdoc = true
-					initExtroInfo().then(() => {
-						removeAllComment()
+					ReplaceRubyField().then(() => {
+						initExtroInfo().then(() => {
+							removeAllComment()
+						})
 					})
 					// reSplitQustion()
 				} else {
