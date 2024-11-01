@@ -1585,16 +1585,22 @@ function confirmLevelSet(levels) {
 							return node.id == parent_tagInfo.client_id
 						})
 						if (parentNode) {
-							parentNode.write_list.push({
-								id: id,
-								control_id: oControl.Sdt.GetId(),
-								sub_type: 'control'
-							})
-							questionMap[parent_tagInfo.client_id].ask_list.push({
-								id: id
-							})
-							nodeData.parent_id = parent_tagInfo.client_id
-							tagInfo.color = '#ff000040'
+							if (parentNode.level_type == 'struct') {
+								Api.asc_RemoveContentControlWrapper(oControl.Sdt.GetId())
+							} else {
+								parentNode.write_list.push({
+									id: id,
+									control_id: oControl.Sdt.GetId(),
+									sub_type: 'control'
+								})
+								questionMap[parent_tagInfo.client_id].ask_list.push({
+									id: id,
+									score: 1
+								})
+								questionMap[parent_tagInfo.client_id].score += 1
+								nodeData.parent_id = parent_tagInfo.client_id
+								tagInfo.color = '#ff000040'
+							}
 						}
 					}
 				} else {
@@ -1613,6 +1619,7 @@ function confirmLevelSet(levels) {
 					if (tagInfo.regionType == 'question') {
 						nodeData.write_list = []
 						detail.ask_list = []
+						detail.score = 0
 						if (level_type == 'question') {
 							tagInfo.clr = tagInfo.color = '#d9d9d940'
 						} else if (level_type == 'struct') {
