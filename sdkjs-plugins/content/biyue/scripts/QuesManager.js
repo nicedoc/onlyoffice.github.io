@@ -5,6 +5,7 @@ import { handleChoiceUpdateResult, setInteraction, updateChoice } from "./featur
 import { initExtroInfo } from "./panelFeature.js";
 import { addOnlyBigControl, removeOnlyBigControl, getAllPositions2 } from './business.js'
 import { handleRangeType } from "./classifiedTypes.js"
+import { ShowLinkedWhenclickImage } from './linkHandler.js'
 import { layoutDetect } from './layoutFixHandler.js'
 var g_click_value = null
 var upload_control_list = []
@@ -62,11 +63,13 @@ function handleDocClick(options) {
 						}
 					}
 				}
+				ShowLinkedWhenclickImage(options, returnValue.InternalId)
 			} catch (error) {
 				console.log(error)
 			}
 		} else {
 			g_click_value = null
+			ShowLinkedWhenclickImage(options)
 		}
 	})
 }
@@ -1320,10 +1323,10 @@ function initControls() {
 					}
 				} else if (oControl.GetClassType() == 'blockLvlSdt' && question_map[tagInfo.client_id]) {
 					if (question_map[tagInfo.client_id].level_type == 'question') {
-						tagInfo.color = '#d9d9d940'
+						tagInfo.clr = tagInfo.color = '#d9d9d940'
 						changecolor = true
 					} else if (question_map[tagInfo.client_id].level_type == 'struct') {
-						tagInfo.color = '#CFF4FF80'
+						tagInfo.clr = tagInfo.color = '#CFF4FF80'
 						changecolor = true
 					}
 				}
@@ -1353,6 +1356,10 @@ function initControls() {
 					drawing_id: oDrawing.Drawing.Id,
 					sub_type: titleObj.feature.sub_type
 				})
+			}
+			// 图片不铺码
+			if (titleObj.feature && titleObj.feature.partical_no_dot) {
+				oDrawing.SetShadow(null, 0, 100, null, 0, '#0fc1fd')
 			}
 		})
 		var cellAskMap = {}
@@ -1607,11 +1614,11 @@ function confirmLevelSet(levels) {
 						nodeData.write_list = []
 						detail.ask_list = []
 						if (level_type == 'question') {
-							tagInfo.color = '#d9d9d940'
+							tagInfo.clr = tagInfo.color = '#d9d9d940'
 						} else if (level_type == 'struct') {
-							tagInfo.color = '#CFF4FF80'
+							tagInfo.clr = tagInfo.color = '#CFF4FF80'
 						} else {
-							tagInfo.color = '#ffffff'
+							tagInfo.clr = tagInfo.color = '#ffffff'
 						}
 					}
 					nodeList.push(nodeData)
@@ -3547,6 +3554,7 @@ function handleImageIgnore(cmdType) {
 		console.log('handleImageIgnore', cmdType)
 		var oDocument = Api.GetDocument()
 		var drawings = oDocument.GetAllDrawingObjects() || []
+		var oState = oDocument.Document.SaveDocumentState()
 		drawings.forEach(oDrawing => {
 			if (oDrawing.Drawing.selected) {
 				var tag = Api.ParseJSON(oDrawing.GetTitle())
@@ -3566,12 +3574,14 @@ function handleImageIgnore(cmdType) {
 					}
 				}
 				oDrawing.SetTitle(JSON.stringify(tag))
-				var oFill = Api.CreateSolidFill(Api.CreateRGBColor(255, 255, 255))
-        		oFill.UniFill.transparent = 0 // 透明度
-				var oStroke = Api.CreateStroke(10000, cmdType == 'add' ? Api.CreateSolidFill( Api.CreateRGBColor(255, 111, 61)) : oFill);
-				oDrawing.SetOutLine(oStroke);
+				if (cmdType == 'add') {
+					oDrawing.SetShadow(null, 0, 100, null, 0, '#0fc1fd')
+				} else {
+					oDrawing.ClearShadow()
+				}
 			}
 		})
+		oDocument.Document.LoadDocumentState(oState)
 	}, false, false)
 }
 // todo。。分栏需要考虑的因素很多，需要之后再考虑
@@ -5065,6 +5075,7 @@ function handleUploadPrepare(cmdType) {
 		var node_list = Asc.scope.node_list || []
 		var oTables = oDocument.GetAllTables() || []
 		var vshow = cmdType == 'show'
+		var oState = oDocument.Document.SaveDocumentState()
 		function updateFill(oDrawing, oFill) {
 			if (!oFill || !oFill.GetClassType || oFill.GetClassType() !== 'fill') {
 				return false
@@ -5076,10 +5087,13 @@ function handleUploadPrepare(cmdType) {
 			var titleObj = Api.ParseJSON(title)
 			// 图片不铺码的标识
 			if (title.includes('partical_no_dot')) {
-				var oFill = Api.CreateSolidFill(Api.CreateRGBColor(255, 255, 255))
-			  	oFill.UniFill.transparent = 0 // 透明度
-			  	var oStroke = Api.CreateStroke(10000, vshow ? Api.CreateSolidFill(Api.CreateRGBColor(255, 111, 61)) : oFill);
-			  	oDrawing.SetOutLine(oStroke);
+				if (cmdType == 'show') {
+					oDrawing.SetShadow(null, 0, 100, null, 0, '#0fc1fd')
+				} else {
+					oDrawing.ClearShadow()
+				}
+			} else if (title.includes('ques_use')) {
+				oDrawing.ClearShadow()
 			} else if (titleObj.feature) {
 				if (titleObj.feature.zone_type == 'pagination') { // 试卷页码
 					var oShape = Api.LookupObject(oDrawing.Drawing.Id)
@@ -5155,6 +5169,7 @@ function handleUploadPrepare(cmdType) {
 				}
 			}
 		})
+		oDocument.Document.LoadDocumentState(oState)
 	}, false, true)
 }
 

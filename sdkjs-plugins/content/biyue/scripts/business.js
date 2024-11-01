@@ -114,6 +114,7 @@ function updatePageSizeMargins() {
 						description: ''
 					})
 				}
+				// 单元格中有图片时，需要自动撑开高度
 				if (oDrawing.GetParentTable()) {
 					var oParagraph = oDrawing.GetParentParagraph()
 					if (oParagraph) {
@@ -121,6 +122,8 @@ function updatePageSizeMargins() {
 						oParagraph.SetSpacingLine(linespacing, 'atLeast')
 					}
 				}
+				// 移除图片阴影
+				oDrawing.ClearShadow()
 			})
 			Api.asc_SetGlobalContentControlShowHighlight(true, 255, 191, 191)
 			return null

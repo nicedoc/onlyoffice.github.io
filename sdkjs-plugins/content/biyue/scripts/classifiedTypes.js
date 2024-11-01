@@ -541,9 +541,9 @@ function handleRangeType(options) {
 					}
 				}
 				if (typeName == 'question' || typeName == 'setBig' || typeName == 'clearBig') {
-					tag.color = '#d9d9d940'
+					tag.clr = tag.color = '#d9d9d940'
 				} else if (typeName == 'struct') {
-					tag.color = '#CFF4FF80'
+					tag.clr = tag.color = '#CFF4FF80'
 				} else if (tag.color) {
 					delete tag.color
 				}
@@ -566,6 +566,7 @@ function handleRangeType(options) {
 				client_id: result.client_node_id,
 				regionType: typeName == 'write' ? 'write': 'question',
 				color: getColor(),
+				clr: getColor(),
 				mode: type == 1 ? 5: 3
 			}
 			var oResult = Api.asc_AddContentControl(type, {

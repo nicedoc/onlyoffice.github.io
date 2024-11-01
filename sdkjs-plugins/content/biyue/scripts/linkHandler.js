@@ -56,6 +56,7 @@ function tagImageCommon(params) {
 				window.BiyueCustomData.image_use = {}
 			}
 			window.BiyueCustomData.image_use[res.drawing_id] = res.ques_use
+			return ShowLinkedWhenclickImage()
 		}
 	})
 }
@@ -447,6 +448,87 @@ function updateLinkedInfo(info) {
 		}
 	})
 }
+// 点击图片后，自动显示关联的题目
+function ShowLinkedWhenclickImage(options, control_id) {
+	Asc.scope.control_id = control_id
+	Asc.scope.click_options = options
+	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
+	return biyueCallCommand(window, function() {
+		var oDocument = Api.GetDocument()
+		var selectedDrawings = oDocument.GetSelectedDrawings() || []
+		var allDrawings = oDocument.GetAllDrawingObjects() || []
+		var control_id = Asc.scope.control_id
+		var question_map = Asc.scope.question_map
+		var click_options = Asc.scope.click_options || {}
+		var oState = oDocument.Document.SaveDocumentState()
+		var ids = []
+		var selectDrawingCount = selectedDrawings.length
+		if (selectDrawingCount > 0) {
+			selectedDrawings.forEach(oDrawing => {
+				var tag = Api.ParseJSON(oDrawing.GetTitle())
+				if (tag && tag.feature && tag.feature.ques_use) {
+					ids = ids.concat(tag.feature.ques_use.split('_'))
+				}
+			})
+		}
+		var controls = oDocument.GetAllContentControls() || []
+		var selectId = null
+		controls.forEach(oControl => {
+			var tag = Api.ParseJSON(oControl.GetTag())
+			if (tag.color == '#ffff0020') {
+				if (click_options.ctrlKey || !(ids.includes(tag.client_id + ''))) {
+					tag.color = tag.clr
+					oControl.SetTag(JSON.stringify(tag))
+				}
+			} else {
+				if (!click_options.ctrlKey && ids.includes(tag.client_id + '')) {
+					tag.color = '#ffff0020'
+					oControl.SetTag(JSON.stringify(tag))
+				}
+			}
+			if (ids.length == 0 && control_id && control_id == oControl.Sdt.GetId()) {
+				if (tag.client_id && question_map[tag.client_id]) {
+					selectId = tag.client_id
+				} else {
+					var parentControl = oControl.GetParentContentControl()
+					if (parentControl) {
+						var pTag = Api.ParseJSON(parentControl.GetTag())
+						if (pTag.client_id && question_map[pTag.client_id]) {
+							selectId = pTag.client_id
+						}
+					}
+				}
+				
+			}
+		})
+		if (click_options.ctrlKey) {
+			return
+		}
+		allDrawings.forEach(oDrawing => {
+			var flag = 0
+			var dtag = Api.ParseJSON(oDrawing.GetTitle())
+			if (ids.length == 0 && control_id && selectId) {
+				if (dtag.feature && dtag.feature.ques_use) {
+					var ids2 = dtag.feature.ques_use.split('_')
+					if (ids2.includes(selectId + '')) {
+						oDrawing.SetShadow(null, 0, 110, null, 0, '#ffa0a0')
+						flag = 1
+					}
+				}
+			}
+			if (flag == 0) {
+				if (dtag.feature && dtag.feature.partical_no_dot) {
+					oDrawing.SetShadow(null, 0, 100, null, 0, '#0fc1fd')
+				} else {
+					if (oDrawing.Drawing.spPr && oDrawing.Drawing.spPr.effectProps && oDrawing.Drawing.spPr.effectProps.EffectLst) {
+						oDrawing.ClearShadow()
+					}
+				}
+			}
+		})
+		oDocument.Document.LoadDocumentState(oState)
+	}, false, false)
+}
 
 function locateItem(data) {
 	Asc.scope.locate_data = data
@@ -474,5 +556,6 @@ export {
 	onLinkedCheck,
 	updateLinkedInfo,
 	onAllCheck,
-	locateItem
+	locateItem,
+	ShowLinkedWhenclickImage
 }
