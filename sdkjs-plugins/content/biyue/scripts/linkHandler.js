@@ -299,6 +299,14 @@ function onAllCheck() {
 				}
 			}
 		}
+		var oContrls = oDocument.GetAllContentControls()
+		oContrls.forEach(oControl => {
+			var tag = Api.ParseJSON(oControl.GetTag())
+			if (tag.color == '#ffff0020') {
+				tag.color = tag.clr
+				oControl.SetTag(JSON.stringify(tag))
+			}
+		})
 		return allList
 	}, false, false).then(res => {
 		Asc.scope.linked_list = res

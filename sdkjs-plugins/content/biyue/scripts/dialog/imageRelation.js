@@ -125,9 +125,10 @@
 
 	function handleQuesUse(id, val) {
 		if (val == 1) {
-			ques_use.push(id)
+			ques_use.push(id + '')
 		} else {
-			ques_use.splice(ques_use.indexOf(id), 1)
+			var index = ques_use.indexOf(id + '')
+			ques_use.splice(index, 1)
 		}
 	}
 
