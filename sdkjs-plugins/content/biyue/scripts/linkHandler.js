@@ -9,21 +9,10 @@ function tagImageCommon(params) {
 		var client_node_id = Asc.scope.client_node_id
 		var oDocument = Api.GetDocument()
 		var drawings = oDocument.GetAllDrawingObjects() || []
-		function getJsonData(str) {
-			if (!str || str == '' || typeof str != 'string') {
-				return {}
-			}
-			try {
-				return JSON.parse(str)
-			} catch (error) {
-				console.log('json parse error', error)
-				return {}
-			}
-		}
 		if (tag_params.target_type == 'table') {
 			var oTable = Api.LookupObject(tag_params.target_id)
 			if (oTable && oTable.GetClassType && oTable.GetClassType() == 'table') {
-				var title = getJsonData(oTable.GetTableTitle())
+				var title = Api.ParseJSON(oTable.GetTableTitle())
 				if (!title.client_id) {
 					client_node_id += 1
 					title.client_id = client_node_id
@@ -36,7 +25,7 @@ function tagImageCommon(params) {
 				return e.Drawing.Id == tag_params.target_id
 			})
 			if (oDrawing) {
-				var tag = getJsonData(oDrawing.Drawing.docPr.title)
+				var tag = Api.ParseJSON(oDrawing.GetTitle())
 				if (tag.feature) {
 					if (!tag.feature.client_id) {
 						client_node_id += 1
@@ -52,9 +41,7 @@ function tagImageCommon(params) {
 						}
 					}
 				}
-				oDrawing.Drawing.Set_Props({
-					title: JSON.stringify(tag)
-				})
+				oDrawing.SetTitle(JSON.stringify(tag))
 			}
 		}
 		return {
@@ -84,17 +71,6 @@ function imageAutoLink() {
 		var controls = oDocument.GetAllContentControls() || []
 		var question_map = Asc.scope.question_map
 		var client_node_id = Asc.scope.client_node_id
-		function getJsonData(str) {
-			if (!str || str == '' || typeof str != 'string') {
-				return {}
-			}
-			try {
-				return JSON.parse(str)
-			} catch (error) {
-				console.log('json parse error', error)
-				return {}
-			}
-		}
 		// 判断是否在control中
 		function getBelongControl(pageIndex, x1, y1, x2, y2) {
 			for (var i = 0; i < controls.length; ++i) {
@@ -102,7 +78,7 @@ function imageAutoLink() {
 				if (oControl.GetClassType() != 'blockLvlSdt') {
 					continue
 				}
-				var tag = getJsonData(oControl.GetTag() || '{}')
+				var tag = Api.ParseJSON(oControl.GetTag() || '{}')
 				if (tag.regionType != 'question' || !tag.client_id) {
 					continue
 				}
@@ -145,18 +121,19 @@ function imageAutoLink() {
 		// 图片关联
 		for (var i = 0; i < allDrawings.length; ++i) {
 			var oDrawing = allDrawings[i]
-			if (!oDrawing.Drawing) {
+			var Drawing = oDrawing.getParaDrawing()
+			if (!Drawing) {
 				continue
 			}
-			var title = getJsonData(oDrawing.Drawing.docPr.title)
+			var title = Api.ParseJSON(oDrawing.GetTitle())
 			if (title.feature && title.feature.zone_type) {
 				continue
 			}
-			var belongControl = getBelongControl(oDrawing.Drawing.PageNum, 
-				oDrawing.Drawing.X, 
-				oDrawing.Drawing.Y, 
-				oDrawing.Drawing.X + oDrawing.Drawing.Width,
-				oDrawing.Drawing.Y + oDrawing.Drawing.Height)
+			var belongControl = getBelongControl(Drawing.PageNum, 
+				Drawing.X, 
+				Drawing.Y, 
+				Drawing.X + Drawing.Width,
+				Drawing.Y + Drawing.Height)
 			if (belongControl) {
 				if (title.feature) {
 					if (!title.feature.client_id) {
@@ -187,9 +164,7 @@ function imageAutoLink() {
 						}
 					}
 				}
-				oDrawing.Drawing.Set_Props({
-					title: JSON.stringify(title)
-				})				
+				oDrawing.SetTitle(JSON.stringify(title))
 			}
 		}
 		// 暂不考虑大小题的问题
@@ -200,7 +175,7 @@ function imageAutoLink() {
 			if (strtitle == 'questionTable' || strtitle == 'ignore') {
 				continue
 			}
-			var title = getJsonData(strtitle)
+			var title = Api.ParseJSON(strtitle)
 			var pageCount = oTable.Table.GetPagesCount()
 			var belong_id = 0
 			for (var p = 0; p < pageCount; ++p) {
@@ -242,17 +217,6 @@ function onAllCheck() {
 		var oDocument = Api.GetDocument()
 		var allDrawings = oDocument.GetAllDrawingObjects() || []
 		var tables = oDocument.GetAllTables() || []
-		function getJsonData(str) {
-			if (!str || str == '' || typeof str != 'string') {
-				return {}
-			}
-			try {
-				return JSON.parse(str)
-			} catch (error) {
-				console.log('json parse error', error)
-				return {}
-			}
-		}
 		var allList = []
 		function getHtml(oRange) {
 			if (!oRange) {
@@ -280,11 +244,15 @@ function onAllCheck() {
 		if (allDrawings.length) {
 			for (i = 0; i < allDrawings.length; ++i) {
 				var oDrawing = allDrawings[i]
-				var title = getJsonData(oDrawing.Drawing.docPr.title)
+				var paraDrawing = oDrawing.getParaDrawing()
+				if (!paraDrawing) {
+					continue
+				}
+				var title = Api.ParseJSON(oDrawing.GetTitle())
 				if (title.feature && title.feature.zone_type) {
 					continue
 				}
-				var parentRun = oDrawing.Drawing.GetRun()
+				var parentRun = paraDrawing.GetRun()
 				if (parentRun) {
 					var oRun = Api.LookupObject(parentRun.Id)
 					var elementCount = oRun.Run.GetElementsCount()
@@ -318,7 +286,7 @@ function onAllCheck() {
 				if (tabletitle == 'questionTable' || tabletitle == 'ignore') {
 					continue
 				}
-				var title = getJsonData(tabletitle)
+				var title = Api.ParseJSON(tabletitle)
 				var html = getHtml(oTable.GetRange())
 				if (html && html.length > 0) {
 					allList.push({
@@ -343,17 +311,6 @@ function onLinkedCheck() {
 		var allDrawings = oDocument.GetAllDrawingObjects() || []
 		var tables = oDocument.GetAllTables() || []
 		var linkedList = []
-		function getJsonData(str) {
-			if (!str || str == '' || typeof str != 'string') {
-				return {}
-			}
-			try {
-				return JSON.parse(str)
-			} catch (error) {
-				console.log('json parse error', error)
-				return {}
-			}
-		}
 		function getHtml(oRange) {
 			if (!oRange) {
 				return
@@ -379,9 +336,10 @@ function onLinkedCheck() {
 		}
 		if (allDrawings.length) {
 			allDrawings.forEach(oDrawing => {
-				var title = getJsonData(oDrawing.Drawing.docPr.title)
+				var paraDrawing = oDrawing.getParaDrawing()
+				var title = Api.ParseJSON(oDrawing.GetTitle())
 				if (title.feature && title.feature.ques_use) {
-					var parentRun = oDrawing.Drawing.GetRun()
+					var parentRun = paraDrawing.GetRun()
 					if (parentRun) {
 						var oRun = Api.LookupObject(parentRun.Id)
 						var elementCount = oRun.Run.GetElementsCount()
@@ -409,7 +367,7 @@ function onLinkedCheck() {
 		}
 		if (tables.length) {
 			tables.forEach(oTable => {
-				var title = getJsonData(oTable.GetTableTitle())
+				var title = Api.ParseJSON(oTable.GetTableTitle())
 				if (title && title.ques_use) {
 					var html = getHtml(oTable.GetRange())
 					linkedList.push({
@@ -438,17 +396,6 @@ function updateLinkedInfo(info) {
 		var oDocument = Api.GetDocument()
 		var drawings = oDocument.GetAllDrawingObjects() || []
 		var tables = oDocument.GetAllTables() || []
-		function getJsonData(str) {
-			if (!str || str == '' || typeof str != 'string') {
-				return {}
-			}
-			try {
-				return JSON.parse(str)
-			} catch (error) {
-				console.log('json parse error', error)
-				return {}
-			}
-		}
 		function inList(Id, type) {
 			for (var i = 0; i < link_info.length; ++i) {
 				if (link_info[i].type == type && link_info[i].target_id == Id) {
@@ -460,7 +407,7 @@ function updateLinkedInfo(info) {
 		drawings.forEach(oDrawing => {
 			var data = inList(oDrawing.Drawing.Id, 'drawing')
 			if (data) {
-				var tag = getJsonData(oDrawing.Drawing.docPr.title)
+				var tag = Api.ParseJSON(oDrawing.GetTitle())
 				if (tag.feature) {
 					if (!tag.feature.client_id) {
 						client_node_id += 1
@@ -476,15 +423,13 @@ function updateLinkedInfo(info) {
 						}
 					}
 				}
-				oDrawing.Drawing.Set_Props({
-					title: JSON.stringify(tag)
-				})
+				oDrawing.SetTitle(JSON.stringify(tag))
 			}
 		})
 		tables.forEach(oTable => {
 			var data = inList(oTable.Table.Id, 'table')
 			if (data) {
-				var title = getJsonData(oTable.GetTableTitle())
+				var title = Api.ParseJSON(oTable.GetTableTitle())
 				if (!title.client_id) {
 					client_node_id += 1
 					title.client_id = client_node_id

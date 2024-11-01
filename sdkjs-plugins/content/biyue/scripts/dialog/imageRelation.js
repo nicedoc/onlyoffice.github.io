@@ -22,7 +22,10 @@
 			var selectDrawings = oDocument.GetSelectedDrawings() || []
 			var selectionInfo = oDocument.Document.getSelectionInfo()
 			if (selectDrawings.length && selectDrawings[0].Drawing) {
-				var drawing = selectDrawings[0].Drawing
+				var drawing = selectDrawings[0].getParaDrawing()
+				if (!drawing.GetRun) {
+					return
+				}
 				var parentRun = drawing.GetRun()
 				if (parentRun) {
 					var oRun = Api.LookupObject(parentRun.Id)
@@ -39,9 +42,9 @@
 					Api.asc_CheckCopy(text_data, 2);
 					return {
 						html: text_data.data,
-						title: drawing.docPr.title,
+						title: selectDrawings[0].GetTitle(),
 						type: 'drawing',
-						target_id: drawing.Id
+						target_id: selectDrawings[0].Drawing.Id
 					}
 				}
 			} else if (selectionInfo.curPos) {

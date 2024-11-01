@@ -20,17 +20,6 @@ function handleRangeType(options) {
 		}
 		var typeName = options.typeName
 		// function list begin
-		function getJsonData(str) {
-			if (!str || str == '' || typeof str != 'string') {
-				return {}
-			}
-			try {
-				return JSON.parse(str)
-			} catch (error) {
-				console.log('json parse error', error)
-				return {}
-			}
-		}
 		function addDrawingRemove(titleObj) {
 			if (!titleObj.feature) {
 				return
@@ -66,7 +55,7 @@ function handleRangeType(options) {
 			var parentBlock = getParentBlock(oControl)
 			var parent_id = 0
 			if (parentBlock) {
-				var parentTag = getJsonData(parentBlock.GetTag())
+				var parentTag = Api.ParseJSON(parentBlock.GetTag())
 				parent_id = parentTag.client_id || 0
 			}
 			return parent_id
@@ -154,7 +143,7 @@ function handleRangeType(options) {
 				oRun.Run.Content[0].docPr) {
 				var title = oRun.Run.Content[0].docPr.title
 				if (title) {
-					var titleObj = getJsonData(title)
+					var titleObj = Api.ParseJSON(title)
 					if (titleObj.feature && titleObj.feature.sub_type == sub_type) {
 						oRun.Delete()
 						return true
@@ -162,23 +151,6 @@ function handleRangeType(options) {
 				}
 			}
 			return false
-		}
-		function getFormatTypeString(format) {
-			var sType = 'decimal'
-			switch(format) {
-				case 8: sType = 'chineseCounting'; break
-				case 9: sType = 'chineseCountingThousand'; break
-				case 10: sType = 'chineseLegalSimplified'; break
-				case 14: sType = 'decimalEnclosedCircle'; break
-				case 15: sType = 'decimalEnclosedCircleChinese'; break
-				case 21: sType = 'decimalZero'; break
-				case 46: sType = 'lowerLetter'; break
-				case 47: sType = 'lowerRoman'; break
-				case 60: sType = 'upperLetter'; break
-				case 61: sType = 'upperRoman'; break
-				default: break
-			}
-			return sType
 		}
 		function delSimpleControl(oControl) {
 			if (!oControl || !oControl.Sdt) {
@@ -199,7 +171,7 @@ function handleRangeType(options) {
 			var childControls = oControl.GetAllContentControls() || []
 			if (childControls.length) {
 				for (var c = childControls.length - 1; c >= 0; --c) {
-					var tag = getJsonData(childControls[c].GetTag())
+					var tag = Api.ParseJSON(childControls[c].GetTag())
 					if (tag.regionType == 'num' && childControls[c].GetClassType() == 'inlineLvlSdt') {
 						delSimpleControl(childControls[c])
 					}
@@ -226,7 +198,7 @@ function handleRangeType(options) {
 					return
 				}
 			}
-			var sType = getFormatTypeString(oNumberingLvl.Format)
+			var sType = Api.GetFormatTypeString(oNumberingLvl.Format)
 			oNumberingLevel.SetTemplateType('bullet', '');
 			var str = ''
 			var find = false
@@ -255,7 +227,7 @@ function handleRangeType(options) {
 			if (!oControl) {
 				return
 			}
-			var tag = getJsonData(oControl.GetTag())
+			var tag = Api.ParseJSON(oControl.GetTag())
 			if (tag.regionType == 'write') {
 				if (oControl.GetClassType() == 'inlineLvlSdt') {
 					var elementCount = oControl.GetElementsCount()
@@ -279,20 +251,18 @@ function handleRangeType(options) {
 					if (drawings) {
 						for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
 							var oDrawing = drawings[j]
-							if (oDrawing.Drawing.docPr) {
-								var titleObj = getJsonData(oDrawing.Drawing.docPr.title)
-								if (titleObj.feature && titleObj.feature.zone_type == 'question') {
-									if (titleObj.feature.sub_type == 'ask_accurate') {
-										var cellParent = getDirectParentCell(oDrawing)
-										if (cellParent) {
-											removeCellInteraction(cellParent)
-										} else {
-											oDrawing.Delete()
-										}
+							var titleObj = Api.ParseJSON(oDrawing.GetTitle())
+							if (titleObj.feature && titleObj.feature.zone_type == 'question') {
+								if (titleObj.feature.sub_type == 'ask_accurate') {
+									var cellParent = getDirectParentCell(oDrawing)
+									if (cellParent) {
+										removeCellInteraction(cellParent)
 									} else {
-										addDrawingRemove(titleObj)
-										deleteShape(oDrawing)
+										oDrawing.Delete()
 									}
+								} else {
+									addDrawingRemove(titleObj)
+									deleteShape(oDrawing)
 								}
 							}
 						}
@@ -318,7 +288,7 @@ function handleRangeType(options) {
 			})
 			var oTable = oCell.GetParentTable()
 			if (oTable && oTable.GetPosInParent() >= 0) {
-				var desc = getJsonData(oTable.GetTableDescription())
+				var desc = Api.ParseJSON(oTable.GetTableDescription())
 				desc.biyue = 1
 				var key = `${oCell.GetRowIndex()}_${oCell.GetIndex()}`
 				if (desc[key]) {
@@ -331,7 +301,8 @@ function handleRangeType(options) {
 			if (!oShape) {
 				return
 			}
-			var run = oShape.Drawing.GetRun()
+			var paraDrawing = oShape.getParaDrawing()
+			var run = paraDrawing ? paraDrawing.GetRun() : null
 			if (run) {
 				var runParent = run.GetParent()
 				if (runParent) {
@@ -394,9 +365,7 @@ function handleRangeType(options) {
 					client_id: result.client_node_id
 				}
 			}
-			oDrawing.Drawing.Set_Props({
-				title: JSON.stringify(titleobj),
-			})
+			oDrawing.SetTitle(JSON.stringify(titleobj))
 			oDrawing.SetPaddings(0, 0, 0, nBottom)
 			if (sub_type == 'write') {
 				oDrawing.SetDistances(0, 0, 2 * 36e3, 0);
@@ -449,7 +418,7 @@ function handleRangeType(options) {
 				if (runIdx >= 0) {
 					curPosInfo[runIdx].Class.Add_ToContent(
 						curPosInfo[runIdx].Position,
-						oDrawing.Drawing
+						oDrawing.getParaDrawing()
 					)
 				} else {
 					var oRun = Api.CreateRun()
@@ -467,7 +436,7 @@ function handleRangeType(options) {
 			if (!oDrawing) {
 				return
 			}
-			var titleObj = getJsonData(oDrawing.Drawing.docPr.title)
+			var titleObj = Api.ParseJSON(oDrawing.GetTitle())
 			if (titleObj.feature && titleObj.feature.zone_type == 'question' && titleObj.feature.sub_type == sub_type) {
 				addDrawingRemove(titleObj)
 				if (sub_type == 'identify') {
@@ -487,7 +456,7 @@ function handleRangeType(options) {
 					return false
 				}
 			}
-			var quesTag = getJsonData(quesControl.GetTag())
+			var quesTag = Api.ParseJSON(quesControl.GetTag())
 			if (!quesTag.client_id) {
 				return false
 			}
@@ -517,7 +486,7 @@ function handleRangeType(options) {
 		}
 		function delShapeAsk(curBlockSdt, sub_type) {
 			var drawings = []
-			var selectedDrawings = oDocument.GetSelectedDrawings()
+			var selectedDrawings = oDocument.GetSelectedDrawings() // 返回的类型可能是ApiImage，ApiShape等等
 			if (selectedDrawings && selectedDrawings.length) {
 				for (var i = 0; i < selectedDrawings.length; ++i) {
 					if (selectedDrawings[i].GetClassType() == 'shape') {
@@ -545,7 +514,7 @@ function handleRangeType(options) {
 			if (!oControl) {
 				return
 			}
-			var tag = getJsonData(oControl.GetTag())
+			var tag = Api.ParseJSON(oControl.GetTag())
 			var obj = {}
 			if (!tag.client_id) {
 				// 之前没有配置client_id，需要分配
@@ -618,7 +587,7 @@ function handleRangeType(options) {
 			if (!blockSdt) {
 				return null
 			}
-			var tagObj = getJsonData(blockSdt.Pr.Tag)
+			var tagObj = Api.ParseJSON(blockSdt.Pr.Tag)
 			var quesData = null
 			if (tagObj.client_id) {
 				quesData = question_map[tagObj.client_id]
@@ -641,7 +610,7 @@ function handleRangeType(options) {
 			if (!oParentControl) {
 				return null
 			}
-			var tagObj = getJsonData(oParentControl.GetTag())
+			var tagObj = Api.ParseJSON(oParentControl.GetTag())
 			if (tagObj.client_id) {
 				return node_list.find(e => {
 					return e.id == tagObj.client_id
@@ -675,7 +644,7 @@ function handleRangeType(options) {
 					if (onlyChild) {
 						var parentControl = childControls[i].GetParentContentControl()
 						if (parentControl.Sdt.Id == oControl.Sdt.Id) {
-							var childTag = getJsonData(childControls[i].GetTag())
+							var childTag = Api.ParseJSON(childControls[i].GetTag())
 							if (childControls[i].GetClassType() == 'inlineLvlSdt') {
 								if (excepetNum && childTag.regionType == 'num') {
 									continue
@@ -688,18 +657,18 @@ function handleRangeType(options) {
 							}
 						}
 					} else {
-						doRemoveControl(childControls[i], getJsonData(childControls[i].GetTag()))
+						doRemoveControl(childControls[i], Api.ParseJSON(childControls[i].GetTag()))
 					}
 				}
 			}
 			if (containSelf) {
-				var tagRemove = getJsonData(oControl.GetTag())
+				var tagRemove = Api.ParseJSON(oControl.GetTag())
 				doRemoveControl(oControl, tagRemove)
 				oControl.Sdt.GetLogicDocument().PreventPreDelete = true
 			}
 		}
 		function setBlockTypeNode(oControl, removeType) {
-			var tag = getJsonData(oControl.GetTag())
+			var tag = Api.ParseJSON(oControl.GetTag())
 			if (removeType == 'all' || tag.regionType != removeType) {
 				removeControlChildren(oControl, false)
 			}
@@ -731,7 +700,7 @@ function handleRangeType(options) {
 			// 需要将后面的级别比他小的控件挪到它的范围内
 			var templist = []
 			var parentElementCount = oParent.GetElementsCount()
-			var tag = getJsonData(oControl.GetTag() || '{}')
+			var tag = Api.ParseJSON(oControl.GetTag() || '{}')
 			for (var i = posinparent + 1; i < parentElementCount; ++i) {
 				var element = oParent.GetElement(i)
 				if (!element) {
@@ -742,7 +711,7 @@ function handleRangeType(options) {
 				}
 				if (element.GetClassType() == 'blockLvlSdt') {
 					element.Sdt.GetLogicDocument().PreventPreDelete = true
-					var nextTag = getJsonData(element.GetTag() || '{}')
+					var nextTag = Api.ParseJSON(element.GetTag() || '{}')
 					if (nextTag.regionType == 'question') {
 						if (nextTag.lvl <= tag.lvl) {
 							break
@@ -977,7 +946,7 @@ function handleRangeType(options) {
 					regionType: 'write',
 					type: tname == 'remove' ? 'remove' : ''
 				})
-				var desc = getJsonData(oTable.GetTableDescription())
+				var desc = Api.ParseJSON(oTable.GetTableDescription())
 				desc[`${oCell.GetRowIndex()}_${oCell.GetIndex()}`] = `c_${oCell.Cell.Id}`
 				desc.biyue = 1
 				oTable.SetTableDescription(JSON.stringify(desc))
@@ -1061,7 +1030,7 @@ function handleRangeType(options) {
 				})
 			}
 			return {
-				ques_id: getJsonData(quesControl.GetTag()).client_id,
+				ques_id: Api.ParseJSON(quesControl.GetTag()).client_id,
 				oCells: cells
 			}
 		}
@@ -1188,7 +1157,7 @@ function handleRangeType(options) {
 						if (completeOverlap) {
 							setBlockTypeNode(oBlockControl, 'question')
 						} else {
-							var tag = getJsonData(oBlockControl.GetTag())
+							var tag = Api.ParseJSON(oBlockControl.GetTag())
 							var nodeData = getNodeData(tag)
 							var isBig = nodeData.level_type == 'question' && nodeData.is_big
 							selectControls.reverse().forEach(e => {
@@ -1237,12 +1206,14 @@ function handleRangeType(options) {
 							return result
 						}
 						if (selectDrawings) {
-							selectDrawings.forEach(e => {
-								var oDrawing = allDrawings.find(e2 => {
-									return e2.Drawing.docPr.title == e.docPr.title // 这里不可用ID查找，因为selectcontent里的元素，ID都是重新分配的
-								})
-								if (oDrawing) {
-									deleteTypeDrawing(oDrawing, 'identify')
+							selectDrawings.forEach(e => { // 这里的e的类型是ParaDrawing
+								if (e.docPr && e.docPr.title) {
+									var oDrawing = allDrawings.find(e2 => {
+										return e2.GetTitle() == e.docPr.title // 这里不可用ID查找，因为selectcontent里的元素，ID都是重新分配的
+									})
+									if (oDrawing) {
+										deleteTypeDrawing(oDrawing, 'identify')
+									}
 								}
 							})
 						}
@@ -1250,7 +1221,7 @@ function handleRangeType(options) {
 						// 删除control时，range会修改，因而这里需要先获取cellinfo，删除，然后再设置cell ask
 						for (var j = selectControls.length - 1; j >= 0; --j) {
 							if (selectControls[j].relation == 3) {
-								var tagobj = getJsonData(selectControls[j].control.Sdt.GetTag())
+								var tagobj = Api.ParseJSON(selectControls[j].control.Sdt.GetTag())
 								if (tagobj.client_id != quesId) {
 									removeControlChildren(selectControls[j].control, true)
 								}

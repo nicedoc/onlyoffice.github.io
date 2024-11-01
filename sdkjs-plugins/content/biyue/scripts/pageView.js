@@ -331,7 +331,7 @@ function insertContent(str) {
 				if (lastElement.Add_ToContent) {
 					lastElement.Add_ToContent(
 						pos[pos.length - 1].Position,
-						oDrawing.Drawing
+						oDrawing.getParaDrawing()
 					)
 				}
 			}

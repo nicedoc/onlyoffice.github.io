@@ -227,19 +227,9 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 		var drawings = oDocument.GetAllDrawingObjects()
 		var exceptList = Asc.scope.exceptList
 		var specifyFeatures = Asc.scope.specifyFeatures
-		function getJsonData(str) {
-			if (!str || str == '' || typeof str != 'string') {
-				return {}
-			}
-			try {
-				return JSON.parse(str)
-			} catch (error) {
-				console.log('json parse error', error)
-				return {}
-			}
-		}
 		function deleteAccurate(oDrawing) {
-			var run = oDrawing.Drawing.GetRun()
+			var paraDrawing = oDrawing.getParaDrawing()
+			var run = paraDrawing ? paraDrawing.GetRun() : null
 			if (run) {
 				var paragraph = run.GetParagraph()
 				if (paragraph) {
@@ -269,33 +259,31 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 		if (drawings) {
 			for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
 				var oDrawing = drawings[j]
-				if (oDrawing.Drawing.docPr) {
-					var title = oDrawing.Drawing.docPr.title
-					if (title && title.indexOf('feature') >= 0) {
-						var titleObj = getJsonData(title)
-						if (titleObj.feature && titleObj.feature.zone_type) {
-							// 作答区和识别框不应该被删除
-							if (titleObj.feature.sub_type == 'write' || titleObj.feature.sub_type == 'identify' || titleObj.feature.type == 'score') {
+				var title = oDrawing.GetTitle()
+				if (title && title.indexOf('feature') >= 0) {
+					var titleObj = Api.ParseJSON(title)
+					if (titleObj.feature && titleObj.feature.zone_type) {
+						// 作答区和识别框不应该被删除
+						if (titleObj.feature.sub_type == 'write' || titleObj.feature.sub_type == 'identify' || titleObj.feature.type == 'score') {
+							continue
+						}
+						if (exceptList) {
+							var inExcept = exceptList.findIndex(e => {
+								return e.zone_type == titleObj.feature.zone_type
+							})
+							if (inExcept >= 0) {
 								continue
 							}
-							if (exceptList) {
-								var inExcept = exceptList.findIndex(e => {
-									return e.zone_type == titleObj.feature.zone_type
-								})
-								if (inExcept >= 0) {
-									continue
-								}
-							}
-							if (specifyFeatures) {
-								var inSpecify = specifyFeatures.find(e => {
-									return title.indexOf(e) >= 0
-								})
-								if (inSpecify) {
-									deleteDrawing(titleObj, oDrawing)
-								}
-							} else {
+						}
+						if (specifyFeatures) {
+							var inSpecify = specifyFeatures.find(e => {
+								return title.indexOf(e) >= 0
+							})
+							if (inSpecify) {
 								deleteDrawing(titleObj, oDrawing)
 							}
+						} else {
+							deleteDrawing(titleObj, oDrawing)
 						}
 					}
 				}
@@ -317,23 +305,6 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 				}
 			}
 			return null
-		}
-		function getFormatTypeString(format) {
-			var sType = 'decimal'
-			switch(format) {
-				case 8: sType = 'chineseCounting'; break
-				case 9: sType = 'chineseCountingThousand'; break
-				case 10: sType = 'chineseLegalSimplified'; break
-				case 14: sType = 'decimalEnclosedCircle'; break
-				case 15: sType = 'decimalEnclosedCircleChinese'; break
-				case 21: sType = 'decimalZero'; break
-				case 46: sType = 'lowerLetter'; break
-				case 47: sType = 'lowerRoman'; break
-				case 60: sType = 'upperLetter'; break
-				case 61: sType = 'upperRoman'; break
-				default: break
-			}
-			return sType
 		}
 		var handledNumbering = {}
 		function hideSimple(oParagraph) {
@@ -369,7 +340,7 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 			if (LvlText.length > 1 && LvlText[LvlText.length - 1].Type == 1) {
 				suffix = LvlText[LvlText.length - 1].Value
 			}
-			var sType = getFormatTypeString(oNumberingLvl.Format)
+			var sType = Api.GetFormatTypeString(oNumberingLvl.Format)
 			oNumberingLevel.SetTemplateType('bullet', '');
 			var str = ''
 			var find = false
@@ -404,7 +375,7 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 					var childControls = oControl.GetAllContentControls() || []
 					if (childControls.length) {
 						for (var c = childControls.length - 1; c >= 0; --c) {
-							var tag = getJsonData(childControls[c].GetTag())
+							var tag = Api.ParseJSON(childControls[c].GetTag())
 							if (tag.regionType == 'num' && childControls[c].GetClassType() == 'inlineLvlSdt') {
 								var parent = childControls[c].Sdt.Parent
 								if (parent && parent.GetType() == 1) {
@@ -455,17 +426,6 @@ function drawList(list) {
 		}
 		var res = {
 			list: [],
-		}
-		function getJsonData(str) {
-			if (!str || str == '' || typeof str != 'string') {
-				return {}
-			}
-			try {
-				return JSON.parse(str)
-			} catch (error) {
-				console.log('json parse error', error)
-				return {}
-			}
 		}
 		function addImageToCell(oTable, nRow, nCell, url, w, h, mleft, mright) {
 			if (!oTable) {
@@ -623,9 +583,7 @@ function drawList(list) {
 					zone_type: 'pagination'
 				}
 			}
-			oDrawing.Drawing.Set_Props({
-				title: JSON.stringify(titleobj),
-			})
+			oDrawing.SetTitle(JSON.stringify(titleobj))
 			return oDrawing
 		}
 		function setPaginationAlign(oDrawing, align, PageMargins, margin) {
@@ -655,8 +613,8 @@ function drawList(list) {
 				if (oRun && oRun.GetClassType() == 'run') {
 					for (var j = 0, jmax = oRun.Run.Content.length; j < jmax; ++j) {
 						if (oRun.Run.Content[j].GetType && oRun.Run.Content[j].GetType() == 22) {
-							var title = oRun.Run.Content[j].docPr.title || '{}'
-							var titleObj = getJsonData(title)
+							var title = oRun.Run.Content[j].docPr ? (oRun.Run.Content[j].docPr.title || '{}') : ''
+							var titleObj = Api.ParseJSON(title)
 							if (titleObj.feature && titleObj.feature.zone_type == zone_type) {
 								return oRun.Run.Content[j]
 							}
@@ -667,7 +625,8 @@ function drawList(list) {
 			return null
 		}
 		function deleteDrawing(oDrawing) {
-			var run = oDrawing.Drawing.GetRun()
+			var paraDrawing = oDrawing.getParaDrawing()
+			var run = paraDrawing ? paraDrawing.GetRun() : null
 			if (run) {
 				var paragraph = run.GetParagraph()
 				if (paragraph) {
@@ -692,7 +651,7 @@ function drawList(list) {
 				}
 			})
 			var find = objs.find(e => {
-				return e.Drawing && e.Drawing.docPr && e.Drawing.docPr.title == props_title
+				return e.GetTitle() == props_title
 			})
 			var oDrawing = find
 			var result = {
@@ -706,7 +665,7 @@ function drawList(list) {
 					result.code = 1
 					if (options.type_name == 'statistics') {
 						var statisticsList = objs.filter(e => {
-							return e.Drawing && e.Drawing.docPr && e.Drawing.docPr.title == props_title
+							return e.GetTitle() == props_title
 						})
 						if (statisticsList) {
 							statisticsList.forEach(e => {
@@ -720,7 +679,7 @@ function drawList(list) {
 							}
 						})
 						var findList2 = objs.filter(e => {
-							return e.Drawing && e.Drawing.docPr && e.Drawing.docPr.title == props_title2
+							return e.GetTitle() == props_title2
 						})
 						if (findList2) {
 							findList2.forEach(e => {
@@ -897,9 +856,7 @@ function drawList(list) {
 							oDrawing.SetVerticalTextAlign('center')
 						}
 						if (oDrawing) {
-							oDrawing.Drawing.Set_Props({
-								title: props_title,
-							})
+							oDrawing.SetTitle(props_title)
 							if (options.zone_type == ZONE_TYPE.STATISTICS) {
 								if (!options.size.pagination) {
 									options.size.pagination = {
@@ -969,22 +926,22 @@ function drawList(list) {
 											typeDrawing.Set_DrawingType(2);
 										} else {
 											var oAdd = oDrawing.Copy()
-											var drawing = oAdd.Drawing
-											drawing.Set_PositionH(7, false, sh, false);
-											drawing.Set_PositionV(0, false, sv, false)
-											drawing.Set_DrawingType(2);
-											oParagraph.SetJc('center')
-											var titleobj = {
-												feature: {
-													zone_type: options.type_name,
-													v: options.v
+											var drawing = oAdd.getParaDrawing()
+											if (drawing) {
+												drawing.Set_PositionH(7, false, sh, false);
+												drawing.Set_PositionV(0, false, sv, false)
+												drawing.Set_DrawingType(2);
+												oParagraph.SetJc('center')
+												var titleobj = {
+													feature: {
+														zone_type: options.type_name,
+														v: options.v
+													}
 												}
+												oAdd.SetTitle(JSON.stringify(titleobj))
+												oParagraph.AddDrawing(oAdd)
+												drawing.Set_Parent(oParagraph.Paragraph)
 											}
-											oAdd.Drawing.Set_Props({
-												title: JSON.stringify(titleobj),
-											})
-											oParagraph.AddDrawing(oAdd)
-											oAdd.Drawing.Set_Parent(oParagraph.Paragraph)
 										}
 										// 页码
 										var oAddNum = getTypeDrawing(oParagraph, 'pagination')
@@ -1001,9 +958,7 @@ function drawList(list) {
 													v: options.v
 												}
 											}
-											oAddNum.Drawing.Set_Props({
-												title: JSON.stringify(titleobj)
-											})
+											oAddNum.SetTitle(JSON.stringify(titleobj))
 											var align = 'center'
 											if (pstyle == 'oddLeftEvenRight') {
 												align = footerObj.type == 'even' ? 'right' : 'left'
@@ -1017,7 +972,9 @@ function drawList(list) {
 											oAddNum.SetVerPosition('bottomMargin', (PageMargins.Bottom -pbottom - psize) * 36e3)
 											if (needAdd) {
 												oParagraph.AddDrawing(oAddNum)
-												oAddNum.Drawing.Set_Parent(oParagraph.Paragraph)
+												if (oAddNum.getParaDrawing()) {
+													oAddNum.getParaDrawing().Set_Parent(oParagraph.Paragraph)
+												}
 											}
 										}
 									})									
@@ -1033,14 +990,14 @@ function drawList(list) {
 									}
 								var paragraph = GetParagraphForDraw(page_num, 'end')
 								if (paragraph) {
-									var drawing = oDrawing.Drawing;
+									var drawing = oDrawing.getParaDrawing();
 										drawing.Set_PositionH(6, false, options.x, false);
 										drawing.Set_PositionV(5, false, options.y, false);
 										drawing.Set_DrawingType(2);
 										if (lastParagraph && paragraph.Id == lastParagraph.Paragraph.Id) {
 											// lastParagraph.Paragraph.AddToParagraph(drawing)
 											lastParagraph.AddDrawing(oDrawing)
-											oDrawing.Drawing.Set_Parent(lastParagraph.Paragraph)
+											drawing.Set_Parent(lastParagraph.Paragraph)
 										} else {
 											paragraph.AddToParagraph(drawing);
 										}
@@ -1115,23 +1072,6 @@ function setInteraction(type, quesIds, recalc = true) {
 				}
 			})
 		}
-		function getFormatTypeString(format) {
-			var sType = 'decimal'
-			switch(format) {
-				case 8: sType = 'chineseCounting'; break
-				case 9: sType = 'chineseCountingThousand'; break
-				case 10: sType = 'chineseLegalSimplified'; break
-				case 14: sType = 'decimalEnclosedCircle'; break
-				case 15: sType = 'decimalEnclosedCircleChinese'; break
-				case 21: sType = 'decimalZero'; break
-				case 46: sType = 'lowerLetter'; break
-				case 47: sType = 'lowerRoman'; break
-				case 60: sType = 'upperLetter'; break
-				case 61: sType = 'upperRoman'; break
-				default: break
-			}
-			return sType
-		}
 		function showControlSimple(oParagraph, vshow) {
 			if (!oParagraph) {
 				return
@@ -1140,7 +1080,7 @@ function setInteraction(type, quesIds, recalc = true) {
 			var childControls = oParagraph.GetAllContentControls() || []
 			if (childControls.length) {
 				for (var c = childControls.length - 1; c >= 0; --c) {
-					var tag = getJsonData(childControls[c].GetTag())
+					var tag = Api.ParseJSON(childControls[c].GetTag())
 					if (tag.regionType == 'num' && childControls[c].GetClassType() == 'inlineLvlSdt') {
 						var parent = childControls[c].Sdt.Parent
 						if (parent && parent.GetType() == 1) {
@@ -1238,7 +1178,7 @@ function setInteraction(type, quesIds, recalc = true) {
 				return
 			}
 			handledNumbering[key] = 1
-			var sType = getFormatTypeString(oNumberingLvl.Format)
+			var sType = Api.GetFormatTypeString(oNumberingLvl.Format)
 			var bulletStr = vshow ? `${SIMPLE_CHAR} ` : ''
 			oNumberingLevel.SetTemplateType('bullet', bulletStr);
 			var str = ''
@@ -1282,33 +1222,19 @@ function setInteraction(type, quesIds, recalc = true) {
 			var numbering = oParagraph.GetNumbering()
 			syncSameParagraph(numbering, oParagraph, vshow)
 		}
-		function getJsonData(str) {
-			if (!str || str == '' || typeof str != 'string') {
-				return {}
-			}
-			try {
-				return JSON.parse(str)
-			} catch (error) {
-				console.log('json parse error', error)
-				return {}
-			}
-		}
 
 		function getExistDrawing(draws, sub_type_list, write_id) {
 			var list = []
 			for (var i = 0; i < draws.length; ++i) {
-				var title = draws[i].Drawing.docPr.title
-				if (title) {
-					var titleObj = getJsonData(title)
-					if (titleObj.feature) {
-						if (titleObj.feature.zone_type == 'question' && sub_type_list.indexOf(titleObj.feature.sub_type) >= 0) {
-							if (write_id) {
-								if (titleObj.feature.write_id == write_id) {
-									list.push(draws[i])
-								}
-							} else {
+				var titleObj = Api.ParseJSON(draws[i].GetTitle())
+				if (titleObj.feature) {
+					if (titleObj.feature.zone_type == 'question' && sub_type_list.indexOf(titleObj.feature.sub_type) >= 0) {
+						if (write_id) {
+							if (titleObj.feature.write_id == write_id) {
 								list.push(draws[i])
 							}
+						} else {
+							list.push(draws[i])
 						}
 					}
 				}
@@ -1352,9 +1278,7 @@ function setInteraction(type, quesIds, recalc = true) {
 					write_id: write_id
 				}
 			}
-			oDrawing.Drawing.Set_Props({
-				title: JSON.stringify(titleobj),
-			})
+			oDrawing.SetTitle(JSON.stringify(titleobj))
 			return oDrawing
 		}
 
@@ -1366,7 +1290,7 @@ function setInteraction(type, quesIds, recalc = true) {
 				oRun.Run.Content[0].docPr) {
 				var title = oRun.Run.Content[0].docPr.title
 				if (title) {
-					var titleObj = getJsonData(title)
+					var titleObj = Api.ParseJSON(title)
 					if (titleObj.feature && titleObj.feature.sub_type == 'ask_accurate') {
 						oRun.Delete()
 						return true
@@ -1380,7 +1304,8 @@ function setInteraction(type, quesIds, recalc = true) {
 			if (!oShape) {
 				return
 			}
-			var run = oShape.Drawing.GetRun()
+			var paraDrawing = oShape.getParaDrawing()
+			var run = paraDrawing ? paraDrawing.GetRun() : null
 			if (run) {
 				var runParent = run.GetParent()
 				if (runParent) {
@@ -1443,7 +1368,7 @@ function setInteraction(type, quesIds, recalc = true) {
 
 		function getControl(client_id, regionType) {
 			return controls.find(e => {
-				var tag = getJsonData(e.GetTag())
+				var tag = Api.ParseJSON(e.GetTag())
 				if ((e.GetClassType() == 'blockLvlSdt' && e.GetPosInParent() >= 0) || (e.GetClassType() == 'inlineLvlSdt' && e.Sdt.GetPosInParent() >= 0)) {
 					return tag.client_id == client_id && tag.regionType == regionType
 				}
@@ -1480,15 +1405,12 @@ function setInteraction(type, quesIds, recalc = true) {
 			} else if (askData.sub_type == 'write') {
 				var drawings = oControl.GetAllDrawingObjects() || []
 				var oAskDrawing = drawings.find(e => {
-					var drawingTitle = getJsonData(e.Drawing.docPr.title)
+					var drawingTitle = Api.ParseJSON(e.GetTitle())
 					return drawingTitle.feature && drawingTitle.feature.client_id == askData.id
 				})
 				if (oAskDrawing) {
-					var oShape = null
-					if (oAskDrawing.Drawing.GraphicObj) {
-						oShape = Api.LookupObject(oAskDrawing.Drawing.GraphicObj.Id)
-					}
-					if (oShape) {
+					var oShape = Api.LookupObject(oAskDrawing.Drawing.Id)
+					if (oShape && oShape.GetClassType() == 'shape') {
 						var shapeContent = oShape.GetContent()
 						if (shapeContent) {
 							var paragraphs3 = shapeContent.GetAllParagraphs()
@@ -1545,7 +1467,7 @@ function setInteraction(type, quesIds, recalc = true) {
 					if (!dlist || dlist.length == 0) {
 						addAskInteraction(oControl, askData, i + 1, ask_list[i].id)
 					} else {
-						var content = dlist[0].Drawing.GraphicObj.textBoxContent // shapeContent
+						var content = dlist[0].Drawing.textBoxContent // shapeContent
 						if (content && content.Content && content.Content.length) {
 							var paragraph = content.Content[0]
 							if (paragraph) {
@@ -1608,7 +1530,7 @@ function setInteraction(type, quesIds, recalc = true) {
 		}
 		for (var i = 0, imax = controls.length; i < imax; ++i) {
 			var oControl = controls[i]
-			var tag = getJsonData(oControl.GetTag() || '{}')
+			var tag = Api.ParseJSON(oControl.GetTag() || '{}')
 			if (quesIds) {
 				var qindex = quesIds.findIndex(e => {
 					return e == tag.client_id
@@ -1728,22 +1650,11 @@ function updateChoice(recalc = true) {
 				}
 			}
 		}
-		function getJsonData(str) {
-			if (!str || str == '' || typeof str != 'string') {
-				return {}
-			}
-			try {
-				return JSON.parse(str)
-			} catch (error) {
-				console.log('json parse error', error)
-				return {}
-			}
-		}
 		function handleControl(oControl, i) {
 			if (!oControl) {
 				return
 			}
-			var tag = getJsonData(oControl.GetTag())
+			var tag = Api.ParseJSON(oControl.GetTag())
 			if (!tag.client_id) {
 				control_id
 			}
@@ -1781,7 +1692,7 @@ function updateChoice(recalc = true) {
 					if (childControls && childControls.length) {
 						childControls.forEach((oChildControl) => {
 							if (oChildControl.GetClassType() == 'blockLvlSdt') {
-								var childtag = getJsonData(oChildControl.GetTag())
+								var childtag = Api.ParseJSON(oChildControl.GetTag())
 								if (childtag.client_id) {
 									var nodeData2 = node_list.find(e => {
 										return e.id == childtag.client_id
@@ -1934,23 +1845,11 @@ function showOrHidePagination(v) {
 		var oDocument = Api.GetDocument()
 		var drawings = oDocument.GetAllDrawingObjects() || []
 		var vshow = Asc.scope.v
-		function getJsonData(str) {
-			if (!str || str == '' || typeof str != 'string') {
-				return {}
-			}
-			try {
-				return JSON.parse(str)
-			} catch (error) {
-				console.log('json parse error', error)
-				return {}
-			}
-		}
 		drawings.forEach(e => {
-			var title = e.Drawing.docPr.title
-			var titleObj = getJsonData(title)
+			var titleObj = Api.ParseJSON(e.GetTitle())
 			if (titleObj.feature && titleObj.feature.zone_type == 'pagination') {
-				var oShape = Api.LookupObject(e.Drawing.GraphicObj.Id)
-				if (oShape) {
+				var oShape = Api.LookupObject(e.Drawing.Id)
+				if (oShape && oShape.GetClassType() == 'shape') {
 					var oShapeContent = oShape.GetContent()
 					if (oShapeContent) {
 						var paragraphs = oShapeContent.GetAllParagraphs() || []

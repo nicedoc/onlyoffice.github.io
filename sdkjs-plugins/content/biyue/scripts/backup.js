@@ -32,17 +32,6 @@ function updateRangeControlType(typeName) {
 			}
 			return
 		}
-		function getJsonData(str) {
-			if (!str || str == '' || typeof str != 'string') {
-				return {}
-			}
-			try {
-				return JSON.parse(str)
-			} catch (error) {
-				console.log('json parse error', error)
-				return {}
-			}
-		}
 		function getParentBlock(oControl) {
 			if (!oControl) {
 				return null
@@ -65,7 +54,7 @@ function updateRangeControlType(typeName) {
 			var parentBlock = getParentBlock(oControl)
 			var parent_id = 0
 			if (parentBlock) {
-				var parentTag = getJsonData(parentBlock.GetTag())
+				var parentTag = Api.ParseJSON(parentBlock.GetTag())
 				parent_id = parentTag.client_id || 0
 			}
 			return parent_id
@@ -103,7 +92,7 @@ function updateRangeControlType(typeName) {
 			var children = []
 			for (var i = 0; i < childControls.length; ++i) {
 				var childControl = childControls[i]
-				var tag = getJsonData(childControl.GetTag())
+				var tag = Api.ParseJSON(childControl.GetTag())
 				if (!tag.client_id) {
 					continue
 				}
@@ -187,7 +176,7 @@ function updateRangeControlType(typeName) {
 				oRun.Run.Content[0].docPr) {
 				var title = oRun.Run.Content[0].docPr.title
 				if (title) {
-					var titleObj = getJsonData(title)
+					var titleObj = Api.ParseJSON(title)
 					if (titleObj.feature && titleObj.feature.sub_type == 'ask_accurate') {
 						oRun.Delete()
 						return true
@@ -195,23 +184,6 @@ function updateRangeControlType(typeName) {
 				}
 			}
 			return false
-		}
-		function getFormatTypeString(format) {
-			var sType = 'decimal'
-			switch(format) {
-				case 8: sType = 'chineseCounting'; break
-				case 9: sType = 'chineseCountingThousand'; break
-				case 10: sType = 'chineseLegalSimplified'; break
-				case 14: sType = 'decimalEnclosedCircle'; break
-				case 15: sType = 'decimalEnclosedCircleChinese'; break
-				case 21: sType = 'decimalZero'; break
-				case 46: sType = 'lowerLetter'; break
-				case 47: sType = 'lowerRoman'; break
-				case 60: sType = 'upperLetter'; break
-				case 61: sType = 'upperRoman'; break
-				default: break
-			}
-			return sType
 		}
 		function delSimpleControl(oControl) {
 			var parent = oControl.Sdt.Parent
@@ -229,7 +201,7 @@ function updateRangeControlType(typeName) {
 			var childControls = oControl.GetAllContentControls() || []
 			if (childControls.length) {
 				for (var c = childControls.length - 1; c >= 0; --c) {
-					var tag = getJsonData(childControls[c].GetTag())
+					var tag = Api.ParseJSON(childControls[c].GetTag())
 					if (tag.regionType == 'num' && childControls[c].GetClassType() == 'inlineLvlSdt') {
 						delSimpleControl(childControls[c])			
 					}
@@ -260,7 +232,7 @@ function updateRangeControlType(typeName) {
 			if (LvlText.length > 1 && LvlText[LvlText.length - 1].Type == 1) {
 				suffix = LvlText[LvlText.length - 1].Value
 			}
-			var sType = getFormatTypeString(oNumberingLvl.Format)
+			var sType = Api.GetFormatTypeString(oNumberingLvl.Format)
 			oNumberingLevel.SetTemplateType('bullet', '');
 			var str = ''
 			var find = false
@@ -289,7 +261,7 @@ function updateRangeControlType(typeName) {
 			if (!oControl) {
 				return
 			}
-			var tag = getJsonData(oControl.GetTag() || '{}')
+			var tag = Api.ParseJSON(oControl.GetTag() || '{}')
 			if (tag.regionType == 'write') {
 				if (oControl.GetClassType() == 'inlineLvlSdt') {
 					var elementCount = oControl.GetElementsCount()
@@ -316,7 +288,7 @@ function updateRangeControlType(typeName) {
 							if (oDrawing.Drawing.docPr) {
 								var title = oDrawing.Drawing.docPr.title
 								if (title && title.indexOf('feature') >= 0) {
-									var titleObj = getJsonData(title)
+									var titleObj = Api.ParseJSON(title)
 									if (titleObj.feature && titleObj.feature.zone_type == 'question') {
 										if (titleObj.feature.sub_type == 'ask_accurate') {
 											var cellParent = getDirectParentCell(oDrawing)
@@ -354,7 +326,7 @@ function updateRangeControlType(typeName) {
 			})
 			var oTable = oCell.GetParentTable()
 			if (oTable && oTable.GetPosInParent() >= 0) {
-				var desc = getJsonData(oTable.GetTableDescription())
+				var desc = Api.ParseJSON(oTable.GetTableDescription())
 				desc.biyue = 1
 				var key = `${oCell.GetRowIndex()}_${oCell.GetIndex()}`
 				if (desc[key]) {
@@ -367,7 +339,7 @@ function updateRangeControlType(typeName) {
 			if (!oRemove) {
 				return
 			}
-			var tagRemove = getJsonData(oRemove.GetTag() || '{}')
+			var tagRemove = Api.ParseJSON(oRemove.GetTag() || '{}')
 			clearQuesInteraction(oRemove)
 			result.change_list.push({
 				control_id: oRemove.Sdt.GetId(),
@@ -496,7 +468,7 @@ function updateRangeControlType(typeName) {
 					regionType: 'write'
 				})
 				var oTable = Api.LookupObject(table_id)
-				var desc = getJsonData(oTable.GetTableDescription())
+				var desc = Api.ParseJSON(oTable.GetTableDescription())
 				desc[`${oCell.GetRowIndex()}_${oCell.GetIndex()}`] = `c_${oCell.Cell.Id}`
 				desc.biyue = 1
 				oTable.SetTableDescription(JSON.stringify(desc))
@@ -560,7 +532,7 @@ function updateRangeControlType(typeName) {
 			var clientId = node ? `c_${cellId}` : null
 			if (!node && colorAsk) {
 				var oTable = oCell.GetParentTable()
-				var desc = getJsonData(oTable.GetTableDescription())
+				var desc = Api.ParseJSON(oTable.GetTableDescription())
 				var rowIndex = oCell.GetRowIndex()
 				var cIndex = oCell.GetIndex()
 				if (desc[`${rowIndex}_${cIndex}`]) {
@@ -592,7 +564,7 @@ function updateRangeControlType(typeName) {
 				if (!oControl) {
 					continue
 				}
-				var tag = getJsonData(oControl.GetTag() || '{}')
+				var tag = Api.ParseJSON(oControl.GetTag() || '{}')
 				if (tag.client_id && question_map[tag.client_id] && question_map[tag.client_id].level_type == 'question') {
 					return {
 						id: tag.client_id,
@@ -606,7 +578,7 @@ function updateRangeControlType(typeName) {
 			if (!oControl) {
 				return
 			}
-			var tag = getJsonData(oControl.GetTag() || '{}')
+			var tag = Api.ParseJSON(oControl.GetTag() || '{}')
 			var obj = {}
 			if (!tag.client_id) {
 				// 之前没有配置client_id，需要分配
@@ -653,7 +625,7 @@ function updateRangeControlType(typeName) {
 			// 需要将后面的级别比他小的控件挪到它的范围内
 			var templist = []
 			var parentElementCount = oParent.GetElementsCount()
-			var tag = getJsonData(oControl.GetTag() || '{}')
+			var tag = Api.ParseJSON(oControl.GetTag() || '{}')
 			for (var i = posinparent + 1; i < parentElementCount; ++i) {
 				var element = oParent.GetElement(i)
 				if (!element) {
@@ -664,7 +636,7 @@ function updateRangeControlType(typeName) {
 				}
 				if (element.GetClassType() == 'blockLvlSdt') {
 					element.Sdt.GetLogicDocument().PreventPreDelete = true
-					var nextTag = getJsonData(element.GetTag() || '{}')
+					var nextTag = Api.ParseJSON(element.GetTag() || '{}')
 					if (nextTag.regionType == 'question') {
 						if (nextTag.lvl <= tag.lvl) {
 							break
@@ -883,7 +855,7 @@ function updateRangeControlType(typeName) {
 					container_type = firstContainerData.container_type
 					containerIndex = firstContainerData.index
 				} else if (elementData.list.length && elementData.list[0].container_type == 'shape' && elementData.list[0].container.Drawing && (typeName == 'clear' || typeName == 'clearAll')) {
-					var dtitle = getJsonData(elementData.list[0].container.Drawing.docPr.title)
+					var dtitle = Api.ParseJSON(elementData.list[0].container.Drawing.docPr.title)
 					if (dtitle.feature && dtitle.feature.client_id && (dtitle.feature.sub_type == 'identify' || dtitle.feature.sub_type == 'write')) {
 						var adata = getQuesByAskId(dtitle.feature.client_id)
 						deleShape(elementData.list[0].container)
@@ -940,7 +912,7 @@ function updateRangeControlType(typeName) {
 							}
 							var removeIds = []
 							if (container) {
-								var tag2 = getJsonData(container.GetTag())
+								var tag2 = Api.ParseJSON(container.GetTag())
 								if (tag2.regionType == 'write' && tag2.client_id) {
 									removeIds = getQuesByAskId(tag2.client_id).ask_ids
 								}
@@ -949,7 +921,7 @@ function updateRangeControlType(typeName) {
 								var quesControl = getParentBlock(container)
 								if (quesControl) {
 									quesControl.GetAllContentControls().forEach(e => {
-										var tag3 = getJsonData(e.GetTag())
+										var tag3 = Api.ParseJSON(e.GetTag())
 										if (removeIds.includes(tag3.client_id)) {
 											removeControl(e)
 										}
@@ -1156,7 +1128,7 @@ function updateRangeControlType(typeName) {
 				var oTable = Api.LookupObject(startData.tableId)
 				var rows = oTable.GetRowsCount()
 				var oParentControl = Api.LookupObject(startData.controlId)
-				var oParentTag = getJsonData(oParentControl.GetTag() || '{}')
+				var oParentTag = Api.ParseJSON(oParentControl.GetTag() || '{}')
 				if (oParentTag && oParentTag.client_id) {
 					for (var i = 0; i < rows; ++i) {
 						var oRow = oTable.GetRow(i)
@@ -1412,17 +1384,6 @@ function handleWrite(cmdType) {
 			console.log('curControl is null')
 			return
 		}
-		function getJsonData(str) {
-			if (!str || str == '' || typeof str != 'string') {
-				return {}
-			}
-			try {
-				return JSON.parse(str)
-			} catch (error) {
-				console.log('json parse error', error)
-				return {}
-			}
-		}
 		function deleteShape(oDrawing) {
 			var run = oDrawing.Drawing.GetRun()
 			if (run) {
@@ -1446,7 +1407,7 @@ function handleWrite(cmdType) {
 			oDrawing.Delete()
 		}
 		var oControl = Api.LookupObject(curControl.Id)
-		var tag = oControl ? getJsonData(oControl.GetTag()) : {}
+		var tag = oControl ? Api.ParseJSON(oControl.GetTag()) : {}
 		if (write_cmd == 'add') {
 			if (oControl) {
 				client_node_id += 1
@@ -1530,7 +1491,7 @@ function handleWrite(cmdType) {
 				}
 				for (var i = 0; i < drawings.length; ++i) {
 					var title = drawings[i].Drawing.docPr.title || '{}'
-					var titleObj = getJsonData(title)
+					var titleObj = Api.ParseJSON(title)
 					if (titleObj.feature && titleObj.feature.zone_type == 'question' && titleObj.feature.sub_type == 'write') {
 						var drawingId = drawings[i].Drawing.Id
 						var oDrawing = allDrawings.find(e => {
@@ -1563,17 +1524,6 @@ function handleIdentifyBox(cmdType) {
 			console.log('curPosInfo', curPosInfo)
 			var res = {
 				cmdType: cmdType
-			}
-			function getJsonData(str) {
-				if (!str || str == '' || typeof str != 'string') {
-					return {}
-				}
-				try {
-					return JSON.parse(str)
-				} catch (error) {
-					console.log('json parse error', error)
-					return {}
-				}
 			}
 			if (curPosInfo) {
 				var runIdx = -1
@@ -1633,7 +1583,7 @@ function handleIdentifyBox(cmdType) {
 					)
 					var paraentControl = pParagraph.GetParentContentControl()
 					if (paraentControl) {
-						var tag = getJsonData(paraentControl.GetTag())
+						var tag = Api.ParseJSON(paraentControl.GetTag())
 						if (
 							tag.regionType == 'question'
 						) {
@@ -1670,7 +1620,7 @@ function handleIdentifyBox(cmdType) {
 										drawings[sidx].Drawing.docPr.title &&
 										drawings[sidx].Drawing.docPr.title != ''
 									) {
-										var dtitle = getJsonData(
+										var dtitle = Api.ParseJSON(
 											drawings[sidx].Drawing.docPr.title
 										)
 										if (dtitle.feature && dtitle.feature.sub_type == 'identify') {

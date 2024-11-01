@@ -108,8 +108,9 @@ function updatePageSizeMargins() {
 			}
 			var odrawings = oDocument.GetAllDrawingObjects() || []
 			odrawings.forEach(oDrawing => {
-				if (oDrawing.Drawing && oDrawing.Drawing.docPr && oDrawing.Drawing.docPr.descr && oDrawing.Drawing.docPr.descr.indexOf('biyue') == -1) {
-					oDrawing.Drawing.Set_Props({
+				var Drawing = oDrawing.getParaDrawing()
+				if (Drawing && Drawing.docPr && Drawing.docPr.descr && Drawing.docPr.descr.indexOf('biyue') == -1) {
+					Drawing.Set_Props({
 						description: ''
 					})
 				}
@@ -282,23 +283,12 @@ function updateControls() {
 			let ques_no = 1
 			let struct_index = 0
 			var control_list = []
-			function getJsonData(str) {
-				if (!str || str == '' || typeof str != 'string') {
-					return {}
-				}
-				try {
-					return JSON.parse(str)
-				} catch (error) {
-					console.log('json parse error', error)
-					return {}
-				}
-			}
 			controls.forEach((control) => {
 				var rect = Api.asc_GetContentControlBoundingRect(
 					control.Sdt.GetId(),
 					true
 				)
-				tagInfo = getJsonData(control.GetTag())
+				tagInfo = Api.ParseJSON(control.GetTag())
 				var text = control.GetRange().GetText()
 				let obj = {
 					control_id: control.Sdt.GetId(),
@@ -410,23 +400,12 @@ function updateCustomControls() {
 			let ques_no = 1
 			let struct_index = 0
 			var control_list = []
-			function getJsonData(str) {
-				if (!str || str == '' || typeof str != 'string') {
-					return {}
-				}
-				try {
-					return JSON.parse(str)
-				} catch (error) {
-					console.log('json parse error', error)
-					return {}
-				}
-			}
 			controls.forEach((control) => {
 				// var rect = Api.asc_GetContentControlBoundingRect(
 				// 	control.Sdt.GetId(),
 				// 	true
 				// )
-				let tagInfo = getJsonData(control.GetTag())
+				let tagInfo = Api.ParseJSON(control.GetTag())
 				var text = control.GetRange().GetText()
 				let obj = {
 					control_id: control.Sdt.GetId(),
@@ -800,20 +779,9 @@ function addScoreField(score, mode, layout, posall) {
 			var res = {
 				add: false,
 			}
-			function getJsonData(str) {
-				if (!str || str == '' || typeof str != 'string') {
-					return {}
-				}
-				try {
-					return JSON.parse(str)
-				} catch (error) {
-					console.log('json parse error', error)
-					return {}
-				}
-			}
 			for (var i = 0; i < controls.length; ++i) {
 				var control = controls[i]
-				var tag = getJsonData(control.GetTag())
+				var tag = Api.ParseJSON(control.GetTag())
 				if (tag.regionType == 'question') {
 					var control_id = control.Sdt.GetId()
 					var controlIndex = control_list.findIndex((item) => {
@@ -993,9 +961,7 @@ function addScoreField(score, mode, layout, posall) {
 							type: 'qscore',
 							ques_control_id: control_id,
 						}
-						oDrawing.Drawing.Set_Props({
-							title: JSON.stringify(titleobj),
-						})
+						oDrawing.SetTitle(JSON.stringify(titleobj))
 						var paragraph
 						if (params.posall) {
 							// paragraph = Api.CreateParagraph();
@@ -1508,17 +1474,6 @@ function handleScoreField4(options) {
 			var MM2TWIPS = 25.4 / 72 / 20
 			var cellWidth = cell_width_mm / MM2TWIPS
 			var cellHeight = cell_height_mm / MM2TWIPS
-			function getJsonData(str) {
-				if (!str || str == '' || typeof str != 'string') {
-					return {}
-				}
-				try {
-					return JSON.parse(str)
-				} catch (error) {
-					console.log('json parse error', error)
-					return {}
-				}
-			}
 			for (var idx = 0, maxidx = list.length; idx < maxidx; ++idx) {
 				var options = list[idx]
 				var controlData = control_list[options.control_index]
@@ -1553,16 +1508,13 @@ function handleScoreField4(options) {
 					})
 				} else {
 					for (var i = 0, imax = shapes.length; i < imax; ++i) {
-						var dtitle = shapes[i].Drawing.docPr.title
-						if (dtitle && dtitle != '') {
-							var titlejson = getJsonData(dtitle)
-							if (
-								titlejson.type == 'qscore' &&
-								titlejson.ques_control_id == controlData.control_id
-							) {
-								oShape = shapes[i]
-								break // 暂时假设打分区不会重复
-							}
+						var titlejson = Api.ParseJSON(shapes[i].GetTitle())
+						if (
+							titlejson.type == 'qscore' &&
+							titlejson.ques_control_id == controlData.control_id
+						) {
+							oShape = shapes[i]
+							break // 暂时假设打分区不会重复
 						}
 					}
 				}
@@ -1688,9 +1640,7 @@ function handleScoreField4(options) {
 					type: 'qscore',
 					ques_control_id: controlData.control_id,
 				}
-				oDrawing.Drawing.Set_Props({
-					title: JSON.stringify(titleobj),
-				})
+				oDrawing.SetTitle(JSON.stringify(titleobj))
 				// 下面是全局插入的
 				// control.GetRange().Select()
 				// oDocument.AddDrawingToPage(oDrawing, 0, (newRect.Right - shapew) * 36E3, newRect.Top * 36E3); // 用这种方式加入的一定是相对页面的
@@ -1802,17 +1752,6 @@ function handleScoreField(options) {
 			var MM2TWIPS = 25.4 / 72 / 20
 			var cellWidth = cell_width_mm / MM2TWIPS
 			var cellHeight = cell_height_mm / MM2TWIPS
-			function getJsonData(str) {
-				if (!str || str == '' || typeof str != 'string') {
-					return {}
-				}
-				try {
-					return JSON.parse(str)
-				} catch (error) {
-					console.log('json parse error', error)
-					return {}
-				}
-			}
 			for (var idx = 0, maxidx = list.length; idx < maxidx; ++idx) {
 				var options = list[idx]
 				var controlData = control_list[options.control_index]
@@ -1847,16 +1786,13 @@ function handleScoreField(options) {
 					})
 				} else {
 					for (var i = 0, imax = shapes.length; i < imax; ++i) {
-						var dtitle = shapes[i].Drawing.docPr.title
-						if (dtitle && dtitle != '') {
-							var titlejson = getJsonData(dtitle)
-							if (
-								titlejson.type == 'qscore' &&
-								titlejson.ques_control_id == controlData.control_id
-							) {
-								oShape = shapes[i]
-								break // 暂时假设打分区不会重复
-							}
+						var titlejson = Api.ParseJSON(shapes[i].GetTitle())
+						if (
+							titlejson.type == 'qscore' &&
+							titlejson.ques_control_id == controlData.control_id
+						) {
+							oShape = shapes[i]
+							break // 暂时假设打分区不会重复
 						}
 					}
 				}
@@ -2085,9 +2021,7 @@ function handleScoreField(options) {
 					type: 'qscore',
 					ques_control_id: controlData.control_id,
 				}
-				oDrawing.Drawing.Set_Props({
-					title: JSON.stringify(titleobj),
-				})
+				oDrawing.SetTitle(JSON.stringify(titleobj))
 				// 下面是全局插入的
 				// control.GetRange().Select()
 				// oDocument.AddDrawingToPage(oDrawing, 0, (newRect.Right - shapew) * 36E3, newRect.Top * 36E3); // 用这种方式加入的一定是相对页面的
@@ -2201,17 +2135,6 @@ function handleScoreField2(options) {
 			var cellWidth = cell_width_mm / MM2TWIPS
 			var spacingWidth = spacing_width_mm / MM2TWIPS
 			var cellHeight = cell_height_mm / MM2TWIPS
-			function getJsonData(str) {
-				if (!str || str == '' || typeof str != 'string') {
-					return {}
-				}
-				try {
-					return JSON.parse(str)
-				} catch (error) {
-					console.log('json parse error', error)
-					return {}
-				}
-			}
 			for (var idx = 0, maxidx = list.length; idx < maxidx; ++idx) {
 				var options = list[idx]
 				var controlData = control_list[options.control_index]
@@ -2246,16 +2169,13 @@ function handleScoreField2(options) {
 					})
 				} else {
 					for (var i = 0, imax = shapes.length; i < imax; ++i) {
-						var dtitle = shapes[i].Drawing.docPr.title
-						if (dtitle && dtitle != '') {
-							var titlejson = getJsonData(dtitle)
-							if (
-								titlejson.type == 'qscore' &&
-								titlejson.ques_control_id == controlData.control_id
-							) {
-								oShape = shapes[i]
-								break // 暂时假设打分区不会重复
-							}
+						var titlejson = Api.ParseJSON(shapes[i].GetTitle())
+						if (
+							titlejson.type == 'qscore' &&
+							titlejson.ques_control_id == controlData.control_id
+						) {
+							oShape = shapes[i]
+							break // 暂时假设打分区不会重复
 						}
 					}
 				}
@@ -2544,9 +2464,7 @@ function handleScoreField2(options) {
 					type: 'qscore',
 					ques_control_id: controlData.control_id,
 				}
-				oDrawing.Drawing.Set_Props({
-					title: JSON.stringify(titleobj),
-				})
+				oDrawing.SetTitle(JSON.stringify(titleobj))
 				// 下面是全局插入的
 				// control.GetRange().Select()
 				// oDocument.AddDrawingToPage(oDrawing, 0, (newRect.Right - shapew) * 36E3, newRect.Top * 36E3); // 用这种方式加入的一定是相对页面的
@@ -2650,9 +2568,7 @@ function toggleWeight() {
 								'column',
 								(rect.X0 - controlRect.X0) * 36e3
 							)
-							oDrawing.Drawing.Set_Props({
-								title: 'ask_weight',
-							})
+							oDrawing.SetTitle('ask_weight')
 
 							var drawDocument = oDrawing.GetContent()
 							var oParagraph = Api.CreateParagraph()
@@ -2704,11 +2620,12 @@ function toggleWeight() {
 					if (pcontrol.GetAllDrawingObjects) {
 						var drawingObjs = pcontrol.GetAllDrawingObjects()
 						drawingObjs.forEach((e) => {
-							if (e.Drawing.docPr.title == 'ask_weight') {
+							var Drawing = e.getParaDrawing()
+							if (e.GetTitle() == 'ask_weight') {
 								if (!added) {
 									e.Fill(Api.CreateNoFill())
 								} else {
-									e.Drawing.Set_Props({
+									Drawing.Set_Props({
 										title: 'ask_weight',
 										hidden: null,
 									})
@@ -2904,19 +2821,8 @@ function addOnlyBigControl(recalc = true) {
 	return biyueCallCommand(window, function() {
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls() || []
-		function getJsonData(str) {
-			if (!str || str == '' || typeof str != 'string') {
-				return {}
-			}
-			try {
-				return JSON.parse(str)
-			} catch (error) {
-				console.log('json parse error', error)
-				return {}
-			}
-		}
 		controls.forEach(oControl => {
-			var controlTag = getJsonData(oControl.GetTag())
+			var controlTag = Api.ParseJSON(oControl.GetTag())
 			if (controlTag.big) {
 				var oRange = null
 				var count = oControl.Sdt.GetElementsCount()
@@ -2998,17 +2904,6 @@ function getAllPositions2() {
 				const pixelsPerMillimeter = 96 / 25.4
 				return Math.floor(mm * pixelsPerMillimeter) >>> 0
 			}
-			function getJsonData(str) {
-				if (!str || str == '' || typeof str != 'string') {
-					return {}
-				}
-				try {
-					return JSON.parse(str)
-				} catch (error) {
-					console.log('json parse error', error)
-					return {}
-				}
-			}
 			function getBlockControlBounds(oControl, bounds) {
 				if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
 					return
@@ -3037,7 +2932,7 @@ function getAllPositions2() {
 				for (var i = 0; i < oTables.length; ++i) {
 					var oTable = oTables[i]
 					if (oTable.GetPosInParent() == -1) { continue }
-					var desc = getJsonData(oTable.GetTableDescription())
+					var desc = Api.ParseJSON(oTable.GetTableDescription())
 					var keys = Object.keys(desc)
 					if (keys.length) {
 						for (var j = 0; j < keys.length; ++j) {
@@ -3122,7 +3017,7 @@ function getAllPositions2() {
 							} else {
 								var pControls = oParagraph.GetAllContentControls() || []
 								var numControl = pControls.find(e => {
-									var tag = getJsonData(e.GetTag())
+									var tag = Api.ParseJSON(e.GetTag())
 									return e.GetClassType() == 'inlineLvlSdt' && tag.regionType == 'num'
 								})
 								if (numControl && numControl.Sdt && numControl.Sdt.Bounds) {
@@ -3162,33 +3057,35 @@ function getAllPositions2() {
 							) {
 								continue
 							}
-							if (oDrawing.Drawing.docPr) {
-								var title = oDrawing.Drawing.docPr.title
-								if (title && title.indexOf('feature') >= 0) {
-									var titleObj = getJsonData(title)
-									if (
-										titleObj.feature &&
-										titleObj.feature.zone_type == 'question'
-									) {
-										var obj = {
-											page: oDrawing.Drawing.PageNum + 1,
-											x: mmToPx(oDrawing.Drawing.X),
-											y: mmToPx(oDrawing.Drawing.Y),
-											w: mmToPx(oDrawing.Drawing.Width),
-											h: mmToPx(oDrawing.Drawing.Height),
-										}
-										if (titleObj.feature.sub_type == 'simple') {
-											correct_region = obj
-										} else if (titleObj.feature.sub_type == 'ask_accurate') {
-											obj.v = correct_ask_region.length + 1 + ''
-											correct_ask_region.push(obj)
-										} else if (titleObj.feature.sub_type == 'write') {
-											obj.write_id = titleObj.feature.client_id
-											write_region.push(obj)
-										} else if (titleObj.feature.sub_type == 'identify') {
-											obj.write_id = titleObj.feature.client_id
-											identify_region.push(obj)
-										}
+							var paraDrawing = oDrawing.getParaDrawing()
+							if (!paraDrawing) {
+								continue
+							}
+							var title = oDrawing.GetTitle()
+							if (title && title.indexOf('feature') >= 0) {
+								var titleObj = Api.ParseJSON(title)
+								if (
+									titleObj.feature &&
+									titleObj.feature.zone_type == 'question'
+								) {
+									var obj = {
+										page: paraDrawing.PageNum + 1,
+										x: mmToPx(paraDrawing.X),
+										y: mmToPx(paraDrawing.Y),
+										w: mmToPx(paraDrawing.Width),
+										h: mmToPx(paraDrawing.Height),
+									}
+									if (titleObj.feature.sub_type == 'simple') {
+										correct_region = obj
+									} else if (titleObj.feature.sub_type == 'ask_accurate') {
+										obj.v = correct_ask_region.length + 1 + ''
+										correct_ask_region.push(obj)
+									} else if (titleObj.feature.sub_type == 'write') {
+										obj.write_id = titleObj.feature.client_id
+										write_region.push(obj)
+									} else if (titleObj.feature.sub_type == 'identify') {
+										obj.write_id = titleObj.feature.client_id
+										identify_region.push(obj)
 									}
 								}
 							}
@@ -3205,7 +3102,7 @@ function getAllPositions2() {
 			}
 			function getControlsByClientId(cid) {
 				var findControls = controls.filter(e => {
-					var tag = getJsonData(e.GetTag())
+					var tag = Api.ParseJSON(e.GetTag())
 					if (e.GetClassType() == 'blockLvlSdt') {
 						return tag.client_id == cid && e.GetPosInParent() >= 0
 					} else if (e.GetClassType() == 'inlineLvlSdt') {
@@ -3236,21 +3133,23 @@ function getAllPositions2() {
 				// 互动区域
 				var drawings = oCell.GetContent().GetAllDrawingObjects() || []
 				var oDrawing = drawings.find((e) => {
-					var title = e.Drawing.docPr.title || '{}'
-					var titleObj = getJsonData(title)
+					var titleObj = Api.ParseJSON(e.GetTitle())
 					if (titleObj.feature && titleObj.feature.sub_type == 'ask_accurate') {
 						return true
 					}
 				})
 				var interaction_region = null
 				if (oDrawing) {
-					interaction_region = {
-						page: oDrawing.Drawing.PageNum + 1,
-						x: mmToPx(oDrawing.Drawing.X),
-						y: mmToPx(oDrawing.Drawing.Y),
-						w: mmToPx(oDrawing.Drawing.Width),
-						h: mmToPx(oDrawing.Drawing.Height),
-						v: '1',
+					var paraDrawing = oDrawing.getParaDrawing()
+					if (paraDrawing) {
+						interaction_region = {
+							page: paraDrawing.PageNum + 1,
+							x: mmToPx(paraDrawing.X),
+							y: mmToPx(paraDrawing.Y),
+							w: mmToPx(paraDrawing.Width),
+							h: mmToPx(paraDrawing.Height),
+							v: '1',
+						}
 					}
 				}
 				return { cell_region, interaction_region }
@@ -3258,7 +3157,7 @@ function getAllPositions2() {
 
 			for (var i = 0, imax = controls.length; i < imax; ++i) {
 				var oControl = controls[i]
-				var tag = getJsonData(oControl.GetTag() || '{}')
+				var tag = Api.ParseJSON(oControl.GetTag() || '{}')
 				var question_obj = question_map[tag.client_id]
 					? question_map[tag.client_id]
 					: {}
@@ -3275,7 +3174,7 @@ function getAllPositions2() {
 					if (nodeData && nodeData.is_big) {
 						var childcontrols = oControl.GetAllContentControls() || []
 						var bigControl = childcontrols.find(e => {
-							var btag = getJsonData(e.GetTag())
+							var btag = Api.ParseJSON(e.GetTag())
 							return e.GetClassType() == 'blockLvlSdt' && btag.onlybig == 1 && btag.link_id == nodeData.id
 						})
 						if (bigControl) {
@@ -3438,23 +3337,24 @@ function getAllPositions2() {
 									}
 								} else if ( askData.sub_type == 'write' || askData.sub_type == 'identify') {
 									var oShape = oShapes.find(e => {
-										if (e.Drawing) {
-											var shapetitle = getJsonData(e.Drawing.docPr.title)
-											return shapetitle.feature && shapetitle.feature.client_id == askData.id
-										}
+										var shapetitle = Api.ParseJSON(e.GetTitle())
+										return shapetitle.feature && shapetitle.feature.client_id == askData.id
 									})
-									if (oShape && oShape.Drawing) {
-										item.write_ask_region.push({
-											order: mark_order + '',
-											page: oShape.Drawing.PageNum + 1,
-											x: mmToPx(oShape.Drawing.X),
-											y: mmToPx(oShape.Drawing.Y),
-											w: mmToPx(oShape.Drawing.Width),
-											h: mmToPx(oShape.Drawing.Height),
-											v: ask_score + '',
-											mark_order: mark_order,
-										})
-										find = true
+									if (oShape) {
+										var shapeDrawing = oShape.getParaDrawing()
+										if (shapeDrawing) {
+											item.write_ask_region.push({
+												order: mark_order + '',
+												page: shapeDrawing.PageNum + 1,
+												x: mmToPx(shapeDrawing.X),
+												y: mmToPx(shapeDrawing.Y),
+												w: mmToPx(shapeDrawing.Width),
+												h: mmToPx(shapeDrawing.Height),
+												v: ask_score + '',
+												mark_order: mark_order,
+											})
+											find = true
+										}
 									}
 								}
 							}
@@ -3527,19 +3427,23 @@ function getAllPositions2() {
 			if (drawings) {
 				for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
 					var oDrawing = drawings[j]
-					if (oDrawing.Drawing.docPr) {
-						var title = oDrawing.Drawing.docPr.title
+					var paraDrawing = oDrawing.getParaDrawing()
+					if (!paraDrawing) {
+						continue
+					}
+					if (paraDrawing.docPr) {
+						var title = oDrawing.GetTitle()
 						if (title && title.indexOf('partical_no_dot') >= 0) {
 							partical_no_dot_list.push({
-								page: oDrawing.Drawing.PageNum + 1,
-								x: mmToPx(oDrawing.Drawing.X),
-								y: mmToPx(oDrawing.Drawing.Y),
-								w: mmToPx(oDrawing.Drawing.Width),
-								h: mmToPx(oDrawing.Drawing.Height),
+								page: paraDrawing.PageNum + 1,
+								x: mmToPx(paraDrawing.X),
+								y: mmToPx(paraDrawing.Y),
+								w: mmToPx(paraDrawing.Width),
+								h: mmToPx(paraDrawing.Height),
 							})
 						}
 						if (title && title.indexOf('feature') >= 0) {
-							var titleObj = getJsonData(title)
+							var titleObj = Api.ParseJSON(title)
 							if (
 								titleObj.feature &&
 								titleObj.feature.zone_type &&
@@ -3558,10 +3462,10 @@ function getAllPositions2() {
 										statistics_arr.push({
 											v: p + 1 + '',
 											page: p + 1,
-											x: mmToPx(oDrawing.Drawing.X),
-											y: mmToPx(oDrawing.Drawing.Y),
-											w: mmToPx(oDrawing.Drawing.Width),
-											h: mmToPx(oDrawing.Drawing.Height),
+											x: mmToPx(paraDrawing.X),
+											y: mmToPx(paraDrawing.Y),
+											w: mmToPx(paraDrawing.Width),
+											h: mmToPx(paraDrawing.Height),
 										})
 									}
 									feature_list.push({
@@ -3586,11 +3490,11 @@ function getAllPositions2() {
 														var cell = CellsInfo[c]
 														featureObj.fields.push({
 															v: c - 1 + '',
-															page: oDrawing.Drawing.PageNum + 1,
-															x: mmToPx(oDrawing.Drawing.X + cell.X_cell_start),
-															y: mmToPx(oDrawing.Drawing.Y),
+															page: paraDrawing.PageNum + 1,
+															x: mmToPx(paraDrawing.X + cell.X_cell_start),
+															y: mmToPx(paraDrawing.Y),
 															w: mmToPx(cell.X_cell_end - cell.X_cell_start),
-															h: mmToPx(oDrawing.Drawing.Height),
+															h: mmToPx(paraDrawing.Height),
 														})
 													}
 												}
@@ -3603,11 +3507,11 @@ function getAllPositions2() {
 									} else {
 										featureObj.fields.push({
 											v: titleObj.feature.v + '',
-											page: oDrawing.Drawing.PageNum + 1,
-											x: mmToPx(oDrawing.Drawing.X),
-											y: mmToPx(oDrawing.Drawing.Y),
-											w: mmToPx(oDrawing.Drawing.Width),
-											h: mmToPx(oDrawing.Drawing.Height),
+											page: paraDrawing.PageNum + 1,
+											x: mmToPx(paraDrawing.X),
+											y: mmToPx(paraDrawing.Y),
+											w: mmToPx(paraDrawing.Width),
+											h: mmToPx(paraDrawing.Height),
 										})
 									}
 									feature_list.push(featureObj)

@@ -962,18 +962,7 @@ import { getInfoForServerSave } from './model/util.js'
 			function (obj) {
 				window.Asc.plugin.currentContentControl = obj
 				var controlTag = obj ? obj.Tag : ''
-				function getJsonData(str) {
-					if (!str || str == '' || typeof str != 'string') {
-						return {}
-					}
-					try {
-						return JSON.parse(str)
-					} catch (error) {
-						console.log('json parse error', error)
-						return {}
-					}
-				}
-				var tagObj = getJsonData(controlTag)
+				var tagObj = Api.ParseJSON(controlTag)
 				tagObj[key] = value
 				var newTag = JSON.stringify(tagObj)
 				window.Asc.plugin.callCommand(
@@ -1226,44 +1215,28 @@ import { getInfoForServerSave } from './model/util.js'
 		return biyueCallCommand(window, function () {
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls() || []
-			function getJsonData(str) {
-				if (!str || str == '' || typeof str != 'string') {
-					return {}
-				}
-				try {
-					return JSON.parse(str)
-				} catch (error) {
-					console.log('json parse error', error)
-					return {}
-				}
-			}
 			// 先删除所有题目的互动
 			var drawings = oDocument.GetAllDrawingObjects() || []
 			for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
 				var oDrawing = drawings[j]
-				if (oDrawing.Drawing.docPr) {
-					var title = oDrawing.Drawing.docPr.title
-					if (title && title.indexOf('feature') >= 0) {
-						try {
-							var titleObj = JSON.parse(title)
-							if (
-								titleObj.feature &&
-								titleObj.feature.zone_type == 'question'
-							) {
-								oDrawing.Delete()
-							}
-						} catch (error) {
-							console.log('json解析失败', error)
-						}
+				var title = oDrawing.GetTitle()
+				if (title && title.indexOf('feature') >= 0) {
+					var titleObj = Api.ParseJSON(title)
+					if (
+						titleObj.feature &&
+						titleObj.feature.zone_type == 'question'
+					) {
+						oDrawing.Delete()
 					}
 				}
+				
 			}
 			// 删除regionType == num的control
 			for (var i = controls.length - 1; i >= 0; --i) {
 				if (controls[i].GetClassType() != 'inlineLvlSdt') {
 					continue
 				}
-				var tag = getJsonData(controls[i].GetTag())
+				var tag = Api.ParseJSON(controls[i].GetTag())
 				if (tag.regionType == 'num') {
 					var parent = controls[i].Sdt.Parent
 					if (parent) {
@@ -1334,17 +1307,6 @@ import { getInfoForServerSave } from './model/util.js'
 		console.log('showScoreContent on button clicked')
 		var fun = function () {
 			var controls = Api.GetDocument().GetAllContentControls()
-			function getJsonData(str) {
-				if (!str || str == '' || typeof str != 'string') {
-					return {}
-				}
-				try {
-					return JSON.parse(str)
-				} catch (error) {
-					console.log('json parse error', error)
-					return {}
-				}
-			}
 			for (var i = 0; i < controls.length; i++) {
 				var control = controls[i]
 				var obj = ''
@@ -1352,7 +1314,7 @@ import { getInfoForServerSave } from './model/util.js'
 					obj = control.GetTag() || ''
 					if (obj) {
 						try {
-							obj = getJsonData(obj)
+							obj = Api.ParseJSON(obj)
 						} catch (e) {
 							console.error('JSON解析失败', e)
 						}
@@ -1556,19 +1518,8 @@ import { getInfoForServerSave } from './model/util.js'
 			[],
 			function (returnValue) {
 				console.log('control', returnValue)
-				function getJsonData(str) {
-					if (!str || str == '' || typeof str != 'string') {
-						return {}
-					}
-					try {
-						return JSON.parse(str)
-					} catch (error) {
-						console.log('json parse error', error)
-						return {}
-					}
-				}
 				if (returnValue && returnValue.Tag) {
-					var tag = getJsonData(returnValue.Tag)
+					var tag = Api.ParseJSON(returnValue.Tag)
 					var event = new CustomEvent('clickSingleQues', {
 						detail: Object.assign({}, tag, {
 							InternalId: returnValue.InternalId,
@@ -1741,18 +1692,7 @@ import { getInfoForServerSave } from './model/util.js'
 				) {
 					return
 				}
-				function getJsonData(str) {
-					if (!str || str == '' || typeof str != 'string') {
-						return {}
-					}
-					try {
-						return JSON.parse(str)
-					} catch (error) {
-						console.log('json parse error', error)
-						return {}
-					}
-				}
-				var tagObj = getJsonData(obj.Tag)
+				var tagObj = Api.ParseJSON(obj.Tag)
 				if (tagObj.group !== undefined && tagObj.group !== '') {
 					window.Asc.plugin.executeMethod(
 						'GetAllContentControls',
@@ -1765,7 +1705,7 @@ import { getInfoForServerSave } from './model/util.js'
 									continue
 								}
 
-								var tag = getJsonData(e.Tag)
+								var tag = Api.ParseJSON(e.Tag)
 								if (tag.group === tagObj.group) {
 									tag.group = undefined
 									ots.push({ Id: e.InternalId, tag: JSON.stringify(tag) })
