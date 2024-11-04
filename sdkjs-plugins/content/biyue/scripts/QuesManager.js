@@ -238,7 +238,7 @@ function getContextMenuItems(type, selectedRes) {
 			} else {
 				for (var j = selectedRes.parentSdts.length - 2; j >= 0; --j) {
 					if (selectedRes.parentSdts[j].classType == 'blockLvlSdt') {
-						var tag2 = Api.ParseJSON(selectedRes.parentSdts[j].Tag)
+						var tag2 = getJsonData(selectedRes.parentSdts[j].Tag)
 						var pData = getControlData(tag2)
 						if (pData && pData.level_type) {
 							cData = {
