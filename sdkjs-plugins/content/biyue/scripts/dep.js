@@ -413,6 +413,18 @@ let newSplit = function (text) {
             style2lvl[styleId] = lvl;
         }    
     });
+    // style基于其他style的沿用basedOn lvl
+    for (var styleId in k.styles)
+    {
+        if (style2lvl[styleId])
+            continue;
+        var style = k.styles[styleId];
+        if (style.basedOn)
+        {
+            var basedOnStyleId = style.basedOn;
+            style2lvl[styleId] = style2lvl[basedOnStyleId];
+        }
+    }
 
 
     // 合并属性相同的run
