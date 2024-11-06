@@ -714,6 +714,11 @@ function handleRangeType(options) {
 					element.Sdt.GetLogicDocument().PreventPreDelete = true
 					var nextTag = Api.ParseJSON(element.GetTag() || '{}')
 					if (nextTag.regionType == 'question') {
+						if (nextTag.client_id) {
+							if (question_map[nextTag.client_id] && question_map[nextTag.client_id].level_type == 'struct') {
+								break
+							}	
+						}
 						if (nextTag.lvl <= tag.lvl) {
 							break
 						}
