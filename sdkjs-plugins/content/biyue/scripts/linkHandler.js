@@ -1,5 +1,6 @@
 // 这个文件主要处理图片或表格关联相关操作
 import { biyueCallCommand, dispatchCommandResult } from "./command.js";
+import { preGetExamTree } from "./QuesManager.js";
 
 function tagImageCommon(params) {
 	Asc.scope.tag_params = params
@@ -310,6 +311,9 @@ function onAllCheck() {
 		return allList
 	}, false, false).then(res => {
 		Asc.scope.linked_list = res
+		return preGetExamTree()
+	}).then(res => {
+		Asc.scope.tree_info = res
 		window.biyue.showDialog('elementLinks', '关联检查', 'elementLinks.html', 900, 500, false)
 	})
 }
@@ -392,6 +396,9 @@ function onLinkedCheck() {
 		return linkedList
 	}, false, false).then(res => {
 		Asc.scope.linked_list = res
+		return preGetExamTree()
+	}).then(res => {
+		Asc.scope.tree_info = res
 		window.biyue.showDialog('elementLinks', '关联检查', 'elementLinks.html', 900, 500, false)
 	})
 }

@@ -37,7 +37,8 @@ import {
 	deleteChoiceOtherWrite,
 	handleUploadPrepare,
 	importExam,
-	insertSymbol
+	insertSymbol,
+	preGetExamTree
 } from './QuesManager.js'
 import {
 	tagImageCommon,
@@ -119,7 +120,8 @@ import { getInfoForServerSave } from './model/util.js'
 					xtoken: getToken(),
           			questionPositions: Asc.scope.questionPositions || {},
           			biyueCustomData: window.BiyueCustomData,
-                subject_mark_types: Asc.scope.subject_mark_types
+                	subject_mark_types: Asc.scope.subject_mark_types,
+					tree_info: Asc.scope.tree_info
 				})
 				break
       		case 'positionSaveSuccess':
@@ -221,9 +223,14 @@ import { getInfoForServerSave } from './model/util.js'
 				}
 				break
 			case 'imageRelationMessage':
-				closeWindow(modal.id)
 				if (message.data) {
+					closeWindow(modal.id)
 					tagImageCommon(message.data)
+				} else {
+					modal.command('initInfo', {
+						biyueCustomData: window.BiyueCustomData,
+						tree_info: Asc.scope.tree_info
+					})
 				}
 				break
 			case 'elementLinkedMessage':
@@ -239,7 +246,8 @@ import { getInfoForServerSave } from './model/util.js'
 				} else {
 					modal.command('initLinkedInfo', {
 						biyueCustomData: window.BiyueCustomData,
-						linkedList: Asc.scope.linked_list
+						linkedList: Asc.scope.linked_list,
+						tree_info: Asc.scope.tree_info
 					})
 				}
 				break
@@ -2118,12 +2126,27 @@ import { getInfoForServerSave } from './model/util.js'
 					!window.BiyueCustomData.node_list ||
 					!window.BiyueCustomData.node_list.length
 				if (!isFirstLoad) {
-					var find = window.BiyueCustomData.node_list.find((e) => {
-						return e.regionType == 'question' || e.regionType == 'struct'
-					})
-					// 无切题信息，需要重新切题，当初次导入处理
-					if (!find) {
-						isFirstLoad = true
+					if (window.BiyueCustomData.node_list) {
+						var hasNull = false
+						var find = window.BiyueCustomData.node_list.find((e) => {
+							if (e) {
+								return e.regionType == 'question' || e.regionType == 'struct'
+							} else {
+								hasNull = true
+							}
+						})
+						if (hasNull) {
+							isFirstLoad = true
+							window.BiyueCustomData.node_list = []
+							window.BiyueCustomData.question_map = {}	
+						}
+						// 无切题信息，需要重新切题，当初次导入处理
+						if (!find) {
+							isFirstLoad = true
+						}
+					} else {
+						window.BiyueCustomData.node_list = []
+						window.BiyueCustomData.question_map = {}
 					}
 				}
 				if (isFirstLoad) {
@@ -2149,7 +2172,7 @@ import { getInfoForServerSave } from './model/util.js'
 		})
 	}
 
-	function showDialog(winName, name, url, width, height, isModal = false) {
+	function showDialog(winName, name, url, width, height, isModal = false, type) {
 		let location = window.location
 		let start = location.pathname.lastIndexOf('/') + 1
 		let file = location.pathname.substring(start)
@@ -2163,6 +2186,9 @@ import { getInfoForServerSave } from './model/util.js'
 			buttons: [],
 			EditorsSupport:[ "word", "cell", "slide" ],
 			size: [width, height]
+		}
+		if (type) {
+			variation.type = type
 		}
 		if (!windows) {
 			console.log('windows is null')
@@ -2192,11 +2218,17 @@ import { getInfoForServerSave } from './model/util.js'
 
 	
   function onBatchScoreSet() {
-    showDialog('batchSettingScoresWindow', '批量操作 - 修改分数', 'batchSettingScores.html', 800, 600)
+	preGetExamTree().then(res => {
+		Asc.scope.tree_info = res
+		showDialog('batchSettingScoresWindow', '批量操作 - 修改分数', 'batchSettingScores.html', 800, 600, false)
+	})
   }
 
   function onBatchQuesTypeSet() {
-    showDialog('batchSettingQuestionTypeWindow', '批量操作 - 修改题型', 'batchSettingQuestionType.html', 800, 600)
+	preGetExamTree().then(res => {
+		Asc.scope.tree_info = res
+		showDialog('batchSettingQuestionTypeWindow', '批量操作 - 修改题型', 'batchSettingQuestionType.html', 800, 600, false)
+	})
   }
 
 	window.insertHtml = insertHtml

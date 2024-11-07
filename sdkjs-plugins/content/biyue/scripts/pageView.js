@@ -208,7 +208,7 @@ function changeTabPanel(id, event) {
 				Appearance: g_click_value.Appearance,
 			}))
 		} else {
-			showQuesData()
+			showQuesData(event ? event.detail : null)
 		}
 	}
 	scroll(false)

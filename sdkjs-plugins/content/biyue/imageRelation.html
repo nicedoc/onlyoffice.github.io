@@ -15,7 +15,7 @@
 			rel="stylesheet"
 			href="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.css"
 		/>
-		<link rel="stylesheet" href="resources/css/batchSettingQuestionType.css">
+		<link rel="stylesheet" href="resources/css/batchSetting.css">
 		<script src="vendor/jQuery-2.2.2-min/jquery-v2.2.2-min.js"></script>
 		<style>
 			.info {
@@ -59,18 +59,19 @@
 
 	<body>
 		<div class="window-body">
-			<div class="batch-setting-type-header">
+			<div class="batch-setting-header">
 				<div id="header">当前图片：</div>
 				<div id="imageContainer"></div>
 				<div>关联列表</div>
 			</div>
-			<div class="batch-setting-type-info"></div>
+			<div class="batch-setting-info"></div>
 		</div>
 		<div class="confirm-wrapper">
 			<label class="hidden_empty_struct" for="hidden_empty_struct"
 				><input type="checkbox" id="hidden_empty_struct" />隐藏无题目结构</label
 			>
 			<div id="confirm" class="btn-confirm">确定</div>
+			<label class="switch-tree" for="switch-tree"><input type="checkbox" id="switch_tree">树状显示</label>
 		</div>
 		<script
 			type="module"

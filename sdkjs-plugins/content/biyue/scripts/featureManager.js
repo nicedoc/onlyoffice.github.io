@@ -1531,9 +1531,10 @@ function setInteraction(type, quesIds, recalc = true) {
 		for (var i = 0, imax = controls.length; i < imax; ++i) {
 			var oControl = controls[i]
 			var tag = Api.ParseJSON(oControl.GetTag() || '{}')
+			var targetQuesId = tag.mid ? tag.mid : tag.client_id
 			if (quesIds) {
 				var qindex = quesIds.findIndex(e => {
-					return e == tag.client_id
+					return e == targetQuesId
 				})
 				if (qindex == -1) {
 					continue
@@ -1542,27 +1543,27 @@ function setInteraction(type, quesIds, recalc = true) {
 			if (tag.regionType != 'question') {
 				continue
 			}
-			if (!question_map[tag.client_id]) {
+			if (!question_map[targetQuesId]) {
 				continue
 			}
 			if (interaction_type_use != 'none') {
-				if (!question_map[tag.client_id] || question_map[tag.client_id].level_type != 'question') {
+				if (!question_map[targetQuesId] || question_map[targetQuesId].level_type != 'question') {
 					continue
 				}
-				if (question_map[tag.client_id].mark_mode == 2) {
+				if (question_map[targetQuesId].mark_mode == 2) {
 					if (interaction_type_use == 'accurate') {
 						interaction_type = 'simple'
 					}
 				} else {
 					if (interaction_type_use == 'useself') {
-						interaction_type = question_map[tag.client_id].interaction
+						interaction_type = question_map[targetQuesId].interaction
 					}
 				}
 			}
-			if (question_map[tag.client_id].ques_mode == 6) {
+			if (question_map[targetQuesId].ques_mode == 6) {
 				interaction_type = 'none'
 			}
-			var ask_list = question_map[tag.client_id].ask_list
+			var ask_list = question_map[targetQuesId].ask_list
 			var nodeData = node_list.find(e => {
 				return e.id == tag.client_id
 			})
@@ -1570,7 +1571,7 @@ function setInteraction(type, quesIds, recalc = true) {
 			// var allDraws = oControl.GetAllDrawingObjects()
 			// var simpleDrawings = getExistDrawing(allDraws, ['simple'])
 			// var accurateDrawings = getExistDrawing(allDraws, ['accurate', 'ask_accurate'])
-			var isGatherChoice = (question_map[tag.client_id].ques_mode == 1 || question_map[tag.client_id].ques_mode == 5) && nodeData.use_gather
+			var isGatherChoice = (question_map[targetQuesId].ques_mode == 1 || question_map[targetQuesId].ques_mode == 5) && nodeData.use_gather
 			var type = isGatherChoice ? 'none' : interaction_type
 			var firstParagraph = getFirstParagraph(oControl)
 			if (firstParagraph) {

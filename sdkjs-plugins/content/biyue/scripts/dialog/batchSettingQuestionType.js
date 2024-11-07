@@ -8,8 +8,9 @@
   let hidden_empty_struct = false
   let needUpdateInteraction = false
   let needUpdateChoice = false
+  let tree_info = {}
+  let display_tree = true
   window.Asc.plugin.init = function () {
-    console.log('examExport init')
     window.Asc.plugin.sendToPlugin('onWindowMessage', { type: 'PaperMessage' })
   }
 
@@ -19,6 +20,8 @@
     getOptions()
     $('#confirm').on('click', onConfirm)
     $('#hidden_empty_struct').on('click', onSwitchStruct)
+	$('#switch_tree').prop('checked', display_tree)
+	$('#switch_tree').on('click', onSwitchTree)
   }
 
   function getOptions() {
@@ -29,94 +32,145 @@
     renderData()
   }
 
-  function renderData() {
-    let node_list = biyueCustomData.node_list || []
+  function renderTree() {
     question_map = biyueCustomData.question_map || {}
+	var rootElement = $('.batch-setting-info')
+	rootElement.empty()
+	questionList = []
+	tree_map = {}
+	if (!tree_info || !tree_info.tree || tree_info.tree.length == 0) {
+		$('.batch-setting-info').html('<div class="ques-none">暂无题目，请先切题</div>')
+		showBottomBtns(false)
+	} else {
+		showBottomBtns(true)
+		tree_info.tree.forEach(item => {
+			renderTreeNode(rootElement, item, 0)
+		})
+		addEvents()
+		updateHideEmptyStruct()
+	}
+	getQuestionTypeNum()
+  }
 
-    let html = ''
-    let question_list = []
-    let tree = {}
-    let pre_struct = ''
-    for (const key in node_list) {
-      let item = question_map[node_list[key].id] || ''
-      if (node_list[key].level_type == 'question') {
-        if (item) {
-          html += `<span class="question" title="${ item.text }">${(item.ques_name || item.ques_default_name || '')}`
-          html += `<select class="type-item ques-${ node_list[key].id }">`
-          html += `<option value="" style="display:none;"></option>`
-          for (const key in question_type_options) {
-            let selected = item.question_type * 1 === question_type_options[key].value * 1 ? 'selected' : ''
-            html += `<option value="${question_type_options[key].value}" ${selected}>${question_type_options[key].label}</option>`
-          }
+  function showBottomBtns(v) {
+	if (v) {
+		$('.hidden_empty_struct').show()
+		$('.switch-tree').show()
+	} else {
+		$('.hidden_empty_struct').hide()
+		$('.switch-tree').hide()
+	}
+  }
 
-          html += `</select></span>`
+  function getSelectHtml(id, quesData) {
+	var html = ''
+	if (quesData.level_type == 'struct') {
+		html += `<select class="type-item" id="bat-group-${ id }">`
+	} else {
+		html += `<select class="type-item ques-${ id }">`
+	}
+	html += `<option value="" style="display:none;"></option>`
+	for (const key in question_type_options) {
+		if (quesData.level_type == 'struct') {
+			html += `<option value="${question_type_options[key].value}" title="${question_type_options[key].label}">${question_type_options[key].label}</option>`
+		} else {
+			let selected = (quesData.level_type == 'question' && quesData.question_type * 1 === question_type_options[key].value * 1) ? 'selected' : ''
+			html += `<option value="${question_type_options[key].value}" ${selected}>${question_type_options[key].label}</option>`
+		}
+	}
+	html += `</select>`
+	return html
+  }
 
-          if (!question_list.includes(node_list[key].id)) {
-            question_list.push(node_list[key].id)
-          }
-          if (!pre_struct && !tree[pre_struct]) {
-            tree[pre_struct] = []
-          }
-          if (pre_struct && tree[pre_struct]) {
-            tree[pre_struct].push(node_list[key].id)
-          }
-        }
-      } else if (node_list[key].level_type == 'struct' && item){
-        pre_struct = node_list[key].id
+  function renderTreeNode(parent, item, identation = 0) {
+	if (!parent) {
+		return
+	}
+	var quesData = question_map[item.id]
+	if (!quesData) {
+		return
+	}
+	const div = $('<div></div>')
+	var html = ''
+	if (item.level_type == 'struct') {
+		html += `<div class=group id="group-id-${item.id}" style="padding-left:${identation}px"><span title="${quesData.text}">${quesData.text.split('\r\n')[0]}</span>`
+		if (item.children && item.children.length) {
+			html += '<div class="bat-set">设置为'
+			html += getSelectHtml(item.id, quesData)
+			html += `<span class="bat-set-btn" id="bat-set-btn-${ item.id }" data-id="${ item.id }">设置</span></div></div>`
+		}
+		html += '</div>'
+		tree_map[item.id] = []
+	} else if (item.level_type == 'question') {
+		html += `<span class="question" title="${quesData.text}" style="padding-left:${identation}px">${quesData.ques_name || quesData.ques_default_name || ''}`
+		html += getSelectHtml(item.id, quesData)
+		html += '</span>'
+		questionList.push(item.id)
+	}
+	if (display_tree || item.level_type == 'struct') {
+		div.html(html)
+		parent.append(div)
+	} else {
+		parent.append(html)
+	}
+	if (item.children && item.children.length > 0) {
+		identation += 20
+		for (var child of item.children) {
+			if (item.level_type == 'struct') {
+				if (child.level_type == 'question') {
+					if (tree_map[item.id]) {
+						tree_map[item.id].push(child.id)
+					} else {
+						tree_map[item.id] = [child.id]
+					}
+				}
+			}
+			renderTreeNode(parent, child, display_tree ? identation : 0)
+		}
+	}
+  }
 
-        html += `<div class="group" id="group-id-${ pre_struct }"><span>${ item.text.split('\r\n')[0] }</span></div>`
-        if (!tree[pre_struct]) {
-            tree[pre_struct] = []
-        }
-      }
-    }
-    tree_map = tree
-    questionList = question_list || []
-    $('.batch-setting-type-info').html(html)
+  function renderData() {
+	renderTree()
+  }
 
-    // 处理题目的下拉选项事件
-    for (const key in questionList) {
-      let id = questionList[key]
-      let doms = document.querySelectorAll('.ques-' + id) || []
-      doms.forEach(function(dom) {
-          dom.addEventListener('change', function() {
-            getQuestionTypeNum()
-          })
-      })
-    }
-
-    for (const key in tree_map) {
+  function addEvents() {
+	// 处理题目的下拉选项事件
+	for (const key in questionList) {
+		let id = questionList[key]
+		let doms = document.querySelectorAll('.ques-' + id) || []
+		doms.forEach(function(dom) {
+			// 提前定义事件处理函数
+            const changeHandler = function() {
+                getQuestionTypeNum();
+            };
+			dom.removeEventListener('change', changeHandler);
+			dom.addEventListener('change', changeHandler)
+		})
+	}
+	for (const key in tree_map) {
         if (tree_map[key].length > 0) {
             // 对有题的结构增加批量设置题型的下拉框
             let dom = document.querySelector('#group-id-' + key)
             if (dom) {
-                let html = dom.innerHTML // 取出当前的题组内容
-                let selectHtml = `<select id="bat-type-group-${key}" class="type-item">`
-                selectHtml += `<option value="" style="display: none;"></option>`
-                for (const key in question_type_options) {
-                  selectHtml += `<option value="${question_type_options[key].value}" title="${question_type_options[key].label}">${question_type_options[key].label}</option>`
-                }
-                selectHtml += "</select>"
-
-                let inputHtml = `<div class="bat-type-set">设置为${selectHtml}<span class="bat-type-set-btn" id="bat-type-set-btn-${ key }" data-id="${ key }">设置</span></div>`
-                dom.innerHTML = html + inputHtml
-
-                let btnDom = document.querySelector(`#bat-type-set-btn-${ key }`)
+				let btnDom = document.querySelector(`#bat-set-btn-${ key }`)
                 if (btnDom) {
-                  btnDom.addEventListener('click', function() {
-                      let id = btnDom.dataset.id || ''
-                      let inputDom = document.querySelector(`#bat-type-group-${ id }`)
-                      if (inputDom.value > 0) {
-                        batchSetStructQuestionType(id, inputDom.value || 0)
-                        getQuestionTypeNum()
-                      }
-                  })
+					const clickHandler = function() {
+                        let id = btnDom.dataset.id || ''
+						let inputDom = document.querySelector(`#bat-group-${ id }`)
+						if (inputDom.value > 0) {
+							batchSetStructQuestionType(id, inputDom.value || 0)
+							getQuestionTypeNum()
+						}
+                    };
+					btnDom.removeEventListener('click', clickHandler)
+					btnDom.addEventListener('click', clickHandler)
                 }
+                
             }
         }
     }
-
-    getQuestionTypeNum()
+	getQuestionTypeNum()
   }
 
   function batchSetStructQuestionType(struct_id, value) {
@@ -178,7 +232,10 @@
   function onSwitchStruct() {
     //  开启/隐藏 无题目的结构
     hidden_empty_struct = !hidden_empty_struct
-    $('#hidden_empty_struct').prop('checked', hidden_empty_struct)
+    updateHideEmptyStruct()
+  }
+  function updateHideEmptyStruct() {
+	$('#hidden_empty_struct').prop('checked', hidden_empty_struct)
 
     for (const key in tree_map) {
         let arr = tree_map[key] || []
@@ -190,6 +247,12 @@
             }
         }
     }
+  }
+
+  function onSwitchTree() {
+	display_tree = !display_tree
+	$('#switch_tree').prop('checked', display_tree)
+	renderData()
   }
 
   // 获取作答模式
@@ -250,6 +313,7 @@
     console.log('batchSettingQuestionType 接收的消息', message)
     biyueCustomData = message.biyueCustomData || {}
     mark_type_info = message.subject_mark_types || {}
+	tree_info = message.tree_info || {}
     init()
   })
 })(window, undefined)

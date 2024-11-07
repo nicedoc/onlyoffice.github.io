@@ -6,13 +6,19 @@
     <script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.js"></script>
     <script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins-ui.js"></script>
     <link rel="stylesheet" href="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.css">
-    <link rel="stylesheet" href="resources/css/batchSettingQuestionType.css">
+    <link rel="stylesheet" href="resources/css/batchSetting.css">
     <script src="vendor/jQuery-2.2.2-min/jquery-v2.2.2-min.js"></script>
     <script type="text/javascript" src="scripts/dialog/batchSettingQuestionType.js"></script>
+	<style>
+		.batch-setting-info {
+			max-height: calc(100% - 64px);
+			overflow-y: auto;
+		}
+	</style>
 </head>
 <body>
   <div class="window-body">
-    <div class="batch-setting-type-header">
+    <div class="batch-setting-header">
       <div>
         <div style="display: flex ;margin: 8px 0;">
           <div style="min-width: 70px;">当前试卷：</div>
@@ -21,12 +27,13 @@
       </div>
       <div>题型预览</div>
     </div>
-    <div class="batch-setting-type-info">
+    <div class="batch-setting-info">
     </div>
   </div>
   <div class="confirm-wrapper">
     <label class="hidden_empty_struct" for="hidden_empty_struct"><input type="checkbox" id="hidden_empty_struct">隐藏无题目结构</label>
     <div id="confirm" class="btn-confirm">确定</div>
+	<label class="switch-tree" for="switch-tree"><input type="checkbox" id="switch_tree">树状显示</label>
   </div>
 </body>
 </html>

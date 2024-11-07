@@ -392,6 +392,20 @@ function showQuesData(params) {
 			} else if (nodeData.level_type == 'text') {
 				updateElements(null, `当前选中为待处理文本`)
 				return
+			} else {
+				if (nodeData.merge_id && question_map[nodeData.merge_id]) {
+					var ids = question_map[nodeData.merge_id].ids || []
+					if (ids.find(e => {
+						return e == g_client_id
+					})) {
+						quesData = question_map[nodeData.merge_id]
+						g_client_id = nodeData.merge_id
+					}
+					if (nodeData.cell_ask && nodeData.write_list && nodeData.write_list.length) {
+						params.regionType = 'write'
+						g_client_id = nodeData.write_list[0].id
+					}
+				}
 			}
 		}
 	}
@@ -400,11 +414,12 @@ function showQuesData(params) {
 		return
 	}
 	var ques_client_id = 0
+	var findIndex = -1
 	if (params.regionType == 'write') {
 		var keys = Object.keys(question_map)
 		for (var i = 0; i < keys.length; ++i) {
 			var ask_list = question_map[keys[i]].ask_list || []
-			var findIndex = ask_list.findIndex(e => {
+			findIndex = ask_list.findIndex(e => {
 				if (e.other_fileds && e.other_fileds.includes(g_client_id)) {
 					return true
 				}
@@ -564,7 +579,14 @@ function initListener() {
 					regionType: nodeData.regionType
 				})
 			} else {
-				updateElements(null)
+				var quesData = window.BiyueCustomData.question_map[id]
+				if (quesData) {
+					showQuesData({
+						client_id: id
+					})
+				} else {
+					updateElements(null)
+				}
 			}
 		}
 	})
@@ -724,20 +746,34 @@ function onFocusAsk(id, idx) {
 	if (!quesData || !quesData.ask_list || index >= quesData.ask_list.length) {
 		return
 	}
-	var nodeData = window.BiyueCustomData.node_list.find(e => {
+	var nlist = window.BiyueCustomData.node_list || []
+	var nodeData = nlist.find(e => {
 		return e.id == g_ques_id
 	})
-	if (nodeData && nodeData.write_list) {
-		var writeData = nodeData.write_list.find(e => {
+	var writeData = null
+	if (!nodeData && quesData.ids && quesData.ids.length > 0) {
+		for (var i = 0; i < nlist.length; ++i) {
+			if (nlist[i].merge_id != g_ques_id) {
+				continue
+			}
+			writeData = nlist[i].write_list.find(e => {
+				return e.id == quesData.ask_list[index].id
+			})
+			if (writeData) {
+				break
+			}
+		}
+	} else if (nodeData && nodeData.write_list) {
+		writeData = nodeData.write_list.find(e => {
 			return e.id == quesData.ask_list[index].id
 		})
-		if (writeData) {
-			focusAsk(writeData)
-			updateAskSelect(idx)
-		} else {
-			console.log('找不到小问数据,node_list和question_map里的数据不一致')
-		}
-		
+	}
+	
+	if (writeData) {
+		focusAsk(writeData)
+		updateAskSelect(idx)
+	} else {
+		console.log('找不到小问数据,node_list和question_map里的数据不一致')
 	}
 }
 

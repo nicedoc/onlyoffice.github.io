@@ -33,6 +33,20 @@ function handleRangeType(options) {
 				})
 			}
 		}
+		function getControlsByClientId(cid) {
+			var allControls = oDocument.GetAllContentControls() || []
+			var findControls = allControls.filter(e => {
+				var tag = Api.ParseJSON(e.GetTag())
+				if (e.GetClassType() == 'blockLvlSdt') {
+					return tag.client_id == cid && e.GetPosInParent() >= 0
+				} else if (e.GetClassType() == 'inlineLvlSdt') {
+					return e.Sdt && e.Sdt.GetPosInParent() >= 0 && tag.client_id == cid
+				}
+			})
+			if (findControls && findControls.length) {
+				return findControls[0]
+			}
+		}
 		function getParentBlock(oControl) {
 			if (!oControl) {
 				return null
@@ -460,7 +474,7 @@ function handleRangeType(options) {
 			if (!quesTag.client_id) {
 				return false
 			}
-			var quesData = question_map[quesTag.client_id]
+			var quesData = quesTag.mid ? question_map[quesTag.mid] : question_map[quesTag.client_id]
 			if (!quesData || quesData.level_type != 'question') { // 只有题目才能处理作答区
 				return false
 			}
@@ -531,7 +545,7 @@ function handleRangeType(options) {
 			obj.numbing_text = GetNumberingValue(oControl)
 			if (regionType == 'write') {
 				obj.sub_type = 'control'
-				tag.color = '#ff000040'
+				tag.clr = tag.color = '#ff000040'
 			} else {
 				if (typeName == 'setBig') {
 					tag.big = 1
@@ -594,6 +608,9 @@ function handleRangeType(options) {
 				quesData = question_map[tagObj.client_id]
 				if (quesData) {
 					return quesData.level_type == 'question' ? tagObj.client_id : null
+				} else if (tagObj.mid) {
+					quesData = question_map[tagObj.mid]
+					return quesData.level_type == 'question' ? tagObj.mid : null
 				}
 			}
 			var parentData = getParentData(Api.LookupObject(blockSdt.Id))
@@ -851,10 +868,14 @@ function handleRangeType(options) {
 				} else if (allControls[i].Sdt.IsSelectedAll()) {
 					relation = 3
 					var controlRange = allControls[i].GetRange()
-					if ((typeName != 'write' && typeName != 'clear' && typeName != 'clearAll') || 
-						(samePos(oSelectRange.StartPos, controlRange.StartPos) && samePos(oSelectRange.EndPos, controlRange.EndPos))) {
+					if (samePos(oSelectRange.StartPos, controlRange.StartPos) && samePos(oSelectRange.EndPos, controlRange.EndPos)) {
 						relation = 2 // 完全重叠
 						completeOverlapSdt = allControls[i].Sdt
+					} else {
+						if (typeName != 'write' && typeName != 'clear' && typeName != 'clearAll' && typeName != 'mergeQuestion') {
+							relation = 2 // 完全重叠
+							completeOverlapSdt = allControls[i].Sdt
+						}
 					}
 				} else {
 					relation = 4
@@ -915,6 +936,24 @@ function handleRangeType(options) {
 				}
 			})
 		}
+		function addCellAsk(oCell, parent_id, tname) {
+			var oTable = oCell.GetParentTable()
+			result.change_list.push({
+				parent_id: parent_id,
+				table_id: oTable.Table.Id,
+				row_index: oCell.GetRowIndex(),
+				cell_index: oCell.GetIndex(),
+				cell_id: oCell.Cell.Id,
+				client_id: 'c_' + oCell.Cell.Id,
+				regionType: 'write',
+				type: tname == 'remove' ? 'remove' : ''
+			})
+			var desc = Api.ParseJSON(oTable.GetTableDescription())
+			desc[`${oCell.GetRowIndex()}_${oCell.GetIndex()}`] = `c_${oCell.Cell.Id}`
+			desc.biyue = 1
+			oTable.SetTableDescription(JSON.stringify(desc))
+			oCell.SetBackgroundColor(255, 191, 191, tname == 'remove')
+		}
 		function setCellType(oCell, parent_id, tname) {
 			if (tname == 'write') {
 				if (!parent_id || !question_map[parent_id] || question_map[parent_id].level_type != 'question') {
@@ -941,21 +980,7 @@ function handleRangeType(options) {
 				canadd = true
 			}
 			if (canadd) {
-				var oTable = oCell.GetParentTable()
-				result.change_list.push({
-					parent_id: parent_id,
-					table_id: oTable.Table.Id,
-					row_index: oCell.GetRowIndex(),
-					cell_index: oCell.GetIndex(),
-					cell_id: oCell.Cell.Id,
-					client_id: 'c_' + oCell.Cell.Id,
-					regionType: 'write',
-					type: tname == 'remove' ? 'remove' : ''
-				})
-				var desc = Api.ParseJSON(oTable.GetTableDescription())
-				desc[`${oCell.GetRowIndex()}_${oCell.GetIndex()}`] = `c_${oCell.Cell.Id}`
-				desc.biyue = 1
-				oTable.SetTableDescription(JSON.stringify(desc))
+				addCellAsk(oCell, parent_id, tname)
 				return true
 			}
 			return false
@@ -992,7 +1017,7 @@ function handleRangeType(options) {
 						}
 					}
 					return {
-						ques_id: quesTag ? quesTag.client_id : 0,
+						ques_id: quesTag ? (quesTag.mid ? quesTag.mid : quesTag.client_id) : 0,
 						oCells: oCells,
 						oCellsUse: oCellsUse
 					}
@@ -1051,6 +1076,160 @@ function handleRangeType(options) {
 				return true
 			}
 			return false
+		}
+		function handleMergeQuestion(cells) {
+			var cells = getSelectCells()
+			if (!cells) {
+				return
+			}
+			var textList = []
+			result.client_node_id += 1
+			result.merge_data = {
+				is_merge: true,
+				ids: [],
+				client_id: result.client_node_id,
+				text: '',
+				numbing_text: ''
+			}
+			cells.oCells.forEach(oCell => {
+				var cellContent = oCell.GetContent()
+				var cnt = cellContent.GetElementsCount()
+				var hasControl = true
+				for (var i = 0; i < cnt; ++i) {
+					var oElement = cellContent.GetElement(i)
+					if (oElement.GetClassType() != 'blockLvlSdt') {
+						hasControl = false
+					} else {
+						var tag = Api.ParseJSON(oElement.GetTag())
+						result.merge_data.ids.push(tag.client_id)
+						textList.push(oElement.GetRange().Text)
+						var numbing_text = GetNumberingValue(oControl) 
+						result.change_list.push({
+							client_id: tag.client_id,
+							control_id: oElement.Sdt.GetId(),
+							text: oElement.GetRange().GetText(),
+							parent_id: '',
+							regionType: tag.regionType,
+							numbing_text: numbing_text,
+							ques_state: 'merge_child'
+						})
+						if (numbing_text && !result.merge_data.numbing_text) {
+							result.merge_data.numbing_text = numbing_text
+						}
+						tag.color = tag.clr = getColor()
+						tag.mid = result.merge_data.client_id
+						oElement.SetTag(JSON.stringify(tag))
+					}
+				}
+				if (!hasControl) {
+					var isCellEmpty = cellContent.Document.IsEmpty()
+					if (isCellEmpty) {
+						var firstParagraph = cellContent.GetElement(0)
+						if (firstParagraph) {
+							// 若单元格内容为空，则自动添加一个空格，否则单元格会由于添加control, 而在全量更新时，显示为在这里添加内容
+							firstParagraph.AddText(' ')
+						}
+					}
+					if (!isCellEmpty) {
+						var drawings = cellContent.GetAllDrawingObjects()
+						if (!drawings || drawings.length == 0) {
+							var text = cellContent.GetRange().GetText()
+							if (text) {
+								if (text.replace(/[\s\r\n]/g, '').length === 0) {
+									isCellEmpty = true
+								}
+							}
+						}
+					}
+					cellContent.GetRange().Select()
+					result.client_node_id += 1
+					var tag = {
+						client_id: result.client_node_id,
+						regionType: 'question',
+						color: getColor(),
+						clr: getColor(),
+						mode: 5,
+						mid: result.merge_data.client_id
+					}
+					if (isCellEmpty) {
+						tag.cask = 1
+					}
+					var oResult = Api.asc_AddContentControl(1, {
+						Tag: JSON.stringify(tag)
+					})
+					if(oResult) {
+						var oControl = Api.LookupObject(oResult.InternalId)
+						result.merge_data.ids.push(tag.client_id)
+						var numbing_text = GetNumberingValue(oControl)
+						result.change_list.push({
+							client_id: tag.client_id,
+							control_id: oResult.InternalId,
+							text: oControl.GetRange().GetText(),
+							parent_id: '',
+							regionType: tag.regionType,
+							numbing_text: numbing_text,
+							ques_state: 'merge_child',
+							cell_ask: !!tag.cask
+						})
+						if (numbing_text && !result.merge_data.numbing_text) {
+							result.merge_data.numbing_text = numbing_text
+						}
+						if (oControl.GetClassType() == 'blockLvlSdt') {
+							// 多出一行需要删除
+							if (oCell.GetContent().GetElementsCount() > 1) {
+								oCell.GetContent().RemoveElement(1)
+							}
+							if (oControl.GetContent().GetElementsCount() > 1) {
+								var lastpos = oControl.GetContent().GetElementsCount() - 1
+								var lastElement = oControl.GetContent().GetElement(lastpos)
+								if (lastElement.GetClassType() == 'paragraph' && lastElement.GetElementsCount() == 0) {
+									oControl.GetContent().RemoveElement(lastpos)
+								}
+							}
+						}
+						textList.push(oControl.GetRange().Text)
+						if (tag.cask == 1) {
+							// todo..互动
+							addCellAsk(oCell, tag.client_id, '')
+						}
+					}
+				}
+			})
+			result.merge_data.text = textList.join('\n')
+		}
+		function clearMergeCellAsk(oControl) {
+			if (!oControl) {
+				return
+			}
+			var tag = Api.ParseJSON(oControl.GetTag())
+			if (!tag.mid) {
+				return
+			}
+			var oCell = oControl.GetParentTableCell()
+			if (!oCell) {
+				return
+			}
+			removeCellInteraction(oCell)
+			oCell.SetBackgroundColor(255, 191, 191, true)
+			if (tag.cask) {
+				delete tag.cask	
+			}
+			oControl.SetTag(JSON.stringify(tag))
+		}
+		function handleClearMerge(quesId) {
+			var quesdata = question_map[quesId]
+			if (!quesdata) {
+				return
+			}
+			if (quesdata.ids) {
+				quesdata.ids.forEach(e => {
+					var control = getControlsByClientId(e)
+					if (control) {
+						clearMergeCellAsk(control)
+						removeControlChildren(control, true)
+					}
+				})
+			}
 		}
 
 		// function list end
@@ -1156,6 +1335,16 @@ function handleRangeType(options) {
 						return result
 					}
 					setBlockTypeNode(oBlockControl, 'all')
+				}
+			} else if (typeName == 'mergeQuestion') { // 合并题目
+				handleMergeQuestion()
+			} else if (typeName == 'clearMerge') { // 清除合并题
+				if (curBlockSdt) {
+					var tag3 = Api.ParseJSON(curBlockSdt.GetTag())
+					if (tag3.mid) { // 合并题
+						result.merge_id = tag3.mid
+						handleClearMerge(tag3.mid)
+					}
 				}
 			} else if (typeName == 'question') { // 题目
 				if (selectionInfo.isSelection) {
@@ -1272,20 +1461,50 @@ function handleRangeType(options) {
 					}
 					if (curSdt) {
 						// 需要先判断下当前是否处于单元格中
-						if (!handleCell(curBlockSdt, 'write')) {
-							var parentData = getParentData(oCurControl)
-							if (!parentData || parentData.level_type != 'question') {
-								result.message = '未处于题目中'
-								return result
+						var ctag = Api.ParseJSON(oCurControl.GetTag())
+						if (ctag.mid && oCurControl.GetParentTableCell()) { // 合并题
+							ctag.cask = 1
+							oCurControl.SetTag(JSON.stringify(ctag))
+							// todo..互动
+							addCellAsk(oCurControl.GetParentTableCell(), ctag.client_id, '')
+						} else {
+							if (!handleCell(curBlockSdt, 'write')) {
+								var parentData = getParentData(oCurControl)
+								if (!parentData || parentData.level_type != 'question') {
+									result.message = '未处于题目中'
+									return result
+								}
+								updateControlTag(oCurControl, 'write', quesId)
 							}
-							updateControlTag(oCurControl, 'write', quesId)
 						}
 					}
 				}
 			} else if (typeName == 'clearChildren') { // 清除所有小问
 				result.typeName = 'write'
-				handleCell(curBlockSdt, 'remove', true)
-				removeControlChildren(oCurControl, false, true, true)
+				if (curBlockSdt) {
+					var tag3 = Api.ParseJSON(curBlockSdt.GetTag())
+					if (tag3.mid) { // 合并题
+						var quesdata = question_map[tag3.mid]
+						if (quesdata && quesdata.ids) {
+							quesdata.ids.forEach(e => {
+								var control = getControlsByClientId(e)
+								if (control) {
+									handleCell(control.Sdt, 'remove', true)
+									clearMergeCellAsk(control)
+									removeControlChildren(control, false, true, true)
+								}
+							})
+							if (result.change_list.length == 0) {
+								result.merge_id = tag3.mid
+								result.typeName = typeName
+							}
+						}
+					} else {
+						handleCell(curBlockSdt, 'remove', true)
+						removeControlChildren(oCurControl, false, true, true)
+					}
+				}
+				
 			} else if (typeName == 'clear' || typeName == 'clearAll') { // 清除区域
 				var askCell = false
 				if (selectionInfo.isSelection) {
@@ -1300,8 +1519,16 @@ function handleRangeType(options) {
 				} else {
 					if (curSdt) {
 						if (oCurControl.GetClassType() == 'blockLvlSdt') {
-							if (handleCell(curBlockSdt, 'remove', false)) {
+							var ctag = Api.ParseJSON(oCurControl.GetTag())
+							if (ctag.mid) { // 合并题
+								result.merge_id = ctag.mid
+								result.typeName = 'clearMerge'
+								handleClearMerge(ctag.mid)
 								askCell = true
+							} else {
+								if (handleCell(curBlockSdt, 'remove', false)) {
+									askCell = true
+								}
 							}
 						}
 						if (!askCell) {
