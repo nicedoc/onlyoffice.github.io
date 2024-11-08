@@ -416,7 +416,7 @@ let newSplit = function (text) {
     // style基于其他style的沿用basedOn lvl
     for (var styleId in k.styles)
     {
-        if (style2lvl[styleId])
+        if (style2lvl[styleId] !== undefined)
             continue;
         var style = k.styles[styleId];
         if (style.basedOn)
