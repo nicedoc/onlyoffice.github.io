@@ -186,6 +186,17 @@ function initView() {
 	}
 	addClickEvent('#uploadTypeError', onUploadTypeError)
 	showCom('#uploadHint', false)
+	showCom('#panelFeature', false)
+	addClickEvent('#tabFeature', () => {
+		$('#panelFeature').show()
+		initFeature()
+	})
+	addClickEvent('#returnBtn', () => {
+		showCom('#panelFeature', false)
+	})
+	addClickEvent('#extrolclose', () => {
+		showButton('extro_buttons', false)
+	})
 }
 function handlePaperInfoResult(success, res) {
 	showCom('#initloading', false)
@@ -214,7 +225,7 @@ function changeTab(e) {
 }
 
 function changeTabPanel(id, event) {
-	var tabs = ['tabList', 'tabQues', 'tabFeature']
+	var tabs = ['tabList', 'tabQues', 'tabTree']
 	tabs.forEach((tab) => {
 		if (tab == window.tab_select && tab != id) {
 			$('#' + tab).removeClass('selected')
@@ -224,7 +235,7 @@ function changeTabPanel(id, event) {
 	})
 	window.tab_select = id
 	var targetPanel = id.replace('tab', 'panel')
-	var panels = ['panelList', 'panelQues', 'panelFeature']
+	var panels = ['panelList', 'panelQues', 'panelTree', 'panelFeature']
 	panels.forEach((panel) => {
 		if (panel == targetPanel) {
 			$('#' + panel).show()

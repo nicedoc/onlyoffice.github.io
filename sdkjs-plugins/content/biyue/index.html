@@ -76,6 +76,19 @@
 			margin-top: 8px;
 		}
 	}
+	#extro_buttons {
+		display: block;
+		position: absolute;
+		bottom: 30px;
+		max-height: 60vh;
+		overflow-y: auto;
+		left: 40px;
+		right: 40px;
+		background: #fff;
+		border: 1px solid #bbb;
+		padding: 0 8px 8px 8px;
+		z-index: 2;
+	}
     .ques-title {
       border-top: 1px solid #bbb;
       border-bottom: 1px solid #bbb;
@@ -301,7 +314,21 @@
 	  }
     }
     #panelFeature {
-      padding: 12px 12px 24px 12px;
+		position: absolute;
+		z-index: 3;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		top: 0;
+		background-color: #fff;
+      	padding: 12px 12px 24px 12px;
+		display: block;
+    	max-height: calc(100vh - 30px);
+    	overflow-y: auto;
+		#wrapperFeature {
+			height: calc(100% - 30px);
+			overflow-y: auto;
+		}
       .padding-small {
         padding-right: 8px;
         padding-bottom: 8px;
@@ -415,9 +442,9 @@
 			<div id="retry" class="btn-normal clicked">点击重新请求</div>
 		</div>
         <div class="tabs font-14">
-          <div class="tabitem clicked" id="tabList">课时信息</div>
+          <div class="tabitem clicked" id="tabList">基础面板</div>
           <div class="tabitem clicked" id="tabQues">单题详情</div>
-          <div class="tabitem clicked" id="tabFeature">智批元素</div>
+		  <div class="tabitem clicked" id="tabTree">题目列表</div>
         </div>
         <div class="list" id="panelList">
           <div class="wrapper font-12">
@@ -504,18 +531,28 @@
 		  </div> -->
         <div id="panelQues">
         </div>
-        <div id="panelFeature"></div>
+        <div id="panelFeature">
+			<div class="row-between">
+				<div class="font-14" style="font-weight: bold;">智批元素</div>
+				<div class="clicked" id="returnBtn" style="border: 1px solid #bbb;padding: 2px 8px;border-radius: 4px;background-color: #2489f6;color: #fff;">返回<i class="iconfont icon-return" style="color: #fff;"></i></div>
+			</div>
+			<div id="wrapperFeature"></div>
+		</div>
         <div class="button_wrapper">
           <div id="extro_buttons">
+			<div style="display: flex;justify-content: flex-end;">
+				<i class="iconfont icon-close clicked" style="padding: 4px 4px 4px 8px;color: #ccc;" id="extrolclose"></i>
+			</div>
             <!-- <div id="getDocInfo" class="btn-text-default">获取文档信息</div> -->
             <!-- <div id="splitQuestionBtn" class="btn-text-default">切题</div>         -->
             <!-- <div class="btn-text-default" id="importExam">准备上传</div>
             <div class="btn-text-default" style="margin-bottom: 4px;padding: 4px;" id="batchScoreSet">批量设分</div>-->
             <div class="btn-text-default" id="getAllPositions">获取所有坐标</div>
+			<div id="clearControl" class="btn-text-default">删除所有控件 </div>
+			<div id="tabFeature" class="btn-text-default">智批元素</div>
             <!-- <div id="markAnswerRegionBtn" class="btn-text-default">标记答题区</div>
             <div id="checkAnswerRegionBtn" class="btn-text-default">识别答题区</div>-->
             <div id="toggleStyleBtn" class="btn-text-default">切换答题样式</div>
-			<div id="clearControl" class="btn-text-default">删除所有控件 </div>
 			<div id="tidyNodes" class="btn-text-default" title="根据当前文档，整理树存储，删除已失效的node节点">重整树结构</div>
 			<!-- <div id="clearRepeatControl" class="btn-text-default">删除ID重复控件 </div> -->
 			<div id="printData" class="btn-text-default" title="在控制台显示存储的BiyueCustomData数据">输出BiyueCustomData内容</div>
@@ -523,7 +560,7 @@
 			<div style="display: flex;flex-direction: row;align-items: center;">
 				<textarea id="paste-target" placeholder="Ctrl+V黏贴要插入的文本"></textarea>
 				<i id="pasteclear" class="iconfont icon-shanchu clicked" style="display: inline-block;" title="清除输入框内容"></i>
-				<button id="mathpix" class="btn-normal clicked" style="margin-left: 4px;" title="点击此按钮可将已黏贴的latex文本转换成图片插入到光标位置" >M导入</button>
+				<button id="mathpix" class="btn-normal clicked" style="margin-left: 4px;word-break: keep-all;" title="点击此按钮可将已黏贴的latex文本转换成图片插入到光标位置" >M导入</button>
 			</div>
             <!--<div id="lockBtn" class="btn-text-default">锁定</div>
             <div id="unlockBtn" class="btn-text-default">解锁</div>

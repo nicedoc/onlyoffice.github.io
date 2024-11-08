@@ -191,7 +191,7 @@ function initFeature() {
 			label: '精准互动'
 		}
 	]
-	$('#panelFeature').empty()
+	$('#wrapperFeature').empty()
 	var content = '<table style="width: 100%"><tbody>'
 	content += `<tr><td colspan="2"><label class="header">全部</label></td></tr><tr><td class="padding-small" width="100%" colspan="2"><div id='all'></div></td></tr>`
 	content += '<tr><td class="padding-small" colspan="2"><div class="separator horizontal"></div></td></tr>'
@@ -215,7 +215,7 @@ function initFeature() {
 	content += `<tr><td colspan="2"><label class="header">选择题作答区</label></td></tr><tr><td class="padding-small" width="100%" colspan="2"><div id='select_choice_style'></div></td></tr>`
 	content += `<tr id="choiceGather"><td class="padding-small" width="40%"><label class="input-label">每行数量</label><div id="input_choice_num"></div></td><td class="padding-small" width="60%"><label class="input-label">作答区位置</label><div id="select_choice_area"></div></td></tr>`
 	content += '</tbody></table>'
-	$('#panelFeature').html(content)
+	$('#wrapperFeature').html(content)
 	var allComSelect = new ComponentSelect({
 		id: 'all',
 		options: types,
