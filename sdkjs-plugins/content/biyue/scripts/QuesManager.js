@@ -7,6 +7,7 @@ import { addOnlyBigControl, removeOnlyBigControl, getAllPositions2 } from './bus
 import { handleRangeType } from "./classifiedTypes.js"
 import { ShowLinkedWhenclickImage } from './linkHandler.js'
 import { layoutDetect } from './layoutFixHandler.js'
+import { setBtnLoading, isLoading } from './model/util.js'
 var g_click_value = null
 var upload_control_list = []
 
@@ -1942,42 +1943,89 @@ function getQuesMode(question_type) {
 	return ques_mode
 }
 
-// 获取题型
-function reqGetQuestionType() {
-	Asc.scope.node_list = window.BiyueCustomData.node_list
+function getQuestionHtml(ids) {
+	Asc.scope.question_map = window.BiyueCustomData.question_map
+	Asc.scope.html_ids = ids
 	return biyueCallCommand(window, function() {
-		var node_list = Asc.scope.node_list || []
+		var question_map = Asc.scope.question_map || {}
 		var target_list = []
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls() || []
-		controls.forEach((oControl) => {
-			var tagInfo = Api.ParseJSON(oControl.GetTag())
-			if (tagInfo.regionType == 'question' && tagInfo.client_id) {
-				var nodeData = node_list.find(item => {
-					return item.id == tagInfo.client_id
-				})
-				if (nodeData && nodeData.level_type == 'question') {
-					var oRange = oControl.GetRange()
-					oRange.Select()
-					let text_data = {
-						data:     "",
-						// 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
-						pushData: function (format, value) {
-							this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : "";
-						}
-					};
-
-					Api.asc_CheckCopy(text_data, 2);
-					target_list.push({
-						id: nodeData.id + '',
-						content_type: nodeData.level_type,
-						content_html: text_data.data
-					})
+		var handled = {}
+		var html_ids = Asc.scope.html_ids
+		function getControlsByClientId(cid) {
+			var findControls = controls.filter(e => {
+				var tag = Api.ParseJSON(e.GetTag())
+				if (e.GetClassType() == 'blockLvlSdt') {
+					return tag.client_id == cid && e.GetPosInParent() >= 0
+				} else if (e.GetClassType() == 'inlineLvlSdt') {
+					return e.Sdt && e.Sdt.GetPosInParent() >= 0 && tag.client_id == cid
 				}
+			})
+			if (findControls && findControls.length) {
+				return findControls[0]
 			}
-		})
+		}
+		for (var oControl of controls) {
+			var tagInfo = Api.ParseJSON(oControl.GetTag())
+			if (tagInfo.regionType != 'question' || !tagInfo.client_id) {
+				continue
+			}
+			var quesId = tagInfo.mid && question_map[tagInfo.mid] ? tagInfo.mid : tagInfo.client_id
+			if (handled[quesId]) {
+				continue
+			}
+			if (html_ids && html_ids.indexOf(quesId) < 0) {
+				continue
+			}
+			var quesData = question_map[quesId]
+			if (!quesData || quesData.level_type != 'question') {
+				continue
+			}
+			handled[quesId] = true
+			var oRange = null
+			if (quesData.is_merge && quesData.ids) {
+				quesData.ids.forEach(id => {
+					var control = getControlsByClientId(id)
+					if (control) {
+						var parentcell = control.GetParentTableCell()
+						if (parentcell) {
+							if (!oRange) {
+								oRange = parentcell.GetContent().GetRange()
+							} else {
+								oRange = oRange.ExpandTo(parentcell.GetContent().GetRange())
+							}
+						}
+					}
+				})
+			} else {
+				oRange = oControl.GetRange()
+			}
+			if (oRange) {
+				oRange.Select()
+				let text_data = {
+					data:     "",
+					// 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
+					pushData: function (format, value) {
+						this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : "";
+					}
+				};
+
+				Api.asc_CheckCopy(text_data, 2);
+				target_list.push({
+					id: quesId + '',
+					content_type: quesData.level_type,
+					content_html: text_data.data
+				})
+			}
+		}
 		return target_list
-	}, false, false).then(control_list => {
+	}, false, false)
+}
+
+// 获取题型
+function reqGetQuestionType() {
+	return getQuestionHtml().then(control_list => {
 		console.log('[reqGetQuestionType] control_list', control_list)
 		return new Promise((resolve, reject) => {
 			if (!window.BiyueCustomData.paper_uuid || !control_list || control_list.length == 0) {
@@ -2334,31 +2382,7 @@ function showAskCells(cmdType) {
 	}, false, true)
 }
 
-function setBtnLoading(elementId, isLoading) {
-	var element = $(`#${elementId}`)
-	if (!element) {
-		return
-	}
-	if (isLoading) {
-		element.append('<span class="loading-spinner"></span>')
-		element.addClass('btn-unable')
-	} else {
-		element.removeClass('btn-unable')
-		var children = element.find('.loading-spinner')
-		if (children) {
-			children.remove()
-		}
- 	}
-}
 
-function isLoading(elementId) {
-	var element = $(`#${elementId}`)
-	if (!element) {
-		return
-	}
-	var loading = element.find('.loading-spinner')
-	return loading && loading.length
-}
 // 全量更新
 function reqUploadTree() {
 	if (isLoading('uploadTree')) {
@@ -5828,10 +5852,10 @@ export {
 	tidyNodes,
 	handleUploadPrepare,
 	importExam,
-	setBtnLoading,
 	setChoiceOptionLayout,
 	getNodeList,
 	handleChangeType,
 	insertSymbol,
-	preGetExamTree
+	preGetExamTree,
+	getQuestionHtml
 }

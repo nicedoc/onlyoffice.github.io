@@ -12,19 +12,27 @@ import {
 	g_click_value,
 	clearRepeatControl,
 	tidyNodes,
+	preGetExamTree,
+	getQuestionHtml
 } from './QuesManager.js'
 import {
 	imageAutoLink,
 	onAllCheck
 } from './linkHandler.js'
 import { layoutDetect } from './layoutFixHandler.js'
-import { showCom, updateText, addClickEvent, getInfoForServerSave } from './model/util.js'
-import { reqSaveInfo, onLatexToImg} from './api/paper.js'
+import { showCom, updateText, addClickEvent, getInfoForServerSave, setBtnLoading, isLoading } from './model/util.js'
+import { reqSaveInfo, onLatexToImg, logOnlyOffice} from './api/paper.js'
 import { biyueCallCommand, resetStack } from './command.js'
 import ComponentSelect from '../components/Select.js'
 var select_ask_shortcut = null
 var timeout_paste_hint = null
 var select_image_link = null
+let visible_ques_type_tree = false
+let check_text_ques = true
+let check_level = false
+let inner_pop_list = ['link_container', 'func_key_container', 'tree_container']
+const CLR_SUCCESS = '#4EAB6D'
+const CLR_FAIL = '#ff0000'
 function initView() {
 	showCom('#initloading', true)
 	showCom('#hint1', false)
@@ -104,6 +112,7 @@ function initView() {
 	addClickEvent('#pasteclear', onPasteInputClear)
 	addClickEvent('#showShortcutKey', () => {
 		showButton('func_key_container')
+		hidePops('except', 'func_key_container')
 	})
 	showCom('#func_key_container', false)
 	var vShortcut = '0'
@@ -127,6 +136,7 @@ function initView() {
 	})
 	addClickEvent('#showLinkPop', () => {
 		showButton('link_container')
+		hidePops('except', 'link_container')
 	})
 	showCom('#link_container', false)
 	select_image_link = new ComponentSelect({
@@ -150,8 +160,33 @@ function initView() {
 	addClickEvent('#fixLayout', () => {
 		layoutDetect(true)
 	})
+	addClickEvent('#uploadQuestionTypeError', () => {
+		visible_ques_type_tree = !visible_ques_type_tree
+		showButton('tree_container', visible_ques_type_tree)
+		if (visible_ques_type_tree) {
+			showQuesTypeInfo()
+		}
+		hidePops('except', 'tree_container')
+	})
+	showCom('#tree_container', false)
+	visible_ques_type_tree = false
+	if ($('#check_level')) {
+		$('#check_level').prop('checked', check_level)
+		$('#check_level').on('click', () => {
+			check_level = !check_level
+			renderQuesTypeTree()
+		})
+	}
+	if ($('#check_text_ques')) {
+		$('#check_text_ques').prop('checked', check_text_ques)
+		$('#check_text_ques').on('click', () => {
+			check_text_ques = !check_text_ques
+			renderQuesTypeTree()
+		})
+	}
+	addClickEvent('#uploadTypeError', onUploadTypeError)
+	showCom('#uploadHint', false)
 }
-
 function handlePaperInfoResult(success, res) {
 	showCom('#initloading', false)
 	if (success) {
@@ -266,6 +301,9 @@ function scroll(isBottom) {
 }
 
 function showButton(id, bshow) {
+	if (bshow === false && id == 'tree_container') {
+		visible_ques_type_tree = false
+	}
 	var com = $(`#${id}`)
 	if (!com) {
 		return
@@ -346,7 +384,7 @@ function insertContent(str) {
 	}, false, true)
 }
 
-function updateHintById(id, message, color) {
+function updateHintById(id, message, color, duration = 1500) {
 	var tooltip = document.getElementById(id);
 	if (!tooltip) {
 		return
@@ -357,7 +395,7 @@ function updateHintById(id, message, color) {
 	clearTimeout(timeout_paste_hint)
 	timeout_paste_hint = setTimeout(function() {
 		tooltip.style.display = 'none';
-	}, 1500);
+	}, duration);
 }
 
 function updatePasteHint(message, color) {
@@ -367,12 +405,12 @@ function updatePasteHint(message, color) {
 function onMathpix() {
 	var com = $('#paste-target')
 	if (!com) {
-		updatePasteHint('未找到输入框', '#ff0000')
+		updatePasteHint('未找到输入框', CLR_FAIL)
 		return
 	}
 	var text1 = $('#paste-target').val()
 	if (!text1 || !text1.length) {
-		updatePasteHint('输入框内容为空', '#ff0000')
+		updatePasteHint('输入框内容为空', CLR_FAIL)
 		return
 	}
 	onLatexToImg(text1).then(res => {
@@ -383,9 +421,9 @@ function onMathpix() {
 		})
 	}).catch(res => {
 		if (res && res.message) {
-			updatePasteHint(res.message, '#ff0000')
+			updatePasteHint(res.message, CLR_FAIL)
 		} else if (!res) {
-			updatePasteHint('网络不稳定', '#ff0000')
+			updatePasteHint('网络不稳定', CLR_FAIL)
 		}
 		console.log('onLatexToImg fail', res)
 	})
@@ -423,7 +461,7 @@ function onImageLink() {
 	imageAutoLink().then(res => {
 		if (res) {
 			window.BiyueCustomData.client_node_id = res.client_node_id
-			updateHintById('imageLinkTip', '就近关联完成', '#4EAB6D')
+			updateHintById('imageLinkTip', '就近关联完成', CLR_SUCCESS)
 			onImageLinkCheck()
 		}
 	})
@@ -433,6 +471,145 @@ function onImageLinkCheck() {
 	onAllCheck()
 }
 
+function renderTreeNode(parent, item, identation = 0) {
+	if (!parent) {
+		return
+	}
+	var question_map = window.BiyueCustomData.question_map || {}
+	var quesData = question_map[item.id]
+	if (!quesData) {
+		return
+	}
+	var  types = window.BiyueCustomData.paper_options.question_type || []
+	var html = ''
+	if (item.level_type == 'struct') {
+		if (check_level) {
+			html += `<div class=item id="group-id-${item.id}" style="padding-left:${identation}px"><div class="ques-text" title="${quesData.text}">${quesData.text}</div></div>`
+		}
+	} else if (item.level_type == 'question') {
+		if (quesData.question_type != 6 || check_text_ques) {
+			var quesType = types.find(e => {
+				return e.value == quesData.question_type
+			})
+			html += `<div class="item" style="padding-left:${identation}px">
+        				<div class="content" title="${quesData.text}">
+          					<input type="checkbox" id="check_${item.id}">
+          					<div class="ques-text">${quesData.text}</div>
+        				</div>
+        				<div class="ques-type-name" id="ques-type-${item.id}">${quesType ? quesType.label : '未定义'}</div>
+      				</div>`;
+		}
+	}
+	parent.append(html)
+	if (item.children && item.children.length > 0) {
+		identation += 20
+		for (var child of item.children) {
+			renderTreeNode(parent, child, check_level ? identation : 0)
+		}
+	}
+}
+
+function renderQuesTypeTree() {
+	var tree_info = Asc.scope.tree_info || {}
+	var rootElement = $('#typeErrorDiv')
+	rootElement.empty()
+	if (tree_info.tree && tree_info.tree.length) {
+		tree_info.tree.forEach(item => {
+			renderTreeNode(rootElement, item, 0)
+		})
+	} else {
+		$('#typeErrorDiv').html('<div class="ques-none">暂无题目，请先切题</div>')
+	} 
+}
+
+function showQuesTypeInfo() {
+	preGetExamTree().then(res => {
+		Asc.scope.tree_info = res
+		renderQuesTypeTree()
+	})
+}
+
+function onUploadTypeError() {
+	if (isLoading('uploadTypeError')) {
+		return
+	}
+	var list = []
+	Asc.scope.tree_info.list.forEach(item => {
+		var quesData = window.BiyueCustomData.question_map[item.id]
+		if (item.level_type == 'question' && quesData) {
+			var check = $('#check_' + item.id)
+			if (check) {
+				if (check.prop('checked')) {
+					list.push({
+						id: item.id,
+						question_type: quesData.question_type
+					})
+				}
+			}
+		}
+	})
+	if (list.length == 0) {
+		updateHintById('uploadHint', '请勾选需要上传的题目', CLR_FAIL)
+		return
+	}
+	getQuestionHtml(list.map(e => e.id)).then(html_list => {
+		if (html_list) {
+			list.forEach(item => {
+				var find = html_list.find(e => {
+					return e.id == item.id
+				})
+				if (find) {
+					item.content_type = find.content_type
+					item.content_html = find.content_html
+				}
+			})
+			setBtnLoading('uploadTypeError', true)
+			logQuesTypeError(list, 0)
+		}
+	})
+}
+
+function logQuesTypeError(list, index) {
+	if (index >= list.length) {
+		updateHintById('uploadHint', '上传成功', CLR_SUCCESS)
+		setTimeout(() => {
+			setBtnLoading('uploadTypeError', false)
+			hidePops('only', 'tree_container')
+		}, 2000)
+		return
+	}
+	logOnlyOffice(JSON.stringify(list[index])).then(res => {
+		var com = document.getElementById('ques-type-' + list[index].id);
+		if (com) {
+			com.textContent = '已上传'
+			com.style.color = CLR_SUCCESS
+		}
+		logQuesTypeError(list, index + 1)
+	}).catch(res => {
+		updateHintById('uploadHint', res ? res.message || '上传失败' : '网络不稳定', CLR_FAIL)
+		setBtnLoading('uploadTypeError', false)
+	})
+}
+
+function hidePops(type, name) {
+	if (inner_pop_list) {
+		for (var item of inner_pop_list) {
+			if (type == 'all') {
+				showButton(item, false)
+			} else if (type == 'except') { // 除了name以外的，全部关闭
+				if (item == name) {
+					continue
+				}
+				showButton(item, false)
+			} else if (type == 'only') { // 只关闭name
+				if (item == name) {
+					showButton(item, false)
+					break
+				}
+			}
+		}
+	}
+}
 export {
 	initView,
 	handlePaperInfoResult,

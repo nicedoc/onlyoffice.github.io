@@ -40,7 +40,7 @@
 			justify-content: space-between;
 		}
     .wrapper {
-      padding: 12px;
+      padding: 8px;
       line-height: 24px;
     }
     .font-16 {
@@ -168,6 +168,7 @@
 	#panelList {
 		font-size: 12px;
 		color: #555555;
+		margin-bottom: 20px;
 		.wrapper {
 			border-bottom: 1px solid #ccc;
 		}
@@ -177,7 +178,7 @@
 		.btns {
 			display: flex;
 			flex-wrap: wrap;
-			padding: 8px;
+			padding: 4px 8px;
 		}
 		.btn-dange {
 			border: 1px solid #ff0000 !important;
@@ -315,7 +316,7 @@
 		}
 
 		.btn-unable {
-			color: #aaa !important;
+			color: #ddd !important;
 			cursor: not-allowed;
 		}
 
@@ -362,11 +363,51 @@
 			padding-bottom: 4px;
 		}
 		
+		#typeErrorDiv {
+			padding: 0 4px;
+			max-height: 190px;
+			overflow-y: auto;
+			.item {
+				display: flex;
+				justify-content: space-between;
+				align-items: center; /* 垂直居中对齐 */
+				width: 100%; /* 根据需要调整 */
+				padding: 2px 0;
+			}
+			.ques-text {
+				white-space: nowrap; /* 不换行 */
+				overflow: hidden; /* 隐藏溢出 */
+				text-overflow: ellipsis; /* 使用省略号 */
+				margin-left: 4px; /* 离复选框的间距 */
+				flex: 1; /* 让 .ques-text 可以占据剩余空间 */
+			}
+			.content {
+				display: flex;
+				align-items: center;
+				flex: 1; /* 让 content 占据尽可能多的空间 */
+  				overflow: hidden; /* 防止内部元素超出边界 */
+			}
+			.ques-type-name {
+			  margin-left: 10px; /* 在 ques-text 和 ques-type-name 之间留出一定间距 */
+			}
+		}
+		.upload-wrapper {
+			border-top: 1px solid #bbb;
+			width: 100%;
+			padding: 4px 0;
+			text-align: center;
+			.btn-upload-error {
+				display: flex;
+				background-color: #2489f6;
+				color: #fff;
+				padding: 4px 8px;
+				width: fit-content;
+			}
+		}
      </style>
  </head>
  <body id="body" style="left:0px; top:0px; margin:0px; padding:0px;">
      <div id="iframe_parent" style="width:100%; height:100%;margin:0;padding:0 0 40px 0;overflow-y: auto;">
-		<button id="paste" title="点击后在控制台查看剪贴板内容">粘贴测试</button>
 		<div id="pastehint"></div>  
 		<div id="initloading">加载中, 请稍候...</div>
 		<div id="hint1" class="column-center">
@@ -379,7 +420,7 @@
           <div class="tabitem clicked" id="tabFeature">智批元素</div>
         </div>
         <div class="list" id="panelList">
-          <div class="wrapper font-14">
+          <div class="wrapper font-12">
 			<div>
 				<span class="row-title">校本：</span>
 				<span id="workbookName"></span>
@@ -397,15 +438,8 @@
 		  <div style="font-weight: bold;margin-top: 10px; margin-left: 14px;font-size: 14px;">排版</div>
 		  <div class="btns">
 			<div id="addWord" class="clicked btn-normal">插入符号</div>
-			<div id="showShortcutKey" class="clicked btn-normal">功能键配置</div>
+			<div id="getQuesType" class="clicked btn-normal" style="font-size: 10px;">重新获取题型</div>
 			<div id="reSplitQuestionBtn" class="clicked btn-normal btn-dange">重新切题</div>
-			<div id="func_key_container" style="width: 100%;">
-				<div class="arrow-up" id="arrowUp_funckey" style="margin-left: 48%;"></div>
-				<div class="inner-pop-wrapper br2">
-					<div class="title">小问快捷键</div>
-					<div id="shortcutKeyDiv"></div>
-				</div>
-			</div>
 			<div id="fixLayout" class="clicked btn-normal btn-normal">排版修复</div>
 		  </div>
 		  <div style="font-weight: bold;margin-left: 14px;font-size: 14px;">数据</div>
@@ -427,6 +461,33 @@
 			</div>
 			<div id="uploadTree" class="clicked btn-normal">全量更新</div>
 		  </div>
+		  <div style="font-weight: bold;margin-left: 14px;font-size: 14px;">其他</div>
+		  <div class="btns">
+			<div id="showShortcutKey" class="clicked btn-normal">快捷键设置</div>
+			<div id="uploadQuestionTypeError" class="clicked btn-normal" style="font-size: 10px;">题型错误上报</div>
+			<div id="func_key_container" style="width: 100%;">
+				<div class="arrow-up" id="arrowUp_funckey" style="margin-left: 48px;"></div>
+				<div class="inner-pop-wrapper br2">
+					<div class="title">小问快捷键</div>
+					<div id="shortcutKeyDiv"></div>
+				</div>
+			</div>
+			<div id="tree_container" style="width: 100%;">
+				<div class="arrow-up" id="arrowUp_funckey" style="margin-left: 48%;"></div>
+				<div class="inner-pop-wrapper br2">
+					<div class="title">题型错误上报</div>
+					<div id="uploadHint"></div>
+					<div style="border-bottom: 1px solid #bbb;padding-bottom: 4px;margin-top: 2px;margin-left: 4px;">
+						<span for="check_level"><input type="checkbox" id="check_level" style="margin-right: 2px;">展示层级结构</span>
+						<span for="check_text_ques" style="margin-left: 4px;"><input type="checkbox" id="check_text_ques" style="margin-right: 2px;">显示文本题</span>
+					</div>
+					<div id="typeErrorDiv"></div>
+					<div class="upload-wrapper row-center">
+						<div id="uploadTypeError" class="btn-upload-error br2 clicked">上报日志</div>
+					</div>
+				</div>
+			</div>
+		  </div>
 		  <div class="exambottom">
 			<div id="saveData" class="row-center br2 clicked">
 				<i class="iconfont icon-baocun" style="font-size: 12px;margin-right: 4px;"></i>
@@ -434,13 +495,6 @@
 			</div>
 			<div id="importExam" class="row-center br2 clicked">上传卷面</div>
 		  </div>
-		  <!-- <select id="writeSelect">
-			<option value="show">显示所有书写区</option>
-			<option value="hide">隐藏所有书写区</option>
-			<option value="del">删除所有书写区</option>
-		  </select>
-          <div class="ques-list font-12" id="treeRoot">
-          </div> -->
         </div>
 		<div id="extroSwitch" class="clicked">
 			<i class="iconfont icon-qitafuwu" style="color: #aaa;" title="点击显示辅助调试按钮"></i>
