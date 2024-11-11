@@ -410,8 +410,8 @@
 			text-align: center;
 		}
 		#panelTree {
-			padding: 4px 4px 4px 8px;
-			height: calc(100% - 30px);
+			padding: 0 4px 0 8px;
+			height: calc(100% - 38px);
 			.none {
 				margin-top: 30vh;
 				.iconfont {
@@ -435,8 +435,11 @@
 				margin-right: 4px;
 			}
 			#tree {
-				max-height: 100%;
+				max-height: calc(100% - 20px);
 				overflow-y: auto;
+				.selected {
+					border: 1px solid #ff0000 !important;
+				}
 			}
 		}
      </style>
@@ -543,6 +546,12 @@
 		  </div> -->
         <div id="panelQues"></div>
 		<div id="panelTree">
+			<div class="row-between font-14" style="width: 100%;padding: 6px;">
+				<div id="sum"></div>
+				<div class="clicked" id="lock">
+					<i class="iconfont icon-dingzi-u"></i>
+				</div>
+			</div>
 			<div id="tree">
 			</div>
 			<div class="none column-center font-14">

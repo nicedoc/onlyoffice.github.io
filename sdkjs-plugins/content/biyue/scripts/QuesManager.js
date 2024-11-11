@@ -212,7 +212,7 @@ function getContextMenuItems(type, selectedRes) {
 						})
 						if (askIndex == -1) {
 							askIndex = question_map[id].ask_list.findIndex(e => {
-								cData = e.other_fileds && e.other_fileds.includes(tag.client_id)
+								return e.other_fileds && e.other_fileds.includes(tag.client_id)
 							})
 							if (askIndex >= 0) {
 								cData = { ques_id: id, ask_id: tag.client_id, is_merge: true, level_type: 'ask'}
@@ -1132,7 +1132,7 @@ function handleChangeType(res, res2) {
 	}
 }
 function notifyQuestionChange(update_node_id) {
-	if (window.tab_select == 'tabTree') {
+	if (window.tab_select == 'tabTree' && window.tree_lock) {
 		refreshTree()
 		return
 	}

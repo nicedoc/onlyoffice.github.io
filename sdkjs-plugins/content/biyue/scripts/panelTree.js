@@ -1,6 +1,7 @@
 import { preGetExamTree, focusControl } from './QuesManager.js'
-import { showCom } from './model/util.js'
+import { showCom, updateText } from './model/util.js'
 import { handleRangeType } from "./classifiedTypes.js"
+import { getDataByParams } from '../scripts/model/ques.js'
 function generateTree() {
 	return preGetExamTree().then(res => {
 		Asc.scope.tree_info = res
@@ -45,10 +46,10 @@ function renderTreeNode(parent, item, parentData) {
 	if (item.level_type == 'struct') {
 		html += `<div class="row-align-center" id="group-${item.id}">
 					<div class="struct font-12">构</div>
-					<div class="itemques text-over-ellipsis flex-1 clicked" style="margin-left: ${identation}px;" title="${quesData.text}">${quesData.text}</div>
+					<div class="itemques id="box-${item.id}" text-over-ellipsis flex-1 clicked" style="margin-left: ${identation}px;" title="${quesData.text}">${quesData.text}</div>
 				</div>`
 	} else if (item.level_type == 'question') {
-		html += `<div class="itemques" style="margin-left: ${identation}px;">
+		html += `<div class="itemques" id="box-${item.id}"  style="margin-left: ${identation}px;">
 					<div title="${quesData.text}" id="ques-${item.id}" class="text-over-ellipsis clicked flex-1">${quesData.text}</div>
 					<div class="children" id="ques-${item.id}-children"></div>
 				</div>`
@@ -74,8 +75,15 @@ function renderTree() {
 		tree_info.tree.forEach(item => {
 			renderTreeNode(rootElement, item, null)
 		})
+		var structNum = 0
+		var quesNum = 0
 		tree_info.list.forEach(item => {
-			var com = $(`#${item.level_type == 'question' ? 'ques' : 'group'}-${item.id}`)
+			if (item.level_type == 'struct') {
+				structNum++
+			} else if (item.level_type == 'question') {
+				quesNum++
+			}
+			var com = $(`#panelTree #${item.level_type == 'question' ? 'ques' : 'group'}-${item.id}`)
 			if (com) {
 				function clickHandler() {
 					clickTreeItem(item.id)
@@ -90,7 +98,7 @@ function renderTree() {
 						var nodeData = window.BiyueCustomData.node_list.find(e => {
 							return e.id == item.id
 						})
-						if (nodeData) {
+						if (nodeData && !quesData.is_merge) { // 合并题不可设置为大题
 							if (nodeData.is_big) {
 								generateMenuItems(['clearBig'], item.id); // 生成动态菜单
 							} else {
@@ -108,8 +116,10 @@ function renderTree() {
 				com.on('contextmenu', contextmenuHandler)
 			}
 		})
+		updateText('#panelTree #sum', `总计：结构${structNum}个，题目${quesNum}个`)
 	} else {
 		showCom('#panelTree .none', true)
+		updateText('#panelTree #sum', '')
 	}
 }
 
@@ -153,7 +163,30 @@ function clickMenu(id, cmd) {
 	}
 }
 
+function updateTreeSelect(params) {
+	var data = getDataByParams(params)
+	if (!data || !data.data) {
+		return
+	}
+	var qid = data.ques_client_id
+	var oldSelected = $('#panelTree #tree .selected')
+	if (oldSelected) {
+		oldSelected.removeClass('selected')
+	}
+	var $target = $(`#panelTree #box-${qid}`)
+	if ($target && $target.length) {
+		$target.addClass('selected')
+		var $container = $('#panelTree #tree')
+		if ($container.length) {
+			$container.animate({
+				scrollTop: $target.offset().top - $container.offset().top + $container.scrollTop()
+			}, 500); // 500 is the duration of the animation in milliseconds
+		}
+	}
+}
+
 export {
 	generateTree,
-	refreshTree
+	refreshTree,
+	updateTreeSelect
 }

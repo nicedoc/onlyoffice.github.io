@@ -23,7 +23,7 @@ import { layoutDetect } from './layoutFixHandler.js'
 import { showCom, updateText, addClickEvent, getInfoForServerSave, setBtnLoading, isLoading } from './model/util.js'
 import { reqSaveInfo, onLatexToImg, logOnlyOffice} from './api/paper.js'
 import { biyueCallCommand, resetStack } from './command.js'
-import { generateTree } from './panelTree.js'
+import { generateTree, updateTreeSelect } from './panelTree.js'
 import ComponentSelect from '../components/Select.js'
 var select_ask_shortcut = null
 var timeout_paste_hint = null
@@ -44,6 +44,12 @@ function initView() {
 	window.tab_select = 'tabList'
 	$('.tabitem').on('click', changeTab)
 	document.addEventListener('clickSingleQues', function (event) {
+		if (window.tab_select == 'tabTree' && window.tree_lock) {
+			if (event && event.detail) {
+				updateTreeSelect(event.detail)
+			}
+			return
+		}
 		if (window.tab_select != 'tabQues') {
 			changeTabPanel('tabQues', event)
 		}
@@ -209,7 +215,9 @@ function initView() {
 	$(document).on('click', function() {
 		$('.customContextMenu').hide();
 	});
+	addClickEvent('#panelTree #lock', clickTreeLock)
 }
+
 function handlePaperInfoResult(success, res) {
 	showCom('#initloading', false)
 	if (success) {
@@ -634,6 +642,21 @@ function hidePops(type, name) {
 				}
 			}
 		}
+	}
+}
+
+function clickTreeLock() {
+	window.tree_lock = !(window.tree_lock)
+	var com = $('#panelTree #lock .iconfont')
+	if (!com) {
+		return
+	}
+	if (window.tree_lock) {
+		com.removeClass('icon-dingzi-u')
+		com.addClass('icon-dingzi1')
+	} else {
+		com.addClass('icon-dingzi-u')
+		com.removeClass('icon-dingzi1')
 	}
 }
 export {

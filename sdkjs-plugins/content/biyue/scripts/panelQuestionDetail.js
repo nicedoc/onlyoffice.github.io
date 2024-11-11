@@ -4,6 +4,7 @@ import { reqSaveQuestion } from './api/paper.js'
 import { setInteraction } from './featureManager.js'
 import { changeProportion, deleteAsks, focusAsk, updateAllChoice, deleteChoiceOtherWrite, getQuesMode, updateQuesScore, splitControl, setChoiceOptionLayout } from './QuesManager.js'
 import { addClickEvent, getListByMap, showCom } from '../scripts/model/util.js'
+import { getDataByParams } from '../scripts/model/ques.js'
 // 单题详情
 var proportionTypes = [
 	{ value: 1, label: '默认' },
@@ -355,112 +356,51 @@ function updateElements(quesData, hint, ignore_ask_list) {
 	})
 }
 
+
+
 function showQuesData(params) {
 	console.log('showQuesData', params)
 	if(window.tab_select != 'tabQues') {
 		return
 	}
-	if(!params) {
+	var data = getDataByParams(params)
+	if (!data) {
 		updateElements(null)
 		return
 	}
-	if (!params.client_id) {
-		if (params.parentTag) {
-			params.client_id = params.parentTag.client_id
-		}
-		if (!params.client_id) {
-			updateElements(null)
-			return	
-		}
+	if (data.client_id) {
+		g_client_id = data.client_id
 	}
-	g_client_id = params.client_id
-	var question_map = window.BiyueCustomData.question_map || {}
-  	let choice_display = window.BiyueCustomData.choice_display || {}
-  	let ignore_ask_list = false
-	var quesData = question_map ? question_map[g_client_id] : null
-	if (g_client_id) {
-		var node_list = window.BiyueCustomData.node_list || []
-		var nodeData = node_list.find(e => {
-			return e.id == g_client_id
-		})
-		console.log('nodeData', nodeData)
-		if (nodeData) {
-			if (nodeData.level_type == 'struct') {
-				setQueId(g_client_id)
-				updateElements(question_map[nodeData.id], `当前选中为题组`)
-				return
-			} else if (nodeData.level_type == 'text') {
-				updateElements(null, `当前选中为待处理文本`)
-				return
-			} else {
-				if (nodeData.merge_id && question_map[nodeData.merge_id]) {
-					var ids = question_map[nodeData.merge_id].ids || []
-					if (ids.find(e => {
-						return e == g_client_id
-					})) {
-						quesData = question_map[nodeData.merge_id]
-						g_client_id = nodeData.merge_id
-					}
-					if (nodeData.cell_ask && nodeData.write_list && nodeData.write_list.length) {
-						params.regionType = 'write'
-						g_client_id = nodeData.write_list[0].id
-					}
-				}
-			}
-		}
-	}
-	if (!question_map) {
-		updateElements(null)
+	if (data.level_type == 'struct') {
+		setQueId(g_client_id)
+		updateElements(data.data, `当前选中为题组`)
+		return
+	} else if (data.level_type == 'text') {
+		updateElements(null, `当前选中为待处理文本`)
 		return
 	}
-	var ques_client_id = 0
-	var findIndex = -1
-	if (params.regionType == 'write') {
-		var keys = Object.keys(question_map)
-		for (var i = 0; i < keys.length; ++i) {
-			var ask_list = question_map[keys[i]].ask_list || []
-			findIndex = ask_list.findIndex(e => {
-				if (e.other_fileds && e.other_fileds.includes(g_client_id)) {
-					return true
-				}
-				return e.id == g_client_id
-			})
-			if (findIndex >= 0) {
-				ques_client_id = keys[i]
-				select_ask_index = findIndex
-				break
-			}
-		}
-	} else if (quesData && quesData.level_type == 'question') {
-		ques_client_id = g_client_id
-	} else if (params.regionType == 'question') {
-		ques_client_id = g_client_id
-	}
-	if (!ques_client_id) {
-		updateElements(null)
-		return
-	}
-	quesData = question_map[ques_client_id]
-	if (!quesData) {
-		updateElements(null)
-		return
+	if (data.findIndex >= 0) {
+		select_ask_index = data.findIndex
 	}
 	console.log('=========== showQuesData ques:', quesData)
-	setQueId(ques_client_id)
+	var quesData = data.data
+	setQueId(data.ques_client_id)
+	let ignore_ask_list = false
+	let choice_display = window.BiyueCustomData.choice_display || {}
 	if (quesData.level_type == 'question') {
     	if ((quesData.ques_mode == 1 || quesData.ques_mode == 5) && choice_display.style && choice_display.style === 'show_choice_region') {
       		// 如果是开启了集中作答区状态，则需要忽略对应题目的小问
       		let node = node_list.find(e => {
-        		return e.id == ques_client_id
+        		return e.id == data.ques_client_id
       		})
       		if (node.use_gather) {
         		ignore_ask_list = true
       		}
     	}
 		updateElements(quesData, null, ignore_ask_list)
-		updateAskSelect(findIndex)
+		updateAskSelect(data.findIndex)
 	} else if (quesData.level_type == 'struct') {
-		setQueId(ques_client_id)
+		setQueId(data.ques_client_id)
 		updateElements(quesData, `当前选中为题组：${quesData ? quesData.ques_default_name : ''}`)
 		return
 	} else {
