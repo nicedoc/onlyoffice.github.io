@@ -246,6 +246,7 @@ function changeTabPanel(id, event) {
 		}
 	})
 	window.tab_select = id
+	$('.customContextMenu').hide();
 	var targetPanel = id.replace('tab', 'panel')
 	var panels = ['panelList', 'panelQues', 'panelTree']
 	panels.forEach((panel) => {

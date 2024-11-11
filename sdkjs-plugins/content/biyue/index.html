@@ -411,6 +411,7 @@
 		}
 		#panelTree {
 			padding: 4px 4px 4px 8px;
+			height: calc(100% - 30px);
 			.none {
 				margin-top: 30vh;
 				.iconfont {
@@ -418,20 +419,24 @@
 				}
 			}
 			.struct {
-				border: 1px solid #2489f6;
+				border: 1px solid #95c8ff;
 				color: #2489f6;
-				margin-right: 4px;
+				margin-right: 8px;
 				padding: 0 1px;
 				height: 16px;
 			}
 			.itemques {
-				border: 1px solid #2489f6;
+				border: 1px solid #95c8ff;
 				background-color: #deedfe;
 				padding: 4px;
 				border-radius: 4px;
 				margin-top: 4px;
 				margin-bottom: 4px;
 				margin-right: 4px;
+			}
+			#tree {
+				max-height: 100%;
+				overflow-y: auto;
 			}
 		}
      </style>

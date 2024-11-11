@@ -16,7 +16,7 @@ function refreshTree() {
 	}
 }
 
-function renderTreeNode(parent, item, identation = 0) {
+function renderTreeNode(parent, item, parentData) {
 	if (!parent) {
 		return
 	}
@@ -26,10 +26,26 @@ function renderTreeNode(parent, item, identation = 0) {
 		return
 	}
 	var html = ''
+	var identation = 0
+	if (parentData) {
+		if (parentData.is_big) {
+			identation = 20
+		} else if (item.lvl === null) {
+			if (parentData.lvl) {
+				identation = 24 * (parentData.lvl + 1)
+			} else {
+				identation = 24
+			}
+		} else {
+			identation = item.level_type == 'struct' ? 24 * (item.lvl - 1) : 24 * item.lvl 
+		}
+	} else {
+		identation = 0
+	}
 	if (item.level_type == 'struct') {
-		html += `<div class="row-align-center" style="padding-left:${identation}px" id="group-${item.id}">
+		html += `<div class="row-align-center" id="group-${item.id}">
 					<div class="struct font-12">构</div>
-					<div class="itemques text-over-ellipsis flex-1 clicked" style="margin-left: 4px;" title="${quesData.text}">${quesData.text}</div>
+					<div class="itemques text-over-ellipsis flex-1 clicked" style="margin-left: ${identation}px;" title="${quesData.text}">${quesData.text}</div>
 				</div>`
 	} else if (item.level_type == 'question') {
 		html += `<div class="itemques" style="margin-left: ${identation}px;">
@@ -39,12 +55,11 @@ function renderTreeNode(parent, item, identation = 0) {
 	}
 	parent.append(html)
 	if (item.children && item.children.length > 0) {
-		identation += 24
 		for (var child of item.children) {
 			if (item.level_type == 'struct') {
-				renderTreeNode(parent, child, identation)
+				renderTreeNode(parent, child, item)
 			} else {
-				renderTreeNode($(`#ques-${item.id}-children`), child, 16)
+				renderTreeNode($(`#ques-${item.id}-children`), child, item)
 			}
 		}
 	}
@@ -57,7 +72,7 @@ function renderTree() {
 	if (tree_info.tree && tree_info.tree.length) {
 		showCom('#panelTree .none', false)
 		tree_info.tree.forEach(item => {
-			renderTreeNode(rootElement, item, 0)
+			renderTreeNode(rootElement, item, null)
 		})
 		tree_info.list.forEach(item => {
 			var com = $(`#${item.level_type == 'question' ? 'ques' : 'group'}-${item.id}`)
@@ -81,14 +96,13 @@ function renderTree() {
 							} else {
 								generateMenuItems(['setBig'], item.id); // 生成动态菜单
 							}
+							$('#dynamicMenu').css({
+								display: 'block',
+								left: event.pageX,
+								top: event.pageY
+							});
 						}
 					}
-					
-					$('#dynamicMenu').css({
-						display: 'block',
-						left: event.pageX,
-						top: event.pageY
-					});
 				}
 				com.off('contextmenu', contextmenuHandler)
 				com.on('contextmenu', contextmenuHandler)

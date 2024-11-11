@@ -1654,12 +1654,12 @@ function initControls() {
 				Object.keys(question_map).forEach(id => {
 					if (!ids[id]) {
 						delete question_map[id]
-					} else if (typeof ids[id] == 'array') {
+					} else if (typeof ids[id] == 'object') {
 						question_map[id].ids = ids[id]
 						var textlist = []
 						var numbing_text = ''
 						question_map[id].ids.forEach(e => {
-							var ndata = newNodeList.find(e2 => {
+							var ndata = nodeList.find(e2 => {
 								return e == e2.id && e2.merge_id == id
 							})
 							if (ndata) {
@@ -5721,6 +5721,158 @@ function insertSymbol(unicode) {
 }
 
 function preGetExamTree() {
+	Asc.scope.node_list = window.BiyueCustomData.node_list
+	Asc.scope.question_map = window.BiyueCustomData.question_map
+	return biyueCallCommand(window, function() {
+		var node_list = Asc.scope.node_list || []
+		var question_map = Asc.scope.question_map || {}
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls() || []
+		function getLvl(oControl, paraIndex) {
+			if (!oControl) {
+				return null
+			}
+			var paragrahs = oControl.GetAllParagraphs() || []
+			for (var i = 0; i < paragrahs.length; ++i) {
+				var oParagraph = paragrahs[i]
+				if (paraIndex != -1 && i > paraIndex) {
+					return null
+				}
+				var oNumberingLevel = oParagraph.GetNumbering()
+				if (oNumberingLevel) {
+					return oNumberingLevel.Lvl
+				}
+			}
+			return null
+		}
+		var list = []
+		var handled = {}
+		for (var oControl of controls) {
+			var tag = Api.ParseJSON(oControl.GetTag())
+			if (!tag.client_id) {
+				continue
+			}
+			var qId = tag.mid ? tag.mid : tag.client_id
+			if (handled[qId]) {
+				continue
+			}
+			var quesData = question_map[qId]
+			if (!quesData) {
+				continue
+			}
+			if (quesData.level_type != 'struct' && quesData.level_type != 'question') {
+				continue
+			}
+			handled[qId] = true
+			var nodeData = node_list.find(e => {
+				return e.id == tag.client_id
+			})
+			var is_big = nodeData ? nodeData.is_big : false
+			var lvl = null
+			var obj = {
+				id: qId,
+				level_type: quesData.level_type,
+				parent_id: 0,
+				parent_index: -1,
+				is_big: is_big,
+			}
+			var oParentControl = oControl.GetParentContentControl()
+			if (quesData.level_type == 'struct') {
+				lvl = getLvl(oControl)
+			} else if (quesData.level_type == 'question') {
+				lvl = getLvl(oControl, is_big ? 0 : -1)
+			}
+			obj.lvl = lvl
+			if (oParentControl) {
+				var parentTag = Api.ParseJSON(oParentControl.GetTag() || '{}')
+				obj.parent_id = parentTag.client_id
+				obj.parent_index = list.findIndex(e => {
+					return e.id == obj.parent_id
+				})
+			} else  if (lvl === 0) {
+				obj.parent_id = 0
+			} else {
+				// 根据level, 查找在它前面的比它lvl小的struct
+				if (list.length > 0) {
+					for (var i = list.length - 1; i >= 0; --i) {
+						if (list[i].lvl === null) {
+							if (lvl === null) {
+								if (list[i].level_type == 'struct') {
+									obj.parent_id = list[i].id
+									obj.parent_index = i
+									break
+								} else {
+									obj.parent_id = list[i].parent_id
+									obj.parent_index = list[i].parent_index
+									break
+								}
+							}
+						} else if (list[i].lvl === 0) {
+							if (list[i].level_type == 'struct') {
+								obj.parent_id = list[i].id
+								obj.parent_index = i
+								break
+							} else {
+								obj.parent_id = 0
+								obj.parent_index = -1
+								break
+							}
+						} else if (list[i].lvl < lvl) {
+							if (list[i].level_type == 'struct') {
+								obj.parent_id = list[i].id
+								obj.parent_index = i
+								break
+							} else {
+								obj.parent_id = list[i].parent_id
+								obj.parent_idex = list[i].parent_index
+								break
+							}
+						} else if (list[i].lvl === lvl) {
+							if (list[i].level_type == 'struct') {
+								if (list[i].parent_id) {
+									obj.parent_id = list[i].parent_id
+									obj.parent_index = i
+								} else {
+									obj.parent_id = 0
+									obj.parent_index = -1
+								}
+								break
+							} else if (list[i].level_type == 'question') {
+								if (quesData.level_type == 'struct') {
+									continue
+								} else {
+									obj.parent_id = list[i].parent_id
+									obj.parent_index = list[i].parent_index
+									break
+								}
+							}
+						} else if (list[i].lvl > lvl) {
+							continue
+						}
+					}
+				}
+			}
+			list.push(obj)
+		}
+		const tree = [];
+		const map = {};
+	
+		list.forEach(item => {
+			map[item.id] = { ...item, children: [] };
+		});
+	
+		list.forEach(item => {
+			if (item.parent_id && item.parent_id != item.id) {
+				map[item.parent_id].children.push(map[item.id]);
+			} else {
+				tree.push(map[item.id]);
+			}
+		});
+		return { list, tree}
+	}, false, false)
+}
+
+function preGetExamTree2() {
 	Asc.scope.node_list = window.BiyueCustomData.node_list
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	return biyueCallCommand(window, function() {
