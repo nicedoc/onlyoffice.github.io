@@ -39,7 +39,7 @@ function renderTreeNode(parent, item, identation = 0) {
 	}
 	parent.append(html)
 	if (item.children && item.children.length > 0) {
-		identation = 24
+		identation += 24
 		for (var child of item.children) {
 			if (item.level_type == 'struct') {
 				renderTreeNode(parent, child, identation)

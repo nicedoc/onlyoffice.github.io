@@ -5796,12 +5796,13 @@ function preGetExamTree() {
 						list[i].parent_id = bigParent.id;
 						continue;  // once assigned, skip to avoid overriding
 					}
+					currentBigParentIndex = -1
 				}
 				// Parent assignment for level based relationship (outside big parent logic)
 				var parent = stack[stack.length - 1];
 				if (parent.index != -1) {
 					if (current.lvl) {
-						if (current.lvl < list[parent.index].lvl) {
+						if (current.lvl > list[parent.index].lvl) {
 							list[i].parent_id = list[parent.index].id;
 						} else {
 							while (stack.length > 0 && stack[stack.length - 1].lvl >= (current.lvl ?? 0)) {
