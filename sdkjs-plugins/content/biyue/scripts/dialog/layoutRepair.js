@@ -99,6 +99,11 @@
 			}
 		}
 		$('#list').html(str)
+		if (str == '') {
+			$('.none').show()
+		} else {
+			$('.none').hide()
+		}
 		$('#cancel').on('click', onCancel)
 		$('#confirm').on('click', onConfirm)
 		for (var i = 0; i < detect_list.length; ++i){

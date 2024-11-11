@@ -8,6 +8,7 @@ import { handleRangeType } from "./classifiedTypes.js"
 import { ShowLinkedWhenclickImage } from './linkHandler.js'
 import { layoutDetect } from './layoutFixHandler.js'
 import { setBtnLoading, isLoading } from './model/util.js'
+import { refreshTree } from './panelTree.js'
 var g_click_value = null
 var upload_control_list = []
 
@@ -1131,6 +1132,10 @@ function handleChangeType(res, res2) {
 	}
 }
 function notifyQuestionChange(update_node_id) {
+	if (window.tab_select == 'tabTree') {
+		refreshTree()
+		return
+	}
 	var eventname = window.tab_select != 'tabQues' ? 'clickSingleQues' : 'updateQuesData'
 	document.dispatchEvent(
 		new CustomEvent(eventname, {
@@ -1719,7 +1724,8 @@ function confirmLevelSet(levels) {
 					if (parent2) {
 						if (parent2.Id == oControl.Sdt.GetId()) {
 							if (oParagraph.Paragraph.HaveNumbering()) {
-								return oParagraph.Paragraph.GetNumberingText()
+								var oNumberingLevel = oParagraph.GetNumbering()
+								return {text: oParagraph.Paragraph.GetNumberingText(), lvl: oNumberingLevel ? oNumberingLevel.Lvl : 0} 
 							}
 							return null
 						}
@@ -1809,14 +1815,19 @@ function confirmLevelSet(levels) {
 				} else {
 					var proportion = getProportion(oControl)
 					var text = oControl.GetRange().GetText()
-					var level_type = levelmap[tagInfo.lvl] || 'question'
+					var numberingInfo = GetNumberingValue(oControl)
+					var lvl = numberingInfo && numberingInfo.lvl ? numberingInfo.lvl : tagInfo.lvl
+					if (lvl != tagInfo.lvl) {
+						tagInfo.lvl = lvl
+					}
+					var level_type = levelmap[lvl] || 'question'
 					nodeData.level_type = level_type
 					nodeData.proportion = proportion
 					var detail = {
 						text: text,
 						ask_list: [],
 						level_type: level_type,
-						numbing_text: GetNumberingValue(oControl),
+						numbing_text: numberingInfo ? numberingInfo.text : '',
 						proportion: proportion
 					}
 					if (tagInfo.regionType == 'question') {
@@ -1869,6 +1880,8 @@ function confirmLevelSet(levels) {
 		return initExtroInfo()
 	})
 	.then(() => {
+		return refreshTree()
+	}).then(() => {
 		console.log("================================ StoreCustomData")
 		window.biyue.StoreCustomData()
 	})
@@ -3761,6 +3774,39 @@ function deleteAsks(askList, recalc = true, notify = true) {
 	})
 }
 
+function focusControl(id) {
+	var quesData = window.BiyueCustomData.question_map[id]
+	if (!quesData) {
+		return
+	}
+	Asc.scope.focus_ids = quesData.level_type == 'question' && quesData.is_merge ? quesData.ids : [id]
+	return biyueCallCommand(window, function() {
+		var focusIds = Asc.scope.focus_ids
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls()
+		function getControlsByClientId(cid) {
+			var findControls = controls.filter(e => {
+				var tag = Api.ParseJSON(e.GetTag())
+				if (e.GetClassType() == 'blockLvlSdt') {
+					return tag.client_id == cid && e.GetPosInParent() >= 0
+				} else if (e.GetClassType() == 'inlineLvlSdt') {
+					return e.Sdt && e.Sdt.GetPosInParent() >= 0 && tag.client_id == cid
+				}
+			})
+			if (findControls && findControls.length) {
+				return findControls[0]
+			}
+		}
+		for (var id of focusIds) {
+			var oControl = getControlsByClientId(id)
+			if (oControl) {
+				oDocument.Document.MoveCursorToContentControl(oControl.Sdt.GetId(), true)
+				break
+			}
+		}
+	}, false, false)
+}
+
 function focusAsk(writeData) {
 	if (!writeData) {
 		return
@@ -4935,7 +4981,6 @@ function splitControl(qid) {
 		if (!quesData) {
 			return
 		}
-		is_merge = quesData.is_merge
 		if (quesData.is_merge && quesData.ids) { // 是合并题
 			quesData.ids.forEach(id => {
 				splitOneNode(id)
@@ -5682,7 +5727,7 @@ function preGetExamTree() {
 		var node_list = Asc.scope.node_list
 		var question_map = Asc.scope.question_map
 		var oDocument = Api.GetDocument()
-		var controls = oDocument.GetAllContentControls() || []		
+		var controls = oDocument.GetAllContentControls() || []
 		function getControlsByClientId(cid) {
 			var findControls = controls.filter(e => {
 				var tag = Api.ParseJSON(e.GetTag())
@@ -5727,22 +5772,27 @@ function preGetExamTree() {
 				if (current.level_type === 'struct') {
 					// A struct resets any big question influence
 					currentBigParentIndex = -1;
-		
+				} 
+				if (current.level_type == 'struct' || (current.level_type == 'question' && current.lvl === 0)) {
 					// Prune stack for structs
 					while (stack.length > 0 && stack[stack.length - 1].lvl >= (current.lvl ?? 0)) {
 						stack.pop();
 					}
-				} 
+				}
 				
 				if (current.is_big) {
 					// Set current question as a big parent
 					currentBigParentIndex = i;
 				} 
 				
-				if (currentBigParentIndex !== -1 && i != currentBigParentIndex) {
+				if (currentBigParentIndex !== -1 && i != currentBigParentIndex && current.level_type == 'question') {
 					const bigParent = list[currentBigParentIndex];
 					// Assign parent_id to current.question based on big question rules
-					if (bigParent.lvl === null || current.lvl === null || current.lvl < bigParent.lvl) {
+					if (bigParent.lvl !== null && current.lvl != null && current.lvl > bigParent.lvl) {
+						list[i].parent_id = bigParent.id;
+						continue
+					}
+					if (bigParent.lvl === null || current.lvl === null || current.lvl > bigParent.lvl) {
 						list[i].parent_id = bigParent.id;
 						continue;  // once assigned, skip to avoid overriding
 					}
@@ -5770,6 +5820,9 @@ function preGetExamTree() {
 					if (current.level_type == 'question') {
 						continue
 					}
+				} else if (current.level_type == 'question') {
+					list[i].parent_id = 0
+					continue
 				}
 		
 				// Add current node to stack
@@ -5857,5 +5910,6 @@ export {
 	handleChangeType,
 	insertSymbol,
 	preGetExamTree,
-	getQuestionHtml
+	getQuestionHtml,
+	focusControl
 }

@@ -52,6 +52,7 @@ import { initView, onSaveData } from './pageView.js'
 
 import { setInteraction, updateChoice, deleteAllFeatures } from './featureManager.js'
 import { getInfoForServerSave } from './model/util.js'
+import { refreshTree } from './panelTree.js'
 (function (window, undefined) {
 	var styleEnable = false
 	let activeQuesItem = ''
@@ -1081,6 +1082,7 @@ import { getInfoForServerSave } from './model/util.js'
 			onClearAllControls(true).then(() => {
 				window.BiyueCustomData.node_list = []
 				window.BiyueCustomData.question_map = {}
+				refreshTree()
 			})
 		})
 		addBtnClickEvent('checkAnswerRegionBtn', checkAnswerRegion)

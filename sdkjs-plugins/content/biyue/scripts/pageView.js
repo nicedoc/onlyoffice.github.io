@@ -23,6 +23,7 @@ import { layoutDetect } from './layoutFixHandler.js'
 import { showCom, updateText, addClickEvent, getInfoForServerSave, setBtnLoading, isLoading } from './model/util.js'
 import { reqSaveInfo, onLatexToImg, logOnlyOffice} from './api/paper.js'
 import { biyueCallCommand, resetStack } from './command.js'
+import { generateTree } from './panelTree.js'
 import ComponentSelect from '../components/Select.js'
 var select_ask_shortcut = null
 var timeout_paste_hint = null
@@ -38,6 +39,7 @@ function initView() {
 	showCom('#hint1', false)
 	showCom('.tabs', false)
 	showCom('#panelList', false)
+	showCom('#panelTree', false)
 	initListener()
 	window.tab_select = 'tabList'
 	$('.tabitem').on('click', changeTab)
@@ -68,6 +70,9 @@ function initView() {
 				func: 'reSplitQustion'
 			}
 		})
+	})
+	addClickEvent('#reSplitQues', () => {
+		window.biyue.reSplitQustion()
 	})
 	addClickEvent('#uploadTree', () => {
 		var qmap = window.BiyueCustomData.question_map
@@ -197,6 +202,13 @@ function initView() {
 	addClickEvent('#extrolclose', () => {
 		showButton('extro_buttons', false)
 	})
+	document.addEventListener('contextmenu', e=> {
+		e.preventDefault()	
+	})
+	// 点击其他地方隐藏所有菜单
+	$(document).on('click', function() {
+		$('.customContextMenu').hide();
+	});
 }
 function handlePaperInfoResult(success, res) {
 	showCom('#initloading', false)
@@ -235,7 +247,7 @@ function changeTabPanel(id, event) {
 	})
 	window.tab_select = id
 	var targetPanel = id.replace('tab', 'panel')
-	var panels = ['panelList', 'panelQues', 'panelTree', 'panelFeature']
+	var panels = ['panelList', 'panelQues', 'panelTree']
 	panels.forEach((panel) => {
 		if (panel == targetPanel) {
 			$('#' + panel).show()
@@ -256,6 +268,8 @@ function changeTabPanel(id, event) {
 		} else {
 			showQuesData(event ? event.detail : null)
 		}
+	} else if (id == 'tabTree') {
+		generateTree()
 	}
 	scroll(false)
 }
@@ -495,7 +509,7 @@ function renderTreeNode(parent, item, identation = 0) {
 	var html = ''
 	if (item.level_type == 'struct') {
 		if (check_level) {
-			html += `<div class=item id="group-id-${item.id}" style="padding-left:${identation}px"><div class="ques-text" title="${quesData.text}">${quesData.text}</div></div>`
+			html += `<div class=item id="group-id-${item.id}" style="padding-left:${identation}px"><div class="text-over-ellipsis flex-1 ml-4" title="${quesData.text}">${quesData.text}</div></div>`
 		}
 	} else if (item.level_type == 'question') {
 		if (quesData.question_type != 6 || check_text_ques) {
@@ -505,7 +519,7 @@ function renderTreeNode(parent, item, identation = 0) {
 			html += `<div class="item" style="padding-left:${identation}px">
         				<div class="content" title="${quesData.text}">
           					<input type="checkbox" id="check_${item.id}">
-          					<div class="ques-text">${quesData.text}</div>
+          					<div class="text-over-ellipsis flex-1 ml-4">${quesData.text}</div>
         				</div>
         				<div class="ques-type-name" id="ques-type-${item.id}">${quesType ? quesType.label : '未定义'}</div>
       				</div>`;
