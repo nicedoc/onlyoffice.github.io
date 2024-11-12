@@ -296,6 +296,10 @@ function major_pos(path) {
     return 0;    
 }
 
+function isFirstRun(path) {
+    var posArray = toPathArray(path);
+    return posArray[posArray.length - 3] == 0;    
+}
 
 // sibling时候，获取结束标记的前一个段落
 // parent时，获取自己所在区间的最后一个段落
@@ -527,12 +531,14 @@ let newSplit = function (text) {
     const quesPatt = `$..content[?(typeof(@) == 'string' && @.match('^[0-9]+[.][^0-9]'))]`;
     JSONPath({
         path: quesPatt, json: k, resultType: "path", callback: function (res) {
-            ranges.push({
-                beg: res,
-                info: { 'regionType': 'question', 'mode': 2, column: 1, padding: [0, 0, 0.5, 0] },
-                controlType: 1,
-                major_pos: major_pos(res)
-            })
+            if (isFirstRun(res)) {
+                ranges.push({
+                    beg: res,
+                    info: { 'regionType': 'question', 'mode': 2, column: 1, padding: [0, 0, 0.5, 0] },
+                    controlType: 1,
+                    major_pos: major_pos(res)
+                });
+            }
         }
     });
 
