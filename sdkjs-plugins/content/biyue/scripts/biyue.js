@@ -2216,10 +2216,10 @@ import { getInfoForServerSave } from './model/util.js'
 				console.log('splitQuestion:', ranges)
 				return createContentControl(ranges)
 			})
-			.then(() => {
-				console.log('2.处理需要分列的题目')
-				return processTableColumn(undefined)
-			})
+			// .then(() => {
+			// 	console.log('2.处理需要分列的题目')
+			// 	return processTableColumn(undefined)
+			// })
 			.then(() => {
 				console.log('3.处理答题区域')
 				return checkAnswerRegion()
