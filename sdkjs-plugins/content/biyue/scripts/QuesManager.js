@@ -2433,6 +2433,42 @@ function getControlListForUpload() {
 		var question_map = Asc.scope.question_map
 		console.log('question_map', question_map)
 		var handledcontrol = {}
+		function getLvl(oControl, paraIndex) {
+			if (!oControl) {
+				return null
+			}
+			var paragrahs = oControl.GetAllParagraphs() || []
+			for (var i = 0; i < paragrahs.length; ++i) {
+				var oParagraph = paragrahs[i]
+				if (paraIndex != -1 && i > paraIndex) {
+					return null
+				}
+				var oNumberingLevel = oParagraph.GetNumbering()
+				if (oNumberingLevel) {
+					return oNumberingLevel.Lvl
+				}
+			}
+			return null
+		}
+		function getParentId(target_list, lvl) {
+			var parent_id = 0
+			for (var j = target_list.length - 1; j >= 0; --j) {
+				var preNode = target_list[j]
+				// 由于struct未必有lvl，因此先将Lvl的判断移除
+				if (preNode.content_type == 'struct') {
+					if (lvl === 0) {
+						parent_id = 0
+					} else if (!preNode.lvl) {
+						parent_id = preNode.id
+					} else if (lvl && lvl > preNode.lvl) {
+						parent_id = preNode.id
+					} else {
+						parent_id = 0
+					}
+					return parent_id
+				}
+			}
+		}
 		for (var i = 0, imax = controls.length; i < imax; ++i) {
 			var oControl = controls[i]
 			if (handledcontrol[oControl.Sdt.GetId()]) {
@@ -2451,6 +2487,7 @@ function getControlListForUpload() {
 			if (!question_map[clientid].level_type) {
 				continue
 			}
+			var lvl = getLvl(oControl, 0)
 			var oParentControl = oControl.GetParentContentControl()
 			var parent_id = 0
 			if (question_map[clientid].level_type == 'question') {
@@ -2459,14 +2496,7 @@ function getControlListForUpload() {
 					parent_id = parentTag.client_id
 				} else {
 					// 根据level, 查找在它前面的比它lvl小的struct
-					for (var j = target_list.length - 1; j >= 0; --j) {
-						var preNode = target_list[j]
-						// 由于struct未必有lvl，因此先将Lvl的判断移除
-						if (preNode.content_type == 'struct') {
-							parent_id = preNode.id
-							break
-						}
-					}
+					parent_id = getParentId(target_list, lvl)
 				}
 			}
 			var useControl = oControl
@@ -2480,6 +2510,7 @@ function getControlListForUpload() {
 				if (bigControl) {
 					useControl = bigControl
 				}
+				parent_id = getParentId(target_list, lvl)
 			}
 			var oRange = null
 			if (tag.mid) {
@@ -2524,7 +2555,7 @@ function getControlListForUpload() {
 				question_type: question_map[clientid].question_type,
 				question_name: question_map[clientid].ques_name || question_map[clientid].ques_default_name,
 				control_id: oControl.Sdt.GetId(),
-				lvl: tag.lvl
+				lvl: lvl
 			})
 		}
 		console.log('target_list', target_list)
@@ -2733,6 +2764,14 @@ function generateTreeForUpload(control_list) {
 			if (res.data.questions) {
 				res.data.questions.forEach(e => {
 					window.BiyueCustomData.question_map[e.id].uuid = e.uuid
+				})
+				Object.keys(window.BiyueCustomData.question_map).forEach(e => {
+					var index = res.data.questions.findIndex(e2 => {
+						return e2.uuid == window.BiyueCustomData.question_map[e].uuid
+					})
+					if (index == -1) {
+						window.BiyueCustomData.question_map[e].uuid = ''
+					}
 				})
 			}
 			resolve(res)
