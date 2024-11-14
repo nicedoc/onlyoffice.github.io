@@ -28,17 +28,18 @@ function renderTreeNode(parent, item, parentData) {
 	}
 	var html = ''
 	var identation = 0
+	var offset = 24
 	if (parentData) {
 		if (parentData.is_big) {
 			identation = 20
 		} else if (item.lvl === null) {
 			if (parentData.lvl) {
-				identation = 24 * (parentData.lvl + 1)
+				identation = offset * (parentData.lvl + 1)
 			} else {
-				identation = 24
+				identation = offset
 			}
 		} else {
-			identation = item.level_type == 'struct' ? 24 * (item.lvl - 1) : 24 * item.lvl 
+			identation = (item.level_type =='struct' ? 10 : offset) * item.lvl
 		}
 	} else {
 		identation = 0
