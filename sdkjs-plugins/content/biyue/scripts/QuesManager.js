@@ -9,6 +9,7 @@ import { ShowLinkedWhenclickImage } from './linkHandler.js'
 import { layoutDetect } from './layoutFixHandler.js'
 import { setBtnLoading, isLoading } from './model/util.js'
 import { refreshTree } from './panelTree.js'
+import { getChoiceQuesInfo } from './choiceQuestion.js'
 var g_click_value = null
 var upload_control_list = []
 
@@ -2408,6 +2409,9 @@ function reqUploadTree() {
 	}).then(() => {
 		return handleUploadPrepare('hide')
 	}).then(() => {
+		return getChoiceQuesInfo()
+	}).then((res) => {
+		Asc.scope.choice_html_map = res
 		return getControlListForUpload()
 	}).then(control_list => {
 		if (control_list && control_list.length) {
@@ -2468,6 +2472,7 @@ function getControlListForUpload() {
 					return parent_id
 				}
 			}
+			return parent_id
 		}
 		for (var i = 0, imax = controls.length; i < imax; ++i) {
 			var oControl = controls[i]
@@ -2504,7 +2509,6 @@ function getControlListForUpload() {
 				var childcontrols = oControl.GetAllContentControls() || []
 				var bigControl = childcontrols.find(e => {
 					var btag = Api.ParseJSON(e.GetTag())
-					console.log('btag', e.GetTag())
 					return e.GetClassType() == 'blockLvlSdt' && btag.onlybig == 1 && btag.link_id == tag.client_id
 				})
 				if (bigControl) {
@@ -2729,8 +2733,20 @@ function generateTreeForUpload(control_list) {
 			reject(null)
 		}
 		var tree = []
+		var choicemap = Asc.scope.choice_html_map || {}
 		control_list.forEach((e) => {
 			e.content_html = cleanHtml(e.content_html || '')
+			if (choicemap[e.id]) {
+				e.content_without_opt = cleanHtml(choicemap[e.id].steam || '')
+				e.options = []
+				if (choicemap[e.id].options) {
+					choicemap[e.id].options.forEach(option => {
+						e.options.push(cleanHtml(option))
+					})
+				}
+				// todo..移除选项的首字母
+				e.option_type = 'A'
+			}
 			if (e.parent_id == 0) {
 				e.id = e.id + ''
 				tree.push(e)
@@ -5609,6 +5625,9 @@ function importExam() {
 	}).then(() => {
 		return handleUploadPrepare('hide')
 	}).then(() => {
+		return getChoiceQuesInfo()
+	}).then((res) => {
+		Asc.scope.choice_html_map = res
 		return getControlListForUpload()
 	}).then(control_list => {
 		if (control_list && control_list.length) {
