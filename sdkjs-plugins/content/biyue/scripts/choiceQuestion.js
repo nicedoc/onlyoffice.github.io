@@ -2,12 +2,12 @@
 import { JSONPath } from '../vendor/jsonpath-plus/dist/index-browser-esm.js';
 import { biyueCallCommand } from './command.js';
 
-function major_pos(path) {    
+function major_pos(path) {
     var ret = path.match(/\d+/g);
     if (ret) {
         return parseInt(ret[0]);
     }
-    return 0;    
+    return 0;
 }
 function last_paragraph(path) {
     var ids = path.match(/\d+/g).map(function (item) {
@@ -44,9 +44,9 @@ function extractChoiceOptions() {
 		controls.forEach(oControl => {
 			var tag = Api.ParseJSON(oControl.GetTag())
 			if (oControl.GetClassType() == 'blockLvlSdt' && oControl.GetPosInParent() >= 0) {
-				if (tag.client_id && 
+				if (tag.client_id &&
 					question_map[tag.client_id] &&
-					question_map[tag.client_id].level_type == 'question' && 
+					question_map[tag.client_id].level_type == 'question' &&
 					question_map[tag.client_id].ques_mode == 1
 				) {
 					list.push({
@@ -69,7 +69,7 @@ function extractChoiceOptions() {
 				var k = JSON.parse(ques.json)
 				const quesPatt = `$..content[?(typeof(@) == 'string' && @.match('^[A-F]+[.]'))]`;
 				JSONPath({
-					path: quesPatt, json: k, resultType: "path", callback: function (res) {						
+					path: quesPatt, json: k, resultType: "path", callback: function (res) {
 						ranges.push({
 							client_id: ques.client_id,
 							control_id: ques.control_id,
@@ -118,7 +118,7 @@ function extractChoiceOptions() {
 function getChoiceQuesInfo() {
 	Asc.scope.node_list = window.BiyueCustomData.node_list
 	Asc.scope.question_map = window.BiyueCustomData.question_map
-	return biyueCallCommand(window, function() {		
+	return biyueCallCommand(window, function() {
 		var node_list = Asc.scope.node_list || []
 		var question_map = Asc.scope.question_map || {}
 		var oDocument = Api.GetDocument()
@@ -168,7 +168,7 @@ function getChoiceQuesInfo() {
 				doc_path, begin_path, end_path
 			}
 		}
-		
+
 		var list = []
 		Object.keys(question_map).forEach(qid => {
 			var ques = question_map[qid]
@@ -327,4 +327,67 @@ function getChoiceQuesInfo() {
 	// })
 }
 
-export { extractChoiceOptions, getChoiceQuesInfo }
+// 获取选择题信息
+function getChoiceQuesOption(e) {
+  if (window.BiyueCustomData.question_map[e.id].ques_mode == 1) {
+    var auto_align_patt = new RegExp(/(?<!data-latex="[^"]*)([A-F]|[\u2460-\u2469\u24EA])[.．].*?([&nbsp;|\s| |　]{2}|<\/p>)/g)
+    var str = e.content_html || ''
+    var arr = str.match(auto_align_patt) || []
+
+    for (const key in arr) {
+      const option = arr[key]
+      const nexOption = arr[key * 1 + 1] || ''
+      const index = str.indexOf(option)
+      if (option.substring(option.length - 4) === '</p>') {
+        arr[key] = option.substring(0, option.length - 4)
+        str = str.replace(arr[key], '</p>')
+      } else if (nexOption) {
+        const end_index = str.indexOf(nexOption)
+        const newItem = str.substring(index, end_index)
+
+        arr[key] = str.substring(index, end_index)
+        if (newItem.indexOf('</p>') >= 0) {
+          arr[key] = arr[key].substring(0, newItem.indexOf('</p>'))
+        }
+        str = str.replace(arr[key], '')
+      } else {
+        const end_str = str.substring(index)
+        const end_index = end_str.indexOf('</p>')
+        if (end_index >= 0) {
+          arr[key] = str.substring(index, index + end_index)
+        }
+        str = str.replace(arr[key], '')
+      }
+      /* 清空不完整的span标签 Start*/
+      // 创建一个虚拟的 DOM 元素
+      const div = document.createElement('div')
+      div.innerHTML = arr[key]
+      // 获取所有的 span 标签
+      const spanTags = div.getElementsByTagName('span')
+      // 遍历每个 span 标签，检查是否存在不完整的标签并清空
+      Array.from(spanTags).forEach((span) => {
+        const content = span.innerHTML
+        const isCompleteTag = content && span.outerHTML.includes(content)
+
+        if (!isCompleteTag) {
+          span.innerHTML = ''
+        }
+      })
+      // 获取处理后的文本
+      arr[key] = div.innerHTML
+      /* 清空不完整的span标签 End*/
+
+      // 清除选项后面的空格
+      var empty_patt = new RegExp(/.(\s*$)/g)
+      const item_tail = arr[key].match(empty_patt)
+      if (item_tail && item_tail[0] && item_tail[0].length > 1) {
+        const end_str = item_tail[0].substring(0, 1)
+        arr[key] = arr[key].replace(`/(?<!<img[^>]*>)(\b${item_tail[0]}\b)/g`, end_str)
+      }
+    }
+    console.log('html------------->', e.content_html)
+    console.log('options------------->', arr)
+  }
+}
+
+export { extractChoiceOptions, getChoiceQuesInfo, getChoiceQuesOption }
