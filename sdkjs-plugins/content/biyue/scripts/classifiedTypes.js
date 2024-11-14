@@ -780,6 +780,34 @@ function handleRangeType(options) {
 				})
 			}
 		}
+		// 表格中存在题目
+		function hasQuestion(oTable) {
+			if (!oTable) {
+				return false
+			}
+			var rows = oTable.GetRowsCount()
+			for (var r = 0; r < rows; ++r) {
+				var oRow = oTable.GetRow(r)
+				var cnt = oRow.GetCellsCount()
+				for (var c = 0; c < cnt; ++c) {
+					var oCell = oRow.GetCell(c)
+					var oCellContent = oCell.GetContent()
+					var elcount = oCellContent.GetElementsCount()
+					for (var k = 0; k < elcount; ++k) {
+						var el = oCellContent.GetElement(k)
+						if (!el || !el.GetClassType || el.GetClassType() != 'blockLvlSdt') {
+							continue
+						}
+						var tag = Api.ParseJSON(el.GetTag())
+						var qid = tag.mid || tag.client_id
+						if (question_map[qid] && question_map[qid].level_type == 'question') {
+							return true
+						}
+					}
+				}
+			}
+			return false
+		}
 		function clearBig(oControl) {
 			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
 				return
@@ -790,7 +818,23 @@ function handleRangeType(options) {
 			var templist = []
 			var controlContent = oControl.GetContent()
 			var childCount = controlContent.GetElementsCount()
-			for (var i = childCount - 1; i >= 0; --i) {
+			var index = 0
+			for (; index < childCount; ++index) {
+				var element = controlContent.GetElement(index)
+				if (!element || !element.GetClassType) {
+					break
+				}
+				if (element.GetClassType() == 'blockLvlSdt') {
+					break
+				} else if (element.GetClassType() == 'table') {
+					if (element.GetTableTitle() != 'questionTable') {
+						if (hasQuestion(element)) {
+							break
+						}
+					}
+				}
+			}
+			for (var i = childCount - 1; i >= index; --i) {
 				var element = controlContent.GetElement(i)
 				if (!element) {
 					break
@@ -798,43 +842,8 @@ function handleRangeType(options) {
 				if (!element.GetClassType) {
 					break
 				}
-				if (element.GetClassType() == 'blockLvlSdt') {
-					templist.push(element)
-					controlContent.RemoveElement(i)
-				} else if (element.GetClassType() == 'table') {
-					if (element.GetTableTitle() != 'questionTable') {
-						var find = false
-						// 判断所有单元格都是control
-						var rows = element.GetRowsCount()
-						for (var r = 0; r < rows; ++r) {
-							var oRow = element.GetRow(r)
-							var cnt = oRow.GetCellsCount()
-							for (var c = 0; c < cnt; ++c) {
-								var oCell = oRow.GetCell(c)
-								var oCellContent = oCell.GetContent()
-								var elcount = oCellContent.GetElementsCount()
-								for (var k = 0; k < elcount; ++k) {
-									var el = oCellContent.GetElement(k)
-									if (!el || !el.GetClassType || el.GetClassType() != 'blockLvlSdt') {
-										find = true
-										break
-									}
-								}
-								if (find) {
-									break
-								}
-							}
-							if (find) {
-								break
-							}
-						}
-						if (find) {
-							break
-						}
-					}
-					templist.push(element)
-					controlContent.RemoveElement(i)
-				}
+				templist.push(element)
+				controlContent.RemoveElement(i)
 			}
 			if (templist.length) {
 				templist.forEach(e => {
@@ -1027,6 +1036,16 @@ function handleRangeType(options) {
 				if (oParagraph) {
 					var oCell = oParagraph.GetParentTableCell()
 					if (oCell) {
+						var oTable = oCell.GetParentTable()
+						if (oControl) {
+							var oTable2 = oControl.GetContent().GetAllTables() || []
+							var tindex = oTable2.findIndex(e => {
+								return e.Table.Id == oTable.Table.Id
+							})
+							if (tindex >= 0) {
+								return null
+							}
+						}
 						return {
 							ques_id: quesTag ? quesTag.client_id : 0,
 							oCells: [oCell]
