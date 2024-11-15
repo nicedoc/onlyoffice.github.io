@@ -24,6 +24,291 @@ function last_paragraph(path) {
         return "[" + ids.shift() + "]";
     });
 }
+function getChoiceQuesData() {
+	Asc.scope.node_list = window.BiyueCustomData.node_list
+	Asc.scope.question_map = window.BiyueCustomData.question_map
+	return biyueCallCommand(window, function() {
+		var question_map = Asc.scope.question_map || {}
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls() || []
+		function getControlsByClientId(cid) {
+			var findControls = controls.filter(e => {
+				var tag = Api.ParseJSON(e.GetTag())
+				if (e.GetClassType() == 'blockLvlSdt') {
+					return tag.client_id == cid && e.GetPosInParent() >= 0
+				} else if (e.GetClassType() == 'inlineLvlSdt') {
+					return e.Sdt && e.Sdt.GetPosInParent() >= 0 && tag.client_id == cid
+				}
+			})
+			if (findControls && findControls.length) {
+				return findControls[0]
+			}
+		}
+		function getPosPath(pos) {
+			var path = ''
+			if (pos) {
+				for (var i = 0; i < pos.length; ++i) {
+					if (pos[i].Class && pos[i].Class.Content) {
+						path += `['content'][${pos[i].Position}]`
+					}
+				}
+			}
+			return path
+		}
+		function getControlPath(oControl) {
+			if (!oControl) {
+				return {}
+			}
+			var docPos = oControl.Sdt.GetDocumentPositionFromObject() || []
+			var doc_path = '$' + getPosPath(docPos)
+			var begin_path = ''
+			var end_path = ''
+			var oRange = oControl.GetRange()
+			if (oRange.StartPos) {
+				var sPos = oRange.StartPos.slice(docPos.length, oRange.StartPos.length)
+				begin_path = `$['sdtContent']` + getPosPath(sPos)
+			}
+			if (oRange.EndPos) {
+				var ePos = oRange.EndPos.slice(docPos.length, oRange.EndPos.length)
+				end_path = `$['sdtContent']` + getPosPath(ePos)
+			}
+			return {
+				doc_path, begin_path, end_path
+			}
+		}
+		function getNextElement(i3, runContent, i2, oElement) {
+			if (i3 + 1 < runContent.length) {
+				return {
+					i2: i2,
+					i3: i3 + 1,
+					Data: runContent[i3 + 1]
+				}
+			} else {
+				for (var i = i2 + 1; i < oElement.GetElementsCount(); ++i) {
+					var oRun = oElement.GetElement(i)
+					if (oRun.GetClassType() != 'run') {
+						continue
+					}
+					var runContent2 = oRun.Run.Content || []
+					for (var i4 = 0; i4 < runContent2.length; ++i4) {
+						return {
+							i2: i,
+							i3: i4,
+							Data: runContent2[i4]
+						}
+					}
+				}
+			}
+			return null
+		}
+		function getOption(oControl) {
+			if (!oControl) {
+				return null
+			}
+			var oControlContent = oControl.GetContent()
+			var elementCount = oControlContent.GetElementsCount()
+			var opt_list = []
+			var flag = 0
+			var prePath = {}
+			var steam_end = null
+			var firstType = null
+			var firstValue = null
+			for (var i = 0; i < elementCount; i++) {
+				var oElement = oControlContent.GetElement(i)
+				if (oElement.GetClassType() == 'paragraph') {
+					var count2 = oElement.Paragraph.Content ? oElement.Paragraph.Content.length : 0
+					for (var i2 = 0; i2 < count2; i2++) {
+						var oRun = oElement.GetElement(i2)
+						if (!oRun) {
+							var run = oElement.Paragraph.Content[i2]
+							if (run) {
+								var runContent = run.Content || []
+								if (!flag) {
+									prePath = {
+										i: i,
+										i2: i2,
+										i3: runContent.length - 1
+									}
+								}
+							}
+							continue
+						}
+						if (oRun.GetClassType() != 'run') { // 目前只针对run进行处理
+							continue
+						}
+						var runContent = oRun.Run.Content || []
+						var count3 = runContent.length
+						for (var i3 = 0; i3 < count3; ++i3) {
+							var element3 = runContent[i3]
+							var type = element3.GetType()
+							if (type == 1) { // CRunText								
+								var flag2 = 0
+								var beginPath = ''
+								if (element3.Value >= 65 && element3.Value <= 72 && (!firstType || firstType == 'A')) { // A-H
+									var nextElement = getNextElement(i3, runContent, i2, oElement)
+									if (nextElement) {
+										if (nextElement.Data.Value == 46) { // .
+											var nextNextElement = getNextElement(nextElement.i3, oElement.GetElement(nextElement.i2).Run.Content, nextElement.i2, oElement)
+											if (nextNextElement && (nextNextElement.Data.Value == 32 || nextNextElement.Data.Value == 12288)) { // 空格 or 全角空格
+												flag2 = 'A'
+												var optElement = getNextElement(nextNextElement.i3, oElement.GetElement(nextNextElement.i2).Run.Content, nextNextElement.i2, oElement)
+												if (optElement) {
+													beginPath = `$['sdtContent']` + `['content'][${i}]['content'][${optElement.i2}]['content'][${optElement.i3}]`
+												}
+											}
+										} else if (nextElement.Data.Value == 65294) { // ．全角的点
+											flag2 = 'A'
+											var optElement = getNextElement(nextElement.i3, oElement.GetElement(nextElement.i2).Run.Content, nextElement.i2, oElement)
+											if (optElement) {
+												beginPath = `$['sdtContent']` + `['content'][${i}]['content'][${optElement.i2}]['content'][${optElement.i3}]`
+											}
+										}
+									}
+								} else if (element3.Value >= 9312 && element3.Value <= 9320 && (!firstType || firstType == 'c1')) { // 圈1-圈9
+									var nextElement = getNextElement(i3, runContent, i2, oElement)
+									if (nextElement && (nextElement.Data.Value == 32 || nextElement.Data.Value == 12288)) { // 空格
+										flag2 = 'c1'
+										var optElement = getNextElement(nextElement.i3, oElement.GetElement(nextElement.i2).Run.Content, nextElement.i2, oElement)
+										if (optElement) {
+											beginPath = `$['sdtContent']` + `['content'][${i}]['content'][${optElement.i2}]['content'][${optElement.i3}]`
+										}
+									}
+								}
+								if (flag2) {
+									if (!firstType) {
+										firstType = flag2
+										firstValue = String.fromCharCode(element3.Value)
+									}
+									flag = 1
+									if (opt_list.length) {
+										opt_list[opt_list.length - 1].endPath = `$['sdtContent']` + `['content'][${i}]['content'][${i2}]['content'][${i3}]`
+									} else {
+										if (prePath && prePath.i != undefined) {
+											steam_end = `$['sdtContent']` + `['content'][${prePath.i}]`
+											if (prePath.i2 != undefined) {
+												steam_end += `['content'][${prePath.i2}]`
+												if (prePath.i3 != undefined) {
+													steam_end += `['content'][${prePath.i3}]`
+												}
+											}
+										}
+									}
+									opt_list.push({
+										value: element3.Value,
+										beginPath: beginPath
+									})
+								}
+							} else if (type == 4) { // CRunParagraphMark
+								if (opt_list.length && !opt_list[opt_list.length - 1].endPath) {
+									opt_list[opt_list.length - 1].endPath = `$['sdtContent']` + `['content'][${i}]['content'][${i2}]['content'][${i3}]`
+								}
+							}
+							if (flag == 0) {
+								prePath = {
+									i: i,
+									i2: i2,
+									i3: i3
+								}
+							}
+						}
+					}
+				}
+			}
+			return {
+				steam_end: steam_end,
+				options: opt_list,
+				option_type: firstValue
+			}
+		}
+		function getHtml(beg, end) {
+			if (beg == end) {
+				return ''
+			}
+			var oRange = Api.asc_MakeRangeByPath(beg, end)
+			oRange.Select()
+			let text_data = {
+				data: "",
+				// 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
+				pushData: function (format, value) {
+					this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : "";
+				}
+			};
+
+			Api.asc_CheckCopy(text_data, 2);
+			return text_data.data
+		}
+		var list = []
+		var choiceMap = {}
+		Object.keys(question_map).forEach(qid => {
+			var ques = question_map[qid]
+			if (ques.level_type == 'question' && ques.ques_mode == 1) {
+				var obj = {
+					ques_id: qid,
+					items: []
+				}
+				choiceMap[qid] = {
+					steam: '',
+					options: [],
+					option_type: ''
+				}
+				if (ques.is_merge && ques.ids) {
+					ques.ids.forEach(id => {
+						var oControl = getControlsByClientId(id)
+						if (oControl) {
+							var paths = getControlPath(oControl)
+							var data = getOption(oControl)
+							if (data.options.length) {
+								data.options.forEach((e, index) => {
+									var html = getHtml(paths.doc_path + e.beginPath, paths.doc_path + e.endPath)
+									choiceMap[qid].options.push({
+										value: String.fromCharCode(e.value),
+										html: html
+									})
+								})
+								choiceMap[qid].option_type = data.option_type
+								if (data.steam_end) {
+									choiceMap[qid].steam += getHtml(paths.doc_path + paths.begin_path, paths.doc_path + data.steam_end)
+								}
+							} else {
+								choiceMap[qid].steam += getHtml(paths.doc_path + paths.begin_path, paths.doc_path + data.end_path)
+							}
+						}
+					})
+				} else {
+					var oControl = getControlsByClientId(qid)
+					if (oControl) {
+						var paths = getControlPath(oControl)
+						var data = getOption(oControl)
+
+						data.options.forEach((e, index) => {
+							var html = getHtml(paths.doc_path + e.beginPath, paths.doc_path + e.endPath)
+							choiceMap[qid].options.push({
+								value: String.fromCharCode(e.value),
+								html: html
+							})
+						})
+						choiceMap[qid].steam = getHtml(paths.doc_path + paths.begin_path, paths.doc_path + data.steam_end)
+						choiceMap[qid].option_type = data.option_type
+					}
+				}
+			}
+		})
+		return choiceMap
+	})
+	// .then(res => {
+	// 		$('#choiceOptions').empty()
+	// 		console.log('================ dddddd', res)
+	// 		Object.values(res).forEach(ques => {
+	// 			$('#choiceOptions').append(`<div>题干：</div>`)
+	// 			$('#choiceOptions').append(`<div>${ques.steam}</div>`)
+	// 			$('#choiceOptions').append(`<div>选项：</div>`)
+	// 			ques.options.forEach((e2, index) => {
+	// 				$('#choiceOptions').append(`<div>${e2}</div>`)
+	// 				// $('#choiceOptions').append(e2)
+	// 			})
+	// 		})
+	// 	})
+}
 // 提取选择题选项
 function extractChoiceOptions() {
 	Asc.scope.node_list = window.BiyueCustomData.node_list
@@ -390,4 +675,4 @@ function getChoiceQuesOption(e) {
   }
 }
 
-export { extractChoiceOptions, getChoiceQuesInfo, getChoiceQuesOption }
+export { extractChoiceOptions, getChoiceQuesInfo, getChoiceQuesOption, getChoiceQuesData }

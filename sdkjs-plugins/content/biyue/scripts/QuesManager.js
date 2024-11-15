@@ -9,7 +9,7 @@ import { ShowLinkedWhenclickImage } from './linkHandler.js'
 import { layoutDetect } from './layoutFixHandler.js'
 import { setBtnLoading, isLoading } from './model/util.js'
 import { refreshTree } from './panelTree.js'
-import { getChoiceQuesInfo } from './choiceQuestion.js'
+import { getChoiceQuesData } from './choiceQuestion.js'
 var g_click_value = null
 var upload_control_list = []
 
@@ -2409,7 +2409,7 @@ function reqUploadTree() {
 	}).then(() => {
 		return handleUploadPrepare('hide')
 	}).then(() => {
-		return getChoiceQuesInfo()
+		return getChoiceQuesData()
 	}).then((res) => {
 		Asc.scope.choice_html_map = res
 		return getControlListForUpload()
@@ -2741,11 +2741,13 @@ function generateTreeForUpload(control_list) {
 				e.options = []
 				if (choicemap[e.id].options) {
 					choicemap[e.id].options.forEach(option => {
-						e.options.push(cleanHtml(option))
+						e.options.push({
+							value: option.value,
+							html: cleanHtml(option.html)
+						})
 					})
 				}
-				// todo..移除选项的首字母
-				e.option_type = 'A'
+				e.option_type = choicemap[e.id].option_type
 			}
 			if (e.parent_id == 0) {
 				e.id = e.id + ''
@@ -5625,7 +5627,7 @@ function importExam() {
 	}).then(() => {
 		return handleUploadPrepare('hide')
 	}).then(() => {
-		return getChoiceQuesInfo()
+		return getChoiceQuesData()
 	}).then((res) => {
 		Asc.scope.choice_html_map = res
 		return getControlListForUpload()
