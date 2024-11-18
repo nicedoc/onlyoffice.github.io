@@ -3949,7 +3949,8 @@ function handleImageIgnore(cmdType) {
 		console.log('handleImageIgnore', cmdType)
 		var oDocument = Api.GetDocument()
 		var drawings = oDocument.GetAllDrawingObjects() || []
-		var oState = oDocument.Document.SaveDocumentState()
+		// 若调用oState的方式，oDrawing.Drawing.selected得到的值会是false，因而这里暂时注释
+		// var oState = oDocument.Document.SaveDocumentState()
 		drawings.forEach(oDrawing => {
 			if (oDrawing.Drawing.selected) {
 				var tag = Api.ParseJSON(oDrawing.GetTitle())
@@ -3976,7 +3977,7 @@ function handleImageIgnore(cmdType) {
 				}
 			}
 		})
-		oDocument.Document.LoadDocumentState(oState)
+		// oDocument.Document.LoadDocumentState(oState)
 	}, false, false)
 }
 // todo。。分栏需要考虑的因素很多，需要之后再考虑

@@ -1232,14 +1232,24 @@ import { refreshTree } from './panelTree.js'
 				var title = oDrawing.GetTitle()
 				if (title && title.indexOf('feature') >= 0) {
 					var titleObj = Api.ParseJSON(title)
-					if (
-						titleObj.feature &&
-						titleObj.feature.zone_type == 'question'
-					) {
-						oDrawing.Delete()
+					if (titleObj.feature) {
+						if (titleObj.feature.zone_type == 'question') {
+							oDrawing.Delete()
+						} else {
+							if (titleObj.feature.ques_use) {
+								delete titleObj.feature.ques_use
+								oDrawing.SetTitle(JSON.stringify(titleObj))
+							}
+							if (titleObj.feature.partical_no_dot) {
+								oDrawing.SetShadow(null, 0, 100, null, 0, '#0fc1fd')	
+							} else {
+								if (oDrawing.Drawing.spPr && oDrawing.Drawing.spPr.effectProps && oDrawing.Drawing.spPr.effectProps.EffectLst) {
+									oDrawing.ClearShadow()
+								}	
+							}
+						}
 					}
 				}
-				
 			}
 			// 删除regionType == num的control
 			for (var i = controls.length - 1; i >= 0; --i) {
@@ -1289,6 +1299,17 @@ import { refreshTree } from './panelTree.js'
 							}
 						}
 					}
+				}
+				var tabletitle = oTable.GetTableTitle()
+				if (tabletitle) {
+					var title = Api.ParseJSON(tabletitle)
+					if (title.client_id) {
+						delete title.client_id
+					}
+					if (title.ques_use) {
+						delete title.ques_use
+					}
+					oTable.SetTableTitle(JSON.stringify(title))
 				}
 			}
 			// 删除选择题集中作答区
