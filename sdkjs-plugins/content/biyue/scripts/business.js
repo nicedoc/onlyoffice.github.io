@@ -114,14 +114,14 @@ function updatePageSizeMargins() {
 						description: ''
 					})
 				}
-				// 单元格中有图片时，需要自动撑开高度
-				if (oDrawing.GetParentTable()) {
+				// 有图片时，需要自动撑开高度
+				// if (oDrawing.GetParentTable()) {
 					var oParagraph = oDrawing.GetParentParagraph()
 					if (oParagraph) {
 						var linespacing = oParagraph.GetSpacingLineValue()
 						oParagraph.SetSpacingLine(linespacing, 'atLeast')
 					}
-				}
+				// }
 				// 移除图片阴影
 				oDrawing.ClearShadow()
 			})
