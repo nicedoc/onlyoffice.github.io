@@ -1,10 +1,19 @@
 import { preGetExamTree, focusControl } from './QuesManager.js'
-import { showCom, updateText } from './model/util.js'
+import { showCom, updateText, addClickEvent } from './model/util.js'
 import { handleRangeType } from "./classifiedTypes.js"
 import { getDataByParams } from '../scripts/model/ques.js'
+var g_tree_info = {}
+var big_info = {
+	big_id: 0,
+	visible_big_set: false,
+	child_ids: [],
+	end_id: 0
+}
 function generateTree() {
 	return preGetExamTree().then(res => {
 		Asc.scope.tree_info = res
+		g_tree_info = res || {}
+		console.log('=========generateTree ', g_tree_info)
 		renderTree()
 	})
 }
@@ -31,7 +40,11 @@ function renderTreeNode(parent, item, parentData) {
 	var offset = 24
 	if (parentData) {
 		if (parentData.is_big) {
-			identation = 20
+			if (item.lvl != null && parentData.lvl !== null) {
+				identation = 20 + offset * (item.lvl - parentData.lvl - 1)
+			} else {
+				identation = 20
+			}
 		} else if (item.lvl === null) {
 			if (parentData.lvl) {
 				identation = offset * (parentData.lvl + 1)
@@ -42,7 +55,11 @@ function renderTreeNode(parent, item, parentData) {
 			identation = (item.level_type =='struct' ? 10 : offset) * item.lvl
 		}
 	} else {
-		identation = 0
+		if (item.lvl != null) {
+			identation = item.lvl * offset
+		} else {
+			identation = 0
+		}
 	}
 	if (item.level_type == 'struct') {
 		html += `<div class="row-align-center" id="group-${item.id}">
@@ -68,7 +85,9 @@ function renderTreeNode(parent, item, parentData) {
 }
 
 function renderTree() {
-	var tree_info = Asc.scope.tree_info || {}
+	var tree_info = g_tree_info
+	big_info = null
+	showCom('#panelTree #bigbox', false)
 	var rootElement = $('#tree')
 	rootElement.empty()
 	if (tree_info.tree && tree_info.tree.length) {
@@ -101,16 +120,15 @@ function renderTree() {
 						})
 						if (nodeData && !quesData.is_merge) { // 合并题不可设置为大题
 							if (nodeData.is_big) {
-								generateMenuItems(['clearBig'], item.id); // 生成动态菜单
+								generateMenuItems(['clearBig', 'extendBig'], item.id); // 生成动态菜单
 							} else {
-								generateMenuItems(['setBig'], item.id); // 生成动态菜单
+								generateMenuItems(['setBig', 'setBig2'], item.id); // 生成动态菜单
 							}
-							$('#dynamicMenu').css({
-								display: 'block',
-								left: event.pageX,
-								top: event.pageY
-							});
+							updateMenuPos(event)
 						}
+					} else if (quesData.level_type == 'struct') {
+						generateMenuItems(['question'], item.id)
+						updateMenuPos(event)
 					}
 				}
 				com.off('contextmenu', contextmenuHandler)
@@ -124,6 +142,190 @@ function renderTree() {
 	}
 }
 
+function updateMenuPos(event) {
+	const menu = document.getElementById('dynamicMenu');
+	// 获取浏览器窗口的宽度、高度
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+	var x = event.pageX
+	var y = event.pageY
+	// 设置菜单初始位置
+    menu.style.left = `${x}px`;
+    menu.style.top = `${y}px`;
+
+    // 检查菜单是否会超出窗口边界
+    if (x + menu.offsetWidth > windowWidth) {
+        menu.style.left = `${windowWidth - menu.offsetWidth}px`;
+    }
+    if (y + menu.offsetHeight > windowHeight) {
+        menu.style.top = `${windowHeight - menu.offsetHeight}px`;
+    }
+
+    // 显示菜单
+    menu.style.display = 'block';
+	window.show_dynamic_menu = true
+}
+
+function clickTreeLock() {
+	window.tree_lock = !(window.tree_lock)
+	var com = $('#panelTree #lock .iconfont')
+	if (!com) {
+		return
+	}
+	if (window.tree_lock) {
+		com.removeClass('icon-dingzi-u')
+		com.addClass('icon-dingzi1')
+	} else {
+		com.addClass('icon-dingzi-u')
+		com.removeClass('icon-dingzi1')
+	}
+}
+
+function updateBig(id) {
+	if (big_info && big_info.visible_big_set) {
+		resetBig()
+	}
+	var childrenName = `#panelTree #ques-${id}-children`
+	var children = $(childrenName)
+	if (!children.length) {
+		return
+	}
+	var index = g_tree_info.list.findIndex(e => {
+		return e.id == id
+	})
+	if (index == -1) {
+		return
+	}
+	var lvl = g_tree_info.list[index].lvl
+	var i = index + 1
+	var toIndex = -1
+	for (; i < g_tree_info.list.length; ++i) {
+		if (g_tree_info.list[i].level_type == 'struct') {
+			toIndex = i - 1
+			break
+		}
+		if (g_tree_info.list[i].lvl == 0) {
+			toIndex = i - 1
+			break
+		}
+		if (lvl === null) {
+			continue
+		} else if (g_tree_info.list[i].lvl == null) {
+			continue
+		} else if (lvl >= g_tree_info.list[i].lvl) {
+			toIndex = i - 1
+			break	
+		}
+	}
+	if (toIndex > index) {
+		big_info = {
+			big_id: id,
+			visible_big_set: true,
+			child_ids: [],
+			end_id: g_tree_info.list[index].end_id || 0,
+			lock: window.tree_lock
+		}
+		if (!window.tree_lock) {
+			clickTreeLock()
+		}
+		var bigques = $(`#panelTree #box-${id}`)
+		bigques.css({
+			'background-color': '#fff',
+			'border': '1px solid #bbb'
+		})
+		var mleft = parseInt((bigques).css('margin-left'), 10);
+		var minMarginLeft = 100
+		for (var j = index + 1; j <= toIndex; ++j) {
+			var item = $(`#panelTree #box-${g_tree_info.list[j].id}`)
+			var parentElement = item.parent();
+			var prevElement = item.prev();
+			var marginLeft = parseInt((item).css('margin-left'), 10);
+			big_info.child_ids.push({
+				id: g_tree_info.list[j].id,
+				parent: parentElement ? parentElement.attr('id') : null,
+				prev: prevElement ? prevElement.attr('id') : null,
+				marginLeft: marginLeft
+			})
+			item.css({
+				'background-color': '#fff',
+				'border': '1px solid #bbb'
+			});
+			minMarginLeft = Math.min(minMarginLeft, marginLeft)
+			item.appendTo(childrenName);
+			if (g_tree_info.list[j].parent_id && g_tree_info.list[j].parent_id != id) {
+				var parentData = g_tree_info.list.find(e => {
+					return e.id == g_tree_info.list[j].parent_id
+				})
+				if (parentData && parentData.level_type == 'question') {
+					item.hide()
+				}
+			}
+		}
+		if (minMarginLeft > mleft) {
+			var offset = minMarginLeft - mleft
+			big_info.child_ids.forEach(e => {
+				$(`#panelTree #box-${e.id}`).css({
+					'margin-left': `${e.marginLeft - offset}px`
+				})
+			})
+		}
+		if (big_info.end_id) {
+			$(`#panelTree #box-${big_info.end_id}`).css({
+				'border': '1px solid #95c8ff',
+				'background-color': '#deedfe',
+				'color': '#2489f6'
+			})
+		}
+		showBigBox(childrenName)
+		updateSelect(0)
+	}
+}
+
+function showBigBox(childrenName) {
+	var children = $(childrenName)
+	children.append(`<div id="bigbox" class="row-between">
+				<div>tip: 请点击截止题目</div>
+				<div>
+					<span id="bigcancel" class="clicked">取消</span>
+					<span id="bigconfirm" class="clicked">确定</span>
+				</div>
+			</div>`)
+	showCom('#panelTree #bigbox', true)
+	showCom('#panelTree #bigconfirm', big_info.end_id != 0)
+	addClickEvent('#panelTree #bigcancel', onBigCancel)
+	addClickEvent('#panelTree #bigconfirm', onBigConfirm)
+}
+
+function onBigCancel(e) {
+	e.cancelBubble = true
+	e.preventDefault()
+	resetBig()
+}
+
+function onBigConfirm(e) {
+	e.cancelBubble = true
+	e.preventDefault()
+	if (big_info) {
+		handleRangeType({
+			typeName: 'setBig',
+			big_id: big_info.big_id,
+			end_id: big_info.end_id
+		})
+		resetBig()
+	}
+}
+
+function resetBig() {
+	if (!big_info) {
+		return
+	}
+	if (!big_info.lock) {
+		clickTreeLock()
+	}
+	renderTree()
+	big_info = null
+}
+
 function generateMenuItems(options, id) {
 	const menuContent = $('#menuContent');
 	menuContent.empty(); // 清除旧的菜单项
@@ -131,10 +333,19 @@ function generateMenuItems(options, id) {
 		var name = ''
 		switch(e) {
 			case 'setBig': 
-				name = '设置 - 大题'
+				name = '构建大小题 - 编号'
+				break
+			case 'setBig2':
+				name = '构建大小题 - 手动'
 				break
 			case 'clearBig':
 				name = '清除 - 大题'
+				break
+			case 'extendBig':
+				name = '扩展大小题'
+				break
+			case 'question':
+				name = '设置为 - 题目'
 				break
 			default:
 				break
@@ -151,16 +362,42 @@ function generateMenuItems(options, id) {
 
 function clickTreeItem(id) {
 	focusControl(id)
+	if (big_info && big_info.visible_big_set) {
+		updateSelect(0)
+		if (big_info.end_id && big_info.end_id != id) {
+			$(`#panelTree #box-${big_info.end_id}`).css({
+				'background-color': '#fff',
+				'border': '1px solid #bbb',
+				'color': '#444'
+			})
+		}
+		if (big_info.child_ids.findIndex(e => {
+			return e.id == id
+		}) >= 0) {
+			big_info.end_id = id
+			$(`#panelTree #box-${big_info.end_id}`).css({
+				'border': '1px solid #95c8ff',
+				'background-color': '#deedfe',
+				'color': '#2489f6'
+			})
+			showCom('#panelTree #bigconfirm', true)
+		}
+	} else {
+		updateSelect(id)
+	}
 }
 
 function clickMenu(id, cmd) {
-	console.log('clickMenu', id, cmd)
-	if (cmd == 'setBig' || cmd == 'clearBig') {
+	if (cmd == 'setBig' || cmd == 'clearBig' || cmd == 'question') {
 		focusControl(id).then(res => {
 			handleRangeType({
 				typeName: cmd
 			})
 		})
+	} else if (cmd == 'setBig2') {
+		updateBig(id)
+	} else if (cmd == 'extendBig') {
+		updateBig(id)
 	}
 }
 
@@ -170,6 +407,10 @@ function updateTreeSelect(params) {
 		return
 	}
 	var qid = data.ques_client_id || data.client_id
+	updateSelect(qid, true)
+}
+
+function updateSelect(qid, updateScroll) {
 	var oldSelected = $('#panelTree #tree .selected')
 	if (oldSelected) {
 		oldSelected.removeClass('selected')
@@ -177,11 +418,13 @@ function updateTreeSelect(params) {
 	var $target = $(`#panelTree #box-${qid}`)
 	if ($target && $target.length) {
 		$target.addClass('selected')
-		var $container = $('#panelTree #tree')
-		if ($container.length) {
-			$container.animate({
-				scrollTop: $target.offset().top - $container.offset().top + $container.scrollTop()
-			}, 500); // 500 is the duration of the animation in milliseconds
+		if (updateScroll) {
+			var $container = $('#panelTree #tree')
+			if ($container.length) {
+				$container.animate({
+					scrollTop: $target.offset().top - $container.offset().top + $container.scrollTop()
+				}, 500); // 500 is the duration of the animation in milliseconds
+			}
 		}
 	}
 }
@@ -189,5 +432,6 @@ function updateTreeSelect(params) {
 export {
 	generateTree,
 	refreshTree,
-	updateTreeSelect
+	updateTreeSelect,
+	clickTreeLock
 }

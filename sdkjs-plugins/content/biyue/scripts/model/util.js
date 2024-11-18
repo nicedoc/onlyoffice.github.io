@@ -23,6 +23,7 @@ function addClickEvent(comname, func) {
 	if (!com) {
 		return
 	}
+	com.off('click', func)
 	com.on('click', func)
 }
 

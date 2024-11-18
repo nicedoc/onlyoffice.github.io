@@ -719,6 +719,7 @@ function handleRangeType(options) {
 			var templist = []
 			var parentElementCount = oParent.GetElementsCount()
 			var tag = Api.ParseJSON(oControl.GetTag() || '{}')
+			var find = false
 			for (var i = posinparent + 1; i < parentElementCount; ++i) {
 				var element = oParent.GetElement(i)
 				if (!element) {
@@ -733,33 +734,76 @@ function handleRangeType(options) {
 					if (nextTag.regionType == 'question') {
 						if (nextTag.client_id) {
 							if (question_map[nextTag.client_id] && question_map[nextTag.client_id].level_type == 'struct') {
+								find = true
 								break
 							}	
 						}
-						if (nextTag.lvl <= tag.lvl) {
-							break
+						if (options.end_id) {
+							var nextId = nextTag.mid || nextTag.client_id
+							if (options.end_id == nextId) {
+								find = true
+							}
+						} else {
+							if (nextTag.lvl <= tag.lvl) {
+								find = true
+								break
+							}
 						}
 					}
 				} else if (element.GetClassType() == 'table') {
-					var oCell = element.GetCell(0, 0)
-					if (oCell) {
-						var oCellContent = oCell.GetContent()
-						var paragraphs = oCellContent.GetAllParagraphs()
-						if (paragraphs && paragraphs.length) {
-							var existLvl = paragraphs.filter(p => {
-								var NumPr = p.GetNumbering()
-								if (NumPr && NumPr.Lvl < tag.lvl) {
-									return true
+					if (options.end_id) {
+						var rowcount = element.GetRowsCount()
+						for (var r = 0; r < rowcount; ++r) {
+							var oRow = element.GetRow(r)
+							var cellcount = oRow.GetCellsCount()
+							for (var c = 0; c < cellcount; ++c) {
+								var oCell = oRow.GetCell(c)
+								var oCellContent = oCell.GetContent()
+								var sum = oCellContent.GetElementsCount()
+								for (var j = 0; j < sum; ++j) {
+									var oElement3 = oCellContent.GetElement(j)
+									if (oElement3.GetClassType() == 'blockLvlSdt') {
+										var tag3 = Api.ParseJSON(oElement3.GetTag())
+										var id3 = tag3.mid || tag3.client_id
+										if (id3 == options.end_id) {
+											find = true
+											break
+										}
+									}
 								}
-							})
-							if (existLvl && existLvl.length) {
+								if (find) {
+									break
+								}
+							}
+							if (find) {
 								break
+							}
+						}
+					} else {
+						var oCell = element.GetCell(0, 0)
+						if (oCell) {
+							var oCellContent = oCell.GetContent()
+							var paragraphs = oCellContent.GetAllParagraphs()
+							if (paragraphs && paragraphs.length) {
+								var existLvl = paragraphs.filter(p => {
+									var NumPr = p.GetNumbering()
+									if (NumPr && NumPr.Lvl < tag.lvl) {
+										return true
+									}
+								})
+								if (existLvl && existLvl.length) {
+									break
+								}
 							}
 						}
 					}
 				}
 				else if (element.GetClassType() == 'paragraph') {
-					break
+					if (options.end_id) {
+						continue
+					} else {
+						break
+					}
 					// var NumPr = element.GetNumbering()
 					// if (NumPr && NumPr.Lvl <= tag.lvl) {
 					// 	break
@@ -769,6 +813,9 @@ function handleRangeType(options) {
 					// }
 				}
 				templist.push(element)
+				if (find) {
+					break
+				}
 			}
 			for (var i = 0; i < templist.length; ++i) {
 				oParent.RemoveElement(posinparent + 1)
@@ -1401,16 +1448,24 @@ function handleRangeType(options) {
 					setBlockTypeNode(oBlockControl, 'question')
 				}
 			} else if (typeName == 'setBig' || typeName == 'clearBig') {
-				if (curBlockSdt && ((selectionInfo.isSelection && completeOverlap) || (!selectionInfo.isSelection))) {
-					if (curBlockSdt) {
-						if (typeName == 'setBig') {
-							setBig(oBlockControl)
-						} else {
-							clearBig(oBlockControl)
+				if (typeName == 'setBig' && options.big_id && options.end_id) {
+					var oBlockControl = getControlsByClientId(options.big_id)
+					clearBig(oBlockControl)
+					setBig(oBlockControl)
+					updateControlTag(oBlockControl, 'question', getParentId(oBlockControl))
+				} else {
+					if (curBlockSdt && ((selectionInfo.isSelection && completeOverlap) || (!selectionInfo.isSelection))) {
+						if (curBlockSdt) {
+							if (typeName == 'setBig') {
+								setBig(oBlockControl)
+							} else {
+								clearBig(oBlockControl)
+							}
+							updateControlTag(oBlockControl, 'question', getParentId(oBlockControl))
 						}
-						updateControlTag(oBlockControl, 'question', getParentId(oBlockControl))
 					}
 				}
+				
 			} else if (typeName == 'write') { // 小问
 				if (selectionInfo.isSelection) {
 					if (curBlockSdt) {

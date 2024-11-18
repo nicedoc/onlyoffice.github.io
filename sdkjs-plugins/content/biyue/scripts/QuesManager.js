@@ -5849,7 +5849,7 @@ function preGetExamTree() {
 				obj.parent_index = list.findIndex(e => {
 					return e.id == obj.parent_id
 				})
-			} else  if (lvl === 0) {
+			} else if (lvl === 0) {
 				obj.parent_id = 0
 			} else {
 				// 根据level, 查找在它前面的比它lvl小的struct
@@ -5861,6 +5861,8 @@ function preGetExamTree() {
 									obj.parent_id = list[i].id
 									obj.parent_index = i
 									break
+								} else if (list[i].is_child) {
+									continue
 								} else {
 									obj.parent_id = list[i].parent_id
 									obj.parent_index = list[i].parent_index
@@ -5900,6 +5902,8 @@ function preGetExamTree() {
 							} else if (list[i].level_type == 'question') {
 								if (quesData.level_type == 'struct') {
 									continue
+								} else if (list[i].is_child) {
+									continue
 								} else {
 									obj.parent_id = list[i].parent_id
 									obj.parent_index = list[i].parent_index
@@ -5913,6 +5917,44 @@ function preGetExamTree() {
 				}
 			}
 			list.push(obj)
+			if (is_big) {
+				var bindex = list.length - 1
+				var childControls = oControl.GetAllContentControls()
+				for (var oChildControl of childControls) {
+					var childTag = Api.ParseJSON(oChildControl.GetTag() || '{}')
+					var childId = childTag.mid || childTag.client_id
+					if (handled[childId] || oChildControl.GetClassType() != 'blockLvlSdt') {
+						continue
+					}
+					var quesData2 = question_map[childId]
+					if (!quesData2) {
+						continue
+					}
+					if (quesData2.level_type != 'struct' && quesData2.level_type != 'question') {
+						continue
+					}
+					handled[childId] = true
+					var parentControl2 = oChildControl.GetParentContentControl()
+					if (parentControl2) {
+						var parentTag2 = Api.ParseJSON(parentControl2.GetTag() || '{}')
+						var parentId2 = parentTag2.mid || parentTag2.client_id
+						var parentIndex2 = list.findIndex(e => {
+							return e.id == parentId2
+						})
+						list.push({
+							id: childId,
+							level_type: quesData2.level_type,
+							parent_id: parentId2,
+							parent_index: parentIndex2,
+							is_big: childTag.big == 1,
+							lvl: getLvl(oChildControl, childTag.big == 1 ? 0 : -1),
+							is_child: true
+						})
+						list[bindex].end_id = childId
+					}
+				}
+			}
+			
 		}
 		const tree = [];
 		const map = {};

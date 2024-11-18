@@ -23,7 +23,7 @@ import { layoutDetect } from './layoutFixHandler.js'
 import { showCom, updateText, addClickEvent, getInfoForServerSave, setBtnLoading, isLoading } from './model/util.js'
 import { reqSaveInfo, onLatexToImg, logOnlyOffice} from './api/paper.js'
 import { biyueCallCommand, resetStack } from './command.js'
-import { generateTree, updateTreeSelect } from './panelTree.js'
+import { generateTree, updateTreeSelect, clickTreeLock } from './panelTree.js'
 import ComponentSelect from '../components/Select.js'
 var select_ask_shortcut = null
 var timeout_paste_hint = null
@@ -213,8 +213,15 @@ function initView() {
 	})
 	// 点击其他地方隐藏所有菜单
 	$(document).on('click', function() {
-		$('.customContextMenu').hide();
+		if (window.show_dynamic_menu) {
+			$('.customContextMenu').hide();
+		}
 	});
+	$('#panelTree #tree').on('scroll', function() {
+		if (window.show_dynamic_menu) {
+			$('.customContextMenu').hide();
+		}
+	})
 	addClickEvent('#panelTree #lock', clickTreeLock)
 }
 
@@ -645,20 +652,6 @@ function hidePops(type, name) {
 	}
 }
 
-function clickTreeLock() {
-	window.tree_lock = !(window.tree_lock)
-	var com = $('#panelTree #lock .iconfont')
-	if (!com) {
-		return
-	}
-	if (window.tree_lock) {
-		com.removeClass('icon-dingzi-u')
-		com.addClass('icon-dingzi1')
-	} else {
-		com.addClass('icon-dingzi-u')
-		com.removeClass('icon-dingzi1')
-	}
-}
 export {
 	initView,
 	handlePaperInfoResult,
