@@ -156,14 +156,14 @@ function initView() {
 			{ value: '0', label: '关闭就近关联' },
 			{ value: '1', label: '开启就近关联' }
 		],
-		value_select: '0',
+		value_select: '1',
 		callback_item: (data) => {
 			changeImageLink(data)
 		},
 		width: '60%',
 		pop_width: '100%'
 	})
-	enableBtnImageLink(false)
+	enableBtnImageLink(true)
 	showCom('#imageLinkTip')
 	addClickEvent('#btnImageLink', onImageLink)
 	addClickEvent('#imageLinkCheck', onImageLinkCheck)
@@ -496,6 +496,7 @@ function enableBtnImageLink(v) {
 	} else {
 		btnlink.addClass('btn-unable')
 	}
+	window.auto_image_link = v
 }
 // 图片就近关联
 function onImageLink() {

@@ -1238,8 +1238,11 @@ import { refreshTree } from './panelTree.js'
 						} else {
 							if (titleObj.feature.ques_use) {
 								delete titleObj.feature.ques_use
-								oDrawing.SetTitle(JSON.stringify(titleObj))
 							}
+							if (titleObj.feature.client_id) {
+								delete titleObj.feature.client_id
+							}
+							oDrawing.SetTitle(JSON.stringify(titleObj))
 							if (titleObj.feature.partical_no_dot) {
 								oDrawing.SetShadow(null, 0, 100, null, 0, '#0fc1fd')	
 							} else {

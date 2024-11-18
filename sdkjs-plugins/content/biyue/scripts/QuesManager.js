@@ -5,7 +5,7 @@ import { handleChoiceUpdateResult, setInteraction, updateChoice } from "./featur
 import { initExtroInfo } from "./panelFeature.js";
 import { addOnlyBigControl, removeOnlyBigControl, getAllPositions2 } from './business.js'
 import { handleRangeType } from "./classifiedTypes.js"
-import { ShowLinkedWhenclickImage } from './linkHandler.js'
+import { imageAutoLink, ShowLinkedWhenclickImage } from './linkHandler.js'
 import { layoutDetect } from './layoutFixHandler.js'
 import { setBtnLoading, isLoading } from './model/util.js'
 import { refreshTree } from './panelTree.js'
@@ -1104,30 +1104,50 @@ function handleChangeType(res, res2) {
 		update_node_id = addIds[0]
 	}
 	if (res.typeName == 'mergeQuestion') {
-		return splitControl(res.merge_data.client_id)
+		return imageAutoLink(res.merge_data.client_id).then(() => {
+			return splitControl(res.merge_data.client_id)
+		})
+	} else if (res.typeName == 'question') {
+		if (question_map[update_node_id] && question_map[update_node_id].level_type == 'question') {
+			return imageAutoLink(update_node_id).then(() => {
+				return splitControl(update_node_id)
+			})
+		}
 	}
 	var use_gather = window.BiyueCustomData.choice_display && window.BiyueCustomData.choice_display.style != 'brackets_choice_region'
 	if (use_gather) {
 		return deleteChoiceOtherWrite(null, false).then(() => {
 			notifyQuestionChange(update_node_id)
-			return updateChoice().then(res => {
-				return handleChoiceUpdateResult(res)
+			return updateChoice().then(res3 => {
+				return handleChoiceUpdateResult(res3)
 			}).then(() => {
 				window.biyue.StoreCustomData()
+			}).then(() => {
+				return ShowLinkedWhenclickImage({
+					client_id: update_node_id
+				})
 			})
 		})
 	} else {
 		if (updateinteraction) {
-			return deleteChoiceOtherWrite(null, false).then(res => {
+			return deleteChoiceOtherWrite(null, false).then(res3 => {
 				notifyQuestionChange(update_node_id)
 				return setInteraction(interaction, addIds).then(() => {
 					window.biyue.StoreCustomData()
+				}).then(() => {
+					return ShowLinkedWhenclickImage({
+						client_id: update_node_id
+					})
 				})
 			})
 		} else {
 			deleteChoiceOtherWrite(null, true).then(res => {
 				notifyQuestionChange(update_node_id)
 				window.biyue.StoreCustomData()
+			}).then(() => {
+				return ShowLinkedWhenclickImage({
+					client_id: update_node_id
+				})
 			})
 		}
 	}
@@ -1882,6 +1902,8 @@ function confirmLevelSet(levels) {
 	})
 	.then(() => {
 		return refreshTree()
+	}).then(() => {
+		return imageAutoLink()
 	}).then(() => {
 		console.log("================================ StoreCustomData")
 		window.biyue.StoreCustomData()

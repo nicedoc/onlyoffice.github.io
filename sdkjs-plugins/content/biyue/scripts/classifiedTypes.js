@@ -640,6 +640,7 @@ function handleRangeType(options) {
 			if (!childControl) {
 				return
 			}
+			removeLink(tagRemove.client_id)
 			result.change_list.push({
 				control_id: childControl.Sdt.GetId(),
 				client_id: tagRemove.client_id,
@@ -648,7 +649,37 @@ function handleRangeType(options) {
 				type: 'remove'
 			})
 			Api.asc_RemoveContentControlWrapper(childControl.Sdt.GetId())
-
+		}
+		function removeLink(client_id) {
+			var allDrawings = oDocument.GetAllDrawingObjects() || []
+			for (var oDrawing of allDrawings) {
+				var title = Api.ParseJSON(oDrawing.GetTitle())
+				if (title.feature) {
+					var quesuse = title.feature.ques_use
+					if (quesuse) {
+						var uselist = []
+						if (typeof quesuse == 'number') {
+							uselist.push(quesuse + '')
+						}
+						if (typeof quesuse == 'string') {
+							uselist = quesuse.split('_')
+						}
+						var index = uselist.findIndex(e => { return e == client_id})
+						if (index >= 0) {
+							uselist.splice(index, 1)
+							if (uselist.length) {
+								title.feature.ques_use = uselist.join('_')
+							} else {
+								delete title.feature.ques_use
+								if (title.feature.client_id) {
+									delete title.feature.client_id
+								}
+							}
+							oDrawing.SetTitle(JSON.stringify(title))
+						}
+					}
+				}
+			}
 		}
 		function removeControlChildren(oControl, containSelf, onlyChild, excepetNum) {
 			if (!oControl) {
@@ -689,6 +720,9 @@ function handleRangeType(options) {
 			var tag = Api.ParseJSON(oControl.GetTag())
 			if (removeType == 'all' || tag.regionType != removeType) {
 				removeControlChildren(oControl, false)
+			}
+			if (tag.client_id && typeName == 'struct') {
+				removeLink(tag.client_id)
 			}
 			updateControlTag(oControl, 'question', getParentId(oControl))
 		}
