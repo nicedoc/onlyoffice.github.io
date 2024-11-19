@@ -563,6 +563,9 @@ function handleRangeType(options) {
 				}
 				obj.text = oControl.GetRange().GetText()
 			}
+			if (tag.mid) {
+				delete tag.mid
+			}
 			oControl.SetTag(JSON.stringify(tag));
 			result.change_list.push(obj)
 		}
@@ -1320,7 +1323,7 @@ function handleRangeType(options) {
 		function handleClearMerge(quesId) {
 			var quesdata = question_map[quesId]
 			if (!quesdata) {
-				return
+				return false
 			}
 			if (quesdata.ids) {
 				quesdata.ids.forEach(e => {
@@ -1330,7 +1333,9 @@ function handleRangeType(options) {
 						removeControlChildren(control, true)
 					}
 				})
+				return true
 			}
+			return false
 		}
 
 		// function list end
@@ -1632,8 +1637,10 @@ function handleRangeType(options) {
 							if (ctag.mid) { // 合并题
 								result.merge_id = ctag.mid
 								result.typeName = 'clearMerge'
-								handleClearMerge(ctag.mid)
 								askCell = true
+								if (!handleClearMerge(ctag.mid)) {
+									removeControlChildren(oCurControl, true, false)		
+								}
 							} else {
 								if (handleCell(curBlockSdt, 'remove', false)) {
 									askCell = true

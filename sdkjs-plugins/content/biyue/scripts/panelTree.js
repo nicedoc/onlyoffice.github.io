@@ -118,13 +118,18 @@ function renderTree() {
 						var nodeData = window.BiyueCustomData.node_list.find(e => {
 							return e.id == item.id
 						})
-						if (nodeData && !quesData.is_merge) { // 合并题不可设置为大题
+						if (nodeData && !quesData.is_merge) { // 合并题不可设置为大题, 当题目处于单元格中时，只能清除大题，不可构建大小题
 							if (nodeData.is_big) {
-								generateMenuItems(['clearBig', 'extendBig'], item.id); // 生成动态菜单
-							} else {
+								if (item.cell_id) {
+									generateMenuItems(['clearBig'], item.id); // 生成动态菜单	
+								} else {
+									generateMenuItems(['clearBig', 'extendBig'], item.id); // 生成动态菜单
+								}
+								updateMenuPos(event)
+							} else if (!item.cell_id) {
 								generateMenuItems(['setBig', 'setBig2'], item.id); // 生成动态菜单
+								updateMenuPos(event)
 							}
-							updateMenuPos(event)
 						}
 					} else if (quesData.level_type == 'struct') {
 						generateMenuItems(['question'], item.id)

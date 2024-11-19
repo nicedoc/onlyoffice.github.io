@@ -357,12 +357,13 @@ function getContextMenuItems(type, selectedRes) {
 				} else {
 					if (cData.level_type == 'question') {
 						splitType.text += cData.is_merge ? '(现为合并题)' : '(现为题目)'
-						valueMap['struct'] = 1
-						valueMap['setBig'] = 1
-						if (selectedRes.bTable) {
-							valueMap['write'] = 1
-							if (cData.is_merge) {
-								valueMap['clearMerge'] = 1
+						if (cData.is_merge) {
+							valueMap['clearMerge'] = 1
+						} else {
+							valueMap['struct'] = 1
+							valueMap['setBig'] = 1
+							if (selectedRes.bTable) {
+								valueMap['write'] = 1
 							}
 						}
 					} else if (cData.level_type == 'struct') {
@@ -5102,15 +5103,26 @@ function splitControl(qid) {
 			splitOneNode(qid)
 		}
 		result.client_node_id = client_node_id
+		result.ques_id = qid
 		return result
 	}, false, true).then(res1 => {
 		if (res1) {
 			if (res1.message && res1.message != '') {
 				alert(res1.message)
 			} else {
-				return getNodeList().then(res2 => {
-					return handleChangeType(res1, res2)
-				})
+				if (!res1.change_list || res1.change_list.length == 0) {
+					if (res1.ques_id) {
+						return notifyQuestionChange(res1.ques_id)
+					} else {
+						return new Promise((resolve, reject) => {
+							resolve()
+						})
+					}
+				} else {
+					return getNodeList().then(res2 => {
+						return handleChangeType(res1, res2)
+					})
+				}
 			}
 		}
 	})
@@ -5861,6 +5873,22 @@ function preGetExamTree() {
 			}
 			return null
 		}
+		function getValidParent(oControl) {
+			if (!oControl) {
+				return null
+			}
+			var oParentControl = oControl.GetParentContentControl()
+			if (oParentControl) {
+				var tag = Api.ParseJSON(oParentControl.GetTag())
+				var qId = tag.mid ? tag.mid : tag.client_id
+				if (question_map[qId]) {
+					return oParentControl
+				} else {
+					return getValidParent(oParentControl)
+				}
+			}
+			return null
+		}
 		var list = []
 		var handled = {}
 		for (var oControl of controls) {
@@ -5892,7 +5920,7 @@ function preGetExamTree() {
 				parent_index: -1,
 				is_big: is_big,
 			}
-			var oParentControl = oControl.GetParentContentControl()
+			var oParentControl = getValidParent(oControl)
 			if (quesData.level_type == 'struct') {
 				lvl = getLvl(oControl)
 			} else if (quesData.level_type == 'question') {
@@ -5901,9 +5929,10 @@ function preGetExamTree() {
 			obj.lvl = lvl
 			if (oParentControl) {
 				var parentTag = Api.ParseJSON(oParentControl.GetTag() || '{}')
-				obj.parent_id = parentTag.client_id
+				var p_id = parentTag.mid ? parentTag.mid : parentTag.client_id
+				obj.parent_id = p_id
 				obj.parent_index = list.findIndex(e => {
-					return e.id == obj.parent_id
+					return e.id == p_id
 				})
 			} else if (lvl === 0) {
 				obj.parent_id = 0
@@ -5972,6 +6001,10 @@ function preGetExamTree() {
 					}
 				}
 			}
+			var parentTableCell1 = oControl.GetParentTableCell()
+			if (parentTableCell1) {
+				obj.cell_id = parentTableCell1.Cell.Id
+			}
 			list.push(obj)
 			if (is_big) {
 				var bindex = list.length - 1
@@ -5990,14 +6023,14 @@ function preGetExamTree() {
 						continue
 					}
 					handled[childId] = true
-					var parentControl2 = oChildControl.GetParentContentControl()
+					var parentControl2 = getValidParent(oChildControl)
 					if (parentControl2) {
 						var parentTag2 = Api.ParseJSON(parentControl2.GetTag() || '{}')
 						var parentId2 = parentTag2.mid || parentTag2.client_id
 						var parentIndex2 = list.findIndex(e => {
 							return e.id == parentId2
 						})
-						list.push({
+						var obj2 = {
 							id: childId,
 							level_type: quesData2.level_type,
 							parent_id: parentId2,
@@ -6005,7 +6038,12 @@ function preGetExamTree() {
 							is_big: childTag.big == 1,
 							lvl: getLvl(oChildControl, childTag.big == 1 ? 0 : -1),
 							is_child: true
-						})
+						}
+						var parentTableCell = oChildControl.GetParentTableCell()
+						if (parentTableCell) {
+							obj2.cell_id = parentTableCell.Cell.Id
+						}
+						list.push(obj2)
 						list[bindex].end_id = childId
 					}
 				}
@@ -6018,10 +6056,13 @@ function preGetExamTree() {
 		list.forEach(item => {
 			map[item.id] = { ...item, children: [] };
 		});
-	
 		list.forEach(item => {
 			if (item.parent_id && item.parent_id != item.id) {
-				map[item.parent_id].children.push(map[item.id]);
+				if (map[item.parent_id] && map[item.parent_id].children) {
+					map[item.parent_id].children.push(map[item.id]);
+				} else {
+					console.log('        cannot find parent', item);
+				}
 			} else {
 				tree.push(map[item.id]);
 			}
