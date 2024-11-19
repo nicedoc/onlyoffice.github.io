@@ -445,6 +445,11 @@ function drawList(list) {
 						h2 = w / dimension.aspectRatio
 					}
 					var oImage = Api.CreateImage(url, w * 36e3, h2 * 36e3)
+					if (oImage) {
+						oImage.SetTitle(JSON.stringify({
+							ignore: 1
+						}))
+					}
 					p.AddDrawing(oImage)
 				}
 			}
@@ -748,6 +753,11 @@ function drawList(list) {
 								var p = shapeContent.GetElement(0)
 								if (p && p.GetClassType() == 'paragraph') {
 									var oImage = Api.CreateImage(options.url, (options.size.imgSize) * 36e3, (options.size.imgSize) * 36e3)
+									if (oImage) {
+										oImage.SetTitle(JSON.stringify({
+											ignore: 1
+										}))
+									}
 									p.AddDrawing(oImage)
 									p.SetSpacingAfter(0)
 								}
@@ -820,6 +830,11 @@ function drawList(list) {
 							var p = shapeContent.GetElement(0)
 							if (p && p.GetClassType() == 'paragraph') {
 								var oImage = Api.CreateImage(options.url, (options.size.w) * 36e3, (options.size.h) * 36e3)
+								if (oImage) {
+									oImage.SetTitle(JSON.stringify({
+										ignore: 1
+									}))
+								}
 								p.AddDrawing(oImage)
 							}
 						} else if (options.label) {

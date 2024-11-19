@@ -106,10 +106,10 @@ function imageAutoLink(ques_id, calc) {
 							if (w > 0 && h > 0) {
 								var pindex = oControl.Sdt.GetAbsolutePage(j)
 								if (pindex == pageIndex) {
-									if (page.Bounds.Left <= x1 && 
-										page.Bounds.Top <= y1 &&
-										(page.Bounds.Left + w) >= x2 &&
-										(page.Bounds.Top + h) >= y2) {
+									if (page.Bounds.Left <= (x1 + 1) && 
+										page.Bounds.Top <= (y1 + 1) &&
+										(page.Bounds.Left + w) >= (x2 - 1) &&
+										(page.Bounds.Top + h) >= (y2 - 1)) {
 											return {
 												ques_id: tag.mid || tag.client_id,
 												oControl: oControl
@@ -131,6 +131,9 @@ function imageAutoLink(ques_id, calc) {
 				continue
 			}
 			var title = Api.ParseJSON(oDrawing.GetTitle())
+			if (title.ignore) {
+				continue
+			}
 			if (title.feature && title.feature.zone_type) {
 				continue
 			}
@@ -269,6 +272,9 @@ function onAllCheck() {
 					continue
 				}
 				var title = Api.ParseJSON(oDrawing.GetTitle())
+				if (title.ignore) {
+					continue
+				}
 				if (title.feature && title.feature.zone_type) {
 					continue
 				}
