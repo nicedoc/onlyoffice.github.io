@@ -62,7 +62,7 @@ function tagImageCommon(params) {
 	})
 }
 
-function imageAutoLink(ques_id) {
+function imageAutoLink(ques_id, calc) {
 	Asc.scope.node_list = window.BiyueCustomData.node_list || []
 	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
 	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
@@ -75,6 +75,7 @@ function imageAutoLink(ques_id) {
 		var question_map = Asc.scope.question_map
 		var client_node_id = Asc.scope.client_node_id
 		var ques_id = Asc.scope.ques_id
+		var rev = false
 		// 判断是否在control中
 		function getBelongControl(pageIndex, x1, y1, x2, y2) {
 			for (var i = 0; i < controls.length; ++i) {
@@ -173,6 +174,7 @@ function imageAutoLink(ques_id) {
 					}
 				}
 			}
+			rev = true
 			oDrawing.SetTitle(JSON.stringify(title))
 		}
 		// 暂不考虑大小题的问题
@@ -216,12 +218,19 @@ function imageAutoLink(ques_id) {
 				}
 				title.ques_use = uselist.join('_')
 				oTable.SetTableTitle(JSON.stringify(title))
+				rev = true
 			}
 		}
 		return {
-			client_node_id
+			client_node_id,
+			rev
 		}
-	}, false, true)
+	}, false, calc).then(res => {
+		if (res) {
+			window.BiyueCustomData.client_node_id = res.client_node_id
+		}
+		return new Promise((resolve, reject) => {resolve(res)})
+	})
 }
 function onAllCheck() {
 	return biyueCallCommand(window, function() {
@@ -477,6 +486,7 @@ function ShowLinkedWhenclickImage(options, control_id) {
 	Asc.scope.control_id = control_id
 	Asc.scope.click_options = options
 	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
+	console.log('ShowLinkedWhenclickImage')
 	return biyueCallCommand(window, function() {
 		var oDocument = Api.GetDocument()
 		var selectedDrawings = oDocument.GetSelectedDrawings() || []

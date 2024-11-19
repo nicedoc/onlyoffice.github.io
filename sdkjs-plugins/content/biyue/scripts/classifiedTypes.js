@@ -667,6 +667,7 @@ function handleRangeType(options) {
 						var index = uselist.findIndex(e => { return e == client_id})
 						if (index >= 0) {
 							uselist.splice(index, 1)
+							result.link_updated = true
 							if (uselist.length) {
 								title.feature.ques_use = uselist.join('_')
 							} else {

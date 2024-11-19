@@ -500,9 +500,8 @@ function enableBtnImageLink(v) {
 }
 // 图片就近关联
 function onImageLink() {
-	imageAutoLink().then(res => {
+	imageAutoLink(null, true).then(res => {
 		if (res) {
-			window.BiyueCustomData.client_node_id = res.client_node_id
 			updateHintById('imageLinkTip', '就近关联完成', CLR_SUCCESS)
 			onImageLinkCheck()
 		}

@@ -1103,17 +1103,28 @@ function handleChangeType(res, res2) {
 		}
 		update_node_id = addIds[0]
 	}
+	var typequesId = 0
 	if (res.typeName == 'mergeQuestion') {
-		return imageAutoLink(res.merge_data.client_id).then(() => {
-			return splitControl(res.merge_data.client_id)
-		})
-	} else if (res.typeName == 'question') {
-		if (question_map[update_node_id] && question_map[update_node_id].level_type == 'question') {
-			return imageAutoLink(update_node_id).then(() => {
-				return splitControl(update_node_id)
-			})
-		}
+		typequesId = res.merge_data.client_id
+	} else if (res.typeName == 'question' && (question_map[update_node_id] && question_map[update_node_id].level_type == 'question')) {
+		typequesId = update_node_id
 	}
+	if (typequesId) {
+		return imageAutoLink(typequesId, false).then((res3) => {
+			if (res3.rev) {
+				return ShowLinkedWhenclickImage({
+					client_id: typequesId
+				})
+			} else {
+				return new Promise((resolve, reject) => {
+					resolve()
+				})
+			}
+		}).then(() => {
+			return splitControl(typequesId)
+		})
+	}
+	var updateLinked = res.link_updated
 	var use_gather = window.BiyueCustomData.choice_display && window.BiyueCustomData.choice_display.style != 'brackets_choice_region'
 	if (use_gather) {
 		return deleteChoiceOtherWrite(null, false).then(() => {
@@ -1121,10 +1132,12 @@ function handleChangeType(res, res2) {
 			return updateChoice().then(res3 => {
 				return handleChoiceUpdateResult(res3)
 			}).then(() => {
-				window.biyue.StoreCustomData()
-			}).then(() => {
-				return ShowLinkedWhenclickImage({
-					client_id: update_node_id
+				window.biyue.StoreCustomData(() => {
+					if (updateLinked) {
+						return ShowLinkedWhenclickImage({
+							client_id: update_node_id
+						})
+					}
 				})
 			})
 		})
@@ -1133,20 +1146,24 @@ function handleChangeType(res, res2) {
 			return deleteChoiceOtherWrite(null, false).then(res3 => {
 				notifyQuestionChange(update_node_id)
 				return setInteraction(interaction, addIds).then(() => {
-					window.biyue.StoreCustomData()
-				}).then(() => {
-					return ShowLinkedWhenclickImage({
-						client_id: update_node_id
+					window.biyue.StoreCustomData(() => {
+						if (updateLinked) {
+							return ShowLinkedWhenclickImage({
+								client_id: update_node_id
+							})
+						}
 					})
 				})
 			})
 		} else {
 			deleteChoiceOtherWrite(null, true).then(res => {
 				notifyQuestionChange(update_node_id)
-				window.biyue.StoreCustomData()
-			}).then(() => {
-				return ShowLinkedWhenclickImage({
-					client_id: update_node_id
+				window.biyue.StoreCustomData(() => {
+					if (updateLinked) {
+						return ShowLinkedWhenclickImage({
+							client_id: update_node_id
+						})
+					}
 				})
 			})
 		}
