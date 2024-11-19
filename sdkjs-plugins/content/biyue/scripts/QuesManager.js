@@ -1128,23 +1128,26 @@ function handleChangeType(res, res2) {
 	var use_gather = window.BiyueCustomData.choice_display && window.BiyueCustomData.choice_display.style != 'brackets_choice_region'
 	if (use_gather) {
 		return deleteChoiceOtherWrite(null, false).then(() => {
-			notifyQuestionChange(update_node_id)
-			return updateChoice().then(res3 => {
-				return handleChoiceUpdateResult(res3)
-			}).then(() => {
-				window.biyue.StoreCustomData(() => {
-					if (updateLinked) {
-						return ShowLinkedWhenclickImage({
-							client_id: update_node_id
-						})
-					}
-				})
+			return notifyQuestionChange(update_node_id)
+		}).then(() => {
+			return updateChoice()
+		}).then((res3) => {
+			return handleChoiceUpdateResult(res3)
+		})
+		.then(() => {
+			window.biyue.StoreCustomData(() => {
+				if (updateLinked) {
+					return ShowLinkedWhenclickImage({
+						client_id: update_node_id
+					})
+				}
 			})
 		})
 	} else {
 		if (updateinteraction) {
 			return deleteChoiceOtherWrite(null, false).then(res3 => {
-				notifyQuestionChange(update_node_id)
+				return notifyQuestionChange(update_node_id)
+			}).then(() => {
 				return setInteraction(interaction, addIds).then(() => {
 					window.biyue.StoreCustomData(() => {
 						if (updateLinked) {
@@ -1157,7 +1160,8 @@ function handleChangeType(res, res2) {
 			})
 		} else {
 			deleteChoiceOtherWrite(null, true).then(res => {
-				notifyQuestionChange(update_node_id)
+				return notifyQuestionChange(update_node_id)
+			}).then(() => {
 				window.biyue.StoreCustomData(() => {
 					if (updateLinked) {
 						return ShowLinkedWhenclickImage({
@@ -1171,17 +1175,20 @@ function handleChangeType(res, res2) {
 }
 function notifyQuestionChange(update_node_id) {
 	if (window.tab_select == 'tabTree' && window.tree_lock) {
-		refreshTree()
-		return
+		return refreshTree()
 	}
-	var eventname = window.tab_select != 'tabQues' ? 'clickSingleQues' : 'updateQuesData'
-	document.dispatchEvent(
-		new CustomEvent(eventname, {
-			detail: {
-				client_id: update_node_id
-			}
-		})
-	)
+	return new Promise((resolve, reject) => {
+		var eventname = window.tab_select != 'tabQues' ? 'clickSingleQues' : 'updateQuesData'
+		document.dispatchEvent(
+			new CustomEvent(eventname, {
+				detail: {
+					client_id: update_node_id
+				}
+			})
+		)
+		resolve()
+	})
+	
 }
 
 function updateAllChoice() {
