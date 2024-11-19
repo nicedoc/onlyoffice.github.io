@@ -528,19 +528,20 @@ let newSplit = function (text) {
     // 获取题目区域
     // $..content[?(typeof(@) == "string"  && @.match('^\\d+\\.'))] 
     var startIndex = ranges.length;
-    const quesPatt = `$..content[?(typeof(@) == 'string' && @.match('^[0-9]+[.][^0-9]'))]`;
-    JSONPath({
-        path: quesPatt, json: k, resultType: "path", callback: function (res) {
-            if (isFirstRun(res)) {
-                ranges.push({
-                    beg: res,
-                    info: { 'regionType': 'question', 'mode': 2, column: 1, padding: [0, 0, 0.5, 0] },
-                    controlType: 1,
-                    major_pos: major_pos(res)
-                });
-            }
-        }
-    });
+	// 暂时屏蔽将数字开头的段落切成题目，自动切题只与题目编号有关
+    // const quesPatt = `$..content[?(typeof(@) == 'string' && @.match('^[0-9]+[.][^0-9]'))]`;
+    // JSONPath({
+    //     path: quesPatt, json: k, resultType: "path", callback: function (res) {
+    //         if (isFirstRun(res)) {
+    //             ranges.push({
+    //                 beg: res,
+    //                 info: { 'regionType': 'question', 'mode': 2, column: 1, padding: [0, 0, 0.5, 0] },
+    //                 controlType: 1,
+    //                 major_pos: major_pos(res)
+    //             });
+    //         }
+    //     }
+    // });
 
     let marker_log = function(value, begin, end) {                
         var marker = value.substr(0, begin)+ '%c' + value.substr(begin, end - begin) + '%c' + value.substr(end);

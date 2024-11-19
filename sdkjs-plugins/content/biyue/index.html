@@ -40,7 +40,7 @@
 			justify-content: space-between;
 		}
     .wrapper {
-      padding: 12px;
+      padding: 8px;
       line-height: 24px;
     }
     .font-16 {
@@ -75,6 +75,19 @@
 			justify-content: center;
 			margin-top: 8px;
 		}
+	}
+	#extro_buttons {
+		display: block;
+		position: absolute;
+		bottom: 30px;
+		max-height: 60vh;
+		overflow-y: auto;
+		left: 40px;
+		right: 40px;
+		background: #fff;
+		border: 1px solid #bbb;
+		padding: 0 8px 8px 8px;
+		z-index: 2;
 	}
     .ques-title {
       border-top: 1px solid #bbb;
@@ -168,6 +181,7 @@
 	#panelList {
 		font-size: 12px;
 		color: #555555;
+		margin-bottom: 20px;
 		.wrapper {
 			border-bottom: 1px solid #ccc;
 		}
@@ -177,7 +191,7 @@
 		.btns {
 			display: flex;
 			flex-wrap: wrap;
-			padding: 8px;
+			padding: 4px 8px;
 		}
 		.btn-dange {
 			border: 1px solid #ff0000 !important;
@@ -194,12 +208,6 @@
 			display: flex;
 			flex-direction: row;
 			justify-content: center;
-		}
-		#importExam {
-			flex: 1;
-			background-color: #2489f6;
-			color: #fff;
-			height: 32px;
 		}
 		#saveData {
 			width: 80px;
@@ -300,7 +308,21 @@
 	  }
     }
     #panelFeature {
-      padding: 12px 12px 24px 12px;
+		position: absolute;
+		z-index: 3;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		top: 0;
+		background-color: #fff;
+      	padding: 12px 12px 24px 12px;
+		display: block;
+    	max-height: calc(100vh - 30px);
+    	overflow-y: auto;
+		#wrapperFeature {
+			height: calc(100% - 30px);
+			overflow-y: auto;
+		}
       .padding-small {
         padding-right: 8px;
         padding-bottom: 8px;
@@ -315,7 +337,7 @@
 		}
 
 		.btn-unable {
-			color: #aaa !important;
+			color: #ddd !important;
 			cursor: not-allowed;
 		}
 
@@ -362,24 +384,96 @@
 			padding-bottom: 4px;
 		}
 		
+		#typeErrorDiv {
+			padding: 0 4px;
+			max-height: 190px;
+			overflow-y: auto;
+			.item {
+				display: flex;
+				justify-content: space-between;
+				align-items: center; /* 垂直居中对齐 */
+				width: 100%; /* 根据需要调整 */
+				padding: 2px 0;
+			}
+			.content {
+				display: flex;
+				align-items: center;
+				flex: 1; /* 让 content 占据尽可能多的空间 */
+  				overflow: hidden; /* 防止内部元素超出边界 */
+			}
+			.ques-type-name {
+			  margin-left: 10px;
+			}
+		}
+		.upload-wrapper {
+			padding: 4px 0;
+			text-align: center;
+		}
+		#panelTree {
+			padding: 0 4px 0 8px;
+			height: calc(100% - 38px);
+			.none {
+				margin-top: 30vh;
+				.iconfont {
+					font-size: 60px;
+				}
+			}
+			.struct {
+				border: 1px solid #95c8ff;
+				color: #2489f6;
+				margin-right: 8px;
+				padding: 0 1px;
+				height: 16px;
+			}
+			.itemques {
+				border: 1px solid #95c8ff;
+				background-color: #deedfe;
+				padding: 4px;
+				border-radius: 4px;
+				margin-top: 4px;
+				margin-bottom: 4px;
+				margin-right: 4px;
+			}
+			#tree {
+				max-height: calc(100% - 20px);
+				overflow-y: auto;
+				.selected {
+					border: 1px solid #ff0000 !important;
+				}
+			}
+			#bigbox {
+				padding: 2px 8px;
+				#bigcancel {
+					color: #EF804C;
+					margin-right: 8px;
+				}
+				#bigconfirm {
+					color: #2489f6;
+				}
+			}
+			
+		}
      </style>
  </head>
  <body id="body" style="left:0px; top:0px; margin:0px; padding:0px;">
      <div id="iframe_parent" style="width:100%; height:100%;margin:0;padding:0 0 40px 0;overflow-y: auto;">
-		<button id="paste" title="点击后在控制台查看剪贴板内容">粘贴测试</button>
-		<div id="pastehint"></div>  
+		<div id="dynamicMenu" class="customContextMenu">
+			<ul id="menuContent">
+				<!-- 动态生成的菜单项会插入到这里 -->
+			</ul>
+		</div>
 		<div id="initloading">加载中, 请稍候...</div>
 		<div id="hint1" class="column-center">
 			<div id="message" style="color: #ff0000;"></div>
 			<div id="retry" class="btn-normal clicked">点击重新请求</div>
 		</div>
         <div class="tabs font-14">
-          <div class="tabitem clicked" id="tabList">课时信息</div>
+          <div class="tabitem clicked" id="tabList">基础面板</div>
           <div class="tabitem clicked" id="tabQues">单题详情</div>
-          <div class="tabitem clicked" id="tabFeature">智批元素</div>
+		  <div class="tabitem clicked" id="tabTree">题目列表</div>
         </div>
         <div class="list" id="panelList">
-          <div class="wrapper font-14">
+          <div class="wrapper font-12">
 			<div>
 				<span class="row-title">校本：</span>
 				<span id="workbookName"></span>
@@ -397,15 +491,8 @@
 		  <div style="font-weight: bold;margin-top: 10px; margin-left: 14px;font-size: 14px;">排版</div>
 		  <div class="btns">
 			<div id="addWord" class="clicked btn-normal">插入符号</div>
-			<div id="showShortcutKey" class="clicked btn-normal">功能键配置</div>
+			<div id="getQuesType" class="clicked btn-normal" style="font-size: 10px;">重新获取题型</div>
 			<div id="reSplitQuestionBtn" class="clicked btn-normal btn-dange">重新切题</div>
-			<div id="func_key_container" style="width: 100%;">
-				<div class="arrow-up" id="arrowUp_funckey" style="margin-left: 48%;"></div>
-				<div class="inner-pop-wrapper br2">
-					<div class="title">小问快捷键</div>
-					<div id="shortcutKeyDiv"></div>
-				</div>
-			</div>
 			<div id="fixLayout" class="clicked btn-normal btn-normal">排版修复</div>
 		  </div>
 		  <div style="font-weight: bold;margin-left: 14px;font-size: 14px;">数据</div>
@@ -427,20 +514,40 @@
 			</div>
 			<div id="uploadTree" class="clicked btn-normal">全量更新</div>
 		  </div>
+		  <div style="font-weight: bold;margin-left: 14px;font-size: 14px;">其他</div>
+		  <div class="btns">
+			<div id="showShortcutKey" class="clicked btn-normal">快捷键设置</div>
+			<div id="uploadQuestionTypeError" class="clicked btn-normal" style="font-size: 10px;">题型错误上报</div>
+			<div id="func_key_container" class="w100">
+				<div class="arrow-up" id="arrowUp_funckey" style="margin-left: 48px;"></div>
+				<div class="inner-pop-wrapper br2">
+					<div class="title">小问快捷键</div>
+					<div id="shortcutKeyDiv"></div>
+				</div>
+			</div>
+			<div id="tree_container" class="w100">
+				<div class="arrow-up" id="arrowUp_funckey" style="margin-left: 48%;"></div>
+				<div class="inner-pop-wrapper br2">
+					<div class="title">题型错误上报</div>
+					<div id="uploadHint"></div>
+					<div class="b-b-b ml-4" style="padding-bottom: 4px;margin-top: 2px;">
+						<span for="check_level"><input type="checkbox" id="check_level" style="margin-right: 2px;">展示层级结构</span>
+						<span for="check_text_ques ml-4"><input type="checkbox" id="check_text_ques" style="margin-right: 2px;">显示文本题</span>
+					</div>
+					<div id="typeErrorDiv"></div>
+					<div class="upload-wrapper row-center w100 b-t-b">
+						<div id="uploadTypeError" class="flex bg1 clr-white p-4-8 w-fit br2 clicked">上报日志</div>
+					</div>
+				</div>
+			</div>
+		  </div>
 		  <div class="exambottom">
 			<div id="saveData" class="row-center br2 clicked">
-				<i class="iconfont icon-baocun" style="font-size: 12px;margin-right: 4px;"></i>
+				<i class="iconfont icon-baocun font-12 mr-4"></i>
 				<span>保存</span>
 			</div>
-			<div id="importExam" class="row-center br2 clicked">上传卷面</div>
+			<div id="importExam" class="flex-1 bg1 clr-white h-32 row-center br2 clicked">上传卷面</div>
 		  </div>
-		  <!-- <select id="writeSelect">
-			<option value="show">显示所有书写区</option>
-			<option value="hide">隐藏所有书写区</option>
-			<option value="del">删除所有书写区</option>
-		  </select>
-          <div class="ques-list font-12" id="treeRoot">
-          </div> -->
         </div>
 		<div id="extroSwitch" class="clicked">
 			<i class="iconfont icon-qitafuwu" style="color: #aaa;" title="点击显示辅助调试按钮"></i>
@@ -448,28 +555,52 @@
 		  <!-- <div id="tools" class="clicked">
 			<i class="iconfont icon-xiaogongju" style="color: #aaa;" title="小工具"></i>
 		  </div> -->
-        <div id="panelQues">
-        </div>
-        <div id="panelFeature"></div>
+        <div id="panelQues"></div>
+		<div id="panelTree">
+			<div class="row-between font-14" style="width: 100%;padding: 6px;">
+				<div id="sum"></div>
+				<div class="clicked" id="lock">
+					<i class="iconfont icon-dingzi-u"></i>
+				</div>
+			</div>
+			<div id="tree">
+			</div>
+			<div class="none column-center font-14">
+				<div class="iconfont icon-weikong clr-gray"></div>
+				<div class="clr-gray">未检测到题目信息</div>
+				<div class="flex w-fit p-4-8 bg1 clr-white mt-8 br4 clicked" id="reSplitQues">重新切题</div>
+			</div>
+		</div>
+        <div id="panelFeature">
+			<div class="row-between">
+				<div class="font-14 bold">智批元素</div>
+				<div class="clicked bg1 clr-white br4 border-b" id="returnBtn" style="padding: 2px 8px;">返回<i class="iconfont icon-return clr-white"></i></div>
+			</div>
+			<div id="wrapperFeature"></div>
+		</div>
         <div class="button_wrapper">
           <div id="extro_buttons">
+			<div style="display: flex;justify-content: flex-end;">
+				<i class="iconfont icon-close clicked" style="padding: 4px 4px 4px 8px;color: #ccc;" id="extrolclose"></i>
+			</div>
             <!-- <div id="getDocInfo" class="btn-text-default">获取文档信息</div> -->
             <!-- <div id="splitQuestionBtn" class="btn-text-default">切题</div>         -->
             <!-- <div class="btn-text-default" id="importExam">准备上传</div>
             <div class="btn-text-default" style="margin-bottom: 4px;padding: 4px;" id="batchScoreSet">批量设分</div>-->
             <div class="btn-text-default" id="getAllPositions">获取所有坐标</div>
+			<div id="clearControl" class="btn-text-default">删除所有控件 </div>
+			<div id="tabFeature" class="btn-text-default">智批元素</div>
             <!-- <div id="markAnswerRegionBtn" class="btn-text-default">标记答题区</div>
             <div id="checkAnswerRegionBtn" class="btn-text-default">识别答题区</div>-->
             <div id="toggleStyleBtn" class="btn-text-default">切换答题样式</div>
-			<div id="clearControl" class="btn-text-default">删除所有控件 </div>
 			<div id="tidyNodes" class="btn-text-default" title="根据当前文档，整理树存储，删除已失效的node节点">重整树结构</div>
 			<!-- <div id="clearRepeatControl" class="btn-text-default">删除ID重复控件 </div> -->
 			<div id="printData" class="btn-text-default" title="在控制台显示存储的BiyueCustomData数据">输出BiyueCustomData内容</div>
 			<div id="printStack" class="btn-text-default" title="在控制台显示当前stack长度，大于2时，基本可判定插件已死，请关闭再打开插件">输出当前stack length</div>
-			<div style="display: flex;flex-direction: row;align-items: center;">
+			<div class="row-align-center">
 				<textarea id="paste-target" placeholder="Ctrl+V黏贴要插入的文本"></textarea>
 				<i id="pasteclear" class="iconfont icon-shanchu clicked" style="display: inline-block;" title="清除输入框内容"></i>
-				<button id="mathpix" class="btn-normal clicked" style="margin-left: 4px;" title="点击此按钮可将已黏贴的latex文本转换成图片插入到光标位置" >M导入</button>
+				<button id="mathpix" class="btn-normal clicked ml-4 keepall" title="点击此按钮可将已黏贴的latex文本转换成图片插入到光标位置" >M导入</button>
 			</div>
             <!--<div id="lockBtn" class="btn-text-default">锁定</div>
             <div id="unlockBtn" class="btn-text-default">解锁</div>

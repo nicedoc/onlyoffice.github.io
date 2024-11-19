@@ -4,6 +4,7 @@ import { reqSaveQuestion } from './api/paper.js'
 import { setInteraction } from './featureManager.js'
 import { changeProportion, deleteAsks, focusAsk, updateAllChoice, deleteChoiceOtherWrite, getQuesMode, updateQuesScore, splitControl, setChoiceOptionLayout } from './QuesManager.js'
 import { addClickEvent, getListByMap, showCom } from '../scripts/model/util.js'
+import { getDataByParams } from '../scripts/model/ques.js'
 // 单题详情
 var proportionTypes = [
 	{ value: 1, label: '默认' },
@@ -355,97 +356,51 @@ function updateElements(quesData, hint, ignore_ask_list) {
 	})
 }
 
+
+
 function showQuesData(params) {
 	console.log('showQuesData', params)
 	if(window.tab_select != 'tabQues') {
 		return
 	}
-	if(!params) {
+	var data = getDataByParams(params)
+	if (!data) {
 		updateElements(null)
 		return
 	}
-	if (!params.client_id) {
-		if (params.parentTag) {
-			params.client_id = params.parentTag.client_id
-		}
-		if (!params.client_id) {
-			updateElements(null)
-			return	
-		}
+	if (data.client_id) {
+		g_client_id = data.client_id
 	}
-	g_client_id = params.client_id
-	var question_map = window.BiyueCustomData.question_map || {}
-  	let choice_display = window.BiyueCustomData.choice_display || {}
-  	let ignore_ask_list = false
-	var quesData = question_map ? question_map[g_client_id] : null
-	if (g_client_id) {
-		var node_list = window.BiyueCustomData.node_list || []
-		var nodeData = node_list.find(e => {
-			return e.id == g_client_id
-		})
-		console.log('nodeData', nodeData)
-		if (nodeData) {
-			if (nodeData.level_type == 'struct') {
-				setQueId(g_client_id)
-				updateElements(question_map[nodeData.id], `当前选中为题组`)
-				return
-			} else if (nodeData.level_type == 'text') {
-				updateElements(null, `当前选中为待处理文本`)
-				return
-			}
-		}
-	}
-	if (!question_map) {
-		updateElements(null)
+	if (data.level_type == 'struct') {
+		setQueId(g_client_id)
+		updateElements(data.data, `当前选中为题组`)
+		return
+	} else if (data.level_type == 'text') {
+		updateElements(null, `当前选中为待处理文本`)
 		return
 	}
-	var ques_client_id = 0
-	if (params.regionType == 'write') {
-		var keys = Object.keys(question_map)
-		for (var i = 0; i < keys.length; ++i) {
-			var ask_list = question_map[keys[i]].ask_list || []
-			var findIndex = ask_list.findIndex(e => {
-				if (e.other_fileds && e.other_fileds.includes(g_client_id)) {
-					return true
-				}
-				return e.id == g_client_id
-			})
-			if (findIndex >= 0) {
-				ques_client_id = keys[i]
-				select_ask_index = findIndex
-				break
-			}
-		}
-	} else if (quesData && quesData.level_type == 'question') {
-		ques_client_id = g_client_id
-	} else if (params.regionType == 'question') {
-		ques_client_id = g_client_id
-	}
-	if (!ques_client_id) {
-		updateElements(null)
-		return
-	}
-	quesData = question_map[ques_client_id]
-	if (!quesData) {
-		updateElements(null)
-		return
+	if (data.findIndex >= 0) {
+		select_ask_index = data.findIndex
 	}
 	console.log('=========== showQuesData ques:', quesData)
-	setQueId(ques_client_id)
+	var quesData = data.data
+	setQueId(data.ques_client_id)
+	let ignore_ask_list = false
+	let choice_display = window.BiyueCustomData.choice_display || {}
 	if (quesData.level_type == 'question') {
     	if ((quesData.ques_mode == 1 || quesData.ques_mode == 5) && choice_display.style && choice_display.style === 'show_choice_region') {
       		// 如果是开启了集中作答区状态，则需要忽略对应题目的小问
       		let node = node_list.find(e => {
-        		return e.id == ques_client_id
+        		return e.id == data.ques_client_id
       		})
       		if (node.use_gather) {
         		ignore_ask_list = true
       		}
     	}
 		updateElements(quesData, null, ignore_ask_list)
-		updateAskSelect(findIndex)
+		updateAskSelect(data.findIndex)
 	} else if (quesData.level_type == 'struct') {
-		setQueId(ques_client_id)
+		setQueId(data.ques_client_id)
 		updateElements(quesData, `当前选中为题组：${quesData ? quesData.ques_default_name : ''}`)
 		return
 	} else {
@@ -564,7 +519,14 @@ function initListener() {
 					regionType: nodeData.regionType
 				})
 			} else {
-				updateElements(null)
+				var quesData = window.BiyueCustomData.question_map[id]
+				if (quesData) {
+					showQuesData({
+						client_id: id
+					})
+				} else {
+					updateElements(null)
+				}
 			}
 		}
 	})
@@ -724,20 +686,34 @@ function onFocusAsk(id, idx) {
 	if (!quesData || !quesData.ask_list || index >= quesData.ask_list.length) {
 		return
 	}
-	var nodeData = window.BiyueCustomData.node_list.find(e => {
+	var nlist = window.BiyueCustomData.node_list || []
+	var nodeData = nlist.find(e => {
 		return e.id == g_ques_id
 	})
-	if (nodeData && nodeData.write_list) {
-		var writeData = nodeData.write_list.find(e => {
+	var writeData = null
+	if (!nodeData && quesData.ids && quesData.ids.length > 0) {
+		for (var i = 0; i < nlist.length; ++i) {
+			if (nlist[i].merge_id != g_ques_id) {
+				continue
+			}
+			writeData = nlist[i].write_list.find(e => {
+				return e.id == quesData.ask_list[index].id
+			})
+			if (writeData) {
+				break
+			}
+		}
+	} else if (nodeData && nodeData.write_list) {
+		writeData = nodeData.write_list.find(e => {
 			return e.id == quesData.ask_list[index].id
 		})
-		if (writeData) {
-			focusAsk(writeData)
-			updateAskSelect(idx)
-		} else {
-			console.log('找不到小问数据,node_list和question_map里的数据不一致')
-		}
-		
+	}
+	
+	if (writeData) {
+		focusAsk(writeData)
+		updateAskSelect(idx)
+	} else {
+		console.log('找不到小问数据,node_list和question_map里的数据不一致')
 	}
 }
 

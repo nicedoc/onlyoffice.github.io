@@ -4,6 +4,8 @@
   let questionList = []
   let tree_map = {}
   let hidden_empty_struct = false
+  let tree_info = {}
+  let display_tree = true
   window.Asc.plugin.init = function () {
     console.log('examExport init')
     window.Asc.plugin.sendToPlugin('onWindowMessage', { type: 'PaperMessage' })
@@ -13,112 +15,155 @@
     renderData()
     $('#confirm').on('click', onConfirm)
     $('#hidden_empty_struct').on('click', onSwitchStruct)
+	$('#switch_tree').prop('checked', display_tree)
+	$('#switch_tree').on('click', onSwitchTree)
+  }
+
+  function renderTree() {
+    question_map = biyueCustomData.question_map || {}
+	var rootElement = $('.batch-setting-info')
+	rootElement.empty()
+	questionList = []
+	tree_map = {}
+	if (!tree_info || !tree_info.tree || tree_info.tree.length == 0) {
+		$('.batch-setting-info').html('<div class="ques-none">暂无题目，请先切题</div>')
+		showBottomBtns(false)
+	} else {
+		showBottomBtns(true)
+		tree_info.tree.forEach(item => {
+			renderTreeNode(rootElement, item, 0)
+		})
+		addEvents()
+		updateHideEmptyStruct()
+	}
+  }
+  function showBottomBtns(v) {
+	if (v) {
+		$('.hidden_empty_struct').show()
+		$('.switch-tree').show()
+	} else {
+		$('.hidden_empty_struct').hide()
+		$('.switch-tree').hide()
+	}
+  }
+  function renderTreeNode(parent, item, identation = 0) {
+	if (!parent) {
+		return
+	}
+	var quesData = question_map[item.id]
+	if (!quesData) {
+		return
+	}
+	const div = $('<div></div>')
+	var html = ''
+	if (item.level_type == 'struct') {
+		html += `<div class=group id="${item.id}" style="padding-left:${identation}px"><span title="${quesData.text}">${quesData.text.split('\r\n')[0]}</span>`
+		if (item.children && item.children.length) {
+			html += `<div class="bat-set">设置为<input class="input" type="text" id="bat-group-${item.id}">分<span class="bat-set-btn" id="bat-set-btn-${item.id}" data-id=${item.id}>设置</span></div>`
+		}
+		html += '</div>'
+	} else if (item.level_type == 'question' && quesData.question_type != 6) {
+		html += `<span class="question" title="${quesData.text}" style="padding-left:${identation}px">${quesData.ques_name || quesData.ques_default_name || ''}`
+		var showAsks = quesData.ask_list && quesData.ask_list.length > 0
+		if (showAsks) {
+			let choice_display = biyueCustomData.choice_display || {}
+			let show_choice_region = choice_display.style == 'show_choice_region' // 判断是否为开启集中作答区
+			if (show_choice_region) {
+				var nodeId = quesData.ids && quesData.ids.length ? quesData.ids[0] : item.id 
+				var nodeData = biyueCustomData.node_list.find(e => {
+					return e.id == nodeId
+				})
+				if (nodeData && nodeData.use_gather) {
+					showAsks = false
+				}
+			}
+		}
+		if (showAsks) {
+			if (quesData.ask_list && quesData.ask_list.length > 0) {
+				quesData.ask_list.forEach((ask, index) => {
+					html += `<input type="text" class="score ques-${item.id} ask-index-${index} ask-${ask.id}" value=${ask.score || 0}>`
+				})
+			}
+		} else {
+			html += `<input type="text" class="score ques-${ item.id }" value="${ quesData.score || 0 }">`
+		}
+		html += `</span>`
+		questionList.push(item.id)
+	}
+	if (display_tree) {
+		div.html(html)
+		parent.append(div)
+	} else {
+		parent.append(html)
+	}
+	
+	if (item.children && item.children.length > 0) {
+		identation += 20
+		for (var child of item.children) {
+			if (item.level_type == 'struct') {
+				if (child.level_type == 'question') {
+					if (tree_map[item.id]) {
+						tree_map[item.id].push(child.id)
+					} else {
+						tree_map[item.id] = [child.id]
+					}
+				}
+			}
+			renderTreeNode(parent, child, display_tree ? identation : 0)
+		}
+	}
   }
 
   function renderData() {
-    let node_list = biyueCustomData.node_list || []
-    question_map = biyueCustomData.question_map || {}
-    let choice_display = biyueCustomData.choice_display || {}
-    let html = ''
-    let question_list = []
-    let tree = {}
-    let pre_struct = ''
-    for (const key in node_list) {
-      let item = question_map[node_list[key].id] || ''
-      if (node_list[key].level_type == 'question') {
-        if (item && item.question_type !== 6) {
-          html += `<span class="question" title="${ item.text }">${(item.ques_name || item.ques_default_name  || '')}`
-          let show_choice_region = choice_display.style == 'show_choice_region' // 判断是否为开启集中作答区
-          if (item.ask_list && item.ask_list.length > 0 && (!show_choice_region || show_choice_region && !node_list[key].use_gather)) {
-            for (const ask_k in item.ask_list) {
-              html += `<input type="text" class="score ques-${ node_list[key].id } ask-index-${ask_k} ask-${item.ask_list[ask_k].id}" value="${item.ask_list[ask_k].score || 0}">`
-            }
-          } else {
-            html += `<input type="text" class="score ques-${ node_list[key].id }" value="${ item.score || 0 }">`
-          }
-          html += `</span>`
+	renderTree()
+  }
 
-          if (!question_list.includes(node_list[key].id)) {
-            question_list.push(node_list[key].id)
-          }
-          if (!pre_struct && !tree[pre_struct]) {
-            tree[pre_struct] = []
-          }
-          if (tree[pre_struct]) {
-            tree[pre_struct].push(node_list[key].id)
-          }
-        }
-      } else if (node_list[key].level_type == 'struct' && item){
-        pre_struct = node_list[key].id
+  function addEvents() {
+	// 处理批量设置所有未设置分数的输入框事件
+	$('#bat-group-all').on('input', function() {
+		let inputValue = $('#bat-group-all').val()
+		$('#bat-group-all').val(checkInputValue(inputValue, 100))
+	})
 
-        html += `<div class="group" id="group-id-${ pre_struct }"><span>${ item.text.split('\r\n')[0] }</span></div>`
-        if (!tree[pre_struct]) {
-            tree[pre_struct] = []
-        }
-      }
-    }
-    tree_map = tree
-    questionList = question_list || []
-    $('.batch-setting-score-info').html(html)
+	// 处理批量设置所有未设置分数的输入框事件
+	$('#bat-set-btn-all').on('click', function() {
+		let inputValue = $('#bat-group-all').val()
+		batchSetEmptyScore(inputValue)
+		$('#bat-group-all').val('')
+	})
+	for (var item of tree_info.list) {
+		if (item.level_type == 'struct') {
+			let inputDom = document.querySelector(`#bat-group-${ item.id }`)
+			if (inputDom) {
+				inputDom.addEventListener('input', function() {
+					let inputValue = inputDom.value
+					inputDom.value = checkInputValue(inputValue, 100)
+				})
+			}
 
-    // 处理批量设置所有未设置分数的输入框事件
-    $('#bat-score-group-all').on('input', function() {
-      let inputValue = $('#bat-score-group-all').val()
-      $('#bat-score-group-all').val(checkInputValue(inputValue, 100))
-    })
-
-    // 处理批量设置所有未设置分数的输入框事件
-    $('#bat-score-set-btn-all').on('click', function() {
-      let inputValue = $('#bat-score-group-all').val()
-      batchSetEmptyScore(inputValue)
-      $('#bat-score-group-all').val('')
-    })
-
-    // 处理题目的分数输入框事件
-    for (const key in questionList) {
-        let id = questionList[key]
-        let doms = document.querySelectorAll('.ques-' + id) || []
-        doms.forEach(function(dom) {
-            dom.addEventListener('change', function() {
-              getScoreSum()
-            })
-            dom.addEventListener('input', function() {
-              let inputValue = dom.value
-              dom.value = checkInputValue(inputValue, 100)
-            })
-        })
-    }
-
-    for (const key in tree_map) {
-        if (tree_map[key].length > 0) {
-            // 对有题的结构增加批量设置分数的输入框
-            let dom = document.querySelector('#group-id-' + key)
-            if (dom) {
-                let html = dom.innerHTML // 取出当前的题组内容
-                let inputHtml = `<div class="bat-score-set">设置为<input class="input" type="text" id="bat-score-group-${ key }">分<span class="bat-score-set-btn" id="bat-score-set-btn-${ key }" data-id="${ key }">设置</span></div>`
-                dom.innerHTML = html + inputHtml
-
-                let inputDom = document.querySelector(`#bat-score-group-${ key }`)
-                if (inputDom) {
-                  inputDom.addEventListener('input', function() {
-                    let inputValue = inputDom.value
-                    inputDom.value = checkInputValue(inputValue, 100)
-                  })
-                }
-
-                let btnDom = document.querySelector(`#bat-score-set-btn-${ key }`)
-                if (btnDom) {
-                  btnDom.addEventListener('click', function() {
-                      let id = btnDom.dataset.id || ''
-                      let inputDom = document.querySelector(`#bat-score-group-${ id }`)
-                      batchSetStructScore(id, inputDom.value || 0)
-                      getScoreSum()
-                  })
-                }
-            }
-        }
-    }
-    getScoreSum()
+			let btnDom = document.querySelector(`#bat-set-btn-${ item.id }`)
+			if (btnDom) {
+				btnDom.addEventListener('click', function() {
+					let id = btnDom.dataset.id || ''
+					let inputDom = document.querySelector(`#bat-group-${ id }`)
+					batchSetStructScore(id, inputDom.value || 0)
+					getScoreSum()
+				})
+			}
+		} else {
+			let doms = document.querySelectorAll('.ques-' + item.id) || []
+			doms.forEach(function(dom) {
+				dom.addEventListener('change', function() {
+					getScoreSum()
+				})
+				dom.addEventListener('input', function() {
+					let inputValue = dom.value
+					dom.value = checkInputValue(inputValue, 100)
+				})
+			})
+		}
+	}
+	getScoreSum()
   }
 
   function checkInputValue(val = '', max) {
@@ -217,8 +262,11 @@
   function onSwitchStruct() {
     //  开启/隐藏 无题目的结构
     hidden_empty_struct = !hidden_empty_struct
-    $('#hidden_empty_struct').prop('checked', hidden_empty_struct)
+    updateHideEmptyStruct()
+  }
 
+  function updateHideEmptyStruct() {
+	$('#hidden_empty_struct').prop('checked', hidden_empty_struct)
     for (const key in tree_map) {
         let arr = tree_map[key] || []
         if (arr.length === 0) {
@@ -229,6 +277,12 @@
             }
         }
     }
+  }
+
+  function onSwitchTree() {
+	display_tree = !display_tree
+	$('#switch_tree').prop('checked', display_tree)
+	renderData()
   }
 
   function onConfirm() {
@@ -243,7 +297,7 @@
         var nodeData = node_list.find(e => {
           return e.id == id
         })
-        if (ask_list.length > 0 && (!show_choice_region || show_choice_region && !nodeData.use_gather)) {
+        if (ask_list.length > 0 && (!show_choice_region || show_choice_region && (!nodeData || !nodeData.use_gather))) {
           // 有小问区的题
           let sumScore = 0
           for (const k in ask_list) {
@@ -297,6 +351,7 @@
   window.Asc.plugin.attachEvent('initPaper', function (message) {
     console.log('batchSettingScores 接收的消息', message)
     biyueCustomData = message.biyueCustomData || {}
+	tree_info = message.tree_info || {}
     init()
   })
 })(window, undefined)

@@ -1,0 +1,136 @@
+.window-body {
+	height: calc(100vh - 70px);
+	overflow-y: auto;
+}
+.batch-setting-header {
+	border-bottom: 1px solid #ddd;
+	line-height: 1.5em;
+	font-size: 14px;
+	padding: 0 5px;
+}
+.batch-setting-info {
+	padding: 0 15px 5px;
+	.group {
+		font-size: 14px;
+		margin-bottom: 8px;
+		margin-top: 8px;
+		font-weight: 700;
+	}
+	.question {
+		font-size: 14px;
+		display: inline-block;
+		margin: 3px 0;
+		.score,
+		.type-item,
+		.item {
+			background-color: transparent;
+			background-image: none;
+			box-sizing: border-box;
+			color: #606266;
+			font-size: inherit;
+			outline: none;
+			padding: 0 5px;
+			border: none;
+			height: 1.5em;
+			min-width: 40px;
+			display: inline-block;
+			text-align: center;
+			border-bottom: 1px solid #ccc;
+			line-height: 1.5em;
+			transition: border-color 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
+			margin: 0 10px 0 0;
+		}
+		.score {
+			width: 60px;
+			max-width: 60px;
+		}
+		.type-item {
+			width: 80px;
+			max-width: 80px;
+		}
+	}
+
+	.ques-none {
+		color: #bbb;
+		text-align: center;
+		margin-top: 60px;
+	}
+}
+
+.bat-set {
+	float: right;
+	font-weight: normal;
+	font-size: 12px;
+	user-select: none;
+	.bat-set-btn {
+		color: #4caf50;
+		cursor: pointer;
+		margin-left: 5px;
+	}
+	.input,
+	.type-item,
+	.bat-item {
+		background-color: transparent;
+		background-image: none;
+		box-sizing: border-box;
+		color: #606266;
+		font-size: inherit;
+		outline: none;
+		padding: 0 5px;
+		border: none;
+		height: 1.5em;
+		min-width: 40px;
+		display: inline-block;
+		text-align: center;
+		border-bottom: 1px solid #ccc;
+		line-height: 1.5em;
+		transition: border-color 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
+		margin: 0 10px 0 0;
+	}
+	.input {
+		width: 60px;
+		max-width: 60px;
+	}
+	.type-item {
+		width: 100px;
+		max-width: 100px;
+	}
+}
+
+.confirm-wrapper {
+	text-align: center;
+	border-top: 1px solid #ddd;
+	min-height: 50px;
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	.hidden_empty_struct {
+		font-size: 14px;
+		position: absolute;
+		left: 15px;
+		bottom: 15px;
+		color: #666;
+	}
+	.btn-confirm {
+		background-color: #4caf50;
+		color: white;
+		border: none;
+		padding: 4px 24px;
+		text-align: center;
+		text-decoration: none;
+		display: inline-block;
+		font-size: 14px;
+		cursor: pointer;
+		border-radius: 4px;
+		margin-top: 12px;
+		margin-bottom: 8px;
+	}
+	.switch-tree {
+		font-size: 14px;
+		position: absolute;
+		right: 15px;
+		bottom: 15px;
+		color: #666;
+	}
+}

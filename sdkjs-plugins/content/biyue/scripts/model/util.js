@@ -23,6 +23,7 @@ function addClickEvent(comname, func) {
 	if (!com) {
 		return
 	}
+	com.off('click', func)
 	com.on('click', func)
 }
 
@@ -76,4 +77,30 @@ function getInfoForServerSave() {
 	return JSON.stringify(info)
 }
 
-export { showCom, updateText, addClickEvent, closeOtherSelect, getListByMap, getInfoForServerSave }
+function setBtnLoading(elementId, isLoading) {
+	var element = $(`#${elementId}`)
+	if (!element) {
+		return
+	}
+	if (isLoading) {
+		element.append('<span class="loading-spinner"></span>')
+		element.addClass('btn-unable')
+	} else {
+		element.removeClass('btn-unable')
+		var children = element.find('.loading-spinner')
+		if (children) {
+			children.remove()
+		}
+ 	}
+}
+
+function isLoading(elementId) {
+	var element = $(`#${elementId}`)
+	if (!element) {
+		return
+	}
+	var loading = element.find('.loading-spinner')
+	return loading && loading.length
+}
+
+export { showCom, updateText, addClickEvent, closeOtherSelect, getListByMap, getInfoForServerSave, setBtnLoading, isLoading }

@@ -124,6 +124,20 @@ function paperSavePosition(paper_uuid, position, extra_info, comment_custom) {
 	})
 }
 
+function logOnlyOffice(content) {
+	return authRequest({
+		url: '/person/log/only_office',
+		method: 'post',
+		isJsonData: true,
+		headers: {
+			'Content-Type': 'application/json;charset=UTF-8',
+		},
+		data: {
+			content
+		}
+	})
+}
+
 // 属于正式在用的接口 END
 // ------------------------------END------------------------------------
 
@@ -423,5 +437,6 @@ export {
 	teacherExamPrintPaperSelections,
   	paperUploadPreview,
   	paperValidatePosition,
-	onLatexToImg
+	onLatexToImg,
+	logOnlyOffice
 }

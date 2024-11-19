@@ -6,6 +6,41 @@
   "description": "",
   "glyphs": [
     {
+      "icon_id": "1345637",
+      "name": "线描－钉子",
+      "font_class": "dingzi-u",
+      "unicode": "e63f",
+      "unicode_decimal": 58943
+    },
+    {
+      "icon_id": "40206411",
+      "name": "钉住",
+      "font_class": "dingzi3",
+      "unicode": "e86c",
+      "unicode_decimal": 59500
+    },
+    {
+      "icon_id": "42419305",
+      "name": "钉子 (1)-copy",
+      "font_class": "dingzi1",
+      "unicode": "ea7d",
+      "unicode_decimal": 60029
+    },
+    {
+      "icon_id": "23884809",
+      "name": "76-error bold",
+      "font_class": "close",
+      "unicode": "e655",
+      "unicode_decimal": 58965
+    },
+    {
+      "icon_id": "975382",
+      "name": "返回",
+      "font_class": "return",
+      "unicode": "e6ba",
+      "unicode_decimal": 59066
+    },
+    {
       "icon_id": "39085747",
       "name": "空盒子",
       "font_class": "weikong",

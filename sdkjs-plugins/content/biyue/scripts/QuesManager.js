@@ -5,8 +5,11 @@ import { handleChoiceUpdateResult, setInteraction, updateChoice } from "./featur
 import { initExtroInfo } from "./panelFeature.js";
 import { addOnlyBigControl, removeOnlyBigControl, getAllPositions2 } from './business.js'
 import { handleRangeType } from "./classifiedTypes.js"
-import { ShowLinkedWhenclickImage } from './linkHandler.js'
+import { imageAutoLink, ShowLinkedWhenclickImage } from './linkHandler.js'
 import { layoutDetect } from './layoutFixHandler.js'
+import { setBtnLoading, isLoading } from './model/util.js'
+import { refreshTree } from './panelTree.js'
+import { getChoiceQuesData } from './choiceQuestion.js'
 var g_click_value = null
 var upload_control_list = []
 
@@ -210,7 +213,7 @@ function getContextMenuItems(type, selectedRes) {
 						})
 						if (askIndex == -1) {
 							askIndex = question_map[id].ask_list.findIndex(e => {
-								cData = e.other_fileds && e.other_fileds.includes(tag.client_id)
+								return e.other_fileds && e.other_fileds.includes(tag.client_id)
 							})
 							if (askIndex >= 0) {
 								cData = { ques_id: id, ask_id: tag.client_id, is_merge: true, level_type: 'ask'}
@@ -219,6 +222,11 @@ function getContextMenuItems(type, selectedRes) {
 							cData = { ques_id: id, ask_id: tag.client_id, is_merge: false, ask_index: askIndex, level_type: 'ask'}
 						}
 						if (askIndex >= 0) {
+							break
+						}
+					} else if (tag.mid && id == tag.mid) {
+						if (question_map[id].is_merge) {
+							cData = { ques_id: id, level_type: 'question', is_merge: true }
 							break
 						}
 					}
@@ -264,21 +272,53 @@ function getContextMenuItems(type, selectedRes) {
 				text: '划分类型',
 				items: []
 			}
-			var list = ["question", 'struct', 'setBig', 'write', 'clearBig', 'clearChildren', 'clear', 'clearAll']
-			var names = ['设置为 - 题目', '设置为 - 题组(结构)', '设置为 - 大题', '设置为 - 小问', '清除 - 大题', '清除 - 所有小问', '清除 - 选中区域', '清除 - 选中区域(含子级)']
-			var icons = [
-				'rect',
-				'struct',
-				'rect',
-				'rect',
-				'clear',
-				'clear',
-				'clear',
-				'clear'
-			]
+			var list = [{
+				value: 'question',
+				text: '设置为 - 题目',
+				icon: 'rect'
+			}, {
+				value: 'mergeQuestion',
+				text: '合并为 - 一题',
+				icon: 'rect'
+			}, {
+				value: 'struct',
+				text: '设置为 - 题组(结构)',
+				icon: 'struct',
+			}, {
+				value: 'setBig',
+				text: '设置为 - 大题',
+				icon: 'rect'
+			}, {
+				value: 'write',
+				text: '设置为 - 小问',
+				icon: 'rect'
+			}, {
+				value: 'clearBig',
+				text: '清除 - 大题',
+				icon: 'clear'
+			}, {
+				value: 'clearChildren',
+				text: '清除 - 所有小问',
+				icon: 'clear'
+			}, {
+				value: 'clearMerge',
+				text: '清除 - 合并题',
+				icon: 'clear'
+			}, {
+				value: 'clear',
+				text: '清除 - 选中区域',
+				icon: 'clear'
+			}, {
+				value: 'clearAll',
+				text: '清除 - 选中区域(含子级)',
+				icon: 'clear'
+			}]
 			var valueMap = {}
 			list.forEach(e => {
-				valueMap[e] = e == 'clear' || e == 'clearAll' ? 1 : 0
+				valueMap[e.value] = e.value == 'clear' || e.value == 'clearAll' ? 1 : 0
+				if (e.value == 'mergeQuestion') {
+					valueMap[e.value] = selectedRes.bTable && type == 'Selection'
+				}
 			})
 			if (type == 'Selection') {
 				if (selectedRes.parentSdts.length == 0) {
@@ -316,11 +356,15 @@ function getContextMenuItems(type, selectedRes) {
 					}
 				} else {
 					if (cData.level_type == 'question') {
-						splitType.text += '(现为题目)'
-						valueMap['struct'] = 1
-						valueMap['setBig'] = 1
-						if (selectedRes.bTable) {
-							valueMap['write'] = 1
+						splitType.text += cData.is_merge ? '(现为合并题)' : '(现为题目)'
+						if (cData.is_merge) {
+							valueMap['clearMerge'] = 1
+						} else {
+							valueMap['struct'] = 1
+							valueMap['setBig'] = 1
+							if (selectedRes.bTable) {
+								valueMap['write'] = 1
+							}
 						}
 					} else if (cData.level_type == 'struct') {
 						splitType.text += '(现为题组)'
@@ -341,11 +385,11 @@ function getContextMenuItems(type, selectedRes) {
 			}
 			
 			list.forEach((e, index) => {
-				if (valueMap[e]) {
+				if (valueMap[e.value]) {
 					splitType.items.push({
-						icons: `resources/%theme-type%(light|dark)/%state%(normal)${icons[index]}%scale%(100|200).%extension%(png)`,
-						id: `updateControlType_${e}`,
-						text: names[index]
+						icons: `resources/%theme-type%(light|dark)/%state%(normal)${e.icon}%scale%(100|200).%extension%(png)`,
+						id: `updateControlType_${e.value}`,
+						text: e.text
 					})
 				}
 			})
@@ -507,10 +551,11 @@ function onContextMenuClick(id) {
 				batchChangeScore()
 				break
 			case 'imageRelation':
-				window.biyue.showDialog('imageRelationWindow', '图片关联', 'imageRelation.html', 800, 600, false)
-				break
 			case 'tableRelation':
-				window.biyue.showDialog('imageRelationWindow', '表格关联', 'imageRelation.html', 800, 600, false)
+				preGetExamTree().then(res => {
+					Asc.scope.tree_info = res
+					window.biyue.showDialog('imageRelationWindow', funcName == 'imageRelation' ? '图片关联' : '表格关联', 'imageRelation.html', 800, 600, false)	
+				})
 				break
 			case 'mergeAsk':
 				mergeAsk(strs)
@@ -656,12 +701,27 @@ function getNodeList() {
 						}
 					}
 				}
-				node_list.push({
+				var nodeObj = {
 					id: tagInfo.client_id,
 					regionType: tagInfo.regionType,
-					parent_id: parent_id,
-					write_list: write_list
-				})
+					parent_id: parent_id
+				}
+				if (tagInfo.mid && oControl.GetParentTableCell()) {
+					if (tagInfo.cask == 1) {
+						var oCell = oControl.GetParentTableCell()
+						write_list.push({
+							id: 'c_' + oCell.Cell.Id,
+							sub_type: 'cell',
+							table_id: oCell.GetParentTable().Table.Id,
+							cell_id: oCell.Cell.Id,
+							row_index: oCell.GetRowIndex(),
+							cell_index: oCell.GetIndex()
+						})
+						nodeObj.cell_ask = true
+					}
+				}
+				nodeObj.write_list = write_list
+				node_list.push(nodeObj)
 			}
 		}
 		return node_list
@@ -673,8 +733,11 @@ function handleChangeType(res, res2) {
 	if (!res) {
 		return
 	}
-	if (!res.change_list || res.change_list.length == 0) {
-		return
+	var change_list = res.change_list || []
+	if (change_list.length == 0) {
+		if (res.typeName != 'clearChildren') {
+			return	
+		}
 	}
 	if (res.client_node_id) {
 		window.BiyueCustomData.client_node_id = res.client_node_id
@@ -718,204 +781,313 @@ function handleChangeType(res, res2) {
 			question_map[qid].score = sum
 		}
 	}
-	res.change_list.forEach(item => {
-		var nodeIndex = node_list.findIndex(e => {
-			return e.id == item.client_id
-		})
-		var nodeData = nodeIndex >= 0 ? node_list[nodeIndex] : null
-		// 之前是小问，需要移除
-		if (nodeData && nodeData.level_type == 'write' && level_type != 'write') {
-			if (nodeData.parent_id) {
-				var parentNode = node_list.find(e => {
-					return e.id == nodeData.parent_id
-				})
-				if (parentNode) {
-					var writeIndex = parentNode.write_list.findIndex(e => {
-						return e.id == nodeData.id
-					})
-					if (writeIndex >= 0) {
-						parentNode.write_list.splice(writeIndex, 1)
-						if (question_map[nodeData.parent_id]) {
-							question_map[nodeData.parent_id].ask_list.splice(writeIndex, 1)
-						}
-						updateScore(nodeData.parent_id)
-					}
-				}
-			}
+	function getAskIndex(ques_id, parent_id, write_id) {
+		var quesData = question_map[ques_id]
+		var ids = []
+		if (quesData.is_merge) {
+			ids = quesData.ids
+		} else {
+			ids = [ques_id]
 		}
-		var ask_list
-		if (item.children && item.children.length) {
-			ask_list = item.children.filter(child => {
-				return child.regionType == 'write'
+		var aindex = 0
+		for (var i1 = 0; i1 < ids.length; ++i1) {
+			var ndata = res2.find(e => {
+				return e.id == ids[i1]
 			})
-		}
-		if (nodeData) {
-			if (level_type == 'clear' || level_type == 'clearAll') {
-				node_list.splice(nodeIndex, 1)
-			} else {
-				nodeData.is_big = level_type == 'setBig'
-				if (nodeData.level_type != 'question' && targetLevel == 'question') {
-					addIds.push(nodeData.id)
-				}
-				nodeData.level_type = targetLevel
-			}
-			if (targetLevel == 'question') {
-				nodeData.write_list = ask_list
-				if (!question_map[item.client_id]) {
-					var write_list = nodeData.write_list || []
-					question_map[item.client_id] = {
-						text: getQuesText(item.text),
-						level_type: targetLevel,
-						ques_default_name: item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(targetLevel, item.text),
-						interaction: window.BiyueCustomData.interaction,
-						ask_list: write_list.map(e => {
-							return {
-								id: e.id
-							}
-						})
-					}
-				} else {
-					updateAskList(item.client_id, ask_list)
-					if (level_type == 'setBig' || level_type == 'clearBig') {
-						question_map[item.client_id].text = getQuesText(item.text)
-						question_map[item.client_id].ques_default_name = item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(targetLevel, item.text)
-						question_map[item.client_id].level_type = targetLevel
+			var find = false
+			if (ndata && ndata.write_list) {
+				for (var i2 = 0; i2 < ndata.write_list.length; ++i2) {
+					if (ndata.write_list[i2].id == write_id) {
+						find = true
+						break
 					} else {
-						question_map[item.client_id].level_type = targetLevel
+						aindex++ 
 					}
 				}
-			} else if (targetLevel == 'struct') {
-				question_map[item.client_id] = {
-					text: getQuesText(item.text),
-					level_type: targetLevel,
-					ques_default_name: item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(targetLevel, item.text)
+			}
+			if (find) {
+				break
+			}
+		}
+		return aindex
+	}
+	if (res.typeName == 'mergeQuestion') {
+		var writelist = []
+		change_list.forEach((item, idx) => {
+			if (item.ques_state == 'merge_child') {
+				var nodeData = node_list.find(e => {
+					return e.id == item.client_id
+				})
+				var write_list = []
+				if (!nodeData) {
+					var index = node_list.length
+					if (res2) {
+						index = res2.findIndex(e => {
+							return e.id == item.client_id
+						})
+						if (index == -1) {
+							index = 0
+						} else {
+							write_list = res2[index].write_list
+						}
+					}
+					node_list.splice(index, 0, {
+						id: item.client_id,
+						control_id: item.control_id,
+						regionType: item.regionType,
+						level_type: 'question',
+						write_list:  write_list,
+						merge_id: res.merge_data.client_id,
+						cell_ask: item.cell_ask
+					})
+				} else {
+					nodeData.merge_id = res.merge_data.client_id
+					nodeData.level_type = 'question'
+					nodeData.regionType = 'question'
+					write_list = nodeData.write_list || []
 				}
-				update_node_id = item.client_id
-			} else {
+				writelist = writelist.concat(write_list.map(e => {
+					return {
+						...e,
+						parent_node_id: item.client_id
+					}
+				} ))
 				if (question_map[item.client_id]) {
 					delete question_map[item.client_id]
 				}
 			}
-		} else if (level_type == 'write') {
-			var parent_id = item.parent_id
-			if (parent_id > 0) {
-				var parentNode = node_list.find(e => {
-					return e.id == parent_id
-				})
-				if (parentNode) {
-					addIds.push(parent_id)
-					var ndata = res2.find(e => {
-						return e.id == parent_id
-					})
-					if (ndata && ndata.write_list) {
-						var writeIndex = ndata.write_list.findIndex(e => {
-							return e.id == item.client_id
-						})
-						if (writeIndex == -1 && item.type != 'remove') {
-							ndata.write_list.push({
-								id: item.client_id,
-								control_id: item.control_id,
-								regionType: item.regionType
-							})
-							writeIndex = 0
-						}
-						if (question_map[parent_id]) {
-							if (!question_map[parent_id].ask_list) {
-								question_map[parent_id].ask_list = []
-							}
-							var index2 = question_map[parent_id].ask_list.findIndex(e => {
-								return e.id == item.client_id
-							})
-							if (item.type == 'remove') {
-								if (index2 >= 0) {
-									question_map[parent_id].ask_list.splice(index2, 1)
-									updateScore(parent_id)
-								}
-							} else if (index2 < 0) {
-								var toIndex = 0
-								for (var i1 = writeIndex - 1; i1 >= 0; --i1) {
-									var index1 = question_map[parent_id].ask_list.findIndex(e => {
-										return e.id == ndata.write_list[i1].id
-									})
-									if (index1 >= 0) {
-										toIndex = index1 + 1
-										break
-									}
-								}
-								question_map[parent_id].ask_list.splice(toIndex, 0, {
-									id: item.client_id,
-									score: 1
-								})
-								updateScore(parent_id)
-							}
-						}
-					}
-					if (ndata) {
-						parentNode.write_list = ndata.write_list
-					}
+		})
+		question_map[res.merge_data.client_id] = {
+			text: getQuesText(res.merge_data.text),
+			ids: res.merge_data.ids,
+			is_merge: true,
+			level_type: 'question',
+			ques_default_name: res.merge_data.numbing_text ? getNumberingText(res.merge_data.numbing_text) : GetDefaultName('question', res.merge_data.text),
+			interaction: window.BiyueCustomData.interaction,
+			ask_list: writelist.map(e => {
+				return {
+					parent_node_id: e.parent_node_id,
+					id: e.id,
+					score: 1
 				}
-			}
-		} else if (level_type != 'clear' && level_type != 'clearAll') {
-			// 之前没有，需要增加
-			var index = node_list.length
-			if (res2) {
-				index = res2.findIndex(e => {
-					return e.id == item.client_id
-				})
-				if (index == -1) {
-					index = 0
-				}
-			}
-			node_list.splice(index, 0, {
-				id: item.client_id,
-				control_id: item.control_id,
-				regionType: item.regionType,
-				level_type: targetLevel,
-				write_list: ask_list
 			})
-			if (targetLevel == 'question') {
-				addIds.push(item.client_id)
-			} else if (targetLevel == 'struct') {
-				update_node_id = item.client_id
+		}
+		update_node_id = res.merge_data.client_id
+	} else {
+		for (var iItem = 0; iItem < change_list.length; ++iItem) {
+			var item = change_list[iItem]
+			var nodeIndex = node_list.findIndex(e => {
+				return e.id == item.client_id
+			})
+			var nodeData = nodeIndex >= 0 ? node_list[nodeIndex] : null
+			// 之前是小问，需要移除
+			if (nodeData && nodeData.level_type == 'write' && level_type != 'write') {
+				if (nodeData.parent_id) {
+					var parentNode = node_list.find(e => {
+						return e.id == nodeData.parent_id
+					})
+					if (parentNode) {
+						var writeIndex = parentNode.write_list.findIndex(e => {
+							return e.id == nodeData.id
+						})
+						if (writeIndex >= 0) {
+							parentNode.write_list.splice(writeIndex, 1)
+							if (question_map[nodeData.parent_id]) {
+								question_map[nodeData.parent_id].ask_list.splice(writeIndex, 1)
+							}
+							updateScore(nodeData.parent_id)
+						}
+					}
+				}
 			}
-			if (targetLevel == 'question' || targetLevel == 'struct') {
-				question_map[item.client_id] = {
-					text: getQuesText(item.text),
-					level_type: targetLevel,
-					ques_default_name: item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(targetLevel, item.text)
+			var ask_list
+			if (item.children && item.children.length) {
+				ask_list = item.children.filter(child => {
+					return child.regionType == 'write'
+				})
+			}
+			if (nodeData) {
+				if (level_type == 'clear' || level_type == 'clearAll' || level_type == 'clearMerge') {
+					node_list.splice(nodeIndex, 1)
+				} else {
+					nodeData.is_big = level_type == 'setBig'
+					if (nodeData.level_type != 'question' && targetLevel == 'question') {
+						addIds.push(nodeData.id)
+					}
+					nodeData.level_type = targetLevel
 				}
 				if (targetLevel == 'question') {
-					question_map[item.client_id].ask_list = ask_list
-					question_map[item.client_id].interaction = window.BiyueCustomData.interaction
-				}
-			}
-		} else {
-			if (item.regionType == 'write' && item.parent_id) {
-				update_node_id = item.parent_id
-				var nodeData = node_list.find(e => {
-					return e.id == item.parent_id
-				})
-				if (nodeData && nodeData.write_list) {
-					var write_index = nodeData.write_list.findIndex(e => {
-						return e.id == item.client_id
-					})
-					if (write_index >= 0) {
-						nodeData.write_list.splice(write_index, 1)
+					nodeData.write_list = ask_list
+					if (!question_map[item.client_id]) {
+						var write_list = nodeData.write_list || []
+						question_map[item.client_id] = {
+							text: getQuesText(item.text),
+							level_type: targetLevel,
+							ques_default_name: item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(targetLevel, item.text),
+							interaction: window.BiyueCustomData.interaction,
+							ask_list: write_list.map(e => {
+								return {
+									id: e.id
+								}
+							})
+						}
+					} else {
+						updateAskList(item.client_id, ask_list)
+						if (level_type == 'setBig' || level_type == 'clearBig') {
+							question_map[item.client_id].text = getQuesText(item.text)
+							question_map[item.client_id].ques_default_name = item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(targetLevel, item.text)
+							question_map[item.client_id].level_type = targetLevel
+						} else {
+							question_map[item.client_id].level_type = targetLevel
+						}
+					}
+				} else if (targetLevel == 'struct') {
+					question_map[item.client_id] = {
+						text: getQuesText(item.text),
+						level_type: targetLevel,
+						ques_default_name: item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(targetLevel, item.text)
+					}
+					update_node_id = item.client_id
+				} else {
+					if (question_map[item.client_id]) {
+						delete question_map[item.client_id]
 					}
 				}
-				if (question_map[item.parent_id] && question_map[item.parent_id].ask_list) {
-					var ask_index = question_map[item.parent_id].ask_list.findIndex(e => {
+			} else if (level_type == 'write') {
+				var parent_id = item.parent_id
+				if (parent_id > 0) {
+					var parentNode = node_list.find(e => {
+						return e.id == parent_id
+					})
+					if (parentNode) {
+						addIds.push(parent_id)
+						var ndata = res2.find(e => {
+							return e.id == parent_id
+						})
+						if (ndata && ndata.write_list) {
+							if (parentNode.merge_id) {
+								parentNode.cell_ask = ndata.cell_ask
+							}
+							var writeIndex = ndata.write_list.findIndex(e => {
+								return e.id == item.client_id
+							})
+							if (writeIndex == -1 && item.type != 'remove') {
+								ndata.write_list.push({
+									id: item.client_id,
+									control_id: item.control_id,
+									regionType: item.regionType
+								})
+								writeIndex = 0
+							}
+							var real_parent_id = parentNode.merge_id ? parentNode.merge_id : parent_id
+							if (question_map[real_parent_id]) {
+								if (!question_map[real_parent_id].ask_list) {
+									question_map[real_parent_id].ask_list = []
+								}
+								var index2 = question_map[real_parent_id].ask_list.findIndex(e => {
+									return e.id == item.client_id
+								})
+								if (item.type == 'remove') {
+									if (index2 >= 0) {
+										question_map[real_parent_id].ask_list.splice(index2, 1)
+										updateScore(real_parent_id)
+									}
+								} else if (index2 < 0) {
+									var toIndex = getAskIndex(real_parent_id, parent_id, item.client_id)
+									question_map[real_parent_id].ask_list.splice(toIndex, 0, {
+										id: item.client_id,
+										score: 1
+									})
+									updateScore(real_parent_id)
+								}
+							}
+						}
+						if (ndata) {
+							parentNode.write_list = ndata.write_list
+						}
+					}
+				}
+			} else if (level_type != 'clear' && level_type != 'clearAll' && level_type != 'clearMerge') {
+				// 之前没有，需要增加
+				var index = node_list.length
+				if (res2) {
+					index = res2.findIndex(e => {
 						return e.id == item.client_id
 					})
-					if (ask_index >= 0) {
-						question_map[item.parent_id].ask_list.splice(ask_index, 1)
-						updateScore(item.parent_id)
+					if (index == -1) {
+						if (item.type == 'remove') {
+							continue
+						}
+						index = 0
 					}
-					addIds.push(item.parent_id)
+				}
+				if (index >= 0) {
+					node_list.splice(index, 0, {
+						id: item.client_id,
+						control_id: item.control_id,
+						regionType: item.regionType,
+						level_type: targetLevel,
+						write_list: ask_list
+					})
+				}
+				
+				if (targetLevel == 'question') {
+					addIds.push(item.client_id)
+				} else if (targetLevel == 'struct') {
+					update_node_id = item.client_id
+				}
+				if (targetLevel == 'question' || targetLevel == 'struct') {
+					question_map[item.client_id] = {
+						text: getQuesText(item.text),
+						level_type: targetLevel,
+						ques_default_name: item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(targetLevel, item.text)
+					}
+					if (targetLevel == 'question') {
+						question_map[item.client_id].ask_list = ask_list
+						question_map[item.client_id].interaction = window.BiyueCustomData.interaction
+					}
+				}
+			} else {
+				if (item.regionType == 'write' && item.parent_id) {
+					update_node_id = item.parent_id
+					var nodeData = node_list.find(e => {
+						return e.id == item.parent_id
+					})
+					if (nodeData && nodeData.write_list) {
+						var write_index = nodeData.write_list.findIndex(e => {
+							return e.id == item.client_id
+						})
+						if (write_index >= 0) {
+							nodeData.write_list.splice(write_index, 1)
+						}
+					}
+					var real_parent_id = nodeData && nodeData.merge_id ? nodeData.merge_id : item.parent_id
+					if (question_map[real_parent_id] && question_map[real_parent_id].ask_list) {
+						var ask_index = question_map[real_parent_id].ask_list.findIndex(e => {
+							return e.id == item.client_id
+						})
+						if (ask_index >= 0) {
+							question_map[real_parent_id].ask_list.splice(ask_index, 1)
+							updateScore(real_parent_id)
+						}
+						addIds.push(real_parent_id)
+					}
 				}
 			}
 		}
-	})
+		if (res.typeName == 'clearMerge' && res.merge_id) {
+			if (question_map[res.merge_id]) {
+				delete question_map[res.merge_id]
+			}
+		}
+		if (res.typeName == 'clearChildren') {
+			if (question_map[res.merge_id]) {
+				question_map[res.merge_id].ask_list = []
+				question_map[res.merge_id].score = 0
+				update_node_id = res.merge_id
+			}
+		}
+	}
 
 	window.BiyueCustomData.node_list = node_list
 	window.BiyueCustomData.question_map = question_map
@@ -932,41 +1104,92 @@ function handleChangeType(res, res2) {
 		}
 		update_node_id = addIds[0]
 	}
+	var typequesId = 0
+	if (res.typeName == 'mergeQuestion') {
+		typequesId = res.merge_data.client_id
+	} else if (res.typeName == 'question' && (question_map[update_node_id] && question_map[update_node_id].level_type == 'question')) {
+		typequesId = update_node_id
+	}
+	if (typequesId) {
+		return imageAutoLink(typequesId, false).then((res3) => {
+			if (res3.rev) {
+				return ShowLinkedWhenclickImage({
+					client_id: typequesId
+				})
+			} else {
+				return new Promise((resolve, reject) => {
+					resolve()
+				})
+			}
+		}).then(() => {
+			return splitControl(typequesId)
+		})
+	}
+	var updateLinked = res.link_updated
 	var use_gather = window.BiyueCustomData.choice_display && window.BiyueCustomData.choice_display.style != 'brackets_choice_region'
 	if (use_gather) {
-		deleteChoiceOtherWrite(null, false).then(() => {
-			notifyQuestionChange(update_node_id)
-			updateChoice().then(res => {
-				return handleChoiceUpdateResult(res)
-			}).then(() => {
-				window.biyue.StoreCustomData()
+		return deleteChoiceOtherWrite(null, false).then(() => {
+			return notifyQuestionChange(update_node_id)
+		}).then(() => {
+			return updateChoice()
+		}).then((res3) => {
+			return handleChoiceUpdateResult(res3)
+		})
+		.then(() => {
+			window.biyue.StoreCustomData(() => {
+				if (updateLinked) {
+					return ShowLinkedWhenclickImage({
+						client_id: update_node_id
+					})
+				}
 			})
 		})
 	} else {
 		if (updateinteraction) {
-			deleteChoiceOtherWrite(null, false).then(res => {
-				notifyQuestionChange(update_node_id)
-				setInteraction(interaction, addIds).then(() => window.biyue.StoreCustomData())
+			return deleteChoiceOtherWrite(null, false).then(res3 => {
+				return notifyQuestionChange(update_node_id)
+			}).then(() => {
+				return setInteraction(interaction, addIds).then(() => {
+					window.biyue.StoreCustomData(() => {
+						if (updateLinked) {
+							return ShowLinkedWhenclickImage({
+								client_id: update_node_id
+							})
+						}
+					})
+				})
 			})
 		} else {
 			deleteChoiceOtherWrite(null, true).then(res => {
-				notifyQuestionChange(update_node_id)
-				window.biyue.StoreCustomData()
+				return notifyQuestionChange(update_node_id)
+			}).then(() => {
+				window.biyue.StoreCustomData(() => {
+					if (updateLinked) {
+						return ShowLinkedWhenclickImage({
+							client_id: update_node_id
+						})
+					}
+				})
 			})
 		}
 	}
-	console.log('handleChangeType end', node_list, 'g_click_value', g_click_value, 'update_node_id', update_node_id)
-	notifyQuestionChange(update_node_id)
 }
 function notifyQuestionChange(update_node_id) {
-	var  eventname = window.tab_select != 'tabQues' ? 'clickSingleQues' : 'updateQuesData'
-	document.dispatchEvent(
-		new CustomEvent(eventname, {
-			detail: {
-				client_id: update_node_id
-			}
-		})
-	)
+	if (window.tab_select == 'tabTree' && window.tree_lock) {
+		return refreshTree()
+	}
+	return new Promise((resolve, reject) => {
+		var eventname = window.tab_select != 'tabQues' ? 'clickSingleQues' : 'updateQuesData'
+		document.dispatchEvent(
+			new CustomEvent(eventname, {
+				detail: {
+					client_id: update_node_id
+				}
+			})
+		)
+		resolve()
+	})
+	
 }
 
 function updateAllChoice() {
@@ -1290,7 +1513,15 @@ function initControls() {
 			var parentid = 0
 			if (tagInfo.regionType) {
 				if (tagInfo.regionType == 'question') {
-					ids[tagInfo.client_id] = 1
+					if (tagInfo.mid) {
+						if (ids[tagInfo.mid]) {
+							ids[tagInfo.mid].push(tagInfo.client_id)
+						} else {
+							ids[tagInfo.mid] = [tagInfo.client_id]
+						}
+					} else {
+						ids[tagInfo.client_id] = 1
+					}
 				}
 				var parentControl = getParentBlock(oControl)
 				if (parentControl) {
@@ -1299,14 +1530,18 @@ function initControls() {
 						parentid = parentTagInfo.client_id
 					}
 				}
-				nodeList.push({
+				var ndata = {
 					id: tagInfo.client_id,
 					text: oControl.GetRange().GetText(),
 					parentId: parentid,
 					numbing_text: GetNumberingValue(oControl),
 					control_id: oControl.Sdt.GetId(),
 					sub_type: 'control'
-				})
+				}
+				if (tagInfo.mid) {
+					ndata.merge_id = tagInfo.mid
+				}
+				nodeList.push(ndata)
 			}
 			var changecolor = false
 			if (tagInfo.client_id) {
@@ -1319,19 +1554,22 @@ function initControls() {
 					}
 					if (isWrite) {
 						changecolor = true
-						tagInfo.color = '#ff000040'
+						tagInfo.clr = tagInfo.color = '#ff000040'
 					}
-				} else if (oControl.GetClassType() == 'blockLvlSdt' && question_map[tagInfo.client_id]) {
-					if (question_map[tagInfo.client_id].level_type == 'question') {
-						tagInfo.clr = tagInfo.color = '#d9d9d940'
-						changecolor = true
-					} else if (question_map[tagInfo.client_id].level_type == 'struct') {
-						tagInfo.clr = tagInfo.color = '#CFF4FF80'
-						changecolor = true
+				} else if (oControl.GetClassType() == 'blockLvlSdt') {
+					var quesData = tagInfo.mid ? question_map[tagInfo.mid] : question_map[tagInfo.client_id]
+					if (quesData) {
+						if (quesData.level_type == 'question') {
+							tagInfo.clr = tagInfo.color = '#d9d9d940'
+							changecolor = true	
+						} else if (quesData.level_type == 'struct') {
+							tagInfo.clr = tagInfo.color = '#CFF4FF80'
+							changecolor = true	
+						}
 					}
 				}
 			} else if (tagInfo.regionType == 'num') {
-				tagInfo.color = '#ffffff40'
+				tagInfo.clr = tagInfo.color = '#ffffff40'
 				changecolor = true
 			}
 			if (!changecolor && tagInfo.color) {
@@ -1411,24 +1649,17 @@ function initControls() {
 			if (nodeList && nodeList.length > 0) {
 				var question_map = window.BiyueCustomData.question_map || {}
 				var node_list = window.BiyueCustomData.node_list || []
+				var newNodeList = []
 				nodeList.forEach(node => {
 					if (question_map[node.id]) {
 						question_map[node.id].text = getQuesText(node.text)
 						question_map[node.id].ques_default_name = node.numbing_text ? getNumberingText(node.numbing_text) : GetDefaultName(question_map[node.id].level_type, node.text)
 					}
-				})
-				Object.keys(question_map).forEach(id => {
-					if (!ids[id]) {
-						delete question_map[id]
-					}
-				})
-				for (var i = node_list.length - 1; i >= 0; --i) {
-					var nodeData = node_list[i]
-					var ndata = nodeList.find(e => {
-						return e.id == nodeData.id
+					var nodeData = node_list.find(e => {
+						return e.id == node.id
 					})
-					if (ndata) {
-						nodeData.control_id = ndata.control_id
+					if (nodeData) {
+						nodeData.control_id = node.control_id
 						if (nodeData.write_list) {
 							for (var j = 0; j < nodeData.write_list.length; ++j) {
 								var writeData = nodeData.write_list[j]
@@ -1462,10 +1693,33 @@ function initControls() {
 								}
 							}
 						}
-					} else {
-						node_list.splice(i, 1)
+						newNodeList.push(nodeData)
 					}
-				}
+				})
+				window.BiyueCustomData.node_list = newNodeList
+				Object.keys(question_map).forEach(id => {
+					if (!ids[id]) {
+						delete question_map[id]
+					} else if (typeof ids[id] == 'object') {
+						question_map[id].ids = ids[id]
+						var textlist = []
+						var numbing_text = ''
+						question_map[id].ids.forEach(e => {
+							var ndata = nodeList.find(e2 => {
+								return e == e2.id && e2.merge_id == id
+							})
+							if (ndata) {
+								textlist.push(getQuesText(ndata.text))
+								var ntext = getNumberingText(ndata.numbing_text)
+								if (!numbing_text && !ntext) {
+									numbing_text = ntext
+								}
+							}
+						})
+						question_map[id].text = textlist.join('')
+						question_map[id].numbing_text = numbing_text
+					}
+				})
 			}
 			resolve()
 		})
@@ -1516,7 +1770,8 @@ function confirmLevelSet(levels) {
 					if (parent2) {
 						if (parent2.Id == oControl.Sdt.GetId()) {
 							if (oParagraph.Paragraph.HaveNumbering()) {
-								return oParagraph.Paragraph.GetNumberingText()
+								var oNumberingLevel = oParagraph.GetNumbering()
+								return {text: oParagraph.Paragraph.GetNumberingText(), lvl: oNumberingLevel ? oNumberingLevel.Lvl : 0} 
 							}
 							return null
 						}
@@ -1606,14 +1861,19 @@ function confirmLevelSet(levels) {
 				} else {
 					var proportion = getProportion(oControl)
 					var text = oControl.GetRange().GetText()
-					var level_type = levelmap[tagInfo.lvl] || 'question'
+					var numberingInfo = GetNumberingValue(oControl)
+					var lvl = numberingInfo && numberingInfo.lvl ? numberingInfo.lvl : tagInfo.lvl
+					if (lvl != tagInfo.lvl) {
+						tagInfo.lvl = lvl
+					}
+					var level_type = levelmap[lvl] || 'question'
 					nodeData.level_type = level_type
 					nodeData.proportion = proportion
 					var detail = {
 						text: text,
 						ask_list: [],
 						level_type: level_type,
-						numbing_text: GetNumberingValue(oControl),
+						numbing_text: numberingInfo ? numberingInfo.text : '',
 						proportion: proportion
 					}
 					if (tagInfo.regionType == 'question') {
@@ -1666,6 +1926,10 @@ function confirmLevelSet(levels) {
 		return initExtroInfo()
 	})
 	.then(() => {
+		return refreshTree()
+	}).then(() => {
+		return imageAutoLink()
+	}).then(() => {
 		console.log("================================ StoreCustomData")
 		window.biyue.StoreCustomData()
 	})
@@ -1740,42 +2004,89 @@ function getQuesMode(question_type) {
 	return ques_mode
 }
 
-// 获取题型
-function reqGetQuestionType() {
-	Asc.scope.node_list = window.BiyueCustomData.node_list
+function getQuestionHtml(ids) {
+	Asc.scope.question_map = window.BiyueCustomData.question_map
+	Asc.scope.html_ids = ids
 	return biyueCallCommand(window, function() {
-		var node_list = Asc.scope.node_list || []
+		var question_map = Asc.scope.question_map || {}
 		var target_list = []
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls() || []
-		controls.forEach((oControl) => {
-			var tagInfo = Api.ParseJSON(oControl.GetTag())
-			if (tagInfo.regionType == 'question' && tagInfo.client_id) {
-				var nodeData = node_list.find(item => {
-					return item.id == tagInfo.client_id
-				})
-				if (nodeData && nodeData.level_type == 'question') {
-					var oRange = oControl.GetRange()
-					oRange.Select()
-					let text_data = {
-						data:     "",
-						// 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
-						pushData: function (format, value) {
-							this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : "";
-						}
-					};
-
-					Api.asc_CheckCopy(text_data, 2);
-					target_list.push({
-						id: nodeData.id + '',
-						content_type: nodeData.level_type,
-						content_html: text_data.data
-					})
+		var handled = {}
+		var html_ids = Asc.scope.html_ids
+		function getControlsByClientId(cid) {
+			var findControls = controls.filter(e => {
+				var tag = Api.ParseJSON(e.GetTag())
+				if (e.GetClassType() == 'blockLvlSdt') {
+					return tag.client_id == cid && e.GetPosInParent() >= 0
+				} else if (e.GetClassType() == 'inlineLvlSdt') {
+					return e.Sdt && e.Sdt.GetPosInParent() >= 0 && tag.client_id == cid
 				}
+			})
+			if (findControls && findControls.length) {
+				return findControls[0]
 			}
-		})
+		}
+		for (var oControl of controls) {
+			var tagInfo = Api.ParseJSON(oControl.GetTag())
+			if (tagInfo.regionType != 'question' || !tagInfo.client_id) {
+				continue
+			}
+			var quesId = tagInfo.mid && question_map[tagInfo.mid] ? tagInfo.mid : tagInfo.client_id
+			if (handled[quesId]) {
+				continue
+			}
+			if (html_ids && html_ids.indexOf(quesId) < 0) {
+				continue
+			}
+			var quesData = question_map[quesId]
+			if (!quesData || quesData.level_type != 'question') {
+				continue
+			}
+			handled[quesId] = true
+			var oRange = null
+			if (quesData.is_merge && quesData.ids) {
+				quesData.ids.forEach(id => {
+					var control = getControlsByClientId(id)
+					if (control) {
+						var parentcell = control.GetParentTableCell()
+						if (parentcell) {
+							if (!oRange) {
+								oRange = parentcell.GetContent().GetRange()
+							} else {
+								oRange = oRange.ExpandTo(parentcell.GetContent().GetRange())
+							}
+						}
+					}
+				})
+			} else {
+				oRange = oControl.GetRange()
+			}
+			if (oRange) {
+				oRange.Select()
+				let text_data = {
+					data:     "",
+					// 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
+					pushData: function (format, value) {
+						this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : "";
+					}
+				};
+
+				Api.asc_CheckCopy(text_data, 2);
+				target_list.push({
+					id: quesId + '',
+					content_type: quesData.level_type,
+					content_html: text_data.data
+				})
+			}
+		}
 		return target_list
-	}, false, false).then(control_list => {
+	}, false, false)
+}
+
+// 获取题型
+function reqGetQuestionType() {
+	return getQuestionHtml().then(control_list => {
 		console.log('[reqGetQuestionType] control_list', control_list)
 		return new Promise((resolve, reject) => {
 			if (!window.BiyueCustomData.paper_uuid || !control_list || control_list.length == 0) {
@@ -1976,7 +2287,7 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 						write_list.splice(write_index, 1)
 					}
 					deleteControlAccurate(Api.LookupObject(validIds[k].control_id))
-					Api.asc_RemoveContentControlWrapper(validIds[k].control_id)
+					Api.asc_RemoveContentControlWrapper(validIds[k].control_id) // 这里会把所有的choice option control都删除掉
 				}
 				if (question_map[id].interaction != 'none') {
 					updateAccurateText(validIds[blankIndex].control_id)
@@ -2132,31 +2443,7 @@ function showAskCells(cmdType) {
 	}, false, true)
 }
 
-function setBtnLoading(elementId, isLoading) {
-	var element = $(`#${elementId}`)
-	if (!element) {
-		return
-	}
-	if (isLoading) {
-		element.append('<span class="loading-spinner"></span>')
-		element.addClass('btn-unable')
-	} else {
-		element.removeClass('btn-unable')
-		var children = element.find('.loading-spinner')
-		if (children) {
-			children.remove()
-		}
- 	}
-}
 
-function isLoading(elementId) {
-	var element = $(`#${elementId}`)
-	if (!element) {
-		return
-	}
-	var loading = element.find('.loading-spinner')
-	return loading && loading.length
-}
 // 全量更新
 function reqUploadTree() {
 	if (isLoading('uploadTree')) {
@@ -2169,6 +2456,9 @@ function reqUploadTree() {
 	}).then(() => {
 		return handleUploadPrepare('hide')
 	}).then(() => {
+		return getChoiceQuesData()
+	}).then((res) => {
+		Asc.scope.choice_html_map = res
 		return getControlListForUpload()
 	}).then(control_list => {
 		if (control_list && control_list.length) {
@@ -2193,35 +2483,72 @@ function getControlListForUpload() {
 		var controls = oDocument.GetAllContentControls()
 		var question_map = Asc.scope.question_map
 		console.log('question_map', question_map)
+		var handledcontrol = {}
+		function getLvl(oControl, paraIndex) {
+			if (!oControl) {
+				return null
+			}
+			var paragrahs = oControl.GetAllParagraphs() || []
+			for (var i = 0; i < paragrahs.length; ++i) {
+				var oParagraph = paragrahs[i]
+				if (paraIndex != -1 && i > paraIndex) {
+					return null
+				}
+				var oNumberingLevel = oParagraph.GetNumbering()
+				if (oNumberingLevel) {
+					return oNumberingLevel.Lvl
+				}
+			}
+			return null
+		}
+		function getParentId(target_list, lvl) {
+			var parent_id = 0
+			for (var j = target_list.length - 1; j >= 0; --j) {
+				var preNode = target_list[j]
+				// 由于struct未必有lvl，因此先将Lvl的判断移除
+				if (preNode.content_type == 'struct') {
+					if (lvl === 0) {
+						parent_id = 0
+					} else if (!preNode.lvl) {
+						parent_id = preNode.id
+					} else if (lvl && lvl > preNode.lvl) {
+						parent_id = preNode.id
+					} else {
+						parent_id = 0
+					}
+					return parent_id
+				}
+			}
+			return parent_id
+		}
 		for (var i = 0, imax = controls.length; i < imax; ++i) {
 			var oControl = controls[i]
+			if (handledcontrol[oControl.Sdt.GetId()]) {
+				continue
+			}
 			var tag = Api.ParseJSON(oControl.GetTag() || '{}')
 			if (tag.regionType != 'question' || !tag.client_id) {
 				continue
 			}
-			var quesData = question_map[tag.client_id]
+			var quesData
+			var clientid = tag.mid ? tag.mid : tag.client_id
+			var quesData = question_map[clientid]
 			if (!quesData) {
 				continue
 			}
-			if (!question_map[tag.client_id].level_type) {
+			if (!question_map[clientid].level_type) {
 				continue
 			}
+			var lvl = getLvl(oControl, 0)
 			var oParentControl = oControl.GetParentContentControl()
 			var parent_id = 0
-			if (question_map[tag.client_id].level_type == 'question') {
+			if (question_map[clientid].level_type == 'question') {
 				if (oParentControl) {
 					var parentTag = Api.ParseJSON(oParentControl.GetTag() || '{}')
 					parent_id = parentTag.client_id
 				} else {
 					// 根据level, 查找在它前面的比它lvl小的struct
-					for (var j = target_list.length - 1; j >= 0; --j) {
-						var preNode = target_list[j]
-						// 由于struct未必有lvl，因此先将Lvl的判断移除
-						if (preNode.content_type == 'struct') {
-							parent_id = preNode.id
-							break
-						}
-					}
+					parent_id = getParentId(target_list, lvl)
 				}
 			}
 			var useControl = oControl
@@ -2229,14 +2556,34 @@ function getControlListForUpload() {
 				var childcontrols = oControl.GetAllContentControls() || []
 				var bigControl = childcontrols.find(e => {
 					var btag = Api.ParseJSON(e.GetTag())
-					console.log('btag', e.GetTag())
 					return e.GetClassType() == 'blockLvlSdt' && btag.onlybig == 1 && btag.link_id == tag.client_id
 				})
 				if (bigControl) {
 					useControl = bigControl
 				}
+				parent_id = getParentId(target_list, lvl)
 			}
-			var oRange = useControl.GetRange()
+			var oRange = null
+			if (tag.mid) {
+				for (var idkey in quesData.ids) {
+					var control = controls.find(e => {
+						var tag2 = Api.ParseJSON(e.GetTag())
+						return e.GetClassType() == 'blockLvlSdt' && e.GetPosInParent() >= 0 && tag2.client_id == quesData.ids[idkey] && tag2.mid == tag.mid
+					})
+					if (control) {
+						handledcontrol[control.Sdt.GetId()] = 1
+						var parentcell = control.GetParentTableCell()
+						if (!oRange) {
+							oRange = parentcell.GetContent().GetRange()
+						} else {
+							oRange = oRange.ExpandTo(parentcell.GetContent().GetRange())
+						}
+					}
+				}
+			} else {
+				handledcontrol[oControl.Sdt.GetId()] = 1
+				oRange = useControl.GetRange()
+			}
 			oRange.Select()
 			let text_data = {
 				data:     "",
@@ -2248,18 +2595,18 @@ function getControlListForUpload() {
 			Api.asc_CheckCopy(text_data, 2);
 			var content_html = text_data.data
 			target_list.push({
-				id: tag.client_id,
+				id: clientid,
 				parent_id: parent_id,
-				uuid: question_map[tag.client_id].uuid || '',
-				regionType: question_map[tag.client_id].level_type,
-				content_type: question_map[tag.client_id].level_type,
+				uuid: question_map[clientid].uuid || '',
+				regionType: question_map[clientid].level_type,
+				content_type: question_map[clientid].level_type,
 				content_xml: '',
 				content_html: content_html,
 				content_text: oRange.GetText(),
-				question_type: question_map[tag.client_id].question_type,
-				question_name: question_map[tag.client_id].ques_name || question_map[tag.client_id].ques_default_name,
+				question_type: question_map[clientid].question_type,
+				question_name: question_map[clientid].ques_name || question_map[clientid].ques_default_name,
 				control_id: oControl.Sdt.GetId(),
-				lvl: tag.lvl
+				lvl: lvl
 			})
 		}
 		console.log('target_list', target_list)
@@ -2433,8 +2780,22 @@ function generateTreeForUpload(control_list) {
 			reject(null)
 		}
 		var tree = []
+		var choicemap = Asc.scope.choice_html_map || {}
 		control_list.forEach((e) => {
 			e.content_html = cleanHtml(e.content_html || '')
+			if (choicemap[e.id]) {
+				e.content_without_opt = cleanHtml(choicemap[e.id].steam || '')
+				e.options = []
+				if (choicemap[e.id].options) {
+					choicemap[e.id].options.forEach(option => {
+						e.options.push({
+							value: option.value,
+							html: cleanHtml(option.html)
+						})
+					})
+				}
+				e.option_type = choicemap[e.id].option_type
+			}
 			if (e.parent_id == 0) {
 				e.id = e.id + ''
 				tree.push(e)
@@ -2468,6 +2829,14 @@ function generateTreeForUpload(control_list) {
 			if (res.data.questions) {
 				res.data.questions.forEach(e => {
 					window.BiyueCustomData.question_map[e.id].uuid = e.uuid
+				})
+				Object.keys(window.BiyueCustomData.question_map).forEach(e => {
+					var index = res.data.questions.findIndex(e2 => {
+						return e2.uuid == window.BiyueCustomData.question_map[e].uuid
+					})
+					if (index == -1) {
+						window.BiyueCustomData.question_map[e].uuid = ''
+					}
 				})
 			}
 			resolve(res)
@@ -3280,33 +3649,16 @@ function deleteAsks(askList, recalc = true, notify = true) {
 			}
 			return null
 		}
-		for (var i = 0, imax = delete_ask_list.length; i < imax; ++i) {
-			var qid = delete_ask_list[i].ques_id
-			var aid = delete_ask_list[i].ask_id
-			if (question_map[qid]) {
-				if (aid == 0) {
-					question_map[qid].score = 0
-				} else {
-					var askIndex = question_map[qid].ask_list.findIndex(e => e.id == aid)
-					if (askIndex >= 0) {
-						question_map[qid].ask_list.splice(askIndex, 1)
-						var sum = 0
-						question_map[qid].ask_list.forEach(e => {
-							sum += (e.score || 0)
-						})
-						question_map[qid].score = sum
-					}
-				}
-			}
+		function deleteOneNode(node_id, index, sum, quesId) {
 			var nodeData = node_list.find(e => {
-				return e.id == qid
+				return e.id == node_id
 			})
 			if (!nodeData) {
-				continue
+				return
 			}
-			var quesControl = getControl(qid, nodeData.control_id)
+			var quesControl = getControl(node_id, nodeData.control_id)
 			if (!quesControl || quesControl.GetClassType() != 'blockLvlSdt') {
-				continue
+				return
 			}
 			if (aid == 0) {
 				// 删除所有小问，遍历出所有小问，全部删除
@@ -3396,28 +3748,51 @@ function deleteAsks(askList, recalc = true, notify = true) {
 						}
 					}
 				}
+				// 删除单元格小问
+				if (nodeData.cell_ask) {
+					var tag = Api.ParseJSON(quesControl.GetTag())
+					delete tag.cask
+					quesControl.SetTag(JSON.stringify(tag))
+					var parentCell = quesControl.GetParentTableCell()
+					if (parentCell) {
+						parentCell.SetBackgroundColor(255, 191, 191, true)
+						removeCellInteraction(parentCell)
+						removeCellAskRecord(parentCell)
+					}
+					nodeData.cell_ask = false
+				}
 				nodeData.write_list = []
-				question_map[qid].ask_list = []
+				if (index == sum) {
+					question_map[quesId].ask_list = []
+					question_map[quesId].score = 0
+				}
 			} else {
 				if (!nodeData.write_list) {
-					continue
+					return
 				}
 				var writeIndex = nodeData.write_list.findIndex(e => {
 					return e.id == aid
 				})
 				if (writeIndex == -1) {
-					continue
+					return
 				}
 				var writeData = nodeData.write_list[writeIndex]
 				if (!writeData) {
-					continue
+					return
 				}
 				nodeData.write_list.splice(writeIndex, 1)
+				// todo..question_map 的数据更新
 				if (writeData.sub_type == 'control') {
 					var oControl = Api.LookupObject(writeData.control_id)
 					clearQuesInteraction(oControl)
 					Api.asc_RemoveContentControlWrapper(writeData.control_id)
 				} else if (writeData.sub_type == 'cell') {
+					if (nodeData.cell_ask) {
+						var tag = Api.ParseJSON(quesControl.GetTag())
+						delete tag.cask
+						quesControl.SetTag(JSON.stringify(tag))
+						nodeData.cell_ask = false
+					}
 					var oCell = Api.LookupObject(writeData.cell_id)
 					removeCellInteraction(oCell)
 				} else if (writeData.sub_type == 'write' || writeData.sub_type == 'identify') {
@@ -3449,6 +3824,33 @@ function deleteAsks(askList, recalc = true, notify = true) {
 				}
 			}
 		}
+		for (var i = 0, imax = delete_ask_list.length; i < imax; ++i) {
+			var qid = delete_ask_list[i].ques_id
+			var aid = delete_ask_list[i].ask_id
+			if (question_map[qid]) {
+				if (aid == 0) {
+					question_map[qid].score = 0
+				} else {
+					var askIndex = question_map[qid].ask_list.findIndex(e => e.id == aid)
+					if (askIndex >= 0) {
+						question_map[qid].ask_list.splice(askIndex, 1)
+						var sum = 0
+						question_map[qid].ask_list.forEach(e => {
+							sum += (e.score || 0)
+						})
+						question_map[qid].score = sum
+					}
+				}
+			}
+			if (question_map[qid] && question_map[qid].is_merge) { // 合并题
+				question_map[qid].ids.forEach((e, index) => {
+					deleteOneNode(e, index, question_map[qid].ids.length - 1, qid)
+				})
+			} else {
+				deleteOneNode(qid, 1, 1, qid)
+			}
+			
+		}
 		return {
 			question_map: question_map,
 			node_list: node_list,
@@ -3473,6 +3875,48 @@ function deleteAsks(askList, recalc = true, notify = true) {
 				})
 			}
 		}
+	})
+}
+
+function focusControl(id) {
+	var quesData = window.BiyueCustomData.question_map[id]
+	if (!quesData) {
+		return
+	}
+	Asc.scope.focus_ids = quesData.level_type == 'question' && quesData.is_merge ? quesData.ids : [id]
+	return biyueCallCommand(window, function() {
+		var focusIds = Asc.scope.focus_ids
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls()
+		function getControlsByClientId(cid) {
+			var findControls = controls.filter(e => {
+				var tag = Api.ParseJSON(e.GetTag())
+				if (e.GetClassType() == 'blockLvlSdt') {
+					return tag.client_id == cid && e.GetPosInParent() >= 0
+				} else if (e.GetClassType() == 'inlineLvlSdt') {
+					return e.Sdt && e.Sdt.GetPosInParent() >= 0 && tag.client_id == cid
+				}
+			})
+			if (findControls && findControls.length) {
+				return findControls[0]
+			}
+		}
+		for (var id of focusIds) {
+			var oControl = getControlsByClientId(id)
+			if (oControl) {
+				oDocument.Document.MoveCursorToContentControl(oControl.Sdt.GetId(), true)
+				return {
+					Tag: Api.ParseJSON(oControl.GetTag()),
+					InternalId: oControl.Sdt.GetId()
+				}
+			}
+		}
+		return null
+	}, false, false).then((res) => {
+		g_click_value = res
+		return new Promise((resolve, reject) => {
+			resolve()
+		})
 	})
 }
 
@@ -3561,7 +4005,8 @@ function handleImageIgnore(cmdType) {
 		console.log('handleImageIgnore', cmdType)
 		var oDocument = Api.GetDocument()
 		var drawings = oDocument.GetAllDrawingObjects() || []
-		var oState = oDocument.Document.SaveDocumentState()
+		// 若调用oState的方式，oDrawing.Drawing.selected得到的值会是false，因而这里暂时注释
+		// var oState = oDocument.Document.SaveDocumentState()
 		drawings.forEach(oDrawing => {
 			if (oDrawing.Drawing.selected) {
 				var tag = Api.ParseJSON(oDrawing.GetTitle())
@@ -3588,7 +4033,7 @@ function handleImageIgnore(cmdType) {
 				}
 			}
 		})
-		oDocument.Document.LoadDocumentState(oState)
+		// oDocument.Document.LoadDocumentState(oState)
 	}, false, false)
 }
 // todo。。分栏需要考虑的因素很多，需要之后再考虑
@@ -4421,209 +4866,263 @@ function splitControl(qid) {
 			}
 			return parent_id
 		}
-		var nodeData = node_list.find(e => {
-			return e.id == qid
-		})
-		var control_id = nodeData ? nodeData.control_id : 0
-		var control = null
-		if (!control_id) {
-			control = Api.LookupObject(control_id)
-		}
-		if (!control || control.GetClassType() != 'blockLvlSdt' || control.GetPosInParent() == -1) {
-			var controls = oDocument.GetAllContentControls()
-			if (controls) {
-				control = controls.find(e => {
-					var tag = Api.ParseJSON(e.GetTag())
-					return tag.client_id == qid && e.GetClassType() == 'blockLvlSdt' && e.GetPosInParent() >= 0
-				})
+		function splitOneNode(nodeId) {
+			var nodeData = node_list.find(e => {
+				return e.id == nodeId
+			})
+			var control_id = nodeData ? nodeData.control_id : 0
+			var control = null
+			if (!control_id) {
+				control = Api.LookupObject(control_id)
 			}
-		}
-		if (!control) {
-			return
-		}
-		let marker_log = function (str, ranges) {
-			let styledString = ''
-			let currentIndex = 0
-			const styles = []
-
-			ranges.forEach(([start, end], index) => {
-				// 添加高亮前的部分
-				if (start > currentIndex) {
-					styledString += '%c' + str.substring(currentIndex, start)
+			if (!control || control.GetClassType() != 'blockLvlSdt' || control.GetPosInParent() == -1) {
+				var controls = oDocument.GetAllContentControls()
+				if (controls) {
+					control = controls.find(e => {
+						var tag = Api.ParseJSON(e.GetTag())
+						return tag.client_id == nodeId && e.GetClassType() == 'blockLvlSdt' && e.GetPosInParent() >= 0
+					})
+				}
+			}
+			if (!control) {
+				return
+			}
+			let marker_log = function (str, ranges) {
+				let styledString = ''
+				let currentIndex = 0
+				const styles = []
+	
+				ranges.forEach(([start, end], index) => {
+					// 添加高亮前的部分
+					if (start > currentIndex) {
+						styledString += '%c' + str.substring(currentIndex, start)
+						styles.push('')
+					}
+					// 添加高亮部分
+					styledString += '%c' + str.substring(start, end)
+					styles.push('border: 1px solid red; padding: 2px')
+					currentIndex = end
+				})
+	
+				// 添加剩余的部分
+				if (currentIndex < str.length) {
+					styledString += '%c' + str.substring(currentIndex)
 					styles.push('')
 				}
-				// 添加高亮部分
-				styledString += '%c' + str.substring(start, end)
-				styles.push('border: 1px solid red; padding: 2px')
-				currentIndex = end
-			})
-
-			// 添加剩余的部分
-			if (currentIndex < str.length) {
-				styledString += '%c' + str.substring(currentIndex)
-				styles.push('')
+	
+				console.log(styledString, ...styles)
 			}
-
-			console.log(styledString, ...styles)
-		}
-		var obj = Api.ParseJSON(control.GetTag())
-		if (obj.regionType == 'question') {
-			var inlineSdts = control.GetAllContentControls().filter((e) => {
-				return Api.ParseJSON(e.GetTag()).regionType == 'write'
-			})
-			if (inlineSdts.length > 0) {
-				console.log('已有inline sdt， 删除以后再执行', inlineSdts)
-				inlineSdts.forEach((e) => {
-					var tag = Api.ParseJSON(e.GetTag())
-					result.change_list.push({
-						client_id: tag.client_id,
-						control_id: e.Sdt.GetId(),
-						parent_id: getParentId(e),
-						regionType: 'write',
-						type: 'remove'
-					})
-					Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
+			var obj = Api.ParseJSON(control.GetTag())
+			if (obj.regionType == 'question') {
+				var inlineSdts = control.GetAllContentControls().filter((e) => {
+					return Api.ParseJSON(e.GetTag()).regionType == 'write'
 				})
-			}
-
-			// 标记inline的答题区域
-			var text = control.GetRange().GetText()
-			// console.log('text', text)
-			var rangePatt = /(([\(]|[\（])(\s|\&nbsp\;)*([\）]|[\)]))|(___*)/gs
-			var match
-			var ranges = []
-			var regionTexts = []
-			while ((match = rangePatt.exec(text)) !== null) {
-				ranges.push([match.index, match.index + match[0].length])
-				regionTexts.push(match[0])
-			}
-			// console.log('regionTexts', regionTexts)
-			if (ranges.length > 0) {
-				marker_log(text, ranges)
-			}
-			var textSet = new Set();
-			regionTexts.forEach(e => textSet.add(e));
-
-			let includeRange = function(a, b)
-			{
-				return (a.Element === b.Element &&
-					a.Start >= b.Start &&
-					a.End <= b.End);
-			};
-			let mergeRange = function(arrA, arrB)
-			{
-				let all = arrA.concat(arrB);
-				let ret = []
-				for(var i = 0; i < all.length; i++) {
-					var newE = true;
-					for (var j = 0; j < all.length; j++) {
-						if (i == j)
-							continue;
-						if (includeRange(all[i], all[j])) {
-							newE = false;
-						}
-					}
-					if (newE)
-						ret.push(all[i]);
+				if (inlineSdts.length > 0) {
+					console.log('已有inline sdt， 删除以后再执行', inlineSdts)
+					inlineSdts.forEach((e) => {
+						var tag = Api.ParseJSON(e.GetTag())
+						result.change_list.push({
+							client_id: tag.client_id,
+							control_id: e.Sdt.GetId(),
+							parent_id: getParentId(e),
+							regionType: 'write',
+							type: 'remove'
+						})
+						Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
+					})
 				}
-				return ret;
-			};
-
-			let mergeRanges2 = function(ranges) {
-				var newRanges = []
-				for (var i = 0; i < ranges.length; ++i) {
-					if (i == 0) {
-						newRanges.push(ranges[i])
-					} else {
-						var lastRange = newRanges[newRanges.length - 1]
-						var canMerge = false
-						if (ranges[i].Element == lastRange.Element && ranges[i].Start == lastRange.End) {
-							var idx = ranges[i].Text.indexOf('\r')
-							if (idx == 0 && ranges[i].Text[idx + 1] == lastRange.Text[lastRange.Text.length - 1]) {
-								var Start = lastRange.Start
-								var End = ranges[i].End
-								var nrange = lastRange.ExpandTo(ranges[i])
-								nrange.Start = Start
-								nrange.End = End
-								newRanges[newRanges.length - 1] = nrange
-								canMerge = true
+	
+				// 标记inline的答题区域
+				var text = control.GetRange().GetText()
+				// console.log('text', text)
+				var rangePatt = /(([\(]|[\（])(\s|\&nbsp\;)*([\）]|[\)]))|(___*)/gs
+				var match
+				var ranges = []
+				var regionTexts = []
+				while ((match = rangePatt.exec(text)) !== null) {
+					ranges.push([match.index, match.index + match[0].length])
+					regionTexts.push(match[0])
+				}
+				// console.log('regionTexts', regionTexts)
+				if (ranges.length > 0) {
+					marker_log(text, ranges)
+				}
+				var textSet = new Set();
+				regionTexts.forEach(e => textSet.add(e));
+	
+				let includeRange = function(a, b)
+				{
+					return (a.Element === b.Element &&
+						a.Start >= b.Start &&
+						a.End <= b.End);
+				};
+				let mergeRange = function(arrA, arrB)
+				{
+					let all = arrA.concat(arrB);
+					let ret = []
+					for(var i = 0; i < all.length; i++) {
+						var newE = true;
+						for (var j = 0; j < all.length; j++) {
+							if (i == j)
+								continue;
+							if (includeRange(all[i], all[j])) {
+								newE = false;
 							}
 						}
-						if (!canMerge) {
+						if (newE)
+							ret.push(all[i]);
+					}
+					return ret;
+				};
+	
+				let mergeRanges2 = function(ranges) {
+					var newRanges = []
+					for (var i = 0; i < ranges.length; ++i) {
+						if (i == 0) {
 							newRanges.push(ranges[i])
+						} else {
+							var lastRange = newRanges[newRanges.length - 1]
+							var canMerge = false
+							if (ranges[i].Element == lastRange.Element && ranges[i].Start == lastRange.End) {
+								var idx = ranges[i].Text.indexOf('\r')
+								if (idx == 0 && ranges[i].Text[idx + 1] == lastRange.Text[lastRange.Text.length - 1]) {
+									var Start = lastRange.Start
+									var End = ranges[i].End
+									var nrange = lastRange.ExpandTo(ranges[i])
+									nrange.Start = Start
+									nrange.End = End
+									newRanges[newRanges.length - 1] = nrange
+									canMerge = true
+								}
+							}
+							if (!canMerge) {
+								newRanges.push(ranges[i])
+							}
+						}
+					}
+					return newRanges
+				}
+				//debugger;
+				var apiRanges = [];
+				textSet.forEach(e => {
+					var ranges = control.Search(e, false);
+					//debugger;;
+					apiRanges = mergeRange(apiRanges, ranges);
+				});
+				if (apiRanges.length > 1) {
+					apiRanges = mergeRanges2(apiRanges)
+				}
+					// search 有bug少返回一个字符
+				apiRanges.reverse().forEach(apiRange => {
+						apiRange.Select();
+						client_node_id += 1
+						var tag = JSON.stringify({ regionType: 'write', mode: 3, client_id: client_node_id, color: '#ff000040' })
+						var oResult = Api.asc_AddContentControl(2, { Tag: tag })
+						if (oResult) {
+							result.change_list.push({
+								client_id: client_node_id,
+								control_id: oResult.InternalId,
+								parent_id: getParentId(Api.LookupObject(oResult.InternalId)),
+								ques_id: qid,
+								regionType: 'write'
+							})
+						}
+						Api.asc_RemoveSelection();
+				});
+				var content = control.GetContent();
+				var elements = content.GetElementsCount();
+				for (var j = elements - 1; j >= 0; j--) {
+					var para = content.GetElement(j);
+					if (para.GetClassType() !== "paragraph") {
+						break;
+					}
+					var text = para.GetText();
+					if (text.trim() !== '') {
+						break;
+					}
+				}
+	
+				// if (j < elements - 1) {
+				// 	var range = content.GetElement(j + 1).GetRange();
+				// 	var endRange = content.GetElement(elements - 1).GetRange();
+				// 	range = range.ExpandTo(endRange);
+				// 	range.Select();
+					// client_node_id += 1
+					// var tag = JSON.stringify({ regionType: 'write', mode: 5, client_id: client_node_id, color: '#ff000040' })
+					// var oResult = Api.asc_AddContentControl(1, { Tag: tag })
+					// if (oResult) {
+					// 	result.change_list.push({
+					// 		client_id: client_node_id,
+					// 		control_id: oResult.InternalId,
+					// 		parent_id: getParentId(Api.LookupObject(oResult.InternalId)),
+					// 		regionType: 'write'
+					// 	})
+					// }
+				// 	Api.asc_RemoveSelection();
+				// }
+			}
+			if (obj.mid) {
+				var oCell = control.GetParentTableCell()
+				if (oCell) {
+					var cellContent = oCell.GetContent()
+					if (cellContent.GetElementsCount() == 1) {
+						var text = control.GetRange().Text
+						if (text.replace(/[\s\r\n]/g, '').length === 0) {
+							var oTable = oCell.GetParentTable()
+							result.change_list.push({
+								parent_id: obj.client_id,
+								table_id: oTable.Table.Id,
+								row_index: oCell.GetRowIndex(),
+								cell_index: oCell.GetIndex(),
+								cell_id: oCell.Cell.Id,
+								client_id: 'c_' + oCell.Cell.Id,
+								regionType: 'write',
+								type: ''
+							})
+							var desc = Api.ParseJSON(oTable.GetTableDescription())
+							desc[`${oCell.GetRowIndex()}_${oCell.GetIndex()}`] = `c_${oCell.Cell.Id}`
+							desc.biyue = 1
+							oTable.SetTableDescription(JSON.stringify(desc))
+							oCell.SetBackgroundColor(255, 191, 191, false)
+							obj.cask = 1
+							control.SetTag(JSON.stringify(obj))
 						}
 					}
 				}
-				return newRanges
 			}
-			//debugger;
-			var apiRanges = [];
-			textSet.forEach(e => {
-				var ranges = control.Search(e, false);
-				//debugger;;
-				apiRanges = mergeRange(apiRanges, ranges);
-			});
-			if (apiRanges.length > 1) {
-				apiRanges = mergeRanges2(apiRanges)
-			}
-				// search 有bug少返回一个字符
-			apiRanges.reverse().forEach(apiRange => {
-					apiRange.Select();
-					client_node_id += 1
-					var tag = JSON.stringify({ regionType: 'write', mode: 3, client_id: client_node_id, color: '#ff000040' })
-					var oResult = Api.asc_AddContentControl(2, { Tag: tag })
-					if (oResult) {
-						result.change_list.push({
-							client_id: client_node_id,
-							control_id: oResult.InternalId,
-							parent_id: getParentId(Api.LookupObject(oResult.InternalId)),
-							regionType: 'write'
-						})
-					}
-					Api.asc_RemoveSelection();
-			});
-			var content = control.GetContent();
-			var elements = content.GetElementsCount();
-			for (var j = elements - 1; j >= 0; j--) {
-				var para = content.GetElement(j);
-				if (para.GetClassType() !== "paragraph") {
-					break;
-				}
-				var text = para.GetText();
-				if (text.trim() !== '') {
-					break;
-				}
-			}
-
-			// if (j < elements - 1) {
-			// 	var range = content.GetElement(j + 1).GetRange();
-			// 	var endRange = content.GetElement(elements - 1).GetRange();
-			// 	range = range.ExpandTo(endRange);
-			// 	range.Select();
-				// client_node_id += 1
-				// var tag = JSON.stringify({ regionType: 'write', mode: 5, client_id: client_node_id, color: '#ff000040' })
-				// var oResult = Api.asc_AddContentControl(1, { Tag: tag })
-				// if (oResult) {
-				// 	result.change_list.push({
-				// 		client_id: client_node_id,
-				// 		control_id: oResult.InternalId,
-				// 		parent_id: getParentId(Api.LookupObject(oResult.InternalId)),
-				// 		regionType: 'write'
-				// 	})
-				// }
-			// 	Api.asc_RemoveSelection();
-			// }
+		}
+		var quesData = Asc.scope.question_map[qid]
+		if (!quesData) {
+			return
+		}
+		if (quesData.is_merge && quesData.ids) { // 是合并题
+			quesData.ids.forEach(id => {
+				splitOneNode(id)
+			})
+		} else {
+			splitOneNode(qid)
 		}
 		result.client_node_id = client_node_id
+		result.ques_id = qid
 		return result
 	}, false, true).then(res1 => {
 		if (res1) {
 			if (res1.message && res1.message != '') {
 				alert(res1.message)
 			} else {
-				return getNodeList().then(res2 => {
-					return handleChangeType(res1, res2)
-				})
+				if (!res1.change_list || res1.change_list.length == 0) {
+					if (res1.ques_id) {
+						return notifyQuestionChange(res1.ques_id)
+					} else {
+						return new Promise((resolve, reject) => {
+							resolve()
+						})
+					}
+				} else {
+					return getNodeList().then(res2 => {
+						return handleChangeType(res1, res2)
+					})
+				}
 			}
 		}
 	})
@@ -5148,32 +5647,40 @@ function handleUploadPrepare(cmdType) {
 		}
 		Object.keys(question_map).forEach(id => {
 			if (question_map[id].level_type == 'question') {
-				var nodeData = node_list.find(item => {
-					return item.id == id
-				})
-				if (nodeData && nodeData.write_list) {
-					if (question_map[id].ask_list) {
-						question_map[id].ask_list.forEach(ask => {
-							var writeData = nodeData.write_list.find(w => {
-								return w.id == ask.id
-							})
-							if (writeData && writeData.sub_type == 'cell' && writeData.cell_id) {
-								var oCell = Api.LookupObject(writeData.cell_id)
-								if (oCell && oCell.GetClassType && oCell.GetClassType() == 'tableCell') {
-									var oTable = oCell.GetParentTable()
-									if (oTable && oTable.GetPosInParent() == -1) {
+				var ids = []
+				if (question_map[id].is_merge) {
+					ids = question_map[id].ids || []
+				} else {
+					ids.push(id)
+				}
+				ids.forEach(nid => {
+					var nodeData = node_list.find(item => {
+						return item.id == nid
+					})
+					if (nodeData && nodeData.write_list) {
+						if (question_map[id].ask_list) {
+							question_map[id].ask_list.forEach(ask => {
+								var writeData = nodeData.write_list.find(w => {
+									return w.id == ask.id
+								})
+								if (writeData && writeData.sub_type == 'cell' && writeData.cell_id) {
+									var oCell = Api.LookupObject(writeData.cell_id)
+									if (oCell && oCell.GetClassType && oCell.GetClassType() == 'tableCell') {
+										var oTable = oCell.GetParentTable()
+										if (oTable && oTable.GetPosInParent() == -1) {
+											oCell = getCell(writeData)
+										}
+									} else {
 										oCell = getCell(writeData)
 									}
-								} else {
-									oCell = getCell(writeData)
+									if (oCell) {
+										oCell.SetBackgroundColor(255, 191, 191, cmdType == 'show' ? false : true)
+									}
 								}
-								if (oCell) {
-									oCell.SetBackgroundColor(255, 191, 191, cmdType == 'show' ? false : true)
-								}
-							}
-						})
+							})
+						}
 					}
-				}
+				})
 			}
 		})
 		oDocument.Document.LoadDocumentState(oState)
@@ -5188,6 +5695,9 @@ function importExam() {
 	}).then(() => {
 		return handleUploadPrepare('hide')
 	}).then(() => {
+		return getChoiceQuesData()
+	}).then((res) => {
+		Asc.scope.choice_html_map = res
 		return getControlListForUpload()
 	}).then(control_list => {
 		if (control_list && control_list.length) {
@@ -5338,6 +5848,229 @@ function insertSymbol(unicode) {
 	}, false, true)
 }
 
+function preGetExamTree() {
+	Asc.scope.node_list = window.BiyueCustomData.node_list
+	Asc.scope.question_map = window.BiyueCustomData.question_map
+	return biyueCallCommand(window, function() {
+		var node_list = Asc.scope.node_list || []
+		var question_map = Asc.scope.question_map || {}
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls() || []
+		function getLvl(oControl, paraIndex) {
+			if (!oControl) {
+				return null
+			}
+			var paragrahs = oControl.GetAllParagraphs() || []
+			for (var i = 0; i < paragrahs.length; ++i) {
+				var oParagraph = paragrahs[i]
+				if (paraIndex != -1 && i > paraIndex) {
+					return null
+				}
+				var oNumberingLevel = oParagraph.GetNumbering()
+				if (oNumberingLevel) {
+					return oNumberingLevel.Lvl
+				}
+			}
+			return null
+		}
+		function getValidParent(oControl) {
+			if (!oControl) {
+				return null
+			}
+			var oParentControl = oControl.GetParentContentControl()
+			if (oParentControl) {
+				var tag = Api.ParseJSON(oParentControl.GetTag())
+				var qId = tag.mid ? tag.mid : tag.client_id
+				if (question_map[qId]) {
+					return oParentControl
+				} else {
+					return getValidParent(oParentControl)
+				}
+			}
+			return null
+		}
+		var list = []
+		var handled = {}
+		for (var oControl of controls) {
+			var tag = Api.ParseJSON(oControl.GetTag())
+			if (!tag.client_id) {
+				continue
+			}
+			var qId = tag.mid ? tag.mid : tag.client_id
+			if (handled[qId]) {
+				continue
+			}
+			var quesData = question_map[qId]
+			if (!quesData) {
+				continue
+			}
+			if (quesData.level_type != 'struct' && quesData.level_type != 'question') {
+				continue
+			}
+			handled[qId] = true
+			var nodeData = node_list.find(e => {
+				return e.id == tag.client_id
+			})
+			var is_big = nodeData ? nodeData.is_big : false
+			var lvl = null
+			var obj = {
+				id: qId,
+				level_type: quesData.level_type,
+				parent_id: 0,
+				parent_index: -1,
+				is_big: is_big,
+			}
+			var oParentControl = getValidParent(oControl)
+			if (quesData.level_type == 'struct') {
+				lvl = getLvl(oControl)
+			} else if (quesData.level_type == 'question') {
+				lvl = getLvl(oControl, is_big ? 0 : -1)
+			}
+			obj.lvl = lvl
+			if (oParentControl) {
+				var parentTag = Api.ParseJSON(oParentControl.GetTag() || '{}')
+				var p_id = parentTag.mid ? parentTag.mid : parentTag.client_id
+				obj.parent_id = p_id
+				obj.parent_index = list.findIndex(e => {
+					return e.id == p_id
+				})
+			} else if (lvl === 0) {
+				obj.parent_id = 0
+			} else {
+				// 根据level, 查找在它前面的比它lvl小的struct
+				if (list.length > 0) {
+					for (var i = list.length - 1; i >= 0; --i) {
+						if (list[i].lvl === null) {
+							if (lvl === null) {
+								if (list[i].level_type == 'struct') {
+									obj.parent_id = list[i].id
+									obj.parent_index = i
+									break
+								} else if (list[i].is_child) {
+									continue
+								} else {
+									obj.parent_id = list[i].parent_id
+									obj.parent_index = list[i].parent_index
+									break
+								}
+							}
+						} else if (list[i].lvl === 0) {
+							if (list[i].level_type == 'struct') {
+								obj.parent_id = list[i].id
+								obj.parent_index = i
+								break
+							} else {
+								obj.parent_id = 0
+								obj.parent_index = -1
+								break
+							}
+						} else if (list[i].lvl < lvl) {
+							if (list[i].level_type == 'struct') {
+								obj.parent_id = list[i].id
+								obj.parent_index = i
+								break
+							} else {
+								obj.parent_id = list[i].parent_id
+								obj.parent_idex = list[i].parent_index
+								break
+							}
+						} else if (list[i].lvl === lvl) {
+							if (list[i].level_type == 'struct') {
+								if (list[i].parent_id) {
+									obj.parent_id = list[i].parent_id
+									obj.parent_index = i
+								} else {
+									obj.parent_id = 0
+									obj.parent_index = -1
+								}
+								break
+							} else if (list[i].level_type == 'question') {
+								if (quesData.level_type == 'struct') {
+									continue
+								} else if (list[i].is_child) {
+									continue
+								} else {
+									obj.parent_id = list[i].parent_id
+									obj.parent_index = list[i].parent_index
+									break
+								}
+							}
+						} else if (list[i].lvl > lvl) {
+							continue
+						}
+					}
+				}
+			}
+			var parentTableCell1 = oControl.GetParentTableCell()
+			if (parentTableCell1) {
+				obj.cell_id = parentTableCell1.Cell.Id
+			}
+			list.push(obj)
+			if (is_big) {
+				var bindex = list.length - 1
+				var childControls = oControl.GetAllContentControls()
+				for (var oChildControl of childControls) {
+					var childTag = Api.ParseJSON(oChildControl.GetTag() || '{}')
+					var childId = childTag.mid || childTag.client_id
+					if (handled[childId] || oChildControl.GetClassType() != 'blockLvlSdt') {
+						continue
+					}
+					var quesData2 = question_map[childId]
+					if (!quesData2) {
+						continue
+					}
+					if (quesData2.level_type != 'struct' && quesData2.level_type != 'question') {
+						continue
+					}
+					handled[childId] = true
+					var parentControl2 = getValidParent(oChildControl)
+					if (parentControl2) {
+						var parentTag2 = Api.ParseJSON(parentControl2.GetTag() || '{}')
+						var parentId2 = parentTag2.mid || parentTag2.client_id
+						var parentIndex2 = list.findIndex(e => {
+							return e.id == parentId2
+						})
+						var obj2 = {
+							id: childId,
+							level_type: quesData2.level_type,
+							parent_id: parentId2,
+							parent_index: parentIndex2,
+							is_big: childTag.big == 1,
+							lvl: getLvl(oChildControl, childTag.big == 1 ? 0 : -1),
+							is_child: true
+						}
+						var parentTableCell = oChildControl.GetParentTableCell()
+						if (parentTableCell) {
+							obj2.cell_id = parentTableCell.Cell.Id
+						}
+						list.push(obj2)
+						list[bindex].end_id = childId
+					}
+				}
+			}
+			
+		}
+		const tree = [];
+		const map = {};
+	
+		list.forEach(item => {
+			map[item.id] = { ...item, children: [] };
+		});
+		list.forEach(item => {
+			if (item.parent_id && item.parent_id != item.id) {
+				if (map[item.parent_id] && map[item.parent_id].children) {
+					map[item.parent_id].children.push(map[item.id]);
+				} else {
+					console.log('        cannot find parent', item);
+				}
+			} else {
+				tree.push(map[item.id]);
+			}
+		});
+		return { list, tree}
+	}, false, false)
+}
+
 export {
 	handleDocClick,
 	handleContextMenuShow,
@@ -5363,9 +6096,11 @@ export {
 	tidyNodes,
 	handleUploadPrepare,
 	importExam,
-	setBtnLoading,
 	setChoiceOptionLayout,
 	getNodeList,
 	handleChangeType,
-	insertSymbol
+	insertSymbol,
+	preGetExamTree,
+	getQuestionHtml,
+	focusControl
 }

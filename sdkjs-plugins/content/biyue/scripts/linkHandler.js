@@ -1,5 +1,6 @@
 // 这个文件主要处理图片或表格关联相关操作
 import { biyueCallCommand, dispatchCommandResult } from "./command.js";
+import { preGetExamTree } from "./QuesManager.js";
 
 function tagImageCommon(params) {
 	Asc.scope.tag_params = params
@@ -61,10 +62,11 @@ function tagImageCommon(params) {
 	})
 }
 
-function imageAutoLink() {
+function imageAutoLink(ques_id, calc) {
 	Asc.scope.node_list = window.BiyueCustomData.node_list || []
 	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
 	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
+	Asc.scope.ques_id = ques_id || 0
 	return biyueCallCommand(window, function() {
 		var oDocument = Api.GetDocument()
 		var allDrawings = oDocument.GetAllDrawingObjects() || []
@@ -72,6 +74,8 @@ function imageAutoLink() {
 		var controls = oDocument.GetAllContentControls() || []
 		var question_map = Asc.scope.question_map
 		var client_node_id = Asc.scope.client_node_id
+		var ques_id = Asc.scope.ques_id
+		var rev = false
 		// 判断是否在control中
 		function getBelongControl(pageIndex, x1, y1, x2, y2) {
 			for (var i = 0; i < controls.length; ++i) {
@@ -102,12 +106,12 @@ function imageAutoLink() {
 							if (w > 0 && h > 0) {
 								var pindex = oControl.Sdt.GetAbsolutePage(j)
 								if (pindex == pageIndex) {
-									if (page.Bounds.Left <= x1 && 
-										page.Bounds.Top <= y1 &&
-										(page.Bounds.Left + w) >= x2 &&
-										(page.Bounds.Top + h) >= y2) {
+									if (page.Bounds.Left <= (x1 + 1) && 
+										page.Bounds.Top <= (y1 + 1) &&
+										(page.Bounds.Left + w) >= (x2 - 1) &&
+										(page.Bounds.Top + h) >= (y2 - 1)) {
 											return {
-												ques_id: tag.client_id,
+												ques_id: tag.mid || tag.client_id,
 												oControl: oControl
 											}
 									}
@@ -127,6 +131,9 @@ function imageAutoLink() {
 				continue
 			}
 			var title = Api.ParseJSON(oDrawing.GetTitle())
+			if (title.ignore) {
+				continue
+			}
 			if (title.feature && title.feature.zone_type) {
 				continue
 			}
@@ -135,38 +142,43 @@ function imageAutoLink() {
 				Drawing.Y, 
 				Drawing.X + Drawing.Width,
 				Drawing.Y + Drawing.Height)
-			if (belongControl) {
-				if (title.feature) {
-					if (!title.feature.client_id) {
-						client_node_id += 1
-						title.feature.client_id = client_node_id
+			if (!belongControl) {
+				continue
+			}
+			if (ques_id && belongControl.ques_id != ques_id) {
+				continue
+			}
+			if (title.feature) {
+				if (!title.feature.client_id) {
+					client_node_id += 1
+					title.feature.client_id = client_node_id
+				}
+				var quesuse = title.feature.ques_use
+				if (quesuse) {
+					if (typeof quesuse == 'number') {
+						quesuse = quesuse + ''
 					}
-					var quesuse = title.feature.ques_use
-					if (quesuse) {
-						if (typeof quesuse == 'number') {
-							quesuse = quesuse + ''
+					if (typeof quesuse == 'string') {
+						var uselist = quesuse.split('_')
+						if (!(uselist.find(e => { return e == belongControl.ques_id}))) {
+							uselist.push(belongControl.ques_id)
+							title.feature.ques_use = uselist.join('_')
 						}
-						if (typeof quesuse == 'string') {
-							var uselist = quesuse.split('_')
-							if (!(uselist.find(e => { return e == belongControl.ques_id}))) {
-								uselist.push(belongControl.ques_id)
-								title.feature.ques_use = uselist.join('_')
-							}
-						}
-					} else {
-						title.feature.ques_use = belongControl.ques_id + ''
 					}
 				} else {
-					client_node_id += 1
-					title = {
-						feature: {
-							ques_use: belongControl.ques_id + '',
-							client_id: client_node_id
-						}
+					title.feature.ques_use = belongControl.ques_id + ''
+				}
+			} else {
+				client_node_id += 1
+				title = {
+					feature: {
+						ques_use: belongControl.ques_id + '',
+						client_id: client_node_id
 					}
 				}
-				oDrawing.SetTitle(JSON.stringify(title))
 			}
+			rev = true
+			oDrawing.SetTitle(JSON.stringify(title))
 		}
 		// 暂不考虑大小题的问题
 		// 表格关联
@@ -195,6 +207,9 @@ function imageAutoLink() {
 					belong_id = belongControl.ques_id
 				}
 			}
+			if (ques_id && belong_id != ques_id) {
+				continue
+			}
 			if (belong_id) {
 				if (!title.client_id) {
 					client_node_id += 1
@@ -206,12 +221,19 @@ function imageAutoLink() {
 				}
 				title.ques_use = uselist.join('_')
 				oTable.SetTableTitle(JSON.stringify(title))
+				rev = true
 			}
 		}
 		return {
-			client_node_id
+			client_node_id,
+			rev
 		}
-	}, false, true)
+	}, false, calc).then(res => {
+		if (res) {
+			window.BiyueCustomData.client_node_id = res.client_node_id
+		}
+		return new Promise((resolve, reject) => {resolve(res)})
+	})
 }
 function onAllCheck() {
 	return biyueCallCommand(window, function() {
@@ -250,6 +272,9 @@ function onAllCheck() {
 					continue
 				}
 				var title = Api.ParseJSON(oDrawing.GetTitle())
+				if (title.ignore) {
+					continue
+				}
 				if (title.feature && title.feature.zone_type) {
 					continue
 				}
@@ -310,6 +335,9 @@ function onAllCheck() {
 		return allList
 	}, false, false).then(res => {
 		Asc.scope.linked_list = res
+		return preGetExamTree()
+	}).then(res => {
+		Asc.scope.tree_info = res
 		window.biyue.showDialog('elementLinks', '关联检查', 'elementLinks.html', 900, 500, false)
 	})
 }
@@ -392,6 +420,9 @@ function onLinkedCheck() {
 		return linkedList
 	}, false, false).then(res => {
 		Asc.scope.linked_list = res
+		return preGetExamTree()
+	}).then(res => {
+		Asc.scope.tree_info = res
 		window.biyue.showDialog('elementLinks', '关联检查', 'elementLinks.html', 900, 500, false)
 	})
 }
@@ -461,6 +492,7 @@ function ShowLinkedWhenclickImage(options, control_id) {
 	Asc.scope.control_id = control_id
 	Asc.scope.click_options = options
 	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
+	console.log('ShowLinkedWhenclickImage')
 	return biyueCallCommand(window, function() {
 		var oDocument = Api.GetDocument()
 		var selectedDrawings = oDocument.GetSelectedDrawings() || []
@@ -470,6 +502,26 @@ function ShowLinkedWhenclickImage(options, control_id) {
 		var click_options = Asc.scope.click_options || {}
 		var oState = oDocument.Document.SaveDocumentState()
 		var ids = []
+		function getControlsByClientId(cid) {
+			var allControls = oDocument.GetAllContentControls() || []
+			var findControls = allControls.filter(e => {
+				var tag = Api.ParseJSON(e.GetTag())
+				if (e.GetClassType() == 'blockLvlSdt') {
+					return tag.client_id == cid && e.GetPosInParent() >= 0
+				} else if (e.GetClassType() == 'inlineLvlSdt') {
+					return e.Sdt && e.Sdt.GetPosInParent() >= 0 && tag.client_id == cid
+				}
+			})
+			if (findControls && findControls.length) {
+				return findControls[0]
+			}
+		}
+		if (!control_id && click_options.client_id) {
+			var control = getControlsByClientId(click_options.client_id)
+			if (control) {
+				control_id = control.Sdt.GetId()
+			}
+		}
 		var selectDrawingCount = selectedDrawings.length
 		if (selectDrawingCount > 0) {
 			selectedDrawings.forEach(oDrawing => {

@@ -807,6 +807,12 @@ a {
 	align-items: center;
 }
 
+.row-align-center {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+}
+
 .row-center {
 	display: flex;
 	flex-direction: row;
@@ -842,3 +848,104 @@ a {
 	border-radius: 2px;
 }
 
+.br4 {
+	border-radius: 4px;
+} 
+
+.flex {
+	display: flex;
+}
+
+.flex-1 {
+	flex: 1;
+}
+
+.w-fit {
+	width: fit-content;
+}
+.w100 {
+	width: 100%;
+}
+
+.bold {
+	font-weight: bold;
+}
+
+.bg1 {
+	background-color: #2489f6;
+}
+.bg-white {
+	background-color: #fff;
+}
+.clr-white {
+	color: #fff;
+}
+
+.clr-gray {
+	color: #bbb;
+}
+
+.h-32 {
+	height: 32px;
+}
+
+.border-b {
+	border: 1px solid #bbb;
+}
+.b-b-b {
+	border-bottom: 1px solid #bbb;
+}
+
+.b-t-b {
+	border-top: 1px solid #bbb;
+}
+
+.p-4-8 {
+	padding: 4px 8px;
+}
+
+.ml-4 {
+	margin-left: 4px;
+}
+
+.mr-4 {
+	margin-right: 4px;
+}
+
+.mt-8 {
+	margin-top: 8px;
+}
+
+.keepall {
+	word-break: keep-all;
+}
+
+.text-over-ellipsis {
+	white-space: nowrap; /* 不换行 */
+	overflow: hidden; /* 隐藏溢出 */
+	text-overflow: ellipsis; /* 使用省略号 */
+}
+
+
+/* 通用菜单样式 */
+.customContextMenu {
+	display: none;
+	position: absolute;
+	background-color: white;
+	border: 1px solid #ccc;
+	box-shadow: 2px 2px 12px rgba(0, 0, 0, 0.2);
+	z-index: 1000;
+	white-space: nowrap; /* 禁止换行 */
+}
+.customContextMenu ul {
+	list-style-type: none;
+	margin: 0;
+	padding: 0;
+}
+.customContextMenu li {
+	padding: 8px 12px;
+	cursor: pointer;
+}
+.customContextMenu li:hover {
+	background-color: #f0f0f0;
+}

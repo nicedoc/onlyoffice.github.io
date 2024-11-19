@@ -114,14 +114,14 @@ function updatePageSizeMargins() {
 						description: ''
 					})
 				}
-				// 单元格中有图片时，需要自动撑开高度
-				if (oDrawing.GetParentTable()) {
+				// 有图片时，需要自动撑开高度
+				// if (oDrawing.GetParentTable()) {
 					var oParagraph = oDrawing.GetParentParagraph()
 					if (oParagraph) {
 						var linespacing = oParagraph.GetSpacingLineValue()
 						oParagraph.SetSpacingLine(linespacing, 'atLeast')
 					}
-				}
+				// }
 				// 移除图片阴影
 				oDrawing.ClearShadow()
 			})
@@ -3157,47 +3157,101 @@ function getAllPositions2() {
 				}
 				return { cell_region, interaction_region }
 			}
-
+			var handledcontrol = {}
 			for (var i = 0, imax = controls.length; i < imax; ++i) {
 				var oControl = controls[i]
+				if (handledcontrol[oControl.Sdt.GetId()]) {
+					continue
+				}
 				var tag = Api.ParseJSON(oControl.GetTag() || '{}')
-				var question_obj = question_map[tag.client_id]
-					? question_map[tag.client_id]
+				var quesid = tag.mid ? tag.mid : tag.client_id
+				var question_obj = question_map[quesid]
+					? question_map[quesid]
 					: {}
 				// 当前题目必须是blockLvlSdt
 				if (tag.regionType != 'question' || oControl.GetClassType() != 'blockLvlSdt' || question_obj.level_type != 'question') {
 					continue
 				}
 				var bounds = []
-				var useControl = oControl
-				if (oControl.GetClassType() == 'blockLvlSdt') {
-					var nodeData = node_list.find((e) => {
-						return e.id == tag.client_id
-					})
-					if (nodeData && nodeData.is_big) {
-						var childcontrols = oControl.GetAllContentControls() || []
-						var bigControl = childcontrols.find(e => {
-							var btag = Api.ParseJSON(e.GetTag())
-							return e.GetClassType() == 'blockLvlSdt' && btag.onlybig == 1 && btag.link_id == nodeData.id
+				var oRange = null
+				var correctPos = {
+					correct_ask_region: [],
+					correct_region: null,
+					write_region: [],
+					identify_region: [],
+				}
+				// 这里假设单元格合并题不可能为大题
+				if (tag.mid && question_obj.is_merge) {
+					for (var idkey in question_obj.ids) {
+						var control = getControlsByClientId(question_obj.ids[idkey])
+						if (control) {
+							handledcontrol[control.Sdt.GetId()] = 1
+							var parentcell = control.GetParentTableCell()
+							if (parentcell) {
+								if (!oRange) {
+									oRange = parentcell.GetContent().GetRange()
+								} else {
+									oRange = oRange.ExpandTo(parentcell.GetContent().GetRange())
+								}
+								var cpos = GetCorrectRegion(control)
+								correctPos.correct_ask_region = correctPos.correct_ask_region.concat(cpos.correct_ask_region)
+								if (!correctPos.correct_region) {
+									correctPos.correct_region = cpos.correct_region
+								}
+								correctPos.write_region = correctPos.write_region.concat(cpos.write_region)
+								correctPos.identify_region = correctPos.identify_region.concat(cpos.identify_region)
+								var pagesCount = parentcell.Cell.PagesCount
+								for (var p = 0; p < pagesCount; ++p) {
+									var pagebounds = parentcell.Cell.GetPageBounds(p)
+									if (!pagebounds) {
+										continue
+									}
+									if (pagebounds.Right == 0 && pagebounds.Left == 0) {
+										continue
+									}
+									bounds.push({
+										Page: parentcell.Cell.Get_AbsolutePage(p),
+										X: mmToPx(pagebounds.Left),
+										Y: mmToPx(pagebounds.Top),
+										W: mmToPx(pagebounds.Right - pagebounds.Left),
+										H: mmToPx(pagebounds.Bottom - pagebounds.Top),
+									})
+								}
+							}
+						}
+					}
+				} else {
+					oRange = oControl.GetRange()
+					handledcontrol[oControl.Sdt.GetId()] = true
+					if (oControl.GetClassType() == 'blockLvlSdt') {
+						var nodeData = node_list.find((e) => {
+							return e.id == tag.client_id
 						})
-						if (bigControl) {
-							useControl = bigControl
-							console.log('===== 使用bigControl')
-							getBlockControlBounds(bigControl, bounds)
+						if (nodeData && nodeData.is_big) {
+							var childcontrols = oControl.GetAllContentControls() || []
+							var bigControl = childcontrols.find(e => {
+								var btag = Api.ParseJSON(e.GetTag())
+								return e.GetClassType() == 'blockLvlSdt' && btag.onlybig == 1 && btag.link_id == nodeData.id
+							})
+							if (bigControl) {
+								oRange = bigControl.GetRange()
+								console.log('===== 使用bigControl')
+								getBlockControlBounds(bigControl, bounds)
+							} else {
+								console.log('未找到bigControl')
+								getBlockControlBounds(oControl, bounds)
+							}
 						} else {
-							console.log('未找到bigControl')
 							getBlockControlBounds(oControl, bounds)
 						}
-					} else {
-						getBlockControlBounds(oControl, bounds)
+					} else if (oControl.GetClassType() == 'inlineLvlSdt') {
+						if (oControl.Sdt.Bounds) {
+							bounds = Object.values(oControl.Sdt.Bounds)
+						}
 					}
-				} else if (oControl.GetClassType() == 'inlineLvlSdt') {
-					if (oControl.Sdt.Bounds) {
-						bounds = Object.values(oControl.Sdt.Bounds)
-					}
+					correctPos = GetCorrectRegion(oControl)
 				}
 				// todo..分数框的尚未添加
-				var oRange = useControl.GetRange()
 				// oRange.Select()
 				// 由于数据太大或异常可能导致后端数据无法写入，因此上传卷面时不再上传Html，所有这里也不再读取
 				// let text_data = {
@@ -3210,22 +3264,23 @@ function getAllPositions2() {
 				// 	},
 				// }
 				// Api.asc_CheckCopy(text_data, 2)
-				var correctPos = GetCorrectRegion(oControl)
-				var gatherRegion = getGatherCellRegion(tag.client_id)
 				var is_gather_region = false
-				if (
-					Asc.scope.choice_params &&
-					Asc.scope.choice_params.style === 'show_choice_region' &&
-					gatherRegion
-				) {
-					// 开启集中作答区并且有集中作答区的坐标信息
-					is_gather_region = true
-					if (question_map[tag.client_id]) {
-						question_map[tag.client_id].ask_list = []
+				if (!question_obj.is_merge) {
+					var gatherRegion = getGatherCellRegion(tag.client_id)
+					if (
+						Asc.scope.choice_params &&
+						Asc.scope.choice_params.style === 'show_choice_region' &&
+						gatherRegion
+					) {
+						// 开启集中作答区并且有集中作答区的坐标信息
+						is_gather_region = true
+						if (question_map[quesid]) {
+							question_map[quesid].ask_list = []
+						}
 					}
 				}
 				var item = {
-					id: tag.client_id,
+					id: quesid,
 					control_id: oControl.Sdt.GetId(),
 					text: oRange.GetText(), // 如果需要html, 请参考ExamTree.js的reqUploadTree
 					// content: `${text_data.data || ''}`,
@@ -3271,10 +3326,25 @@ function getAllPositions2() {
 					mark_ask_region['1'] = item.write_ask_region
 					item.mark_ask_region = mark_ask_region
 				} else if (question_obj.ask_list && question_obj.ask_list.length) {
-					var nodeData = node_list.find((e) => {
-						return e.id == tag.client_id
-					})
-					if (nodeData && nodeData.write_list) {
+					var write_list = []
+					if (question_obj.is_merge && question_obj.ids) {
+						question_obj.ids.forEach(cid => {
+							var nodeData = node_list.find((e) => {
+								return e.id == cid
+							})
+							if (nodeData) {
+								write_list = write_list.concat(nodeData.write_list)
+							}
+						})
+					} else {
+						var nodeData = node_list.find((e) => {
+							return e.id == tag.client_id
+						})
+						if (nodeData) {
+							write_list = nodeData.write_list
+						}
+					}
+					if (write_list.length) {
 						let mark_order = 1
 						for (var iask = 0; iask < question_obj.ask_list.length; ++iask) {
 							var ids = [question_obj.ask_list[iask].id]
@@ -3284,7 +3354,7 @@ function getAllPositions2() {
 							var ask_score = question_obj.ask_list[iask].score || ''
 							var find = false
 							for (var idx2 = 0; idx2 < ids.length; ++idx2) {
-								var askData = nodeData.write_list.find((e) => {
+								var askData = write_list.find((e) => {
 									return e.id == ids[idx2]
 								})
 								if (!askData) {

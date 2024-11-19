@@ -6,6 +6,7 @@
     <script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.js"></script>
     <script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins-ui.js"></script>
     <link rel="stylesheet" href="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.css">
+	<link rel="stylesheet" href="resources/iconfont/iconfont.css">
     <script src="vendor/jQuery-2.2.2-min/jquery-v2.2.2-min.js"></script>
 	<style>
 		.info {
@@ -54,6 +55,22 @@
 				cursor: pointer;
 			}
 		}
+		.column-center {
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+		}
+		.clr-gray {
+			color: #bbb;
+		}
+		.none {
+			width: 100%;
+			margin-top: 60px;
+			.iconfont {
+				font-size: 60px;
+			}
+		}
 	</style>
 </head>
 
@@ -62,6 +79,10 @@
 		<div class="flex: 1">
 			<div style="color: #555;font-weight: bold;">内容诊断</div>
 			<div id="list"></div>
+			<div class="none column-center font-14">
+				<div class="iconfont icon-weikong clr-gray"></div>
+				<div class="clr-gray">暂无数据</div>
+			</div>
 		</div>
 		<!-- <div class="confirm-wrapper">
 			<div id="cancel" class="btn-cancel">取消</div>

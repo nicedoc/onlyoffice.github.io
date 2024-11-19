@@ -6,21 +6,27 @@
     <script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.js"></script>
     <script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins-ui.js"></script>
     <link rel="stylesheet" href="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.css">
-    <link rel="stylesheet" href="resources/css/batchSettingScores.css">
+    <link rel="stylesheet" href="resources/css/batchSetting.css">
     <script src="vendor/jQuery-2.2.2-min/jquery-v2.2.2-min.js"></script>
     <script type="text/javascript" src="scripts/dialog/batchSettingScores.js"></script>
+	<style>
+		.batch-setting-info {
+			max-height: calc(100% - 64px);
+			overflow-y: auto;
+		}
+	</style>
 </head>
 <body>
 
   <div class="window-body">
-    <div class="batch-setting-score-header">
+    <div class="batch-setting-header">
         <div>
           <div style="display: inline-block;margin: 8px 0;">当前试卷总分：<span id="score_sum">0</span> 分</div>
-          <div style="margin: 8px 0;" class="bat-score-set">将当前未设置分数的题目设置为<input class="input" type="text" id="bat-score-group-all">分<span class="bat-score-set-btn" id="bat-score-set-btn-all">设置</span></div>
+          <div style="margin: 8px 0;" class="bat-set">将当前未设置分数的题目设置为<input class="input" type="text" id="bat-group-all">分<span class="bat-set-btn" id="bat-set-btn-all">设置</span></div>
         </div>
         <div>分数预览</div>
       </div>
-    <div class="batch-setting-score-info">
+    <div class="batch-setting-info">
       <!-- <div class="group">一、选择题</div>
       <span class="question">1.<input type="text" class="score"><input type="text" class="score"></span> -->
     </div>
@@ -28,6 +34,7 @@
   <div class="confirm-wrapper">
     <label class="hidden_empty_struct" for="hidden_empty_struct"><input type="checkbox" id="hidden_empty_struct">隐藏无题目结构</label>
     <div id="confirm" class="btn-confirm">确定</div>
+	<label class="switch-tree" for="switch-tree"><input type="checkbox" id="switch_tree">树状显示</label>
   </div>
 </body>
 </html>
