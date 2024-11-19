@@ -3897,10 +3897,19 @@ function focusControl(id) {
 			var oControl = getControlsByClientId(id)
 			if (oControl) {
 				oDocument.Document.MoveCursorToContentControl(oControl.Sdt.GetId(), true)
-				break
+				return {
+					Tag: Api.ParseJSON(oControl.GetTag()),
+					InternalId: oControl.Sdt.GetId()
+				}
 			}
 		}
-	}, false, false)
+		return null
+	}, false, false).then((res) => {
+		g_click_value = res
+		return new Promise((resolve, reject) => {
+			resolve()
+		})
+	})
 }
 
 function focusAsk(writeData) {
