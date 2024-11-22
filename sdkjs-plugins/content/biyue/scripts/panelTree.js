@@ -64,7 +64,7 @@ function renderTreeNode(parent, item, parentData) {
 	if (item.level_type == 'struct') {
 		html += `<div class="row-align-center" id="group-${item.id}">
 					<div class="struct font-12">构</div>
-					<div class="itemques text-over-ellipsis flex-1 clicked" id="box-${item.id}" style="margin-left: ${identation}px;" title="${quesData.text}">${quesData.text}</div>
+					<div class="itemques text-over-ellipsis flex-1 clicked" id="box-${item.id}" style="margin-left: ${identation}px;" title="${quesData.text}">${quesData.ques_name || quesData.text}</div>
 				</div>`
 	} else if (item.level_type == 'question') {
 		html += `<div class="itemques" id="box-${item.id}"  style="margin-left: ${identation}px;">
