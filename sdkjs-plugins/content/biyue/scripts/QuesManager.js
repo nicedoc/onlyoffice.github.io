@@ -2162,7 +2162,7 @@ function getQuestionHtml(ids, getLatestParent) {
 							if (lvl2 !== null) {
 								if (prelvl) {
 								} else {
-									if (question_map[quesId2].ques_mode == 5) { // 文本题
+									if (question_map[quesId2].ques_mode == 6) { // 文本题
 										addHtml(quesId2, question_map[quesId2], oControl2, lvl2)
 										break
 									} else {
