@@ -1111,7 +1111,10 @@ function handleChangeType(res, res2) {
 		typequesId = update_node_id
 	}
 	if (typequesId) {
-		return imageAutoLink(typequesId, false).then((res3) => {
+		return reqGetQuestionType([typequesId], true)
+		.then(() => {
+			return imageAutoLink(typequesId, false)
+		}).then((res3) => {
 			if (res3.rev) {
 				return ShowLinkedWhenclickImage({
 					client_id: typequesId
@@ -1121,7 +1124,8 @@ function handleChangeType(res, res2) {
 					resolve()
 				})
 			}
-		}).then(() => {
+		})
+		.then(() => {
 			return splitControl(typequesId)
 		})
 	}
@@ -2004,9 +2008,10 @@ function getQuesMode(question_type) {
 	return ques_mode
 }
 
-function getQuestionHtml(ids) {
+function getQuestionHtml(ids, getLatestParent) {
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	Asc.scope.html_ids = ids
+	Asc.scope.getLatestParent = getLatestParent
 	return biyueCallCommand(window, function() {
 		var question_map = Asc.scope.question_map || {}
 		var target_list = []
@@ -2014,6 +2019,7 @@ function getQuestionHtml(ids) {
 		var controls = oDocument.GetAllContentControls() || []
 		var handled = {}
 		var html_ids = Asc.scope.html_ids
+		var getLatestParent = Asc.scope.getLatestParent
 		function getControlsByClientId(cid) {
 			var findControls = controls.filter(e => {
 				var tag = Api.ParseJSON(e.GetTag())
@@ -2027,23 +2033,7 @@ function getQuestionHtml(ids) {
 				return findControls[0]
 			}
 		}
-		for (var oControl of controls) {
-			var tagInfo = Api.ParseJSON(oControl.GetTag())
-			if (tagInfo.regionType != 'question' || !tagInfo.client_id) {
-				continue
-			}
-			var quesId = tagInfo.mid && question_map[tagInfo.mid] ? tagInfo.mid : tagInfo.client_id
-			if (handled[quesId]) {
-				continue
-			}
-			if (html_ids && html_ids.indexOf(quesId) < 0) {
-				continue
-			}
-			var quesData = question_map[quesId]
-			if (!quesData || quesData.level_type != 'question') {
-				continue
-			}
-			handled[quesId] = true
+		function addHtml(quesId, quesData, oControl, lvldata) {
 			var oRange = null
 			if (quesData.is_merge && quesData.ids) {
 				quesData.ids.forEach(id => {
@@ -2073,20 +2063,140 @@ function getQuestionHtml(ids) {
 				};
 
 				Api.asc_CheckCopy(text_data, 2);
+				var lvltext = ''
+				if (lvldata && lvldata.text) {
+					lvltext = `<div>${lvldata.text}</div>`
+				}
 				target_list.push({
 					id: quesId + '',
 					content_type: quesData.level_type,
-					content_html: text_data.data
+					content_html:  lvltext + text_data.data
 				})
 			}
+		}
+		function getLvl(oControl, paraIndex) {
+			if (!oControl) {
+				return null
+			}
+			var paragrahs = oControl.GetAllParagraphs() || []
+			for (var i = 0; i < paragrahs.length; ++i) {
+				var oParagraph = paragrahs[i]
+				if (paraIndex != -1 && i > paraIndex) {
+					return null
+				}
+				var oNumberingLevel = oParagraph.GetNumbering()
+				if (oNumberingLevel) {
+					if (oNumberingLevel.Num) {
+						var lvl = oNumberingLevel.Num.GetLvl(oNumberingLevel.Lvl)
+						if (lvl) {
+							var LvlText = lvl.GetLvlText() || []
+							var list = []
+							LvlText.forEach(e => {
+								list.push(e.Value)
+							})
+							return {
+								lvl: oNumberingLevel.Lvl,
+								text: list.join('')
+							}
+						}
+					}
+					
+					return {
+						lvl: oNumberingLevel.Lvl,
+						text: ''
+					}
+				}
+			}
+			return null
+		}
+		function getQueId(oControl) {
+			var tagInfo = Api.ParseJSON(oControl.GetTag())
+			if (!tagInfo.client_id) {
+				return null
+			}
+			return tagInfo.mid && question_map[tagInfo.mid] ? tagInfo.mid : tagInfo.client_id
+		}
+		for (var i = 0; i < controls.length; ++i) {
+			var oControl = controls[i]
+			var quesId = getQueId(oControl)
+			if (handled[quesId]) {
+				continue
+			}
+			if (html_ids && html_ids.findIndex(e => { return e == quesId }) < 0) {
+				continue
+			}
+			var quesData = question_map[quesId]
+			if (!quesData || (quesData.level_type != 'question' && quesData.level_type != 'struct')) {
+				continue
+			}
+			handled[quesId] = true
+			var lvl1 = getLvl(oControl, 0)
+			if (getLatestParent) {
+				var flag = 0
+				var oParentControl = oControl.GetParentContentControl()
+				if (oParentControl) {
+					var parentId = getQueId(oParentControl)
+					if (parentId && question_map[parentId]) {
+						addHtml(parentId, question_map[parentId], oParentControl, getLvl(oParentControl, 0))
+						flag = 1
+					}
+				}
+				if (!flag) {
+					var prelvl
+					for (var j = i - 1; j >= 0; --j) {
+						var oControl2 = controls[j]
+						if (oControl2.GetClassType() != 'blockLvlSdt') {
+							continue
+						}
+						var tag2 = Api.ParseJSON(oControl2.GetTag())
+						if (!tag2.client_id) {
+							continue
+						}
+						var quesId2 = tag2.mid && question_map[tag2.mid] ? tag2.mid : tag2.client_id
+						if (question_map[quesId2].level_type == 'struct') {
+							addHtml(quesId2, question_map[quesId2], oControl2)
+							break
+						}
+						var lvl2 = getLvl(oControl2, 0)
+						if (lvl1 == null) {
+							if (lvl2 !== null) {
+								if (prelvl) {
+								} else {
+									if (question_map[quesId2].ques_mode == 5) { // 文本题
+										addHtml(quesId2, question_map[quesId2], oControl2, lvl2)
+										break
+									} else {
+										if (prelvl) {
+											if (lvl2.lvl < prelvl) {
+												addHtml(quesId2, question_map[quesId2], oControl2, lvl2)
+												break
+											}
+										} else {
+											prelvl = lvl2.lvl
+										}
+									}
+								}
+							}
+						} else {
+							if (lvl2 === null) {
+								continue
+							} else if (lvl2.lvl < lvl1.lvl) {
+								addHtml(quesId2, question_map[quesId2], oControl2, lvl2)
+								break
+							}
+						}
+					}
+				}
+			}
+			addHtml(quesId, quesData, oControl, lvl1)
 		}
 		return target_list
 	}, false, false)
 }
 
 // 获取题型
-function reqGetQuestionType() {
-	return getQuestionHtml().then(control_list => {
+function reqGetQuestionType(ids, getLatestParent) {
+	return getQuestionHtml(ids, getLatestParent).then(control_list => {
 		console.log('[reqGetQuestionType] control_list', control_list)
 		return new Promise((resolve, reject) => {
 			if (!window.BiyueCustomData.paper_uuid || !control_list || control_list.length == 0) {
