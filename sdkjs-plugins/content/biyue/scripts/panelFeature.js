@@ -31,6 +31,9 @@ var timeout_change_choice_num = null
 var imageDimensionsCache = {} // 图片的宽高比缓存
 function initExtroInfo() {
 	list_feature = getList()
+	if (window.BiyueCustomData.page_type == 1) {
+		return initPositions1_intro()
+	}
 	return initPositions1()
 }
 
@@ -80,69 +83,70 @@ function getList() {
 	}
 	var list = []
 	var scale = 0.2647058823529412
-	if (extra_info.workbook_qr_code_show) {
-		var size = getValue(extra_info.workbook_qr_code_size, 45 * scale)
+	var page_type = window.BiyueCustomData.page_type
+	if (page_type == 0) {
+		if (extra_info.workbook_qr_code_show) {
+			var size = getValue(extra_info.workbook_qr_code_size, 45 * scale)
+			list.push({
+				zone_type: ZONE_TYPE.QRCODE,
+				  id: ZONE_TYPE_NAME[ZONE_TYPE.QRCODE],
+				  label: '二维码',
+				ox: getValue(extra_info.workbook_qr_code_x, 700 * scale),
+				oy: getValue(extra_info.workbook_qr_code_y, 20 * scale),
+				ow: size,
+				oh: size,
+				url: 'https://by-qa-image-cdn.biyue.tech/qrCodeUnset.png',
+				value_select: 'open'
+			})
+		}
+		if (extra_info.practise_again && extra_info.practise_again.switch) {
+			list.push({
+				zone_type: ZONE_TYPE.AGAIN,
+				id: ZONE_TYPE_NAME[ZONE_TYPE.AGAIN],
+				label: '再练',
+				ox: extra_info.practise_again.x,
+				oy: extra_info.practise_again.y,
+				value_select: 'open'
+			})
+		}
+		if (extra_info.custom_evaluate) {
+			list.push({
+				zone_type: ZONE_TYPE.SELF_EVALUATION,
+				id: ZONE_TYPE_NAME[ZONE_TYPE.SELF_EVALUATION],
+				label: extra_info.self_evaluate || '自我评价',
+				icon_url: workbook.self_evaluate_img, // || 'https://by-base-cdn.biyue.tech/xiaoyue_s.png',
+				flowers: Object.values(extra_info.self_filling_imgs || {}),
+				value_select: 'open'
+			})
+			list.push({
+				zone_type: ZONE_TYPE.THER_EVALUATION,
+				id: ZONE_TYPE_NAME[ZONE_TYPE.THER_EVALUATION],
+				label: '教师评价',
+				icon_url: workbook.teacher_evaluate_img, // || 'https://by-base-cdn.biyue.tech/xiaotao_s.png',
+				flowers: Object.values(extra_info.teacher_filling_imgs || {}),
+				value_select: 'open'
+			})
+			list.push({
+				zone_type: ZONE_TYPE.PASS,
+				id: ZONE_TYPE_NAME[ZONE_TYPE.PASS],
+				label: '通过',
+				value_select: 'open'
+			})
+		} else {
+			list.push({
+				zone_type: ZONE_TYPE.END,
+				id: ZONE_TYPE_NAME[ZONE_TYPE.END],
+				label: '完成',
+				value_select: 'open'
+			})
+		}
 		list.push({
-			zone_type: ZONE_TYPE.QRCODE,
-		  	id: ZONE_TYPE_NAME[ZONE_TYPE.QRCODE],
-		  	label: '二维码',
-			ox: getValue(extra_info.workbook_qr_code_x, 700 * scale),
-			oy: getValue(extra_info.workbook_qr_code_y, 20 * scale),
-			ow: size,
-			oh: size,
-			url: 'https://by-qa-image-cdn.biyue.tech/qrCodeUnset.png',
+			zone_type: ZONE_TYPE.IGNORE,
+			id: ZONE_TYPE_NAME[ZONE_TYPE.IGNORE],
+			label: '日期/评语',
 			value_select: 'open'
 		})
-	}
-	if (extra_info.practise_again && extra_info.practise_again.switch) {
-		list.push({
-			zone_type: ZONE_TYPE.AGAIN,
-			id: ZONE_TYPE_NAME[ZONE_TYPE.AGAIN],
-			label: '再练',
-			ox: extra_info.practise_again.x,
-			oy: extra_info.practise_again.y,
-			value_select: 'open'
-		})
-	}
-	if (extra_info.custom_evaluate) {
-		list.push({
-			zone_type: ZONE_TYPE.SELF_EVALUATION,
-			id: ZONE_TYPE_NAME[ZONE_TYPE.SELF_EVALUATION],
-			label: extra_info.self_evaluate || '自我评价',
-			icon_url: workbook.self_evaluate_img, // || 'https://by-base-cdn.biyue.tech/xiaoyue_s.png',
-			flowers: Object.values(extra_info.self_filling_imgs || {}),
-			value_select: 'open'
-		})
-		list.push({
-			zone_type: ZONE_TYPE.THER_EVALUATION,
-			id: ZONE_TYPE_NAME[ZONE_TYPE.THER_EVALUATION],
-			label: '教师评价',
-			icon_url: workbook.teacher_evaluate_img, // || 'https://by-base-cdn.biyue.tech/xiaotao_s.png',
-			flowers: Object.values(extra_info.teacher_filling_imgs || {}),
-			value_select: 'open'
-		})
-		list.push({
-			zone_type: ZONE_TYPE.PASS,
-			id: ZONE_TYPE_NAME[ZONE_TYPE.PASS],
-			label: '通过',
-			value_select: 'open'
-		})
-	} else {
-		list.push({
-			zone_type: ZONE_TYPE.END,
-			id: ZONE_TYPE_NAME[ZONE_TYPE.END],
-			label: '完成',
-			value_select: 'open'
-		})
-	}
-
-	list.push({
-		zone_type: ZONE_TYPE.IGNORE,
-		id: ZONE_TYPE_NAME[ZONE_TYPE.IGNORE],
-		label: '日期/评语',
-		value_select: 'open'
-	})
-
+	} 
 	list.push({
 		zone_type: ZONE_TYPE.STATISTICS,
 		id: ZONE_TYPE_NAME[ZONE_TYPE.STATISTICS],
@@ -151,19 +155,25 @@ function getList() {
 		v: 1,
 		// hidden: true,
 		url: 'https://by-qa-image-cdn.biyue.tech/statistics.png',
-		value_select: 'open'
+		value_select: 'open',
+		hidden: page_type == 1
 	})
-	if (!extra_info.hidden_correct_region.checked) {
-		var value_select = extra_info.start_interaction.checked ? 'accurate' : 'simple'
-		window.BiyueCustomData.interaction = value_select
-		list.push({
-			id: 'interaction',
-			label: '互动模式',
-			value_select: value_select
-		})
+	if (page_type == 0) {
+		if (!extra_info.hidden_correct_region.checked) {
+			var value_select = extra_info.start_interaction.checked ? 'accurate' : 'simple'
+			window.BiyueCustomData.interaction = value_select
+			list.push({
+				id: 'interaction',
+				label: '互动模式',
+				value_select: value_select
+			})
+		} else {
+			window.BiyueCustomData.interaction = 'none'
+		}
 	} else {
 		window.BiyueCustomData.interaction = 'none'
 	}
+	
 	return list
 }
 
@@ -516,6 +526,45 @@ function updateFeatureList(res) {
 	})
 }
 
+function initPositions1_intro() {
+	return getPageData().then(res => {
+		updateFeatureList(res)
+		var specifyFeatures = [
+			ZONE_TYPE_NAME[ZONE_TYPE.AGAIN],
+			ZONE_TYPE_NAME[ZONE_TYPE.IGNORE],
+			ZONE_TYPE_NAME[ZONE_TYPE.QRCODE],
+			ZONE_TYPE_NAME[ZONE_TYPE.SELF_EVALUATION],
+			ZONE_TYPE_NAME[ZONE_TYPE.THER_EVALUATION],
+			ZONE_TYPE_NAME[ZONE_TYPE.STATISTICS],
+			ZONE_TYPE_NAME[ZONE_TYPE.PASS],
+			ZONE_TYPE_NAME[ZONE_TYPE.END]
+		]
+		return deleteAllFeatures([], specifyFeatures)
+	}).then(() => { // 插入获取图片宽高比的步骤
+		return loadImages
+  	}).then(() => {
+		return drawExtroInfo(list_feature, imageDimensionsCache)
+	}).then(() => {
+		setLoading(false)
+		return MoveCursor()
+	})
+}
+
+function loadImages() {
+	const imageUrls = [];
+	list_feature.forEach(e => {
+	  if (e.url) {
+		  imageUrls.push(e.url)
+	  }
+	  if (e.icon_url) {
+		  imageUrls.push(e.icon_url)
+	  }
+	  if (e.flowers) {
+		  imageUrls.concat(e.flowers)
+	  }
+	})
+	return Promise.all(imageUrls.map(getImageDimensions));
+}
 function initPositions1() {
 	return getPageData().then(res => {
 		updateFeatureList(res)
@@ -537,23 +586,12 @@ function initPositions1() {
 		return setInteraction('useself')
 	})
 	.then(() => { // 插入获取图片宽高比的步骤
-	  	const imageUrls = [];
-	  	list_feature.forEach(e => {
-			if (e.url) {
-				imageUrls.push(e.url)
-			}
-			if (e.icon_url) {
-				imageUrls.push(e.icon_url)
-			}
-			if (e.flowers) {
-				imageUrls.concat(e.flowers)
-			}
-	  	})
-	  	return Promise.all(imageUrls.map(getImageDimensions));
+		return loadImages()
 	})
 	.then(() => {
 		return drawExtroInfo(list_feature, imageDimensionsCache)
-	}).then(() => {
+	})
+	.then(() => {
 		setLoading(false)
 		return MoveCursor()
 	})

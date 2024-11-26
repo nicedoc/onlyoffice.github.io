@@ -252,7 +252,7 @@ function getContextMenuItems(type, selectedRes) {
 							cData = {
 								level_type: '',
 								parent_level_type: pData.level_type,
-								parent_id: tag2.client_id
+								parent_id: tag2.mid || tag2.client_id
 							}
 							break
 						}
@@ -5177,7 +5177,7 @@ function splitControl(qid) {
 					var cellContent = oCell.GetContent()
 					if (cellContent.GetElementsCount() == 1) {
 						var text = control.GetRange().Text
-						if (text.replace(/[\s\r\n]/g, '').length === 0) {
+						if (text && text.replace(/[\s\r\n]/g, '').length === 0) {
 							var oTable = oCell.GetParentTable()
 							result.change_list.push({
 								parent_id: obj.client_id,
@@ -5798,8 +5798,18 @@ function handleUploadPrepare(cmdType) {
 }
 
 function importExam() {
-	setBtnLoading('uploadTree', true)
 	setBtnLoading('importExam', true)
+	if (window.BiyueCustomData.page_type == 1) {
+		return handleUploadPrepare('hide')
+		.then(() => {
+			return getAllPositions2()
+		}).then(res => {
+			Asc.scope.questionPositions = res
+			window.biyue.showDialog('exportExamWindow', '上传试卷', 'examExport.html', 1000, 800, true)
+			setBtnLoading('importExam', false)
+		})
+	}
+	setBtnLoading('uploadTree', true)
 	setInteraction('none', null, false).then(() => {
 		return addOnlyBigControl(false)
 	}).then(() => {

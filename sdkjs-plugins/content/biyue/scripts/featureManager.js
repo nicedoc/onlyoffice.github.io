@@ -49,7 +49,7 @@ function handleFeature(options) {
 	})
 }
 
-function drawExtroInfo(list, imageDimensionsCache) {
+function drawExtroInfo(list, imageDimensionsCache, calc) {
 	if (!list) { return }
 	list.forEach(e => {
 		e.page_num = e.p || 0
@@ -61,7 +61,7 @@ function drawExtroInfo(list, imageDimensionsCache) {
 		e.type_name = ZONE_TYPE_NAME[e.zone_type]
 	})
 	Asc.scope.imageDimensionsCache = imageDimensionsCache
-	return drawList(list)
+	return drawList(list, calc)
 }
 // 整理参数
 function addCommand(options) {
@@ -398,10 +398,11 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 	}, false, true)
 }
 
-function drawList(list) {
+function drawList(list, recalc = true) {
 	setLoading(true)
 	Asc.scope.feature_wait_handle = list
 	Asc.scope.ZONE_TYPE = ZONE_TYPE
+	Asc.scope.page_type = window.BiyueCustomData.page_type
 	return biyueCallCommand(window, function() {
 		var imageDimensionsCache = Asc.scope.imageDimensionsCache || {}
 		var ZONE_TYPE = Asc.scope.ZONE_TYPE
@@ -410,6 +411,7 @@ function drawList(list) {
 		var objs = oDocument.GetAllDrawingObjects()
 		var oSections = oDocument.GetSections()
 		var feature_wait_handle = Asc.scope.feature_wait_handle
+		var page_type = Asc.scope.page_type
 		feature_wait_handle = feature_wait_handle.filter(e => {
 			return e.zone_type
 		})
@@ -765,7 +767,7 @@ function drawList(list) {
 						} else if (options.zone_type == ZONE_TYPE.THER_EVALUATION || options.zone_type == ZONE_TYPE.SELF_EVALUATION) {
 							var flowers = options.flowers || []
 							var oTable = Api.CreateTable(2 + flowers.length, 1)
-							oTable.SetTableTitle('ignore')
+							oTable.SetTableTitle(JSON.stringify({ignore: 1}))
 							var scale = 0.25
 							var flowersize = 24
 							var fw = flowersize * scale
@@ -886,22 +888,18 @@ function drawList(list) {
 								oDocument.SetEvenAndOddHdrFtr(pstyle != 'center');
 								oSections.forEach((section, index) => {
 									var footerList = []
-									// 首页
 									var oTitleFooter = section.GetFooter("title", false)
+									// 首页
+									if (section.Section.IsTitlePage()) {
+										if (!oTitleFooter) {
+											oTitleFooter = section.GetFooter("title", true)
+										}
+									}
 									if (oTitleFooter) {
 										footerList.push({
 											type: 'title',
 											oFooter: oTitleFooter
 										})
-									} else {
-										var oTitleHeader = section.GetHeader('title', false)
-										if (oTitleHeader) { // 存在首页页眉
-											oTitleFooter = section.GetFooter('title', true);
-											footerList.push({
-												type: 'title',
-												oFooter: oTitleFooter
-											})
-										}
 									}
 									if (pstyle != 'center') {
 										var evenFooter = section.GetFooter('even', false)
@@ -931,31 +929,33 @@ function drawList(list) {
 										}
 										var PageMargins = section.Section.PageMargins
 										var oParagraph = oFooter.GetElement(0)
-										// 统计
-										var sh = PageMargins.Right - (options.size.right || 0) - options.size.w
-										var sv = PageMargins.Bottom - (options.size.bottom || 0) - options.size.h
-										var typeDrawing = getTypeDrawing(oParagraph, options.type_name)
-										if (typeDrawing) {
-											typeDrawing.Set_PositionH(7, false, sh, false);
-											typeDrawing.Set_PositionV(0, false, sv, false)
-											typeDrawing.Set_DrawingType(2);
-										} else {
-											var oAdd = oDrawing.Copy()
-											var drawing = oAdd.getParaDrawing()
-											if (drawing) {
-												drawing.Set_PositionH(7, false, sh, false);
-												drawing.Set_PositionV(0, false, sv, false)
-												drawing.Set_DrawingType(2);
-												oParagraph.SetJc('center')
-												var titleobj = {
-													feature: {
-														zone_type: options.type_name,
-														v: options.v
+										if (page_type == 0) {
+											// 统计
+											var sh = PageMargins.Right - (options.size.right || 0) - options.size.w
+											var sv = PageMargins.Bottom - (options.size.bottom || 0) - options.size.h
+											var typeDrawing = getTypeDrawing(oParagraph, options.type_name)
+											if (typeDrawing) {
+												typeDrawing.Set_PositionH(7, false, sh, false);
+												typeDrawing.Set_PositionV(0, false, sv, false)
+												typeDrawing.Set_DrawingType(2);
+											} else {
+												var oAdd = oDrawing.Copy()
+												var drawing = oAdd.getParaDrawing()
+												if (drawing) {
+													drawing.Set_PositionH(7, false, sh, false);
+													drawing.Set_PositionV(0, false, sv, false)
+													drawing.Set_DrawingType(2);
+													oParagraph.SetJc('center')
+													var titleobj = {
+														feature: {
+															zone_type: options.type_name,
+															v: options.v
+														}
 													}
+													oAdd.SetTitle(JSON.stringify(titleobj))
+													oParagraph.AddDrawing(oAdd)
+													drawing.Set_Parent(oParagraph.Paragraph)
 												}
-												oAdd.SetTitle(JSON.stringify(titleobj))
-												oParagraph.AddDrawing(oAdd)
-												drawing.Set_Parent(oParagraph.Paragraph)
 											}
 										}
 										// 页码
@@ -970,7 +970,8 @@ function drawList(list) {
 											var titleobj = {
 												feature: {
 													zone_type: 'pagination',
-													v: options.v
+													v: options.v,
+													footer_type: footerObj.type
 												}
 											}
 											oAddNum.SetTitle(JSON.stringify(titleobj))
@@ -1037,7 +1038,7 @@ function drawList(list) {
 		})
 		console.log('=====================drawList end ')
 		return res
-	}, false, true)
+	}, false, recalc)
 }
 
 function setLoading(v) {
