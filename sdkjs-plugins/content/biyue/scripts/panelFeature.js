@@ -454,9 +454,6 @@ function updateFeatureList(res) {
 		var PageMargins = res.PageMargins
 		var bottom = 6
 		// 后端给的坐标是基于页面尺寸 816*1100 的
-		var lastleft = ((Num - 1) * PageSize.W) / Num
-		var evaluationX = Num > 1 ? lastleft : PageMargins.Left
-		console.log('evaluationX', evaluationX)
 		list_feature.forEach((e, index) => {
 			var x = e.ox != undefined ? e.ox : 0
 			var y = e.oy != undefined ? e.oy : 0
@@ -472,10 +469,10 @@ function updateFeatureList(res) {
 			} else if (e.zone_type == ZONE_TYPE.AGAIN) {
 				page_num = 0
 			} else if (e.zone_type == ZONE_TYPE.SELF_EVALUATION) {
-				x = evaluationX
+				x = PageMargins.Left
 				y = PageSize.H - PageMargins.Bottom
 			} else if (e.zone_type == ZONE_TYPE.THER_EVALUATION) {
-				x = evaluationX + 60
+				x = PageMargins.Left + 60
 				y = PageSize.H - PageMargins.Bottom
 			} else if (e.zone_type == ZONE_TYPE.PASS || e.zone_type == ZONE_TYPE.END) {
 				x = PageSize.W - PageMargins.Right - ZONE_SIZE[ZONE_TYPE.IGNORE].w - 4 - ZONE_SIZE[ZONE_TYPE.PASS].w
