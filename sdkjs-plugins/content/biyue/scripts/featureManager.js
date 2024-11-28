@@ -2279,7 +2279,7 @@ function drawHeaderFooter(options, calc) {
 			// numberDrawing = getPageNumberDrawing(20, options.pagination.font_size)
 			footerList.forEach((footerObj) => {
 				updateFooter(footerObj.oFooter, footerObj.type, PageMargins, PageSize)
-				oSection.SetFooterDistance((PageMargins.Bottom - 6) / (25.4 / 72 / 20))
+				oSection.SetFooterDistance((PageMargins.Bottom - 2) / (25.4 / 72 / 20))
 			})
 		}
 		console.log('==================== draw header footer end')
