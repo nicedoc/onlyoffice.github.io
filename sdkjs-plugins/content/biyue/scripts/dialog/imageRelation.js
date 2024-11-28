@@ -167,7 +167,7 @@
 	
 	  function getSelectHtml(id, quesData) {
 		var html = ''
-		if (quesData.level_type == 'struct') {
+		if (quesData && quesData.level_type == 'struct') {
 			html += `<select id="bat-group-${id}" class="type-item">`
 			html += `<option value="" style="display: none;"></option>`
 			for (const key in type_options) {
@@ -192,7 +192,7 @@
 	  }
 	
 	  function renderTreeNode(parent, item, identation = 0) {
-		if (!parent) {
+		if (!parent || !item) {
 			return
 		}
 		var quesData = question_map[item.id]

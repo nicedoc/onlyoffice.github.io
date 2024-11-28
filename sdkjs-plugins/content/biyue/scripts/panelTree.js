@@ -37,22 +37,24 @@ function renderTreeNode(parent, item, parentData) {
 	}
 	var html = ''
 	var identation = 0
-	var offset = 24
+	var offset = 16
 	if (parentData) {
 		if (parentData.is_big) {
 			if (item.lvl != null && parentData.lvl !== null) {
-				identation = 20 + offset * (item.lvl - parentData.lvl - 1)
+				identation = 16 * (item.lvl - parentData.lvl - 1)
 			} else {
-				identation = 20
+				identation = 0
 			}
 		} else if (item.lvl === null) {
 			if (parentData.lvl) {
 				identation = offset * (parentData.lvl + 1)
 			} else {
-				identation = offset
+				identation = 0
 			}
 		} else {
-			identation = (item.level_type =='struct' ? 10 : offset) * item.lvl
+			if (parentData.lvl != null) {
+				identation = 16 * (item.lvl - parentData.lvl - 1)
+			}
 		}
 	} else {
 		if (item.lvl != null) {
@@ -61,26 +63,63 @@ function renderTreeNode(parent, item, parentData) {
 			identation = 0
 		}
 	}
+	if (identation < 0) {
+		identation = 0
+	}
 	if (item.level_type == 'struct') {
-		html += `<div class="row-align-center" id="group-${item.id}">
-					<div class="struct font-12">构</div>
-					<div class="itemques text-over-ellipsis flex-1 clicked" id="box-${item.id}" style="margin-left: ${identation}px;" title="${quesData.text}">${quesData.ques_name || quesData.text}</div>
-				</div>`
-	} else if (item.level_type == 'question') {
-		html += `<div class="itemques" id="box-${item.id}"  style="margin-left: ${identation}px;">
-					<div title="${quesData.text}" id="ques-${item.id}" class="text-over-ellipsis clicked flex-1">${quesData.text}</div>
+		html += `<div class="qwrapper"  style="margin-left: ${identation}px;">
+					<div id="group-${item.id}">
+						<div class="struct font-12" style="left:${-24 - identation}px" id="struct${item.id}">构</div>
+						<div class="itemques text-over-ellipsis flex-1 clicked" id="box-${item.id}" title="${quesData.text}">${quesData.ques_name || quesData.text}</div>
+					</div>
 					<div class="children" id="ques-${item.id}-children"></div>
+					${item.children && item.children.length > 0 ? `<div class="vline" id="vline-${item.id}" style="left: ${item.parent_id ? identation : (identation > 16 ? (identation - 16) : 0)}px"></div>` : ''}
+					${item.parent_id ? `<div class="hline" style="left: ${-16-identation}px;width:${identation + 16}px;" id="hline-${item.id}"></div>` : ''}
+				 </div>`
+	} else if (item.level_type == 'question') {
+		html += `<div class="qwrapper" style="margin-left: ${identation}px;">
+					<div class="itemques" id="box-${item.id}" >
+						<div title="${quesData.text}" id="ques-${item.id}" class="text-over-ellipsis clicked flex-1">${quesData.text}</div>
+						<div class="children" id="ques-${item.id}-children"></div>
+					</div>
+					${item.children && item.children.length && !item.is_big ? `<div class="vline" style="left: ${identation}px" id="vline-${item.id}"></div>` : ''}
+					${item.parent_id ? `<div class="hline" style="left: ${-16-identation}px;width:${identation + 16}px;}" id="hline-${item.id}"></div>` : ''}
 				</div>`
 	}
 	parent.append(html)
 	if (item.children && item.children.length > 0) {
 		for (var child of item.children) {
-			if (item.level_type == 'struct') {
-				renderTreeNode(parent, child, item)
-			} else {
-				renderTreeNode($(`#ques-${item.id}-children`), child, item)
-			}
+			renderTreeNode($(`#ques-${item.id}-children`), child, item)
 		}
+	}
+}
+function countDescendants(node, isLastChild = false) {
+    if (!node.children || node.children.length === 0) {
+        return isLastChild ? 1 : 0; // 叶子节点; 只有最后一个算作 1
+    }
+
+    let count = 0;
+    const numChildren = node.children.length;
+
+    for (let i = 0; i < numChildren; i++) {
+        const child = node.children[i];
+        const childIsLast = (i === numChildren - 1);
+
+        if (childIsLast && !isLastChild) {
+            // 如果是最后一个孩子，则只加1
+            count += 1;
+        } else {
+            // 非最后一个孩子，需要计算自己+其子孙的叶子节点数量
+            count += 1 + countDescendants(child);
+        }
+    }
+    return count;
+}
+function traverse(node, result) {
+	if (!node) return;
+	result[node.id] = countDescendants(node);
+	for (let child of node.children) {
+		traverse(child, result);
 	}
 }
 
@@ -92,8 +131,29 @@ function renderTree() {
 	rootElement.empty()
 	if (tree_info.tree && tree_info.tree.length) {
 		showCom('#panelTree .none', false)
+
 		tree_info.tree.forEach(item => {
 			renderTreeNode(rootElement, item, null)
+		})
+		var vCountMap = {}
+		for (let rootNode of tree_info.tree) {
+			traverse(rootNode, vCountMap);
+		}
+		tree_info.list.forEach(item => {
+			var itemCount = vCountMap[item.id]
+			if (itemCount > 0) {
+				var linecom = $(`#panelTree #vline-${item.id}`)
+				if (linecom && linecom.length > 0) {
+					linecom.css('height', (itemCount * 25.7 + 6 * (itemCount - 1)) + 'px');
+				}
+			}
+			if (item.parent_id) {
+				if (item.level_type == 'struct') {
+					var structCom = $(`#panelTree #struct${item.id}`)
+					var childrenAncestorsCount = structCom.parents().filter('.children').length;
+					structCom.css('left', (-24 - childrenAncestorsCount * 16) + 'px')
+				}
+			}
 		})
 		var structNum = 0
 		var quesNum = 0
@@ -121,13 +181,17 @@ function renderTree() {
 						if (nodeData && !quesData.is_merge) { // 合并题不可设置为大题, 当题目处于单元格中时，只能清除大题，不可构建大小题
 							if (nodeData.is_big) {
 								if (item.cell_id) {
-									generateMenuItems(['clearBig'], item.id); // 生成动态菜单	
+									generateMenuItems(['clearBig'], item.id); // 生成动态菜单
 								} else {
 									generateMenuItems(['clearBig', 'extendBig'], item.id); // 生成动态菜单
 								}
 								updateMenuPos(event)
 							} else if (!item.cell_id) {
-								generateMenuItems(['setBig', 'setBig2'], item.id); // 生成动态菜单
+								if (item.lvl == null) {
+									generateMenuItems(['setBig2'], item.id); // 生成动态菜单
+								} else {
+									generateMenuItems(['setBig', 'setBig2'], item.id); // 生成动态菜单
+								}
 								updateMenuPos(event)
 							}
 						}
@@ -240,23 +304,33 @@ function updateBig(id) {
 		})
 		var mleft = parseInt((bigques).css('margin-left'), 10);
 		var minMarginLeft = 100
+		var minlvl = 10
 		for (var j = index + 1; j <= toIndex; ++j) {
 			var item = $(`#panelTree #box-${g_tree_info.list[j].id}`)
 			var parentElement = item.parent();
 			var prevElement = item.prev();
 			var marginLeft = parseInt((item).css('margin-left'), 10);
+			var itemParent = item.parent()
+			marginLeft = parseInt((itemParent).css('margin-left'), 10);
+			var itemLvl = g_tree_info.list[j].lvl
 			big_info.child_ids.push({
 				id: g_tree_info.list[j].id,
 				parent: parentElement ? parentElement.attr('id') : null,
 				prev: prevElement ? prevElement.attr('id') : null,
-				marginLeft: marginLeft
+				marginLeft: marginLeft,
+				lvl: itemLvl
 			})
 			item.css({
 				'background-color': '#fff',
 				'border': '1px solid #bbb'
 			});
+			
+			if (itemLvl !== null) {
+				minlvl = Math.min(minlvl, itemLvl)
+			}
 			minMarginLeft = Math.min(minMarginLeft, marginLeft)
-			item.appendTo(childrenName);
+			$(`#panelTree #hline-${g_tree_info.list[j].id}`).hide()
+			item.parent().appendTo(childrenName);
 			if (g_tree_info.list[j].parent_id && g_tree_info.list[j].parent_id != id) {
 				var parentData = g_tree_info.list.find(e => {
 					return e.id == g_tree_info.list[j].parent_id
@@ -266,14 +340,17 @@ function updateBig(id) {
 				}
 			}
 		}
-		if (minMarginLeft > mleft) {
-			var offset = minMarginLeft - mleft
-			big_info.child_ids.forEach(e => {
-				$(`#panelTree #box-${e.id}`).css({
-					'margin-left': `${e.marginLeft - offset}px`
-				})
+		big_info.child_ids.forEach(e => {
+			var mleft = 0
+			if (e.lvl === null) {
+				mleft = 0
+			} else if (e.lvl > minlvl) {
+				mleft = (e.lvl - minlvl) * 16
+			}
+			$(`#panelTree #box-${e.id}`).parent().css({
+				'margin-left': `${mleft}px`
 			})
-		}
+		})
 		if (big_info.end_id) {
 			$(`#panelTree #box-${big_info.end_id}`).css({
 				'border': '1px solid #95c8ff',

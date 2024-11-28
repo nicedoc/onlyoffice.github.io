@@ -108,11 +108,23 @@ function handleContextMenuShow(options) {
 		} else {
 			var elementsInfo = oDocument.Document.GetSelectedElementsInfo()
 			if (elementsInfo.m_arrSdts && elementsInfo.m_arrSdts.length) {
-				elementsInfo.m_arrSdts.forEach(e => {
+				elementsInfo.m_arrSdts.forEach((e, index) => {
+					var oControl = Api.LookupObject(e.Id)
+					var lvl = null
+					if (oControl.GetClassType() == 'blockLvlSdt') {
+						var paragrapshs = oControl.GetAllParagraphs() || []
+						if (paragrapshs.length) {
+							var oNumberingLevel = paragrapshs[0].GetNumbering()
+							if (oNumberingLevel && oNumberingLevel.Num) {
+								lvl = oNumberingLevel.Num.GetLvl(oNumberingLevel.Lvl)
+							}
+						}
+					}
 					parentSdts.push({
 						Id: e.Id,
 						Tag: e.Pr ? e.Pr.Tag : null,
-						classType: Api.LookupObject(e.Id).GetClassType()
+						classType: oControl.GetClassType(),
+						lvl: lvl
 					})
 				})
 			}
@@ -327,9 +339,11 @@ function getContextMenuItems(type, selectedRes) {
 				}
 			}
 			var cData = null
+			var lvl = null
 			var curControl = null
 			if (selectedRes.parentSdts.length) {
 				curControl = selectedRes.parentSdts[selectedRes.parentSdts.length - 1]
+				lvl = curControl.lvl
 			} else if (g_click_value) {
 				curControl = g_click_value
 			}
@@ -361,7 +375,9 @@ function getContextMenuItems(type, selectedRes) {
 							valueMap['clearMerge'] = 1
 						} else {
 							valueMap['struct'] = 1
-							valueMap['setBig'] = 1
+							if (lvl) {
+								valueMap['setBig'] = 1
+							}
 							if (selectedRes.bTable) {
 								valueMap['write'] = 1
 							}
@@ -2034,6 +2050,9 @@ function getQuestionHtml(ids, getLatestParent) {
 			}
 		}
 		function addHtml(quesId, quesData, oControl, lvldata) {
+			if (!quesData) {
+				return
+			}
 			var oRange = null
 			if (quesData.is_merge && quesData.ids) {
 				quesData.ids.forEach(id => {
@@ -2075,7 +2094,7 @@ function getQuestionHtml(ids, getLatestParent) {
 			}
 		}
 		function getLvl(oControl, paraIndex) {
-			if (!oControl) {
+			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
 				return null
 			}
 			var paragrahs = oControl.GetAllParagraphs() || []
@@ -2153,7 +2172,7 @@ function getQuestionHtml(ids, getLatestParent) {
 							continue
 						}
 						var quesId2 = tag2.mid && question_map[tag2.mid] ? tag2.mid : tag2.client_id
-						if (question_map[quesId2].level_type == 'struct') {
+						if (question_map[quesId2] && question_map[quesId2].level_type == 'struct') {
 							addHtml(quesId2, question_map[quesId2], oControl2)
 							break
 						}
@@ -2162,7 +2181,7 @@ function getQuestionHtml(ids, getLatestParent) {
 							if (lvl2 !== null) {
 								if (prelvl) {
 								} else {
-									if (question_map[quesId2].ques_mode == 6) { // 文本题
+									if (question_map[quesId2] && question_map[quesId2].ques_mode == 6) { // 文本题
 										addHtml(quesId2, question_map[quesId2], oControl2, lvl2)
 										break
 									} else {
@@ -2595,7 +2614,7 @@ function getControlListForUpload() {
 		console.log('question_map', question_map)
 		var handledcontrol = {}
 		function getLvl(oControl, paraIndex) {
-			if (!oControl) {
+			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
 				return null
 			}
 			var paragrahs = oControl.GetAllParagraphs() || []
@@ -5977,7 +5996,7 @@ function preGetExamTree() {
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls() || []
 		function getLvl(oControl, paraIndex) {
-			if (!oControl) {
+			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
 				return null
 			}
 			var paragrahs = oControl.GetAllParagraphs() || []
@@ -6054,44 +6073,55 @@ function preGetExamTree() {
 				obj.parent_index = list.findIndex(e => {
 					return e.id == p_id
 				})
+				// console.log(qId, '1   p_id', obj.parent_id, obj.parent_index)
 			} else if (lvl === 0) {
 				obj.parent_id = 0
+				obj.parent_index = -1
+				// console.log(qId, '2   p_id', obj.parent_id, obj.parent_index)
 			} else {
 				// 根据level, 查找在它前面的比它lvl小的struct
 				if (list.length > 0) {
 					for (var i = list.length - 1; i >= 0; --i) {
 						if (list[i].lvl === null) {
-							if (lvl === null) {
-								if (list[i].level_type == 'struct') {
-									obj.parent_id = list[i].id
-									obj.parent_index = i
-									break
-								} else if (list[i].is_child) {
-									continue
-								} else {
-									obj.parent_id = list[i].parent_id
-									obj.parent_index = list[i].parent_index
-									break
-								}
+							if (list[i].level_type == 'struct') {
+								obj.parent_id = list[i].id
+								obj.parent_index = i
+								// console.log(qId, '3   p_id', obj.parent_id, obj.parent_index)
+								break
+							} else if (list[i].is_child) {
+								continue
+							} else {
+								obj.parent_id = list[i].parent_id
+								obj.parent_index = list[i].parent_index
+								// console.log(qId, '4   p_id', obj.parent_id, obj.parent_index)
+								break
 							}
 						} else if (list[i].lvl === 0) {
 							if (list[i].level_type == 'struct') {
 								obj.parent_id = list[i].id
 								obj.parent_index = i
+								// console.log(qId, '5   p_id', obj.parent_id, obj.parent_index)
 								break
 							} else {
 								obj.parent_id = 0
 								obj.parent_index = -1
+								// console.log(qId, '6   p_id', obj.parent_id, obj.parent_index)
 								break
 							}
 						} else if (list[i].lvl < lvl) {
 							if (list[i].level_type == 'struct') {
 								obj.parent_id = list[i].id
 								obj.parent_index = i
+								// console.log(qId, '7   p_id', obj.parent_id, obj.parent_index)
 								break
 							} else {
-								obj.parent_id = list[i].parent_id
-								obj.parent_idex = list[i].parent_index
+								if (list[i].is_child) {
+									continue
+								} else {
+									obj.parent_id = list[i].parent_id
+									obj.parent_index = list[i].parent_index
+									// console.log(qId, '8   p_id', obj.parent_id, obj.parent_index)
+								}
 								break
 							}
 						} else if (list[i].lvl === lvl) {
@@ -6099,9 +6129,11 @@ function preGetExamTree() {
 								if (list[i].parent_id) {
 									obj.parent_id = list[i].parent_id
 									obj.parent_index = i
+									// console.log(qId, '9   p_id', obj.parent_id, obj.parent_index)
 								} else {
 									obj.parent_id = 0
 									obj.parent_index = -1
+									// console.log(qId, '10   p_id', obj.parent_id, obj.parent_index)
 								}
 								break
 							} else if (list[i].level_type == 'question') {
@@ -6112,6 +6144,7 @@ function preGetExamTree() {
 								} else {
 									obj.parent_id = list[i].parent_id
 									obj.parent_index = list[i].parent_index
+									// console.log(qId, '11   p_id', obj.parent_id, obj.parent_index)
 									break
 								}
 							}
@@ -6159,6 +6192,7 @@ function preGetExamTree() {
 							lvl: getLvl(oChildControl, childTag.big == 1 ? 0 : -1),
 							is_child: true
 						}
+						// console.log(childId, '12   p_id', parentId2, parentIndex2)
 						var parentTableCell = oChildControl.GetParentTableCell()
 						if (parentTableCell) {
 							obj2.cell_id = parentTableCell.Cell.Id

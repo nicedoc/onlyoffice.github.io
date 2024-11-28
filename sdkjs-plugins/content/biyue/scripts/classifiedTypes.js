@@ -840,7 +840,9 @@ function handleRangeType(options) {
 					if (options.end_id) {
 						continue
 					} else {
-						break
+						if (!element.Paragraph.IsEmpty()) {
+							break
+						}
 					}
 					// var NumPr = element.GetNumbering()
 					// if (NumPr && NumPr.Lvl <= tag.lvl) {

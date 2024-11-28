@@ -424,19 +424,24 @@
 				margin-right: 8px;
 				padding: 0 1px;
 				height: 16px;
+				position: absolute;
+				left: -24px;
+				top: 4px;
 			}
 			.itemques {
 				border: 1px solid #95c8ff;
 				background-color: #deedfe;
 				padding: 4px;
 				border-radius: 4px;
-				margin-top: 4px;
-				margin-bottom: 4px;
+				margin-top: 6px;
+				margin-bottom: 6px;
 				margin-right: 4px;
+				flex: 1;
 			}
 			#tree {
 				max-height: calc(100% - 20px);
 				overflow-y: auto;
+				padding-left: 24px;
 				.selected {
 					border: 1px solid #ff0000 !important;
 				}
@@ -451,7 +456,32 @@
 					color: #2489f6;
 				}
 			}
-			
+			.queswrapper {
+				display: flex;
+				flex-direction: row;
+			}
+			.qwrapper {
+				position: relative;
+			}
+			.vline,
+			.hline {
+				position: absolute;
+				background-color: #95c8ff;
+			}
+			.vline {
+				left: 0;
+				top: 20px;
+				width: 1px;
+			}
+			.hline {
+				left: 24px;
+				top: 12px;
+				height: 1px;
+				width: 30px;
+			}
+			.children {
+				margin-left: 16px;
+			}
 		}
 		#introPageWrapper {
 			height: calc(100vh - 220px);
