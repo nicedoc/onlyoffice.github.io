@@ -1508,6 +1508,31 @@ function handleRangeType(options) {
 					}
 				}
 				
+			} else if (typeName == 'choiceOption') { // 选择题选项
+				if (selectionInfo.isSelection) {
+					if (curBlockSdt) {
+						var quesId = getParentQuestion(curBlockSdt)
+						if(!quesId) {
+							result.message = '未处于题目中'
+							return result
+						}
+						for (var j = selectControls.length - 1; j >= 0; --j) {
+							if (selectControls[j].relation == 3) {
+								var tagobj = Api.ParseJSON(selectControls[j].control.Sdt.GetTag())
+								if (tagobj.client_id != quesId) {
+									removeControlChildren(selectControls[j].control, true)
+								}
+							}
+						}
+						oSelectRange.Select()
+						// todo..这里是否要考虑选项是图片，选项在单元格，选项跨单元格
+						var oResult = Api.asc_AddContentControl(2, {
+							Tag: JSON.stringify({
+								'regionType': 'choiceOption', 'mode': 3, 'color': '#00ff0020'
+							})
+						})
+					}
+				}
 			} else if (typeName == 'write') { // 小问
 				if (selectionInfo.isSelection) {
 					if (curBlockSdt) {

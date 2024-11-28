@@ -9,7 +9,7 @@ import { imageAutoLink, ShowLinkedWhenclickImage } from './linkHandler.js'
 import { layoutDetect } from './layoutFixHandler.js'
 import { setBtnLoading, isLoading } from './model/util.js'
 import { refreshTree } from './panelTree.js'
-import { getChoiceQuesData } from './choiceQuestion.js'
+import { extractChoiceOptions, removeChoiceOptions, getChoiceOptionAndSteam } from './choiceQuestion.js'
 var g_click_value = null
 var upload_control_list = []
 
@@ -305,6 +305,11 @@ function getContextMenuItems(type, selectedRes) {
 				text: '设置为 - 小问',
 				icon: 'rect'
 			}, {
+				value: 'choiceOption',
+				text: '设置为 - 选项',
+				icon: 'rect'
+			}, 
+			{
 				value: 'clearBig',
 				text: '清除 - 大题',
 				icon: 'clear'
@@ -356,6 +361,12 @@ function getContextMenuItems(type, selectedRes) {
 						valueMap['question'] = 1
 						valueMap['struct'] = 1
 					}
+				} else if (curControl.classType == 'inlineLvlSdt' && 
+					tag.regionType == 'choiceOption' && 
+					cData.parent_id && 
+					question_map[cData.parent_id] && 
+					(question_map[cData.parent_id].ques_mode == 1 || question_map[cData.parent_id].ques_mode == 5)) {
+					valueMap['choiceOption'] = 1
 				}
 			}
 			if (cData) {
@@ -364,6 +375,9 @@ function getContextMenuItems(type, selectedRes) {
 					valueMap['struct'] = 1
 					if (cData.level_type == 'question' || cData.level_type == 'big') {
 						valueMap['write'] = 1
+						if (question_map[cData.ques_id] && (question_map[cData.ques_id].ques_mode == 1 || question_map[cData.ques_id].ques_mode == 5)) {
+							valueMap['choiceOption'] = 1
+						}
 					}
 					if (cData.level_type == 'big') {
 						valueMap['clearBig'] = 1
@@ -1128,6 +1142,15 @@ function handleChangeType(res, res2) {
 	}
 	if (typequesId) {
 		return reqGetQuestionType([typequesId], true)
+		.then((res2) => {
+			if (window.BiyueCustomData.question_map[typequesId].ques_mode == 1 || window.BiyueCustomData.question_map[typequesId].ques_mode == 5) {
+				return extractChoiceOptions([typequesId], false)
+			} else {
+				return new Promise((resolve, reject) => {
+					resolve()
+				})
+			}
+		})
 		.then(() => {
 			return imageAutoLink(typequesId, false)
 		}).then((res3) => {
@@ -1328,6 +1351,8 @@ function batchChangeQuesType(type) {
 		var question_map = window.BiyueCustomData.question_map || {}
 		var judgeChoiceAll = false
 		var choice_ids = []
+		var choice_option_add = []
+		var choice_option_remove = []
 		var useGather = window.BiyueCustomData.choice_display && window.BiyueCustomData.choice_display.style != 'brackets_choice_region'
 		var interaction_ids = []
 		res.list.forEach(e => {
@@ -1341,6 +1366,11 @@ function batchChangeQuesType(type) {
 				question_map[e.id].ques_mode = newMode
 				if (newMode == 1 || newMode == 5) {
 					choice_ids.push(e.id)
+					if (oldMode != 1 && oldMode != 5) {
+						choice_option_add.push(e.id)
+					}
+				} else if (oldMode == 1 || oldMode == 5) {
+					choice_option_remove.push(e.id)
 				}
 				if (!judgeChoiceAll && useGather) {
 					judgeChoiceAll = (newMode == 1 || newMode == 5 || oldMode == 1 || oldMode == 5)
@@ -1361,6 +1391,8 @@ function batchChangeQuesType(type) {
 		}
 		return {
 			choice_ids,
+			choice_option_add,
+			choice_option_remove,
 			judgeChoiceAll,
 			interaction_ids
 		}
@@ -1394,7 +1426,18 @@ function batchChangeQuesType(type) {
 				resolve(res)
 			}
 		})
-	})).then(() => {
+	})).then((res) => {
+		if (res.choice_option_add.length) {
+			return extractChoiceOptions(res.choice_option_add, true)
+		} else if (res.choice_option_remove.length) {
+			return removeChoiceOptions(res.choice_option_remove)
+		} else {
+			return new Promise((resolve, reject) => {
+				resolve()
+			})
+		}
+	})
+	.then(() => {
 		window.biyue.StoreCustomData()
 	})
 }
@@ -1590,6 +1633,9 @@ function initControls() {
 				}
 			} else if (tagInfo.regionType == 'num') {
 				tagInfo.clr = tagInfo.color = '#ffffff40'
+				changecolor = true
+			} else if (tagInfo.regionType == 'choiceOption') {
+				tagInfo.color = '#00ff0020'
 				changecolor = true
 			}
 			if (!changecolor && tagInfo.color) {
@@ -1947,7 +1993,11 @@ function confirmLevelSet(levels) {
 	})
 	.then(() => {
 		return refreshTree()
-	}).then(() => {
+	})
+	.then(() => {
+		return extractChoiceOptions()
+	})
+	.then(() => {
 		return imageAutoLink()
 	}).then(() => {
 		console.log("================================ StoreCustomData")
@@ -2389,7 +2439,7 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 					}
 				} else {
 					deleteControlAccurate(childControls[j])
-					if (childTag.regionType != 'num') {
+					if (childTag.regionType != 'num' && childTag.regionType != 'choiceOption') {
 						Api.asc_RemoveContentControlWrapper(childControls[j].Sdt.GetId())
 					}
 				}
@@ -2585,7 +2635,7 @@ function reqUploadTree() {
 	}).then(() => {
 		return handleUploadPrepare('hide')
 	}).then(() => {
-		return getChoiceQuesData()
+		return getChoiceOptionAndSteam() // getChoiceQuesData()
 	}).then((res) => {
 		Asc.scope.choice_html_map = res
 		return getControlListForUpload()
@@ -4194,382 +4244,6 @@ function setSectionColumn(column) {
 	}, false, true)
 }
 
-// 设置选择题选项布局
-function setChoiceOptionLayout(options) {
-	Asc.scope.choice_align_options = options
-	return biyueCallCommand(window, function() {
-		var options = Asc.scope.choice_align_options
-		var oDocument = Api.GetDocument()
-		var controls = oDocument.GetAllContentControls()
-		var part = options.part
-		var identifyLeft = options.indLeft / ((25.4 / 72 / 20))
-		var spaceNum = options.spaceNum
-		var bracket = options.bracket
-		var AF = [65, 66, 67, 68, 69, 70] // A-F
-		var DOTS = [46, 65294] // 半角和全角的.
-		function removeTabAndBreak(oParagraph, firstText) {
-			var startFlag = 0
-			for (var i = 0; i < oParagraph.Paragraph.Content.length; ++i) {
-				var content = oParagraph.Paragraph.Content
-				if (!content[i]) {
-					oParagraph.RemoveElement(i)
-					--i
-					continue
-				}
-				if (content[i].Type != 39) { // 不是run
-					continue
-				}
-				var children1 = content[i].Content
-				if (!children1) {
-					oParagraph.RemoveElement(i)
-					--i
-					continue
-				}
-				for (var j = 0; j < content[i].Content.length; ++j) {
-					var type2 = content[i].Content[j].GetType()
-					if (type2 == 16 && startFlag == 0) {
-						continue
-					}
-					if (startFlag == 0 && content[i].Content[j].Value == firstText.charCodeAt(startFlag)) {
-						if (startFlag < firstText.length - 1) {
-							if (j + 1 < content[i].Content.length) {
-								if (content[i].Content[j + 1].Value == firstText.charCodeAt(startFlag + 1)) {
-									startFlag += 1
-								}
-							} else if (i + 1 < oParagraph.Paragraph.Content.length) {
-								if (content[i + 1] && content[i + 1].Type == 39 && content[i + 1].Content && content[i + 1].Content.length && content[i + 1].Content[0].Value == firstText.charCodeAt(startFlag + 1)) {
-									startFlag += 1
-								}
-							}
-						}
-					}
-					if (type2 == 21 || type2 == 16) { // tab or break
-						content[i].RemoveElement(content[i].Content[j])
-						--j
-					}
-				}
-				if (content[i].Content.length == 0) {
-					oParagraph.RemoveElement(i)
-					--i
-					continue
-				}
-			}
-		}
-		function addTabBreak(count, oRun) {
-			if (part == 1 || ((count + 1) % part == 0)) {
-				oRun.AddLineBreak()
-			} else {
-				oRun.AddTabStop()
-			}
-		}
-		function addTab(oParagraph, addrun, id, i, count) {
-			if (addrun) {
-				var newRun = Api.CreateRun()
-				addTabBreak(count, newRun)
-				oParagraph.AddElement(newRun, i + 1)
-				return i + 1
-			} else {
-				var oRun = Api.LookupObject(id)
-				addTabBreak(count, oRun)
-				return i
-			}
-		}
-		// 之后是否存在某个values中的某个字符
-		function afterHasValue(content, idx, jdx, values) {
-			for (var i = idx; i < content.length; ++i) {
-				if (!content[i]) {
-					continue
-				}
-				if (content[i].Type != 39) { // 不是run
-					continue
-				}
-				var begin = i == idx ? (jdx + 1) : 0
-				for (var j = begin; j < content[i].Content.length; ++j) {
-					if (values.indexOf(content[i].Content[j].Value) != -1) {
-						return {
-							idx: i,
-							jdx: j,
-							v: content[i].Content[j].Value
-						}
-					} else {
-						return null
-					}
-				}
-			}
-			return null
-		}
-		function needAdd(content, idx, jdx) {
-			for (var i = idx; i < content.length; ++i) {
-				if (!content[i]) {
-					continue
-				}
-				if (content[i].Type != 39) { // 不是run
-					continue
-				}
-				var begin = i == idx ? (jdx + 1) : 0
-				for (var j = begin; j < content[i].Content.length; ++j) {
-					var type3 = content[i].Content[j].GetType()
-					if (type3 == 2) { // 空格
-						continue
-					}
-					if (type3 == 1) {
-						if (content[i].Content[j].Value >= 65 &&
-							content[i].Content[j].Value <= 70 && 
-							afterHasValue(content, i, j, DOTS)) {
-							return false
-						} else {
-							return true
-						}
-					} else if (type3 == 22) { // drawing
-						return true
-					}
-				}
-			}
-			return false
-		}
-		function handleBracket(oControl) {
-			if (bracket == 'none' && spaceNum == 0) {
-				return
-			}
-			var askControls = (oControl.GetAllContentControls() || []).filter(e => {
-				if (e.GetClassType() == 'inlineLvlSdt') {
-					var askTag = Api.ParseJSON(e.GetTag())
-					return askTag.regionType == 'write' && askTag.client_id
-				}
-			})
-			if (!askControls || askControls.length == 0) {
-				return
-			}
-			for (var i = 0; i < askControls.length; ++i) {
-				var askControl = askControls[i]
-				var count = askControl.GetElementsCount()
-				var flag = 0
-				var spaceCount = 0
-				for (var j = 0; j < count; ++j) {
-					var oRun = askControl.GetElement(j)
-					if (!oRun.GetClassType || oRun.GetClassType() != 'run') {
-						continue
-					}
-					for (var k = 0; k < oRun.Run.GetElementsCount(); ++k) {
-						var oElement2 = oRun.Run.GetElement(k)
-						var newBarcket = null
-						if (oElement2.Value == 65288 || oElement2.Value == 40) { // 左括号
-							flag = 1
-							if (oElement2.Value == 65288 && bracket == 'eng') {
-								newBarcket = '('
-							} else if (oElement2.Value == 40 && bracket == 'ch') {
-								newBarcket = '（'
-							}
-						} else if (oElement2.Value == 65289 || oElement2.Value == 41) { // 右括号
-							if (flag == 1 && spaceCount < spaceNum) {
-								var str = ''
-								for (var k2 = 0; k2 < spaceNum - spaceCount; ++k2) {
-									str += ' '
-								}
-								spaceCount = spaceNum
-								oRun.Run.AddText(str, k)
-								k += str.length
-								continue
-							}
-							if (oElement2.Value == 65289 && bracket == 'eng') {
-								newBarcket = ')'
-							} else if (oElement2.Value == 41 && bracket == 'ch') {
-								newBarcket = '）'
-							}
-
-						} else if (flag == 1 && spaceNum > 0) {
-							if (oElement2.Value == 32) { // 空格
-								if (spaceCount >= spaceNum) {
-									oRun.Run.RemoveElement(oElement2)
-									--k
-								} else {
-									spaceCount++
-								}
-							} else {
-								oRun.Run.RemoveElement(oElement2)
-								--k
-							}
-						}
-						if (newBarcket) {
-							oRun.Run.RemoveElement(oElement2)
-							oRun.Run.AddText(newBarcket, k)
-						}
-					}
-				}
-			}
-		}
-		for (var qdx = 0; qdx < controls.length; ++qdx) {
-			var oControl = controls[qdx]
-			if (oControl.GetClassType() != 'blockLvlSdt') {
-				continue
-			}
-			if (oControl.GetPosInParent() < 0) {
-				continue
-			}
-			var tag = Api.ParseJSON(oControl.GetTag())
-			if (!tag.client_id) {
-				continue
-			}
-			if (!(options.list.includes(tag.client_id))) {
-				continue
-			}
-			var controlContent = oControl.GetContent()
-			handleBracket(oControl)
-			var oParagraph = null
-			var firstText = ''
-			for (var index = 0; index < controlContent.GetElementsCount(); ++index) {
-				var oElement = controlContent.GetElement(index)
-				if (!oElement) {
-					continue
-				}
-				if (oElement.GetClassType() == 'paragraph') {
-					var text = oElement.GetText()
-					var auto_align_patt = new RegExp(/(?<!data-latex="[^"]*)[A-F][.．].*?/g)
-					var autoAlignRegionArr = text.match(auto_align_patt) || []
-					if (autoAlignRegionArr.length) {
-						firstText = autoAlignRegionArr[0]
-						if (options.from == 'indLeft') {
-							if (options.indLeft >= 0) {
-								oElement.SetIndLeft(identifyLeft)
-								oElement.SetIndFirstLine(0)
-							}
-						} else if (part > 0) {
-							if (oParagraph) {
-								controlContent.RemoveElement(index)
-								var elCount = oElement.GetElementsCount()
-								var insertPos = oParagraph.GetElementsCount()
-								for (var i = elCount; i >= 0; --i) {
-									oParagraph.AddElement(oElement.GetElement(i), insertPos)
-								}
-								--index
-							} else {
-								oParagraph = oElement
-							}
-						}
-					}
-				} else {
-					break
-				}
-			}
-			if (options.from == 'indLeft') {
-				continue
-			}
-			if (!oParagraph) {
-				continue
-			}
-			// var text = oParagraph.GetRange().GetText()
-			if (options.indLeft >= 0) {
-				oParagraph.SetIndLeft(identifyLeft)
-				oParagraph.SetIndFirstLine(0)
-			}
-			if (part == 0) {
-				continue
-			}
-			var section = oParagraph.GetSection()
-			var PageMargins = section.Section.PageMargins
-			var PageSize = section.Section.PageSize
-			var count = 0
-			var w = PageSize.W - PageMargins.Left - PageMargins.Right
-			var tabs = []
-			for (var i = 1; i < part; ++i) {
-				tabs.push(i / part)
-			}
-			var newTabs = []
-			var aligns = []
-			tabs.forEach(e => {
-				newTabs.push((w * e) / (25.4 / 72 / 20) + identifyLeft)
-				aligns.push('left')
-			})
-			oParagraph.SetTabs(newTabs, aligns)
-			// 先删除所有的tab和break
-			removeTabAndBreak(oParagraph, firstText)
-			for (var i = 0; i < oParagraph.Paragraph.Content.length; ++i) {
-				var content = oParagraph.Paragraph.Content
-				if (!content[i]) {
-					oParagraph.RemoveElement(i)
-					--i
-					continue
-				}
-				if (content[i].Type != 39) { // 不是run
-					continue
-				}
-				var children1 = content[i].Content
-				if (!children1 || children1.length == 0) {
-					oParagraph.RemoveElement(i)
-					--i
-					continue
-				}
-				for (var j = 0; j < content[i].Content.length; ++j) {
-					var type2 = content[i].Content[j].GetType()
-					if (type2 == 1) { // text
-						var condition1 = afterHasValue(content, i, j, AF)
-						if (condition1) {
-							var condition2 = afterHasValue(content, condition1.idx, condition1.jdx, DOTS)
-							if (condition2) {
-								i = addTab(oParagraph, true, content[i].Id, i, count)
-								count++
-								break
-							}
-						}
-					} else if (type2 == 2) { // space
-						if (!needAdd(content, i, j)) {
-							if (j + 1 < content[i].Content.length) {
-								if (content[i].Content[j + 1].GetType() == 2) { // 下一个也是空格
-									content[i].RemoveElement(content[i].Content[j])
-									--j
-									continue
-								}
-							}
-							var condition1 = afterHasValue(content, i, j, AF)
-							if (condition1 && condition1.v != 65) {
-								var condition2 = afterHasValue(content, condition1.idx, condition1.jdx, DOTS)
-								if (condition2) {
-									content[i].RemoveElement(content[i].Content[j])
-									if (j < content[i].Content.length) {
-										var newRun = content[i].Split_Run(j)
-										var newRun1 = Api.CreateRun()
-										addTabBreak(count, newRun1)
-										oParagraph.AddElement(newRun1, i + 1)
-										oParagraph.Paragraph.Add_ToContent(i + 2, newRun)
-										--i
-									} else if (content[i].Content.length == 0) {
-										addTabBreak(count, Api.LookupObject(content[i].Id))
-									} else {
-										var newRun = Api.CreateRun()
-										addTabBreak(count, newRun)
-										oParagraph.AddElement(newRun, i + 1)
-										i++
-									}
-									count++
-									break
-								}
-							}
-							content[i].RemoveElement(content[i].Content[j])
-							if (content[i].Content.length == 0) {
-								oParagraph.RemoveElement(i)
-								--i
-								break
-							} else {
-								--j
-							}
-						}
-					} else if (type2 == 22) { // drawing
-						var condition1 = afterHasValue(content, i, j, AF)
-						if (condition1) {
-							var condition2 = afterHasValue(content, condition1.idx, condition1.jdx, DOTS)
-							if (condition2) {
-								i = addTab(oParagraph, condition1.idx == i, content[i].Id, i, count)
-								count++
-								break
-							}
-						}
-					}
-				}
-			}
-		}
-	}, false, true)
-}
-
 function batchChangeScore() {
 	if (g_click_value && g_click_value.Tag && g_click_value.Tag.client_id) {
 		window.biyue.onBatchScoreSet(g_click_value.Tag.client_id)
@@ -5834,7 +5508,7 @@ function importExam() {
 	}).then(() => {
 		return handleUploadPrepare('hide')
 	}).then(() => {
-		return getChoiceQuesData()
+		return getChoiceOptionAndSteam() // getChoiceQuesData()
 	}).then((res) => {
 		Asc.scope.choice_html_map = res
 		return getControlListForUpload()
@@ -6250,7 +5924,6 @@ export {
 	tidyNodes,
 	handleUploadPrepare,
 	importExam,
-	setChoiceOptionLayout,
 	getNodeList,
 	handleChangeType,
 	insertSymbol,

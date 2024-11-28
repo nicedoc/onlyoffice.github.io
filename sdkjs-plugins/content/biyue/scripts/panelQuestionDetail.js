@@ -2,9 +2,10 @@ import ComponentSelect from '../components/Select.js'
 import NumberInput from '../components/NumberInput.js'
 import { reqSaveQuestion } from './api/paper.js'
 import { setInteraction } from './featureManager.js'
-import { changeProportion, deleteAsks, focusAsk, updateAllChoice, deleteChoiceOtherWrite, getQuesMode, updateQuesScore, splitControl, setChoiceOptionLayout } from './QuesManager.js'
+import { changeProportion, deleteAsks, focusAsk, updateAllChoice, deleteChoiceOtherWrite, getQuesMode, updateQuesScore, splitControl } from './QuesManager.js'
 import { addClickEvent, getListByMap, showCom } from '../scripts/model/util.js'
 import { getDataByParams } from '../scripts/model/ques.js'
+import { extractChoiceOptions, removeChoiceOptions, setChoiceOptionLayout } from './choiceQuestion.js'
 // 单题详情
 var proportionTypes = [
 	{ value: 1, label: '默认' },
@@ -433,28 +434,57 @@ function changeQuestionType(data) {
 			}
 		}
 		if (need_update_interaction) {
-			setInteraction('useself', [g_ques_id]).then(() => {
-				updateQuesType(quesMode, oldMode)
+			setInteraction('useself', [g_ques_id])
+			.then(() => {
+				return updateQuesType(quesMode, oldMode)
 			})
 		} else {
-			updateQuesType(quesMode, oldMode)
+			return updateQuesType(quesMode, oldMode)
+		}
+	}
+}
+
+function updateChoiceOption(oldMode, quesMode) {
+	if (quesMode == 1) {
+		if (oldMode != 1) {
+			return extractChoiceOptions([g_ques_id], true)
+		} else {
+			return new Promise((resolve, reject) => {
+				resolve()
+			})
+		}
+	} else {
+		if (oldMode == 1) {
+			return removeChoiceOptions([g_ques_id])
+		} else {
+			return new Promise((resolve, reject) => {
+				resolve()
+			})
 		}
 	}
 }
 
 function updateQuesType(quesMode, oldMode) {
 	if (quesMode == 1 || quesMode == 5) {
-		deleteChoiceOtherWrite([g_ques_id], false).then(() => {
-			updateAllChoice().then(() => {
-				autoSave()
-				showQuesData({
-					client_id: g_client_id,
-					regionType: 'question'
-				})
+		return deleteChoiceOtherWrite([g_ques_id], false)
+		.then(() => {
+			return updateAllChoice()
+		}).then(() => {
+			return updateChoiceOption(oldMode, quesMode)
+		})
+		.then(() => {
+			autoSave()
+			showQuesData({
+				client_id: g_client_id,
+				regionType: 'question'
 			})
 		})
 	} else if (oldMode == 1 || oldMode == 5) {
-		updateAllChoice().then(() => {
+		return updateAllChoice()
+		.then(() => {
+			return updateChoiceOption(oldMode, quesMode)
+		})
+		.then(() => {
 			autoSave()
 		})
 	} else {

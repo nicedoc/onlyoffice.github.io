@@ -25,7 +25,6 @@ import {
 } from './panelFeature.js'
 import { biyueCallCommand, dispatchCommandResult } from './command.js'
 import {
-	reqGetQuestionType,
 	reqUploadTree,
 	splitEnd,
 	confirmLevelSet,
@@ -53,6 +52,7 @@ import { initView, onSaveData } from './pageView.js'
 import { setInteraction, updateChoice, deleteAllFeatures } from './featureManager.js'
 import { getInfoForServerSave } from './model/util.js'
 import { refreshTree } from './panelTree.js'
+import { extractChoiceOptions, removeChoiceOptions } from './choiceQuestion.js'
 (function (window, undefined) {
 	var styleEnable = false
 	let activeQuesItem = ''
@@ -181,6 +181,21 @@ import { refreshTree } from './panelTree.js'
 				break
       		case 'changeQuestionMap': // 更新question_map
         		if (message.data){
+					var question_map = window.BiyueCustomData.question_map
+					var new_choice_ids = []
+					var remove_choice_ids = []
+					Object.keys(message.data.question_map).forEach(e => {
+						var newData = message.data.question_map[e]
+						var newChoice = newData.ques_mode == 1 || newData.ques_mode == 5
+						var oldChoice = question_map[e].ques_mode == 1 || question_map[e].ques_mode == 5
+						if (newChoice) {
+							if (!oldChoice) {
+								new_choice_ids.push(e)
+							}
+						} else if (oldChoice) {
+							remove_choice_ids.push(e)
+						}
+					})
           			window.BiyueCustomData.question_map = message.data.question_map
           			console.log('更新question_map', message.data)
                     StoreCustomData(() => {
@@ -191,12 +206,24 @@ import { refreshTree } from './panelTree.js'
 								if (message.data.needUpdateChoice) {
 									deleteChoiceOtherWrite(null, false).then(() => {
 										updateChoice(true)
+									}).then(() => {
+										if (new_choice_ids.length) {
+											return extractChoiceOptions(new_choice_ids.concat(remove_choice_ids), true)
+										} else if (remove_choice_ids.length) {
+											return removeChoiceOptions(remove_choice_ids)
+										}
 									})
 								}
 							})
 						} else if (message.data.needUpdateChoice) {
 							deleteChoiceOtherWrite(null, false).then((res) => {
-								updateChoice(true)
+								updateChoice(true).then(() => {
+									if (new_choice_ids.length) {
+										return extractChoiceOptions(new_choice_ids.concat(remove_choice_ids), true)
+									} else if (remove_choice_ids.length) {
+										return removeChoiceOptions(remove_choice_ids)
+									}
+								})
 							})
 						}
                     })
@@ -238,7 +265,7 @@ import { refreshTree } from './panelTree.js'
 				if (message.cmd) {
 					if (message.cmd == 'confirm') {
 						if (message.data && message.data.length) {
-							updateLinkedInfo(message.data)	
+							updateLinkedInfo(message.data)
 						}
 						closeWindow(modal.id)
 					} else if (message.cmd == 'locate') {
