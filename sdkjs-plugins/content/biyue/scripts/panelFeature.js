@@ -694,6 +694,7 @@ function drawPageHeaderFooter(recalc) {
 			extra_info.page_logo_width = imageData.aspectRatio * extra_info.page_logo_height
 		}
 	}
+	var logo_absolute_position = extra_info.logo_absolute_position && extra_info.logo_absolute_position.checked
 	var options = {
 		header: {
 			text: extra_info.page_header_text,
@@ -705,8 +706,8 @@ function drawPageHeaderFooter(recalc) {
 			image_url: extra_info.page_image_url,
 			image_height: extra_info.page_logo_height,
 			image_width: extra_info.page_logo_width,
-			image_x: extra_info.logo_absolute_position ? extra_info.logo_x : null,
-			image_y: extra_info.logo_absolute_position ? extra_info.logo_y : null
+			image_x: logo_absolute_position ? extra_info.logo_x : null,
+			image_y: logo_absolute_position ? extra_info.logo_y : null
 		},
 		footer: {
 			text: extra_info.page_footer_text,

@@ -2056,7 +2056,7 @@ function drawHeaderFooter(options, calc) {
 					var y = header.image_y
 					if (header.image_x == undefined) {
 						x = PageMargins.Left
-						y = PageMargins.Top - height
+						y = PageMargins.Top - height - 1
 					}
 					paraDrawing.Set_PositionH(6, false, x, false)
 					paraDrawing.Set_PositionV(5, false, y, false)
