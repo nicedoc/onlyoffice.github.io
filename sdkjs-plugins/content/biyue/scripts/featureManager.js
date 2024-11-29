@@ -2044,7 +2044,7 @@ function drawHeaderFooter(options, calc) {
 			oParagraph.RemoveAllElements()
 			var header = options.header || {}
 			updateText(header, oParagraph, 'center')
-			oParagraph.SetBottomBorder(header.line_visible ? 'single' : 'none', 1, 2)
+			oParagraph.SetBottomBorder(header.line_visible ? 'single' : 'none', 1, 2, 153, 153, 153)
 			if (header.image_url) {
 				var width = header.image_width || 10 // mm
 				var height = header.image_height || 10 // mm
@@ -2134,7 +2134,7 @@ function drawHeaderFooter(options, calc) {
 			}
 			oParagraph.RemoveAllElements()
 			var footer = options.footer || {}
-			oParagraph.SetTopBorder(footer.line_visible ? 'single' : 'none', 1, 2)
+			oParagraph.SetTopBorder(footer.line_visible ? 'single' : 'none', 1, 2, 153, 153, 153)
 			if (footer.line_visible) {
 				var oDrawing = Api.CreateShape(
 					'rect',
@@ -2149,8 +2149,8 @@ function drawHeaderFooter(options, calc) {
 					var oRun = Api.CreateRun()
 					oRun.AddText('线外请勿作答')
 					paragraphs[0].AddElement(oRun)
-					paragraphs[0].SetColor(3, 3, 3, false)
-					paragraphs[0].SetFontSize(20)
+					paragraphs[0].SetColor(153, 153, 153, false)
+					paragraphs[0].SetFontSize(18)
 				}
 				oDrawing.SetPaddings(0, 0, 0, 0)
 				var paraDrawing = oDrawing.getParaDrawing()

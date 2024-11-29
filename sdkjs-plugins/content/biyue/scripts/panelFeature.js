@@ -695,6 +695,8 @@ function drawPageHeaderFooter(recalc) {
 		}
 	}
 	var logo_absolute_position = extra_info.logo_absolute_position && extra_info.logo_absolute_position.checked
+	var hidden_page_header_border = extra_info.hidden_page_header_border && extra_info.hidden_page_header_border.checked
+	var hidden_page_footer_border = extra_info.hidden_page_footer_border && extra_info.hidden_page_footer_border.checked
 	var options = {
 		header: {
 			text: extra_info.page_header_text,
@@ -702,7 +704,7 @@ function drawPageHeaderFooter(recalc) {
 			font_bold: extra_info.page_header_bold_font,
 			font_size: 3.71, // extra_info.page_header_font_size,
 			align: extra_info.page_header_position,
-			line_visible: extra_info.hidden_page_header_border === true ? false : true,
+			line_visible: hidden_page_header_border === true ? false : true,
 			image_url: extra_info.page_image_url,
 			image_height: extra_info.page_logo_height,
 			image_width: extra_info.page_logo_width,
@@ -715,7 +717,7 @@ function drawPageHeaderFooter(recalc) {
 			font_bold: extra_info.page_footer_bold_font,
 			font_size: 3.71, // extra_info.page_footer_font_size,
 			align: extra_info.page_footer_position,
-			line_visible: extra_info.hidden_page_footer_border === true ? false : true,
+			line_visible: hidden_page_footer_border === true ? false : true,
 		},
 		pagination: extra_info.onlyoffice_options.pagination,
 		page_type: window.BiyueCustomData.page_type,
