@@ -294,7 +294,10 @@ function updateBig(id) {
 			continue
 		} else if (lvl >= g_tree_info.list[i].lvl) {
 			toIndex = i - 1
-			break	
+			break
+		}
+		if (i == g_tree_info.list.length - 1) {
+			toIndex = i
 		}
 	}
 	if (toIndex > index) {
