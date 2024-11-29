@@ -5805,8 +5805,8 @@ function preGetExamTree() {
 									obj.parent_index = i
 									// console.log(qId, '9   p_id', obj.parent_id, obj.parent_index)
 								} else {
-									obj.parent_id = 0
-									obj.parent_index = -1
+									obj.parent_id = list[i].id
+									obj.parent_index = i
 									// console.log(qId, '10   p_id', obj.parent_id, obj.parent_index)
 								}
 								break
@@ -5823,6 +5823,11 @@ function preGetExamTree() {
 								}
 							}
 						} else if (list[i].lvl > lvl) {
+							if (list[i].level_type == 'struct' && list[i].parent_id == 0 && quesData.level_type == 'question' && lvl > 0) {
+								obj.parent_id = list[i].id
+								obj.parent_index = i
+								break
+							}
 							continue
 						}
 					}
@@ -5899,6 +5904,76 @@ function preGetExamTree() {
 	}, false, false)
 }
 
+function setNumberingLevel(ids, lvl) {
+	Asc.scope.ids = ids
+	Asc.scope.lvl = lvl
+	return biyueCallCommand(window, function() {
+		var ids = Asc.scope.ids || []
+		var lvl = Asc.scope.lvl
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls()
+		var list = []
+		for (var oControl of controls) {
+			if (oControl.GetClassType() != 'blockLvlSdt') {
+				continue
+			}
+			var tag = Api.ParseJSON(oControl.GetTag() || '{}')
+			var id = tag.mid || tag.client_id
+			if (ids.indexOf(id) == -1) {
+				continue
+			}
+			tag.lvl = lvl
+			oControl.SetTag(JSON.stringify(tag))
+			var oParagraphs = oControl.GetAllParagraphs() || []
+			var numberingtext = ''
+			if (oParagraphs.length) {
+				var oParagraph = oParagraphs[0]
+				var oNumberingLevel = oParagraph.GetNumbering()
+				if (oNumberingLevel) { // ApiNumberingLevel
+					var oNumbering = oNumberingLevel.GetNumbering()
+					var oNumLvl = oNumbering.GetLevel(lvl)
+					oParagraph.SetNumbering(oNumLvl)
+					numberingtext = oParagraph.Paragraph.GetNumberingText()
+				} else {
+					var oNumbering = Api.GetDocument().CreateNumbering("numbered")  // ApiNumbering
+					for (var i = 0; i < 10; ++i) {
+						var oNumLvl = oNumbering.GetLevel(i)
+						oNumLvl.SetCustomType("none", '', "left");
+						oNumLvl.SetRestart(false);
+						oNumLvl.SetSuff("none")
+						var oParaPr = oNumLvl.GetParaPr()
+						oParaPr.SetIndFirstLine(0);
+						oParaPr.SetIndLeft(0)
+						if (lvl == i) {
+							oParagraph.SetNumbering(oNumLvl)		
+						}
+					}
+				}
+			}
+			list.push({
+				id: id,
+				numbing_text: numberingtext,
+				text: oControl.GetRange().GetText()
+			})
+		}
+		return list
+	}, false, false).then(list => {
+		return new Promise((resolve, reject) => {
+			if (list) {
+				var question_map = window.BiyueCustomData.question_map || {}
+				for (var item of list) {
+					var question = question_map[item.id]
+					if (question) {
+						question.text = item.text
+						question.ques_default_name = item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(question.level_type, question.text)
+					}
+				}
+			}
+			resolve()
+		})
+	})
+}
+
 export {
 	handleDocClick,
 	handleContextMenuShow,
@@ -5929,5 +6004,6 @@ export {
 	insertSymbol,
 	preGetExamTree,
 	getQuestionHtml,
-	focusControl
+	focusControl,
+	setNumberingLevel
 }

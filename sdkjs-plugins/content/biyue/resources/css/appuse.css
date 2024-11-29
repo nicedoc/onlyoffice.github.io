@@ -949,3 +949,17 @@ a {
 .customContextMenu li:hover {
 	background-color: #f0f0f0;
 }
+
+.customContextMenu .submenu {
+    display: none; /* Initially hidden */
+    position: absolute;
+    top: 0;
+    left: 100%;
+    background-color: white;
+    border: 1px solid #ccc;
+    white-space: nowrap;
+}
+
+.inline-block {
+	display: inline-block;
+}

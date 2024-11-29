@@ -1,4 +1,4 @@
-import { preGetExamTree, focusControl } from './QuesManager.js'
+import { preGetExamTree, focusControl, setNumberingLevel } from './QuesManager.js'
 import { showCom, updateText, addClickEvent } from './model/util.js'
 import { handleRangeType } from "./classifiedTypes.js"
 import { getDataByParams } from '../scripts/model/ques.js'
@@ -54,6 +54,8 @@ function renderTreeNode(parent, item, parentData) {
 		} else {
 			if (parentData.lvl != null) {
 				identation = 16 * (item.lvl - parentData.lvl - 1)
+			} else {
+				identation = (item.lvl - 1) * 16 // 0
 			}
 		}
 	} else {
@@ -67,13 +69,14 @@ function renderTreeNode(parent, item, parentData) {
 		identation = 0
 	}
 	if (item.level_type == 'struct') {
+		var vlineleft = 0 // (identation > 16 ? (identation - 16) : 0)
 		html += `<div class="qwrapper"  style="margin-left: ${identation}px;">
 					<div id="group-${item.id}">
 						<div class="struct font-12" style="left:${-24 - identation}px" id="struct${item.id}">构</div>
 						<div class="itemques text-over-ellipsis flex-1 clicked" id="box-${item.id}" title="${quesData.text}">${quesData.ques_name || quesData.text}</div>
 					</div>
 					<div class="children" id="ques-${item.id}-children"></div>
-					${item.children && item.children.length > 0 ? `<div class="vline" id="vline-${item.id}" style="left: ${item.parent_id ? identation : (identation > 16 ? (identation - 16) : 0)}px"></div>` : ''}
+					${item.children && item.children.length > 0 ? `<div class="vline" id="vline-${item.id}" style="left: ${vlineleft}px"></div>` : ''}
 					${item.parent_id ? `<div class="hline" style="left: ${-16-identation}px;width:${identation + 16}px;" id="hline-${item.id}"></div>` : ''}
 				 </div>`
 	} else if (item.level_type == 'question') {
@@ -131,7 +134,6 @@ function renderTree() {
 	rootElement.empty()
 	if (tree_info.tree && tree_info.tree.length) {
 		showCom('#panelTree .none', false)
-
 		tree_info.tree.forEach(item => {
 			renderTreeNode(rootElement, item, null)
 		})
@@ -151,7 +153,9 @@ function renderTree() {
 				if (item.level_type == 'struct') {
 					var structCom = $(`#panelTree #struct${item.id}`)
 					var childrenAncestorsCount = structCom.parents().filter('.children').length;
-					structCom.css('left', (-24 - childrenAncestorsCount * 16) + 'px')
+					if (item.lvl !== null) {
+						structCom.css('left', (-24 - item.lvl * 16) + 'px')
+					}
 				}
 			}
 		})
@@ -174,29 +178,31 @@ function renderTree() {
 				function contextmenuHandler(event) {
 					event.preventDefault()
 					var quesData = window.BiyueCustomData.question_map[item.id]
+					var menuItems = []
 					if (quesData.level_type == 'question') {
 						var nodeData = window.BiyueCustomData.node_list.find(e => {
 							return e.id == item.id
 						})
 						if (nodeData && !quesData.is_merge) { // 合并题不可设置为大题, 当题目处于单元格中时，只能清除大题，不可构建大小题
 							if (nodeData.is_big) {
-								if (item.cell_id) {
-									generateMenuItems(['clearBig'], item.id); // 生成动态菜单
-								} else {
-									generateMenuItems(['clearBig', 'extendBig'], item.id); // 生成动态菜单
+								menuItems.push('clearBig')
+								if (!item.cell_id) {
+									menuItems.push('setBig2')
 								}
 								updateMenuPos(event)
 							} else if (!item.cell_id) {
-								if (item.lvl == null) {
-									generateMenuItems(['setBig2'], item.id); // 生成动态菜单
-								} else {
-									generateMenuItems(['setBig', 'setBig2'], item.id); // 生成动态菜单
+								menuItems.push('setBig2')
+								if (item.lvl !== null) {
+									menuItems.push('setBig')
 								}
-								updateMenuPos(event)
 							}
 						}
 					} else if (quesData.level_type == 'struct') {
-						generateMenuItems(['question'], item.id)
+						menuItems.push('question')
+					}
+					menuItems.push('setLevel')
+					if (menuItems.length) {
+						generateMenuItems(menuItems, item.id, item.lvl)
 						updateMenuPos(event)
 					}
 				}
@@ -209,8 +215,11 @@ function renderTree() {
 		showCom('#panelTree .none', true)
 		updateText('#panelTree #sum', '')
 	}
+	updateText('#panelTree #edit', '编辑')
+	addClickEvent('#panelTree #edit', (e) => {
+		onEdit(e)
+	})
 }
-
 function updateMenuPos(event) {
 	const menu = document.getElementById('dynamicMenu');
 	// 获取浏览器窗口的宽度、高度
@@ -408,11 +417,12 @@ function resetBig() {
 	big_info = null
 }
 
-function generateMenuItems(options, id) {
+function generateMenuItems(options, id, currentLevel) {
 	const menuContent = $('#menuContent');
 	menuContent.empty(); // 清除旧的菜单项
 	options.forEach(e => {
 		var name = ''
+		var isSubMenu = false
 		switch(e) {
 			case 'setBig': 
 				name = '构建大小题 - 编号'
@@ -429,15 +439,39 @@ function generateMenuItems(options, id) {
 			case 'question':
 				name = '设置为 - 题目'
 				break
+			case 'setLevel':
+				name = currentLevel === null ? '设置级别' : '调整级别'
+				isSubMenu = true
+				break
 			default:
 				break
 		}
 		if (name) {
-			//menuContent.append('<li onclick="alert(\'操作1-1\')">动态操作1-1</li>');
-			// 使用匿名函数包裹 clickMenu 函数并传递参数
-			menuContent.append(`<li>${name}</li>`).children().last().on('click', function() {
-				clickMenu(id, e);
-			});
+			const menuItem = $('<li>').text(name);
+            menuItem.on('click', function() {
+                clickMenu(id, e);
+            });
+            if (isSubMenu) {
+				const submenu = $('<ul class="submenu">');
+                for (let i = 0; i < 10; i++) {
+                    const levelItem = $(`<li>${i + 1}级</li>`);
+                    if (i === currentLevel) {
+                        levelItem.css('color', '#2489f6');  // 突出显示当前级别
+                    }
+                    levelItem.on('click', function() {
+						setLevel(id, i)
+                    });
+                    submenu.append(levelItem);
+                }
+                menuItem.append(submenu);
+
+                menuItem.hover(function() {
+                    submenu.show();
+                }, function() {
+                    submenu.hide();
+                });
+            }
+            menuContent.append(menuItem);
 		}
 	})
 }
@@ -482,7 +516,11 @@ function clickMenu(id, cmd) {
 		updateBig(id)
 	}
 }
-
+function setLevel(id, level) {
+	return setNumberingLevel([id], level).then((res) => {
+		return generateTree()
+	})
+}
 function updateTreeSelect(params) {
 	var data = getDataByParams(params)
 	if (!data || !data.data) {
