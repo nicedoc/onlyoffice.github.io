@@ -5740,7 +5740,7 @@ function preGetExamTree() {
 				lvl = getLvl(oControl, is_big ? 0 : -1)
 			}
 			obj.lvl = lvl
-			if (oParentControl) {
+			if (oParentControl && quesData.level_type == 'question') {
 				var parentTag = Api.ParseJSON(oParentControl.GetTag() || '{}')
 				var p_id = parentTag.mid ? parentTag.mid : parentTag.client_id
 				obj.parent_id = p_id
@@ -5758,8 +5758,13 @@ function preGetExamTree() {
 					for (var i = list.length - 1; i >= 0; --i) {
 						if (list[i].lvl === null) {
 							if (list[i].level_type == 'struct') {
-								obj.parent_id = list[i].id
-								obj.parent_index = i
+								if (lvl === null) {
+									obj.parent_id = list[i].parent_id
+									obj.parent_index = list[i].parent_index
+								} else {
+									obj.parent_id = list[i].id
+									obj.parent_index = i
+								}
 								// console.log(qId, '3   p_id', obj.parent_id, obj.parent_index)
 								break
 							} else if (list[i].is_child) {

@@ -155,6 +155,8 @@ function renderTree() {
 					var childrenAncestorsCount = structCom.parents().filter('.children').length;
 					if (item.lvl !== null) {
 						structCom.css('left', (-24 - item.lvl * 16) + 'px')
+					} else {
+						structCom.css('left', (-24 - 16) + 'px')
 					}
 				}
 			}
