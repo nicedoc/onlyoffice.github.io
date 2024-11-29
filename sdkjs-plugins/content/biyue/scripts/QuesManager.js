@@ -5805,7 +5805,7 @@ function preGetExamTree() {
 							}
 						} else if (list[i].lvl === lvl) {
 							if (list[i].level_type == 'struct') {
-								if (list[i].parent_id) {
+								if (list[i].parent_id || quesData.level_type == 'struct') {
 									obj.parent_id = list[i].parent_id
 									obj.parent_index = i
 									// console.log(qId, '9   p_id', obj.parent_id, obj.parent_index)
