@@ -112,11 +112,19 @@ function handleContextMenuShow(options) {
 					var oControl = Api.LookupObject(e.Id)
 					var lvl = null
 					if (oControl.GetClassType() == 'blockLvlSdt') {
-						var paragrapshs = oControl.GetAllParagraphs() || []
-						if (paragrapshs.length) {
-							var oNumberingLevel = paragrapshs[0].GetNumbering()
-							if (oNumberingLevel && oNumberingLevel.Num) {
-								lvl = oNumberingLevel.Num.GetLvl(oNumberingLevel.Lvl)
+						var paragraphs = oControl.GetAllParagraphs() || []
+						for (var i = 0; i < paragraphs.length; ++i) {
+							var oParagraph = paragraphs[i]
+							if (oParagraph) {
+								var parent1 = oParagraph.Paragraph.Parent
+								var parent2 = parent1.Parent
+								if (parent2 && parent2.Id == oControl.Sdt.GetId()) {
+									var oNumberingLevel = paragraphs[0].GetNumbering()
+									if (oNumberingLevel && oNumberingLevel.Num) {
+										lvl = oNumberingLevel.Num.GetLvl(oNumberingLevel.Lvl)
+									}
+									break
+								}
 							}
 						}
 					}
@@ -2143,37 +2151,48 @@ function getQuestionHtml(ids, getLatestParent) {
 				})
 			}
 		}
-		function getLvl(oControl, paraIndex) {
+		function getFirstParagraph(oControl) {
 			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
 				return null
 			}
-			var paragrahs = oControl.GetAllParagraphs() || []
-			for (var i = 0; i < paragrahs.length; ++i) {
-				var oParagraph = paragrahs[i]
-				if (paraIndex != -1 && i > paraIndex) {
-					return null
+			var paragraphs = oControl.GetAllParagraphs()
+			for (var i = 0; i < paragraphs.length; ++i) {
+				var oParagraph = paragraphs[i]
+				if (oParagraph) {
+					var parent1 = oParagraph.Paragraph.Parent
+					var parent2 = parent1.Parent
+					if (parent2 && parent2.Id == oControl.Sdt.GetId()) {
+						return oParagraph
+					}
 				}
-				var oNumberingLevel = oParagraph.GetNumbering()
-				if (oNumberingLevel) {
-					if (oNumberingLevel.Num) {
-						var lvl = oNumberingLevel.Num.GetLvl(oNumberingLevel.Lvl)
-						if (lvl) {
-							var LvlText = lvl.GetLvlText() || []
-							var list = []
-							LvlText.forEach(e => {
-								list.push(e.Value)
-							})
-							return {
-								lvl: oNumberingLevel.Lvl,
-								text: list.join('')
-							}
+			}
+			return null
+		}
+		function getLvl(oControl, paraIndex) {
+			var oParagraph = getFirstParagraph(oControl)
+			if (!oParagraph) {
+				return null
+			}
+			var oNumberingLevel = oParagraph.GetNumbering()
+			if (oNumberingLevel) {
+				if (oNumberingLevel.Num) {
+					var lvl = oNumberingLevel.Num.GetLvl(oNumberingLevel.Lvl)
+					if (lvl) {
+						var LvlText = lvl.GetLvlText() || []
+						var list = []
+						LvlText.forEach(e => {
+							list.push(e.Value)
+						})
+						return {
+							lvl: oNumberingLevel.Lvl,
+							text: list.join('')
 						}
 					}
-					
-					return {
-						lvl: oNumberingLevel.Lvl,
-						text: ''
-					}
+				}
+				
+				return {
+					lvl: oNumberingLevel.Lvl,
+					text: ''
 				}
 			}
 			return null
@@ -2663,20 +2682,31 @@ function getControlListForUpload() {
 		var question_map = Asc.scope.question_map
 		console.log('question_map', question_map)
 		var handledcontrol = {}
-		function getLvl(oControl, paraIndex) {
+		function getFirstParagraph(oControl) {
 			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
 				return null
 			}
-			var paragrahs = oControl.GetAllParagraphs() || []
-			for (var i = 0; i < paragrahs.length; ++i) {
-				var oParagraph = paragrahs[i]
-				if (paraIndex != -1 && i > paraIndex) {
-					return null
+			var paragraphs = oControl.GetAllParagraphs()
+			for (var i = 0; i < paragraphs.length; ++i) {
+				var oParagraph = paragraphs[i]
+				if (oParagraph) {
+					var parent1 = oParagraph.Paragraph.Parent
+					var parent2 = parent1.Parent
+					if (parent2 && parent2.Id == oControl.Sdt.GetId()) {
+						return oParagraph
+					}
 				}
-				var oNumberingLevel = oParagraph.GetNumbering()
-				if (oNumberingLevel) {
-					return oNumberingLevel.Lvl
-				}
+			}
+			return null
+		}
+		function getLvl(oControl, paraIndex) {
+			var oParagraph = getFirstParagraph(oControl)
+			if (!oParagraph) {
+				return null
+			}
+			var oNumberingLevel = oParagraph.GetNumbering()
+			if (oNumberingLevel) {
+				return oNumberingLevel.Lvl
 			}
 			return null
 		}
@@ -5669,20 +5699,31 @@ function preGetExamTree() {
 		var question_map = Asc.scope.question_map || {}
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls() || []
-		function getLvl(oControl, paraIndex) {
+		function getFirstParagraph(oControl) {
 			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
 				return null
 			}
-			var paragrahs = oControl.GetAllParagraphs() || []
-			for (var i = 0; i < paragrahs.length; ++i) {
-				var oParagraph = paragrahs[i]
-				if (paraIndex != -1 && i > paraIndex) {
-					return null
+			var paragraphs = oControl.GetAllParagraphs()
+			for (var i = 0; i < paragraphs.length; ++i) {
+				var oParagraph = paragraphs[i]
+				if (oParagraph) {
+					var parent1 = oParagraph.Paragraph.Parent
+					var parent2 = parent1.Parent
+					if (parent2 && parent2.Id == oControl.Sdt.GetId()) {
+						return oParagraph
+					}
 				}
-				var oNumberingLevel = oParagraph.GetNumbering()
-				if (oNumberingLevel) {
-					return oNumberingLevel.Lvl
-				}
+			}
+			return null
+		}
+		function getLvl(oControl, paraIndex) {
+			var oParagraph = getFirstParagraph(oControl)
+			if (!oParagraph) {
+				return null
+			}
+			var oNumberingLevel = oParagraph.GetNumbering()
+			if (oNumberingLevel) {
+				return oNumberingLevel.Lvl
 			}
 			return null
 		}
@@ -5918,6 +5959,23 @@ function setNumberingLevel(ids, lvl) {
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls()
 		var list = []
+		function getFirstParagraph(oControl) {
+			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
+				return null
+			}
+			var paragraphs = oControl.GetAllParagraphs()
+			for (var i = 0; i < paragraphs.length; ++i) {
+				var oParagraph = paragraphs[i]
+				if (oParagraph) {
+					var parent1 = oParagraph.Paragraph.Parent
+					var parent2 = parent1.Parent
+					if (parent2 && parent2.Id == oControl.Sdt.GetId()) {
+						return oParagraph
+					}
+				}
+			}
+			return null
+		}
 		for (var oControl of controls) {
 			if (oControl.GetClassType() != 'blockLvlSdt') {
 				continue
@@ -5929,10 +5987,9 @@ function setNumberingLevel(ids, lvl) {
 			}
 			tag.lvl = lvl
 			oControl.SetTag(JSON.stringify(tag))
-			var oParagraphs = oControl.GetAllParagraphs() || []
 			var numberingtext = ''
-			if (oParagraphs.length) {
-				var oParagraph = oParagraphs[0]
+			var oParagraph = getFirstParagraph(oControl)
+			if (oParagraph) {
 				var oNumberingLevel = oParagraph.GetNumbering()
 				if (oNumberingLevel) { // ApiNumberingLevel
 					var oNumbering = oNumberingLevel.GetNumbering()
