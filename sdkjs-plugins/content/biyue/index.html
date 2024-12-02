@@ -403,6 +403,10 @@
 			}
 			.ques-type-name {
 			  margin-left: 10px;
+			  margin-right: 4px;
+			}
+			.target-select {
+				width: 70px;
 			}
 		}
 		.upload-wrapper {
@@ -564,9 +568,12 @@
 					<div class="inner-pop-wrapper br2">
 						<div class="title">题型错误上报</div>
 						<div id="uploadHint"></div>
-						<div class="b-b-b ml-4" style="padding-bottom: 4px;margin-top: 2px;">
-							<span for="check_level"><input type="checkbox" id="check_level" style="margin-right: 2px;">展示层级结构</span>
-							<span for="check_text_ques ml-4"><input type="checkbox" id="check_text_ques" style="margin-right: 2px;">显示文本题</span>
+						<div class="b-b-b ml-4 row-between" style="padding-bottom: 4px;margin-top: 2px;">
+							<div >
+								<span for="check_level"><input type="checkbox" id="check_level" style="margin-right: 2px;">展示层级结构</span>
+								<span for="check_text_ques ml-4"><input type="checkbox" id="check_text_ques" style="margin-right: 2px;">显示文本题</span>
+							</div>
+							<div style="margin-right: 8px;">目标题型</div>
 						</div>
 						<div id="typeErrorDiv"></div>
 						<div class="upload-wrapper row-center w100 b-t-b">

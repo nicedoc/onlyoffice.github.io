@@ -532,12 +532,19 @@ function renderTreeNode(parent, item, identation = 0) {
 			var quesType = types.find(e => {
 				return e.value == quesData.question_type
 			})
+			var typeOptions = types.map(e => {
+				return `<option value="${e.value}">${e.label}</option>`
+			})
 			html += `<div class="item" style="padding-left:${identation}px">
         				<div class="content" title="${quesData.text}">
           					<input type="checkbox" id="check_${item.id}">
           					<div class="text-over-ellipsis flex-1 ml-4">${quesData.text}</div>
         				</div>
         				<div class="ques-type-name" id="ques-type-${item.id}">${quesType ? quesType.label : '未定义'}</div>
+						<select class="target-select" id="target_type_${item.id}">
+							<option value="" style="display:none;"></option>
+							${typeOptions.join('')}
+						</select>
       				</div>`;
 		}
 	}
@@ -575,20 +582,33 @@ function onUploadTypeError() {
 		return
 	}
 	var list = []
-	Asc.scope.tree_info.list.forEach(item => {
+	var types = window.BiyueCustomData.paper_options.question_type || []
+	var typeMaps = {}
+	types.forEach(e => {
+		typeMaps[e.value + ''] = e.label
+	})
+	for (var item of Asc.scope.tree_info.list) {
 		var quesData = window.BiyueCustomData.question_map[item.id]
 		if (item.level_type == 'question' && quesData) {
 			var check = $('#check_' + item.id)
 			if (check) {
 				if (check.prop('checked')) {
+					var target_type = $('#target_type_' + item.id).val()
+					if (!target_type) {
+						updateHintById('uploadHint', '请设置目标题型', CLR_FAIL)
+						return
+					}
 					list.push({
 						id: item.id,
-						question_type: quesData.question_type
+						question_type: quesData.question_type,
+						question_type_name: typeMaps[quesData.question_type + ''],
+						target_type: target_type,
+						target_type_name: typeMaps[target_type + '']
 					})
 				}
 			}
 		}
-	})
+	}
 	if (list.length == 0) {
 		updateHintById('uploadHint', '请勾选需要上传的题目', CLR_FAIL)
 		return
