@@ -2490,6 +2490,11 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 				if (question_map[id].interaction != 'none') {
 					updateAccurateText(validIds[blankIndex].control_id)
 				}
+				var score = 0
+				question_map[id].ask_list.forEach(e => {
+					score += e.score * 1
+				})
+				question_map[id].score = score
 			}
 			nodeData.write_list = write_list
 		}
