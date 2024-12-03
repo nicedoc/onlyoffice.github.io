@@ -148,7 +148,7 @@
 		} else {
 			showBottomBtns(true)
 			tree_info.tree.forEach(item => {
-				renderTreeNode(rootElement, item, 0)
+				renderTreeNode(rootElement, item, 0, 0)
 			})
 			addEvents()
 			updateHideEmptyStruct()
@@ -191,7 +191,7 @@
 		return html
 	  }
 	
-	  function renderTreeNode(parent, item, identation = 0) {
+	  function renderTreeNode(parent, item, structId, identation = 0) {
 		if (!parent || !item) {
 			return
 		}
@@ -225,16 +225,15 @@
 		if (item.children && item.children.length > 0) {
 			identation += 20
 			for (var child of item.children) {
-				if (item.level_type == 'struct') {
-					if (child.level_type == 'question') {
-						if (tree_map[item.id]) {
-							tree_map[item.id].push(child.id)
-						} else {
-							tree_map[item.id] = [child.id]
-						}
+				var sId = item.level_type == 'struct' ? item.id : structId
+				if (child.level_type == 'question') {
+					if (tree_map[sId]) {
+						tree_map[sId].push(child.id)
+					} else {
+						tree_map[sId] = [child.id]
 					}
 				}
-				renderTreeNode(parent, child, display_tree ? identation : 0)
+				renderTreeNode(parent, child, sId,  display_tree ? identation : 0)
 			}
 		}
 	}
