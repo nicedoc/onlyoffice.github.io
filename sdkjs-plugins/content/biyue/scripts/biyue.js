@@ -283,7 +283,7 @@ import { extractChoiceOptions, removeChoiceOptions } from './choiceQuestion.js'
 				modal.command('initSymbols')
 				break
 			case 'insertSymbol':
-				closeWindow(modal.id)
+				// closeWindow(modal.id)
 				insertSymbol(message.data)
 				break
 			default:
