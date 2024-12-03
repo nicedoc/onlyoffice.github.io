@@ -2166,18 +2166,30 @@ function drawHeaderFooter(options, calc) {
 			if (options.page_type == 0) {
 				// 统计
 				var stat = options.stat || {}
-				var oStatsDrawing = Api.CreateImage(
-					stat.url,
+				var oStatsDrawing = Api.CreateShape('rect',
 					(stat.width || 4.8) * 36e3,
-					(stat.height || 4.8) * 36e3
-				)
+					(stat.height || 4.8) * 36e3,
+					Api.CreateSolidFill(Api.CreateRGBColor(255, 255, 255)),
+					Api.CreateStroke(0, Api.CreateNoFill()))
+				var statContent = oStatsDrawing.GetContent()
+				var paragraphs = statContent.GetAllParagraphs()
+				if (paragraphs && paragraphs.length) {
+					paragraphs[0].AddText('\ue628')
+					paragraphs[0].SetFontFamily('iconfont')
+					paragraphs[0].SetFontSize(28)
+					paragraphs[0].SetColor(153, 153, 153, false)
+				}
+				oStatsDrawing.SetPaddings(0, 0, 0, 0)
+				// var oStatsDrawing = Api.CreateImage(
+				// 	stat.url,
+				// 	(stat.width || 4.8) * 36e3,
+				// 	(stat.height || 4.8) * 36e3
+				// )
 				var paraDrawing2 = oStatsDrawing.getParaDrawing()
 				if (paraDrawing2) {
 					// 统计以左上角为基点
-					var sx = PageSize.W - stat.right || 0
-					var sy = PageSize.H - stat.bottom || 0
-					paraDrawing2.Set_PositionH(6, false, sx, false);
-					paraDrawing2.Set_PositionV(5, false, sy, false)
+					oStatsDrawing.SetHorPosition('rightMargin', (PageMargins.Right - stat.right || 0) * 36e3)
+					oStatsDrawing.SetVerPosition('bottomMargin', (PageMargins.Bottom - stat.bottom || 0) * 36e3)
 					paraDrawing2.Set_DrawingType(2);
 					var titleobj = {
 						feature: {
