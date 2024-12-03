@@ -5683,7 +5683,7 @@ function insertSymbol(unicode) {
 					newRun2.SetFontFamily('iconfont')
 					newRun2.AddText(unicodeChar)
 					if (lastPos == 0) {
-						pos[pos.length - 2].Class.Add_ToContent(0, newRun2.Run)
+						pos[pos.length - 2].Class.Add_ToContent(pos[pos.length - 2].Position, newRun2.Run)
 					} else {
 						var newRun = oRun.Run.Split_Run(lastPos)
 						pos[pos.length - 2].Class.Add_ToContent(pos2 + 1, newRun2.Run)
