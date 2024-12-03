@@ -5682,6 +5682,7 @@ function insertSymbol(unicode) {
 					var newRun2 = Api.CreateRun()
 					newRun2.SetFontFamily('iconfont')
 					newRun2.AddText(unicodeChar)
+					newRun2.SetFontSize(36 * 2)
 					if (lastPos == 0) {
 						pos[pos.length - 2].Class.Add_ToContent(pos[pos.length - 2].Position, newRun2.Run)
 					} else {
