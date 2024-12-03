@@ -32,7 +32,11 @@
 				if (parentRun) {
 					var oRun = Api.LookupObject(parentRun.Id)
 					var oRange = oRun.GetRange()
-					oRange.private_SetRangePos(selectionInfo.selectionStart, selectionInfo.selectionEnd)
+					if (oRange.private_SetRangePos) {
+						oRange.private_SetRangePos(selectionInfo.selectionStart, selectionInfo.selectionEnd)
+					} else {
+						console.log('oRange.private_SetRangePos is null')
+					}
 					oRange.Select()
 					let text_data = {
 						data:     "",
