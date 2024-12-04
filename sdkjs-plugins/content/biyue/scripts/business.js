@@ -3366,8 +3366,8 @@ function getAllPositions2() {
 						let mark_order = 1
 						for (var iask = 0; iask < question_obj.ask_list.length; ++iask) {
 							var ids = [question_obj.ask_list[iask].id]
-							if (question_obj.ask_list[iask].other_fileds) {
-								ids = ids.concat(question_obj.ask_list[iask].other_fileds)
+							if (question_obj.ask_list[iask].other_fields) {
+								ids = ids.concat(question_obj.ask_list[iask].other_fields)
 							}
 							var ask_score = question_obj.ask_list[iask].score || ''
 							var find = false

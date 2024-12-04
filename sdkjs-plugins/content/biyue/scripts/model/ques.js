@@ -57,7 +57,7 @@ function getDataByParams(params) {
 		for (var i = 0; i < keys.length; ++i) {
 			var ask_list = question_map[keys[i]].ask_list || []
 			findIndex = ask_list.findIndex(e => {
-				if (e.other_fileds && e.other_fileds.includes(client_id)) {
+				if (e.other_fields && e.other_fields.includes(client_id)) {
 					return true
 				}
 				return e.id == client_id

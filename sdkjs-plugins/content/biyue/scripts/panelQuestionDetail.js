@@ -699,15 +699,17 @@ function deleteAsk(index) {
 		ques_id: g_ques_id,
 		ask_id: askdata.id
 	}]
-	if (askdata.other_fileds) {
-		askdata.other_fileds.forEach(e => {
+	if (askdata.other_fields) {
+		askdata.other_fields.forEach(e => {
 			list.push({
 				ques_id: g_ques_id,
 				ask_id: e
 			})
 		})
 	}
-	deleteAsks(list)
+	deleteAsks(list).then(() => {
+		window.biyue.StoreCustomData()
+	})
 }
 
 function onFocusAsk(id, idx) {
@@ -717,34 +719,34 @@ function onFocusAsk(id, idx) {
 		return
 	}
 	var nlist = window.BiyueCustomData.node_list || []
-	var nodeData = nlist.find(e => {
-		return e.id == g_ques_id
-	})
-	var writeData = null
-	if (!nodeData && quesData.ids && quesData.ids.length > 0) {
-		for (var i = 0; i < nlist.length; ++i) {
-			if (nlist[i].merge_id != g_ques_id) {
-				continue
-			}
-			writeData = nlist[i].write_list.find(e => {
-				return e.id == quesData.ask_list[index].id
-			})
-			if (writeData) {
-				break
+	var ids = quesData.is_merge ? quesData.ids : [g_ques_id]
+	var focusList = []
+	var targetIds = [quesData.ask_list[index].id]
+	if (quesData.ask_list[index].other_fields) {
+		targetIds = targetIds.concat(quesData.ask_list[index].other_fields)
+	}
+	for (var id of ids) {
+		var nodeData = nlist.find(e => {
+			return e.id == id
+		})
+		if (nodeData) {
+			for (var wData of nodeData.write_list) {
+				var targetIndex = targetIds.findIndex(e => {
+					return e == wData.id
+				})
+				if (targetIndex >= 0) {
+					focusList.push(wData)
+					targetIds.splice(targetIndex, 1)
+					if (targetIds.length == 0) {
+						focusAsk(focusList)
+						updateAskSelect(idx)
+						return
+					}
+				}
 			}
 		}
-	} else if (nodeData && nodeData.write_list) {
-		writeData = nodeData.write_list.find(e => {
-			return e.id == quesData.ask_list[index].id
-		})
 	}
-	
-	if (writeData) {
-		focusAsk(writeData)
-		updateAskSelect(idx)
-	} else {
-		console.log('找不到小问数据,node_list和question_map里的数据不一致')
-	}
+	console.log('找不到小问数据,node_list和question_map里的数据不一致')
 }
 
 function updateQuesMode(ques_mode) {
@@ -954,7 +956,9 @@ function onClearAllAsks() {
 		deleteAsks([{
 			ques_id: g_ques_id,
 			ask_id: 0
-		}])
+		}]).then(() => {
+			window.biyue.StoreCustomData()
+		})
 	}
 }
 
@@ -963,7 +967,7 @@ function resplitQues() {
 		ques_id: g_ques_id,
 		ask_id: 0
 	}], false, false).then(() => {
-		splitControl(g_ques_id).then(res => {
+		return splitControl(g_ques_id).then(res => {
 			if (window.BiyueCustomData.question_map[g_ques_id] && window.BiyueCustomData.question_map[g_ques_id].interaction == 'accurate') {
 				setInteraction(window.BiyueCustomData.question_map[g_ques_id].interaction, [g_ques_id])
 			}

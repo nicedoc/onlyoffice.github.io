@@ -1534,7 +1534,7 @@ function handleRangeType(options) {
 						})
 					}
 				}
-			} else if (typeName == 'write') { // 小问
+			} else if (typeName == 'write' || typeName == 'mergedAsk') { // 小问
 				if (selectionInfo.isSelection) {
 					if (curBlockSdt) {
 						var quesId = getParentQuestion(curBlockSdt)

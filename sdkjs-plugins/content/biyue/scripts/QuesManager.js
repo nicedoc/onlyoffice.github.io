@@ -85,15 +85,19 @@ function handleContextMenuShow(options) {
 		var bTable = false
 		var oDocument = Api.GetDocument()
 		var selectContent = oDocument.Document.GetSelectedContent()
-		var drawings = []
-		var parentSdts = []
 		var column_num = 0
+		var result = {
+			drawings: [],
+			parentSdts: [],
+			bTable: false,
+			column_num: 0
+		}
 		var paragraph = oDocument.Document.GetCurrentParagraph()
 		if (paragraph) {
 			var oParagraph = Api.LookupObject(paragraph.Id)
 			var oSection = oParagraph.GetSection()
 			if(oSection) {
-				column_num =  oSection.Section.GetColumnsCount()
+				result.column_num =  oSection.Section.GetColumnsCount()
 			}
 		}
 		if (options.type == 'Image' || options.type == 'Shape') {
@@ -101,12 +105,14 @@ function handleContextMenuShow(options) {
 			if (DrawingObjects.length) {
 				DrawingObjects.forEach(e => {
 					if (e.docPr) {
-						drawings.push(e.docPr.title)
+						result.drawings.push(e.docPr.title)
 					}
 				})
 			}
 		} else {
-			var elementsInfo = oDocument.Document.GetSelectedElementsInfo()
+			var elementsInfo = oDocument.Document.GetSelectedElementsInfo() || {}
+			result.bTable = elementsInfo.m_bTable
+			var tableIds = {}
 			if (elementsInfo.m_arrSdts && elementsInfo.m_arrSdts.length) {
 				elementsInfo.m_arrSdts.forEach((e, index) => {
 					var oControl = Api.LookupObject(e.Id)
@@ -127,8 +133,55 @@ function handleContextMenuShow(options) {
 								}
 							}
 						}
+						if (result.bTable) {
+							result.cells = []
+							if (elementsInfo.m_pParagraph) {
+								console.log('1')
+								var oParagraph = Api.LookupObject(elementsInfo.m_pParagraph.Id)
+								var oCell = oParagraph.GetParentTableCell()
+								if (oCell) {
+									result.cells.push({
+										Id: oCell.Cell.Id,
+										isEmpty: oCell.GetContent().Document.IsEmpty()
+									})
+								}
+							} else {
+								var pageCount = oControl.Sdt.getPageCount()
+								for (var p = 0; p < pageCount; ++p) {
+									var page = oControl.Sdt.GetAbsolutePage(p)
+									var tables = oControl.GetAllTablesOnPage(page)
+									if (tables) {
+										for (var t = 0; t < tables.length; ++t) {
+											var oTable = tables[t]
+											if (tableIds[oTable.Table.Id]) {
+												continue
+											}
+											tableIds[oTable.Table.Id] = 1
+											if (!oTable.Table.IsSelectionUse || !(oTable.Table.IsSelectionUse())) {
+												continue
+											}
+											var cellArray = oTable.Table.GetSelectionArray(false) || []
+											for (var j = 0; j < cellArray.length; ++j) {
+												var oCell = oTable.GetCell(cellArray[j].Row, cellArray[j].Cell)
+												if (!oCell) {
+													continue
+												}
+												var cellContent = oCell.GetContent()
+												if (!cellContent) {
+													continue
+												}
+												result.cells.push({
+													Id: oCell.Cell.Id,
+													isEmpty: cellContent.Document.IsEmpty()
+												})
+											}
+										}
+									}
+								}
+							}
+						}
 					}
-					parentSdts.push({
+					result.parentSdts.push({
 						Id: e.Id,
 						Tag: e.Pr ? e.Pr.Tag : null,
 						classType: oControl.GetClassType(),
@@ -136,14 +189,9 @@ function handleContextMenuShow(options) {
 					})
 				})
 			}
-			bTable = elementsInfo.m_bTable
+			
 		}
-		return {
-			bTable,
-			drawings,
-			parentSdts,
-			column_num
-		}
+		return result 
 	}, false, false).then(res => {
 		window.Asc.plugin.executeMethod('AddContextMenuItem', [getContextMenuItems(options.type, res)])
 	})
@@ -233,7 +281,7 @@ function getContextMenuItems(type, selectedRes) {
 						})
 						if (askIndex == -1) {
 							askIndex = question_map[id].ask_list.findIndex(e => {
-								return e.other_fileds && e.other_fileds.includes(tag.client_id)
+								return e.other_fields && e.other_fields.includes(tag.client_id)
 							})
 							if (askIndex >= 0) {
 								cData = { ques_id: id, ask_id: tag.client_id, is_merge: true, level_type: 'ask'}
@@ -313,6 +361,11 @@ function getContextMenuItems(type, selectedRes) {
 				text: '设置为 - 小问',
 				icon: 'rect'
 			}, {
+				value: 'mergedAsk',
+				text: '合并为 - 一问',
+				icon: 'rect'
+			},
+			{
 				value: 'choiceOption',
 				text: '设置为 - 选项',
 				icon: 'rect'
@@ -363,6 +416,7 @@ function getContextMenuItems(type, selectedRes) {
 			if (curControl) {
 				var tag = getJsonData(curControl.Tag)
 				cData = getControlData(tag)
+				console.log('cData', cData)
 				if (curControl.classType == 'blockLvlSdt') {
 					valueMap['clearChildren'] = 1
 					if (!cData || !cData.level_type) {
@@ -385,6 +439,12 @@ function getContextMenuItems(type, selectedRes) {
 						valueMap['write'] = 1
 						if (question_map[cData.ques_id] && (question_map[cData.ques_id].ques_mode == 1 || question_map[cData.ques_id].ques_mode == 5)) {
 							valueMap['choiceOption'] = 1
+						}
+						if (selectedRes.cells && selectedRes.cells.length > 1) {
+							console.log('支持合并小问')
+							valueMap['mergedAsk'] = 1
+						} else {
+							console.log('================ 未满足单元格条件', selectedRes.cells)
 						}
 					}
 					if (cData.level_type == 'big') {
@@ -774,7 +834,7 @@ function handleChangeType(res, res2) {
 	var change_list = res.change_list || []
 	if (change_list.length == 0) {
 		if (res.typeName != 'clearChildren') {
-			return	
+			return
 		}
 	}
 	if (res.client_node_id) {
@@ -783,12 +843,16 @@ function handleChangeType(res, res2) {
 	var node_list = window.BiyueCustomData.node_list || []
 	var question_map = window.BiyueCustomData.question_map || {}
 	var level_type = res.typeName
+	if (res.typeName == 'mergedAsk') {
+		level_type = 'write'
+	}
 	var targetLevel = level_type
 	if (res.typeName == 'setBig' || res.typeName == 'clearBig') {
 		targetLevel = 'question'
 	}
 	var addIds = []
 	var update_node_id = g_click_value ? g_click_value.Tag.client_id : 0
+	var other_asks_remove = []
 	function updateAskList(qid, ask_list) {
 		var old_list = question_map[qid].ask_list || []
 		var new_list = []
@@ -848,6 +912,45 @@ function handleChangeType(res, res2) {
 			}
 		}
 		return aindex
+	}
+	function addOtherRemove(ques_id, ask_id) {
+		if (question_map[ques_id] && question_map[ques_id].ask_list) {
+			var flag = 0
+			for (var i = 0; i < question_map[ques_id].ask_list.length; ++i) {
+				if (question_map[ques_id].ask_list[i].id == ask_id) {
+					flag = 1
+				}
+				if (question_map[ques_id].ask_list[i].other_fields) {
+					if (flag == 0) {
+						var j = question_map[ques_id].ask_list[i].other_fields.findIndex(e => {
+							return e == ask_id
+						})
+						if (j >= 0) {
+							flag = 2
+							question_map[ques_id].ask_list[i].other_fields.splice(j, 1)
+							other_asks_remove.push({
+								ques_id: ques_id,
+								ask_id: question_map[ques_id].ask_list[i].id
+							})
+						}
+					}
+					if (flag) {
+						question_map[ques_id].ask_list[i].other_fields.forEach(e => {
+							other_asks_remove.push({
+								ques_id: ques_id,
+								ask_id: e
+							})
+						})
+						if (flag == 1) {
+							question_map[ques_id].ask_list.splice(i, 1)
+						}
+						return true
+					}
+				}
+			}
+			return true
+		}
+		return false
 	}
 	if (res.typeName == 'mergeQuestion') {
 		var writelist = []
@@ -1100,14 +1203,8 @@ function handleChangeType(res, res2) {
 						}
 					}
 					var real_parent_id = nodeData && nodeData.merge_id ? nodeData.merge_id : item.parent_id
-					if (question_map[real_parent_id] && question_map[real_parent_id].ask_list) {
-						var ask_index = question_map[real_parent_id].ask_list.findIndex(e => {
-							return e.id == item.client_id
-						})
-						if (ask_index >= 0) {
-							question_map[real_parent_id].ask_list.splice(ask_index, 1)
-							updateScore(real_parent_id)
-						}
+					if (addOtherRemove(real_parent_id, item.client_id)) {
+						updateScore(real_parent_id)
 						addIds.push(real_parent_id)
 					}
 				}
@@ -1174,6 +1271,39 @@ function handleChangeType(res, res2) {
 		})
 		.then(() => {
 			return splitControl(typequesId)
+		})
+	}
+	if (res.typeName == 'mergedAsk') {
+		return new Promise((resolve, reject) => {
+			mergeOneAsk({
+				ques_id: update_node_id,
+				cmd: 'in',
+				ask_ids: res.change_list.filter(e => {
+					return e.regionType == 'write' && e.type == ''
+				}).map(e => {
+					return e.client_id
+				})
+			})
+			resolve()
+		}).then(() => {
+			if (updateinteraction) {
+				return setInteraction(interaction, addIds)
+			} else {
+				return new Promise((resolve, reject) => {
+					resolve()
+				})
+			}
+		}).then(() => {
+			return notifyQuestionChange(update_node_id)
+		})
+		.then(() => {
+			window.biyue.StoreCustomData()
+		})
+	}
+	if ((res.typeName == 'clear' || res.typeName == 'clearAll') && other_asks_remove.length) {
+		// 需要考虑集中作答区，互动同步
+		return deleteAsks(other_asks_remove, true, true).then(() => {
+			window.biyue.StoreCustomData()
 		})
 	}
 	var updateLinked = res.link_updated
@@ -4135,17 +4265,18 @@ function focusControl(id) {
 }
 
 function focusAsk(writeData) {
-	if (!writeData) {
+	if (!writeData || !(writeData.length)) {
 		return
 	}
 	Asc.scope.write_data = writeData
 	return biyueCallCommand(window, function() {
-		var write_data = Asc.scope.write_data
+		var writeList = Asc.scope.write_data || []
+		var write_data = writeList[0]
 		var oDocument = Api.GetDocument()
 		var drawings = oDocument.GetAllDrawingObjects() || []
 		var controls = oDocument.GetAllContentControls() || []
 		var oTables = oDocument.GetAllTables() || []
-		function getCell(write_data) {
+		function getCell(wData) {
 			for (var i = 0; i < oTables.length; ++i) {
 				var oTable = oTables[i]
 				if (oTable.GetPosInParent() == -1) { continue }
@@ -4154,11 +4285,11 @@ function focusAsk(writeData) {
 				if (keys.length) {
 					for (var j = 0; j < keys.length; ++j) {
 						var key = keys[j]
-						if (desc[key] == write_data.id) {
+						if (desc[key] == wData.id) {
 							var rc = key.split('_')
-							if (write_data.row_index == undefined) {
+							if (wData.row_index == undefined) {
 								return oTable.GetCell(rc[0], rc[1])
-							} else if (write_data.row_index == rc[0] && write_data.cell_index == rc[1]) {
+							} else if (wData.row_index == rc[0] && wData.cell_index == rc[1]) {
 								return oTable.GetCell(rc[0], rc[1])
 							}
 
@@ -4169,36 +4300,63 @@ function focusAsk(writeData) {
 			return null
 		}
 		if (write_data.sub_type == 'control') {
-			var oControls = controls.filter(e => {
-				var tag = Api.ParseJSON(e.GetTag())
-				if (tag.client_id == write_data.id && e.Sdt) {
-					if (e.GetClassType() == 'blockLvlSdt') {
-						return e.GetPosInParent() >= 0
-					} else if (e.GetClassType() == 'inlineLvlSdt') {
-						return e.Sdt.GetPosInParent() >= 0
-					}
+			var oRange = null
+			var ids = []
+			for (var wData of writeList) {
+				if (wData.sub_type != 'control') {
+					continue
 				}
-			})
-			if (oControls && oControls.length) {
-				if (oControls.length == 1) {
-					oDocument.Document.MoveCursorToContentControl(oControls[0].Sdt.GetId(), true)
-				}
-			}
-		} else if (write_data.sub_type == 'cell') {
-			if (write_data.cell_id) {
-				var oCell = Api.LookupObject(write_data.cell_id)
-				if (oCell && oCell.GetClassType() == 'tableCell') {
-					var table = oCell.GetParentTable()
-					if (table.GetPosInParent() == -1) {
-						oCell = getCell(write_data)
+				var oControls = controls.filter(e => {
+					var tag = Api.ParseJSON(e.GetTag())
+					if (tag.client_id == wData.id && e.Sdt) {
+						if (e.GetClassType() == 'blockLvlSdt') {
+							return e.GetPosInParent() >= 0
+						} else if (e.GetClassType() == 'inlineLvlSdt') {
+							return e.Sdt.GetPosInParent() >= 0
+						}
 					}
-					if (oCell) {
-						var cellContent = oCell.GetContent()
-						if (cellContent) {
-							cellContent.GetRange().Select()
+				})
+				if (oControls && oControls.length) {
+					if (oControls.length == 1) {
+						ids.push(oControls[0].Sdt.GetId())
+						if (oRange) {
+							oRange = oRange.ExpandTo(oControls[0].GetRange())
+						} else {
+							oRange = oControls[0].GetRange()
 						}
 					}
 				}
+			}
+			if (ids.length == 1) {
+				oDocument.Document.MoveCursorToContentControl(ids[0], true)
+			} else if (oRange) {
+				oRange.Select()
+			}
+		} else if (write_data.sub_type == 'cell') {
+			var oRange = null
+			for (var wData of writeList) {
+				if (wData.cell_id) {
+					var oCell = Api.LookupObject(wData.cell_id)
+					if (oCell && oCell.GetClassType() == 'tableCell') {
+						var table = oCell.GetParentTable()
+						if (table.GetPosInParent() == -1) {
+							oCell = getCell(wData)
+						}
+						if (oCell) {
+							var cellContent = oCell.GetContent()
+							if (cellContent) {
+								if (oRange) {
+									oRange = oRange.ExpandTo(cellContent.GetRange())
+								} else {
+									oRange = cellContent.GetRange()
+								}
+							}
+						}
+					}
+				}
+			}
+			if (oRange) {
+				oRange.Select()
 			}
 		} else if (write_data.sub_type == 'write' || write_data.sub_type == 'identify') {
 			var oDrawing = drawings.find(e => {
@@ -5580,6 +5738,69 @@ function importExam() {
 		}
 	})
 }
+// 合并小问纯粹只是逻辑上的改动，和OO无关
+function mergeOneAsk(options) {
+	if (!options.ask_ids || options.ask_ids.length == 0) {
+		return
+	}
+	var question_map = window.BiyueCustomData.question_map || {}
+	var quesData = question_map[options.ques_id]
+	if (!quesData || !quesData.ask_list) {
+		return
+	}
+	if (options.cmd == 'in') { // 合并
+		var other_fields = []
+		for (var i = 1; i < options.ask_ids.length; ++i) {
+			for (var j = 0; j < quesData.ask_list.length; ++j) {
+				if (quesData.ask_list[j].id == options.ask_ids[i]) {
+					quesData.ask_list.splice(j, 1)	
+					break
+				} else if (quesData.ask_list[j].other_fields) {
+					var k = quesData.ask_list[j].other_fields.findIndex(e => {
+						return e == options.ask_ids[i]
+					})
+					if (k >= 0) {
+						quesData.ask_list[j].other_fields.splice(k, 1)
+						break
+					}
+				}
+			}
+			other_fields.push(options.ask_ids[i])
+		}
+		var firstIndex = quesData.ask_list.findIndex(e => {
+			return e.id == options.ask_ids[0]
+		})
+		if (firstIndex != -1) {
+			quesData.ask_list[firstIndex].other_fields = other_fields
+		}
+	} else if (options.cmd == 'out') { // 解除合并
+		// 需要考虑解除合并后的小问顺序
+		var alist = [].concat(options.ask_list)
+		for (var i = 0; i < quesData.ask_list.length; ++i) {
+			var i1 = alist.findIndex(e => {
+				return e == alist[i].id
+			})
+			if (i1 >= 0) {
+				alist.splice(i1, 1)
+				continue
+			}
+			if (quesData.ask_list[i].other_fields) {
+				for (var i2 = 0; i2 < quesData.ask_list[i].other_fields.length; ++i2) {
+					var i3 = alist.findIndex(e => {
+						return e == quesData.ask_list[i].other_fields[i2]
+					})
+					if (i3 >= 0) {
+						quesData.ask_list.splice(i + 1, 0, {
+							id: alist[i3],
+							score: 1
+						})
+						alist.splice(i3, 1)
+					}
+				}
+			}
+		}
+	}
+}
 // 合并小问
 function mergeAsk(options) {
 	// 合并小问纯粹只是逻辑上的改动，和OO无关
@@ -5609,19 +5830,19 @@ function mergeAsk(options) {
 		if (askIndex > 0) {
 			quesData.ask_list.splice(askIndex, 1)
 			var preAsk = quesData.ask_list[askIndex - 1]
-			if (!preAsk.other_fileds) {
-				preAsk.other_fileds = []
+			if (!preAsk.other_fields) {
+				preAsk.other_fields = []
 			}
-			preAsk.other_fileds.push(write_id)
+			preAsk.other_fields.push(write_id)
 		}
 	} else { // 取消合并
 		for (var i = 0; i < quesData.ask_list.length; ++i) {
-			if (quesData.ask_list[i].other_fileds) {
-				var fidx = quesData.ask_list[i].other_fileds.findIndex(e => {
+			if (quesData.ask_list[i].other_fields) {
+				var fidx = quesData.ask_list[i].other_fields.findIndex(e => {
 					return e == write_id
 				})
 				if (fidx >= 0) {
-					quesData.ask_list[i].other_fileds.splice(fidx, 1)
+					quesData.ask_list[i].other_fields.splice(fidx, 1)
 					quesData.ask_list.splice(i + 1, 0, {
 						id: write_id,
 						score: 1
