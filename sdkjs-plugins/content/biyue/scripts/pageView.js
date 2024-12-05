@@ -599,6 +599,7 @@ function onUploadTypeError() {
 						return
 					}
 					list.push({
+						paper_uuid: window.BiyueCustomData.paper_uuid,
 						id: item.id,
 						question_type: quesData.question_type,
 						question_type_name: typeMaps[quesData.question_type + ''],
@@ -613,7 +614,7 @@ function onUploadTypeError() {
 		updateHintById('uploadHint', '请勾选需要上传的题目', CLR_FAIL)
 		return
 	}
-	getQuestionHtml(list.map(e => e.id)).then(html_list => {
+	getQuestionHtml(list.map(e => e.id), 2).then(html_list => {
 		if (html_list) {
 			list.forEach(item => {
 				var find = html_list.find(e => {
@@ -622,9 +623,13 @@ function onUploadTypeError() {
 				if (find) {
 					item.content_type = find.content_type
 					item.content_html = find.content_html
+					if (find.context_list && find.context_list.length) {
+						item.context_html = find.context_list.map(e => {
+							return e.content_html
+						}).join('')
+					}
 				}
 			})
-			setBtnLoading('uploadTypeError', true)
 			logQuesTypeError(list, 0)
 		}
 	})

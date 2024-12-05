@@ -1246,7 +1246,7 @@ function handleChangeType(res, res2) {
 		typequesId = update_node_id
 	}
 	if (typequesId) {
-		return reqGetQuestionType([typequesId], true)
+		return reqGetQuestionType([typequesId], 1)
 		.then((res2) => {
 			if (window.BiyueCustomData.question_map[typequesId].ques_mode == 1 || window.BiyueCustomData.question_map[typequesId].ques_mode == 5) {
 				return extractChoiceOptions([typequesId], false)
@@ -2237,7 +2237,7 @@ function getQuestionHtml(ids, getLatestParent) {
 				return findControls[0]
 			}
 		}
-		function addHtml(quesId, quesData, oControl, lvldata) {
+		function addHtml(qId, quesId, quesData, oControl, lvldata) {
 			if (!quesData) {
 				return
 			}
@@ -2274,11 +2274,35 @@ function getQuestionHtml(ids, getLatestParent) {
 				if (lvldata && lvldata.text) {
 					lvltext = `<div>${lvldata.text}</div>`
 				}
-				target_list.push({
+				var obj = {
 					id: quesId + '',
 					content_type: quesData.level_type,
 					content_html:  lvltext + text_data.data
+				}
+				var index = target_list.findIndex(e => {
+					return e.id == qId
 				})
+				if (quesId != qId) {
+					if (getLatestParent == 1) {
+						target_list.push(obj)
+					} else {
+						if (index >= 0) {
+							target_list[index].context_list.push(obj)
+						} else {
+							target_list.push({
+								id: qId + '',
+								context_list: [obj]
+							})
+						}
+					}
+				} else {
+					if (index >= 0) {
+						target_list[index].content_type = quesData.level_type
+						target_list[index].content_html = lvltext + text_data.data
+					} else {
+						target_list.push(obj)
+					}
+				}
 			}
 		}
 		function getFirstParagraph(oControl) {
@@ -2355,7 +2379,7 @@ function getQuestionHtml(ids, getLatestParent) {
 				if (oParentControl) {
 					var parentId = getQueId(oParentControl)
 					if (parentId && question_map[parentId]) {
-						addHtml(parentId, question_map[parentId], oParentControl, getLvl(oParentControl, 0))
+						addHtml(quesId, parentId, question_map[parentId], oParentControl, getLvl(oParentControl, 0))
 						flag = 1
 					}
 				}
@@ -2372,7 +2396,7 @@ function getQuestionHtml(ids, getLatestParent) {
 						}
 						var quesId2 = tag2.mid && question_map[tag2.mid] ? tag2.mid : tag2.client_id
 						if (question_map[quesId2] && question_map[quesId2].level_type == 'struct') {
-							addHtml(quesId2, question_map[quesId2], oControl2)
+							addHtml(quesId, quesId2, question_map[quesId2], oControl2)
 							break
 						}
 						var lvl2 = getLvl(oControl2, 0)
@@ -2381,12 +2405,12 @@ function getQuestionHtml(ids, getLatestParent) {
 								if (prelvl) {
 								} else {
 									if (question_map[quesId2] && question_map[quesId2].ques_mode == 6) { // 文本题
-										addHtml(quesId2, question_map[quesId2], oControl2, lvl2)
+										addHtml(quesId, quesId2, question_map[quesId2], oControl2, lvl2)
 										break
 									} else {
 										if (prelvl) {
 											if (lvl2.lvl < prelvl) {
-												addHtml(quesId2, question_map[quesId2], oControl2, lvl2)
+												addHtml(quesId, quesId2, question_map[quesId2], oControl2, lvl2)
 												break
 											}
 										} else {
@@ -2399,14 +2423,14 @@ function getQuestionHtml(ids, getLatestParent) {
 							if (lvl2 === null) {
 								continue
 							} else if (lvl2.lvl < lvl1.lvl) {
-								addHtml(quesId2, question_map[quesId2], oControl2, lvl2)
+								addHtml(quesId, quesId2, question_map[quesId2], oControl2, lvl2)
 								break
 							}
 						}
 					}
 				}
 			}
-			addHtml(quesId, quesData, oControl, lvl1)
+			addHtml(quesId, quesId, quesData, oControl, lvl1)
 		}
 		return target_list
 	}, false, false)
