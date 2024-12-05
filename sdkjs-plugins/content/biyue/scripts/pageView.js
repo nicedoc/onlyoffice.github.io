@@ -20,7 +20,7 @@ import {
 	onAllCheck
 } from './linkHandler.js'
 import { layoutDetect } from './layoutFixHandler.js'
-import { showCom, updateText, addClickEvent, getInfoForServerSave, setBtnLoading, isLoading } from './model/util.js'
+import { showCom, updateText, addClickEvent, getInfoForServerSave, setBtnLoading, isLoading, getYYMMDDHHMMSS } from './model/util.js'
 import { reqSaveInfo, onLatexToImg, logOnlyOffice} from './api/paper.js'
 import { biyueCallCommand, resetStack } from './command.js'
 import { generateTree, updateTreeSelect, clickTreeLock } from './panelTree.js'
@@ -223,6 +223,7 @@ function initView() {
 		}
 	})
 	addClickEvent('#panelTree #lock', clickTreeLock)
+	addClickEvent('#downloadExamHtml', clickDownloadExamHtml)
 }
 
 function handlePaperInfoResult(success, res) {
@@ -675,6 +676,60 @@ function hidePops(type, name) {
 			}
 		}
 	}
+}
+
+function clickDownloadExamHtml() {
+	return getQuestionHtml().then(htmlList => {
+		if (htmlList) {
+			var types = window.BiyueCustomData.paper_options.question_type || []
+			var typeMaps = {}
+			types.forEach(e => {
+				typeMaps[e.value + ''] = e.label
+			})
+			var obj = {
+				paper_uuid: window.BiyueCustomData.paper_uuid,
+				exam_title: window.BiyueCustomData.exam_title,
+				content_list: []
+			}
+			for (var item of htmlList) {
+				if (item.content_type == 'question') {
+					var quesData = window.BiyueCustomData.question_map[item.id]
+					if (quesData) {
+						obj.content_list.push({
+							id: item.id,
+							content_type: item.content_type,
+							question_type: quesData.question_type,
+							question_type_name: typeMaps[quesData.question_type + ''],
+							content_html: item.content_html
+						})
+					}
+				} else {
+					obj.content_list.push(item)
+				}
+			}
+			// 创建一个 Blob 对象
+			var textToDownload = JSON.stringify(obj)
+			var blob = new Blob([textToDownload], { type: 'text/plain' });
+
+			// 创建一个指向该 Blob 对象的 URL
+			var url = URL.createObjectURL(blob);
+
+			// 创建一个临时的 <a> 元素，用于触发下载
+			var a = document.createElement('a');
+			a.href = url;
+			a.download = `${getYYMMDDHHMMSS()}_题型识别错误` ; // 指定下载的文件名
+
+			// 触发下载
+			document.body.appendChild(a);
+			a.click();
+
+			// 移除临时 <a> 元素
+			document.body.removeChild(a);
+
+			// 释放这个 URL 对象
+			URL.revokeObjectURL(url);
+		}
+	})
 }
 
 export {
