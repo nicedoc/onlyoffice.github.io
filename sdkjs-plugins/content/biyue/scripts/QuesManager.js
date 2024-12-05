@@ -236,11 +236,11 @@ function getContextMenuItems(type, selectedRes) {
 			id: 'handleImageIgnore',
 			text: '图片铺码',
 			items: [{
-				id: 'handleImageIgnore_del',
+				id: 'handleImageIgnore:del',
 				text: '开启',
 				disabled: ignoreCount == 0
 			}, {
-				id: 'handleImageIgnore_add',
+				id: 'handleImageIgnore:add',
 				text: '关闭',
 				disabled: ignoreCount == count
 			}]
@@ -252,13 +252,13 @@ function getContextMenuItems(type, selectedRes) {
 		if (type == 'Shape') {
 			if (writeCount) {
 				items.push({
-					id: 'updateControlType_writeZone_del',
+					id: 'updateControlType:writeZone:del',
 					text: '删除作答区'
 				})
 			}
 			if (identifyCount) {
 				items.push({
-					id: 'updateControlType_identify_del',
+					id: 'updateControlType:identify:del',
 					text: '删除识别框'
 				})	
 			}
@@ -290,6 +290,10 @@ function getContextMenuItems(type, selectedRes) {
 							cData = { ques_id: id, ask_id: tag.client_id, is_merge: false, ask_index: askIndex, level_type: 'ask'}
 						}
 						if (askIndex >= 0) {
+							if (question_map[id].ask_list[askIndex].other_fields && question_map[id].ask_list[askIndex].other_fields.length) {
+								cData.is_merge_ask = true
+								cData.ask_id = tag.client_id
+							}
 							break
 						}
 					} else if (tag.mid && id == tag.mid) {
@@ -307,6 +311,29 @@ function getContextMenuItems(type, selectedRes) {
 						if (nodeData) {
 							if (cData.level_type == 'question' && nodeData.is_big) {
 								cData.level_type = 'big'
+							}
+							if ( type != 'Selection' && 
+								selectedRes.cells && 
+								selectedRes.cells.length == 1 && 
+								nodeData.write_list && 
+								question_map[cData.ques_id] && 
+								question_map[cData.ques_id].ask_list) {
+								var cellId = selectedRes.cells[0].Id
+								var cellWrite = nodeData.write_list.find(e => {
+									return e.sub_type == 'cell' && e.cell_id == cellId
+								})
+								if (cellWrite) {
+									var find = question_map[cData.ques_id].ask_list.find(e => {
+										return e.id == cellWrite.id || (e.other_fields && e.other_fields.includes(cellWrite.id))
+									})
+									if (find) {
+										cData.level_type = 'ask'
+										if (find.other_fields && find.other_fields.length) {
+											cData.is_merge_ask = true
+											cData.ask_id = cellWrite.id
+										}
+									}
+								}
 							}
 						}
 					}
@@ -377,6 +404,10 @@ function getContextMenuItems(type, selectedRes) {
 			}, {
 				value: 'clearChildren',
 				text: '清除 - 所有小问',
+				icon: 'clear'
+			}, {
+				value: 'clearMergeAsk',
+				text: '解除 - 合并小问',
 				icon: 'clear'
 			}, {
 				value: 'clearMerge',
@@ -473,6 +504,9 @@ function getContextMenuItems(type, selectedRes) {
 						valueMap['clearBig'] = 1
 					} else if (cData.level_type == 'ask') {
 						splitType.text += '(现为小问)'
+						if (cData.is_merge_ask) {
+							valueMap['clearMergeAsk'] = 1
+						}
 						// if (cData.classType == 'blockLvlSdt') {
 						// 	valueMap['question'] = 1
 						// }
@@ -484,9 +518,13 @@ function getContextMenuItems(type, selectedRes) {
 			
 			list.forEach((e, index) => {
 				if (valueMap[e.value]) {
+					var id = `updateControlType:${e.value}`
+					if (e.value == 'clearMergeAsk') {
+						id = `clearMergeAsk:${cData.ques_id}:${cData.ask_id}`
+					}
 					splitType.items.push({
 						icons: `resources/%theme-type%(light|dark)/%state%(normal)${e.icon}%scale%(100|200).%extension%(png)`,
-						id: `updateControlType_${e.value}`,
+						id: id,
 						text: e.text
 					})
 				}
@@ -496,13 +534,13 @@ function getContextMenuItems(type, selectedRes) {
 				if (cData.level_type == 'ask') {
 					if (!cData.is_merge && cData.ask_index > 0) {
 						items.push({
-							id: `mergeAsk_${cData.ques_id}_${cData.ask_id}_1`,
+							id: `mergeAsk:${cData.ques_id}:${cData.ask_id}:1`,
 							text: '向前合并'
 						})
 					}
 					if (cData.is_merge) {
 						items.push({
-							id: `mergeAsk_${cData.ques_id}_${cData.ask_id}_0`,
+							id: `mergeAsk:${cData.ques_id}:${cData.ask_id}:0`,
 							text: '取消合并'
 						})
 					}
@@ -511,10 +549,10 @@ function getContextMenuItems(type, selectedRes) {
 						id: 'write',
 						text: '作答区',
 						items: [{
-							id: 'updateControlType_writeZone_add',
+							id: 'updateControlType:writeZone:add',
 							text: '添加',
 						}, {
-							id: 'updateControlType_writeZone_del',
+							id: 'updateControlType:writeZone:del',
 							text: '删除',
 						}]
 					})
@@ -523,11 +561,11 @@ function getContextMenuItems(type, selectedRes) {
 						text: '识别框',
 						items: [
 							{
-								id: 'updateControlType_identify_add',
+								id: 'updateControlType:identify:add',
 								text: '添加',
 							},
 							{
-								id: 'updateControlType_identify_del',
+								id: 'updateControlType:identify:del',
 								text: '删除',
 							},
 						],
@@ -539,14 +577,14 @@ function getContextMenuItems(type, selectedRes) {
 				var questypes = window.BiyueCustomData.paper_options ? window.BiyueCustomData.paper_options.question_type : []
 				var itemsQuesType = questypes.map((e) => {
 					return {
-						id: `batchChangeQuesType_${e.value}`,
+						id: `batchChangeQuesType:${e.value}`,
 						text: e.label,
 					}
 				})
 				var itemsProportion = []
 				for (var i = 1; i <= 8; ++i) {
 					itemsProportion.push({
-						id: `batchChangeProportion_${i}`,
+						id: `batchChangeProportion:${i}`,
 						text: i == 1 ? '默认' : `1/${i}`,
 					})
 				}
@@ -569,15 +607,15 @@ function getContextMenuItems(type, selectedRes) {
 							text: '修改互动模式',
 							items: [
 								{
-									id: 'batchChangeInteraction_none',
+									id: 'batchChangeInteraction:none',
 									text: '无互动',
 								},
 								{
-									id: 'batchChangeInteraction_simple',
+									id: 'batchChangeInteraction:simple',
 									text: '简单互动',
 								},
 								{
-									id: 'batchChangeInteraction_accurate',
+									id: 'batchChangeInteraction:accurate',
 									text: '精准互动',
 								},
 							],
@@ -595,13 +633,13 @@ function getContextMenuItems(type, selectedRes) {
 		if (selectedRes.column_num) {
 			if (selectedRes.column_num != 2) {
 				items.push({
-					id: 'setSectionColumn_2',
+					id: 'setSectionColumn:2',
 					text: '分为2栏'
 				})
 			}
 			if (selectedRes.column_num > 1) {
 				items.push({
-					id: 'setSectionColumn_1',
+					id: 'setSectionColumn:1',
 					text: '取消分栏'
 				})
 			}
@@ -617,7 +655,7 @@ function getContextMenuItems(type, selectedRes) {
 }
 
 function onContextMenuClick(id) {
-	var strs = id.split('_')
+	var strs = id.split(':')
 	if (strs && strs.length > 0) {
 		var funcName = strs[0]
 		switch (funcName) {
@@ -626,6 +664,9 @@ function onContextMenuClick(id) {
 					typeName: strs[1],
 					cmd: strs[2] ? strs[2] : null
 				})
+				break
+			case 'clearMergeAsk':
+				clearMergeAsk(strs)
 				break
 			case 'batchChangeQuesType':
 				batchChangeQuesType(strs[1])
@@ -2830,6 +2871,104 @@ function reqUploadTree() {
 		  }
 	})
 }
+// 等后端支持结构和题目可同级出现在结构下时，再取代旧代码
+function getControlListForUpload2(tree_info) {
+	Asc.scope.tree_info = tree_info
+	Asc.scope.node_list = window.BiyueCustomData.node_list
+    Asc.scope.question_map = window.BiyueCustomData.question_map
+	return biyueCallCommand(window, function() {
+		var target_list = []
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls()
+		var question_map = Asc.scope.question_map
+		var tree_info = Asc.scope.tree_info
+		var handledcontrol = {}
+		for (var i = 0, imax = controls.length; i < imax; ++i) {
+			var oControl = controls[i]
+			if (handledcontrol[oControl.Sdt.GetId()]) {
+				continue
+			}
+			var tag = Api.ParseJSON(oControl.GetTag() || '{}')
+			if (tag.regionType != 'question' || !tag.client_id) {
+				continue
+			}
+			var quesData
+			var clientid = tag.mid ? tag.mid : tag.client_id
+			var quesData = question_map[clientid]
+			if (!quesData) {
+				continue
+			}
+			if (!question_map[clientid].level_type) {
+				continue
+			}
+			var itemData = tree_info.list.find(e => {
+				return e.id == clientid
+			})
+			if (!itemData) {
+				continue
+			}
+			var parent_id = itemData.parent_id
+			var useControl = oControl
+			if (tag.big) {
+				var childcontrols = oControl.GetAllContentControls() || []
+				var bigControl = childcontrols.find(e => {
+					var btag = Api.ParseJSON(e.GetTag())
+					return e.GetClassType() == 'blockLvlSdt' && btag.onlybig == 1 && btag.link_id == tag.client_id
+				})
+				if (bigControl) {
+					useControl = bigControl
+				}
+			}
+			var oRange = null
+			if (tag.mid) {
+				for (var idkey in quesData.ids) {
+					var control = controls.find(e => {
+						var tag2 = Api.ParseJSON(e.GetTag())
+						return e.GetClassType() == 'blockLvlSdt' && e.GetPosInParent() >= 0 && tag2.client_id == quesData.ids[idkey] && tag2.mid == tag.mid
+					})
+					if (control) {
+						handledcontrol[control.Sdt.GetId()] = 1
+						var parentcell = control.GetParentTableCell()
+						if (!oRange) {
+							oRange = parentcell.GetContent().GetRange()
+						} else {
+							oRange = oRange.ExpandTo(parentcell.GetContent().GetRange())
+						}
+					}
+				}
+			} else {
+				handledcontrol[oControl.Sdt.GetId()] = 1
+				oRange = useControl.GetRange()
+			}
+			oRange.Select()
+			let text_data = {
+				data:     "",
+				// 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
+				pushData: function (format, value) {
+				this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : "";
+				}
+			};
+			Api.asc_CheckCopy(text_data, 2);
+			var content_html = text_data.data
+			target_list.push({
+				id: clientid + '',
+				parent_id: parent_id ? parent_id + '' : '',
+				uuid: question_map[clientid].uuid || '',
+				regionType: question_map[clientid].level_type,
+				content_type: question_map[clientid].level_type,
+				content_xml: '',
+				content_html: content_html,
+				content_text: oRange.GetText(),
+				question_type: question_map[clientid].question_type,
+				question_name: question_map[clientid].ques_name || question_map[clientid].ques_default_name,
+				control_id: oControl.Sdt.GetId(),
+				lvl: itemData.lvl
+			})
+		}
+		console.log('target_list', target_list)
+		return target_list
+	  }, false, false)
+}
 
 function getControlListForUpload() {
 	Asc.scope.node_list = window.BiyueCustomData.node_list
@@ -3140,6 +3279,82 @@ function handleXml(controlId, content) {
 
 function handleXmlError() {
 	generateTreeForUpload(upload_control_list)
+}
+
+// 等后端支持结构和题目可同级出现在结构下时，再取代旧代码
+function generateTreeForUpload2(control_list) {
+	return new Promise((resolve, reject) => {
+		if (!control_list) {
+			reject(null)
+		}
+		var tree = []
+		var choicemap = Asc.scope.choice_html_map || {}
+
+		const map = {};
+		control_list.forEach(e => {
+			e.content_html = cleanHtml(e.content_html || '')
+			if (choicemap[e.id]) {
+				e.content_without_opt = cleanHtml(choicemap[e.id].steam || '')
+				e.options = []
+				if (choicemap[e.id].options) {
+					choicemap[e.id].options.forEach(option => {
+						e.options.push({
+							value: option.value,
+							html: cleanHtml(option.html)
+						})
+					})
+				}
+				e.option_type = choicemap[e.id].option_type
+			}
+			map[e.id] = { ...e, children: [] };
+		});
+		control_list.forEach(item => {
+			if (item.parent_id && item.parent_id != item.id) {
+				if (map[item.parent_id] && map[item.parent_id].children) {
+					map[item.parent_id].children.push(map[item.id]);
+				} else {
+					console.log('        cannot find parent', item);
+				}
+			} else {
+				tree.push(map[item.id]);
+			}
+		});
+		var uploadTree = {
+			id: "",
+			uuid: window.BiyueCustomData.paper_uuid,
+			question_type:0,
+			question_name:"",
+			content_type:"paper",
+			content_text:"",
+			content_xml:"",
+			content_html:"",
+			children: tree
+		}
+		console.log('               uploadTree', uploadTree)
+		var version = getTimeString()
+		reqComplete(uploadTree, version).then(res => {
+			console.log('reqComplete', res)
+			console.log('[reqUploadTree end]', Date.now())
+			if (res.data.questions) {
+				res.data.questions.forEach(e => {
+					window.BiyueCustomData.question_map[e.id].uuid = e.uuid
+				})
+				Object.keys(window.BiyueCustomData.question_map).forEach(e => {
+					var index = res.data.questions.findIndex(e2 => {
+						return e2.uuid == window.BiyueCustomData.question_map[e].uuid
+					})
+					if (index == -1) {
+						window.BiyueCustomData.question_map[e].uuid = ''
+					}
+				})
+			}
+			resolve(res)
+		}).catch(res => {
+			console.log('reqComplete fail', res)
+			console.log('[reqUploadTree end]', Date.now())
+			reject(res)
+		})
+	})
 }
 
 function generateTreeForUpload(control_list) {
@@ -5760,6 +5975,62 @@ function importExam() {
 				return setInteraction('useself')
 			})
 		}
+	})
+}
+function clearMergeAsk(options) {
+	console.log('clearMergeAsk', options)
+	if (!options.length || options.length != 3) {
+		return
+	}
+	var question_map = window.BiyueCustomData.question_map || {}
+	var quesData = question_map[options[1]]
+	if (!quesData || !quesData.ask_list) {
+		return
+	}
+	var targetItem = quesData.ask_list.find(e => {
+		return e.id == options[2] || (e.other_fields && e.other_fields.findIndex(e => {
+			return e == options[2]
+		}) >= 0)
+	})
+	if (!targetItem) {
+		return
+	}
+	var node_list = window.BiyueCustomData.node_list || []
+	var nodeData = node_list.find(item => {
+		return item.id == options[1]
+	})
+	var newFields = targetItem.other_fields.map(id => ({
+		id: id,
+		score: 1
+	}))
+	delete targetItem.other_fields;
+	var ask_list = quesData.ask_list.concat(newFields);
+	ask_list = nodeData.write_list.map(writeItem =>
+        ask_list.find(askItem => askItem.id === writeItem.id)
+    )
+    .filter(item => item !== undefined);  // 过滤掉不存在的元素
+	quesData.ask_list = ask_list
+
+	// 集中作答区暂时先不考虑
+	return new Promise((resolve, reject) => {
+		if (quesData.ques_mode == 1 || quesData.ques_mode == 5) {
+			return deleteChoiceOtherWrite([options[1]], false).then(() => {
+				resolve()
+			})
+		} else {
+			resolve()
+		}
+	}).then(() => {
+		if (quesData.interaction == 'accurate') {
+			return setInteraction(quesData.interaction, [options[1]])
+		} else {
+			return new Promise((resolve, reject) => {
+				resolve()
+			})
+		}
+	}).then(() => {
+		notifyQuestionChange(options[1])
+		window.biyue.StoreCustomData()
 	})
 }
 // 合并小问纯粹只是逻辑上的改动，和OO无关
