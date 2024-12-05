@@ -407,7 +407,7 @@ function getContextMenuItems(type, selectedRes) {
 				icon: 'clear'
 			}, {
 				value: 'clearMergeAsk',
-				text: '解除 - 合并小问',
+				text: '解除 - 小问合并',
 				icon: 'clear'
 			}, {
 				value: 'clearMerge',
