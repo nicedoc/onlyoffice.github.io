@@ -185,7 +185,7 @@ function imageAutoLink(ques_id, calc) {
 		for (var i = 0; i < tables.length; ++i) {
 			var oTable = tables[i]
 			var strtitle = oTable.GetTableTitle()
-			if (strtitle == 'questionTable' || strtitle == 'ignore') {
+			if (strtitle == 'questionTable' || strtitle == JSON.stringify({ignore: 1})) {
 				continue
 			}
 			var title = Api.ParseJSON(strtitle)
@@ -309,7 +309,7 @@ function onAllCheck() {
 			for (i = 0; i < tables.length; ++i) {
 				var oTable = tables[i]
 				var tabletitle = oTable.GetTableTitle()
-				if (tabletitle == 'questionTable' || tabletitle == 'ignore') {
+				if (tabletitle == 'questionTable' || tabletitle == JSON.stringify({ignore: 1})) {
 					continue
 				}
 				var title = Api.ParseJSON(tabletitle)

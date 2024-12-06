@@ -613,7 +613,7 @@ function handleRangeType(options) {
 					return quesData.level_type == 'question' ? tagObj.client_id : null
 				} else if (tagObj.mid) {
 					quesData = question_map[tagObj.mid]
-					return quesData.level_type == 'question' ? tagObj.mid : null
+					return quesData && quesData.level_type == 'question' ? tagObj.mid : null
 				}
 			}
 			var parentData = getParentData(Api.LookupObject(blockSdt.Id))
@@ -840,7 +840,9 @@ function handleRangeType(options) {
 					if (options.end_id) {
 						continue
 					} else {
-						break
+						if (!element.Paragraph.IsEmpty()) {
+							break
+						}
 					}
 					// var NumPr = element.GetNumbering()
 					// if (NumPr && NumPr.Lvl <= tag.lvl) {
@@ -1123,13 +1125,14 @@ function handleRangeType(options) {
 					if (oCell) {
 						var oTable = oCell.GetParentTable()
 						if (oControl) {
-							var oTable2 = oControl.GetContent().GetAllTables() || []
-							var tindex = oTable2.findIndex(e => {
-								return e.Table.Id == oTable.Table.Id
-							})
-							if (tindex >= 0) {
-								return null
-							}
+							// 这里需要注释，否则无法清除单元格小问，若要改动需要保证单元格小问的清除和设置，需要覆盖题目包含表格，一整个题目是表格，单道题在单元格中，大小题，合并题的情况
+							// var oTable2 = oControl.GetContent().GetAllTables() || []
+							// var tindex = oTable2.findIndex(e => {
+							// 	return e.Table.Id == oTable.Table.Id
+							// })
+							// if (tindex >= 0) {
+							// 	return null
+							// }
 						}
 						return {
 							ques_id: quesTag ? quesTag.client_id : 0,
@@ -1460,7 +1463,7 @@ function handleRangeType(options) {
 						} else {
 							var tag = Api.ParseJSON(oBlockControl.GetTag())
 							var nodeData = getNodeData(tag)
-							var isBig = nodeData.level_type == 'question' && nodeData.is_big
+							var isBig = nodeData && nodeData.level_type == 'question' && nodeData.is_big
 							selectControls.reverse().forEach(e => {
 								if (!isBig || e.relation == 3) {
 									removeControlChildren(e.control, true)	
@@ -1506,7 +1509,32 @@ function handleRangeType(options) {
 					}
 				}
 				
-			} else if (typeName == 'write') { // 小问
+			} else if (typeName == 'choiceOption') { // 选择题选项
+				if (selectionInfo.isSelection) {
+					if (curBlockSdt) {
+						var quesId = getParentQuestion(curBlockSdt)
+						if(!quesId) {
+							result.message = '未处于题目中'
+							return result
+						}
+						for (var j = selectControls.length - 1; j >= 0; --j) {
+							if (selectControls[j].relation == 3) {
+								var tagobj = Api.ParseJSON(selectControls[j].control.Sdt.GetTag())
+								if (tagobj.client_id != quesId) {
+									removeControlChildren(selectControls[j].control, true)
+								}
+							}
+						}
+						oSelectRange.Select()
+						// todo..这里是否要考虑选项是图片，选项在单元格，选项跨单元格
+						var oResult = Api.asc_AddContentControl(2, {
+							Tag: JSON.stringify({
+								'regionType': 'choiceOption', 'mode': 3, 'color': '#00ff0020'
+							})
+						})
+					}
+				}
+			} else if (typeName == 'write' || typeName == 'mergedAsk') { // 小问
 				if (selectionInfo.isSelection) {
 					if (curBlockSdt) {
 						var quesId = getParentQuestion(curBlockSdt)
@@ -1548,17 +1576,18 @@ function handleRangeType(options) {
 							}
 							oSelectRange.Select()
 							var type = 1
-							if (oSelectRange.Paragraphs.length) {
+							var paragrahs = oSelectRange.GetAllParagraphs() || oSelectRange.Paragraphs
+							if (paragrahs.length) {
 								var find = false
-								for (var p = 0; p < oSelectRange.Paragraphs.length; ++p) {
-									if (!oSelectRange.Paragraphs[p].Paragraph.IsEmpty() &&
-										!oSelectRange.Paragraphs[p].Paragraph.IsSelectedAll() &&
-										oSelectRange.Paragraphs[p].GetElementsCount()) {
+								for (var p = 0; p < paragrahs.length; ++p) {
+									if (!paragrahs[p].Paragraph.IsEmpty() &&
+										!paragrahs[p].Paragraph.IsSelectedAll() &&
+										paragrahs[p].GetElementsCount()) {
 										find = true
 										break
 									}
 								}
-								if (find && oSelectRange.Paragraphs.length == 1) {
+								if (find && paragrahs.length == 1) {
 									type = 2
 								}
 							}

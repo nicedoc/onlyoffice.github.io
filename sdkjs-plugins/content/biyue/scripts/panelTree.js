@@ -1,4 +1,4 @@
-import { preGetExamTree, focusControl } from './QuesManager.js'
+import { preGetExamTree, focusControl, setNumberingLevel } from './QuesManager.js'
 import { showCom, updateText, addClickEvent } from './model/util.js'
 import { handleRangeType } from "./classifiedTypes.js"
 import { getDataByParams } from '../scripts/model/ques.js'
@@ -37,22 +37,26 @@ function renderTreeNode(parent, item, parentData) {
 	}
 	var html = ''
 	var identation = 0
-	var offset = 24
+	var offset = 16
 	if (parentData) {
 		if (parentData.is_big) {
 			if (item.lvl != null && parentData.lvl !== null) {
-				identation = 20 + offset * (item.lvl - parentData.lvl - 1)
+				identation = 16 * (item.lvl - parentData.lvl - 1)
 			} else {
-				identation = 20
+				identation = 0
 			}
 		} else if (item.lvl === null) {
 			if (parentData.lvl) {
 				identation = offset * (parentData.lvl + 1)
 			} else {
-				identation = offset
+				identation = 0
 			}
 		} else {
-			identation = (item.level_type =='struct' ? 10 : offset) * item.lvl
+			if (parentData.lvl != null) {
+				identation = 16 * (item.lvl - parentData.lvl - 1)
+			} else {
+				identation = (item.lvl - 1) * 16 // 0
+			}
 		}
 	} else {
 		if (item.lvl != null) {
@@ -61,26 +65,64 @@ function renderTreeNode(parent, item, parentData) {
 			identation = 0
 		}
 	}
+	if (identation < 0) {
+		identation = 0
+	}
 	if (item.level_type == 'struct') {
-		html += `<div class="row-align-center" id="group-${item.id}">
-					<div class="struct font-12">构</div>
-					<div class="itemques text-over-ellipsis flex-1 clicked" id="box-${item.id}" style="margin-left: ${identation}px;" title="${quesData.text}">${quesData.text}</div>
-				</div>`
-	} else if (item.level_type == 'question') {
-		html += `<div class="itemques" id="box-${item.id}"  style="margin-left: ${identation}px;">
-					<div title="${quesData.text}" id="ques-${item.id}" class="text-over-ellipsis clicked flex-1">${quesData.text}</div>
+		var vlineleft = 0 // (identation > 16 ? (identation - 16) : 0)
+		html += `<div class="qwrapper"  style="margin-left: ${identation}px;">
+					<div id="group-${item.id}">
+						<div class="struct font-12" style="left:${-24 - identation}px" id="struct${item.id}">构</div>
+						<div class="itemques text-over-ellipsis flex-1 clicked" id="box-${item.id}" title="${quesData.text}">${quesData.ques_name || quesData.text}</div>
+					</div>
 					<div class="children" id="ques-${item.id}-children"></div>
+					${item.children && item.children.length > 0 ? `<div class="vline" id="vline-${item.id}" style="left: ${vlineleft}px"></div>` : ''}
+					${item.parent_id ? `<div class="hline" style="left: ${-16-identation}px;width:${identation + 16}px;" id="hline-${item.id}"></div>` : ''}
+				 </div>`
+	} else if (item.level_type == 'question') {
+		html += `<div class="qwrapper" style="margin-left: ${identation}px;">
+					<div class="itemques" id="box-${item.id}" >
+						<div title="${quesData.text}" id="ques-${item.id}" class="text-over-ellipsis clicked flex-1">${quesData.text}</div>
+						<div class="children" id="ques-${item.id}-children"></div>
+					</div>
+					${item.children && item.children.length && !item.is_big ? `<div class="vline" style="left: ${identation}px" id="vline-${item.id}"></div>` : ''}
+					${item.parent_id ? `<div class="hline" style="left: ${-16-identation}px;width:${identation + 16}px;}" id="hline-${item.id}"></div>` : ''}
 				</div>`
 	}
 	parent.append(html)
 	if (item.children && item.children.length > 0) {
 		for (var child of item.children) {
-			if (item.level_type == 'struct') {
-				renderTreeNode(parent, child, item)
-			} else {
-				renderTreeNode($(`#ques-${item.id}-children`), child, item)
-			}
+			renderTreeNode($(`#ques-${item.id}-children`), child, item)
 		}
+	}
+}
+function countDescendants(node, isLastChild = false) {
+    if (!node.children || node.children.length === 0) {
+        return isLastChild ? 1 : 0; // 叶子节点; 只有最后一个算作 1
+    }
+
+    let count = 0;
+    const numChildren = node.children.length;
+
+    for (let i = 0; i < numChildren; i++) {
+        const child = node.children[i];
+        const childIsLast = (i === numChildren - 1);
+
+        if (childIsLast && !isLastChild) {
+            // 如果是最后一个孩子，则只加1
+            count += 1;
+        } else {
+            // 非最后一个孩子，需要计算自己+其子孙的叶子节点数量
+            count += 1 + countDescendants(child);
+        }
+    }
+    return count;
+}
+function traverse(node, result) {
+	if (!node) return;
+	result[node.id] = countDescendants(node);
+	for (let child of node.children) {
+		traverse(child, result);
 	}
 }
 
@@ -94,6 +136,30 @@ function renderTree() {
 		showCom('#panelTree .none', false)
 		tree_info.tree.forEach(item => {
 			renderTreeNode(rootElement, item, null)
+		})
+		var vCountMap = {}
+		for (let rootNode of tree_info.tree) {
+			traverse(rootNode, vCountMap);
+		}
+		tree_info.list.forEach(item => {
+			var itemCount = vCountMap[item.id]
+			if (itemCount > 0) {
+				var linecom = $(`#panelTree #vline-${item.id}`)
+				if (linecom && linecom.length > 0) {
+					linecom.css('height', (itemCount * 25.7 + 6 * (itemCount - 1)) + 'px');
+				}
+			}
+			if (item.parent_id) {
+				if (item.level_type == 'struct') {
+					var structCom = $(`#panelTree #struct${item.id}`)
+					var childrenAncestorsCount = structCom.parents().filter('.children').length;
+					if (item.lvl !== null) {
+						structCom.css('left', (-24 - item.lvl * 16) + 'px')
+					} else {
+						structCom.css('left', (-24 - 16) + 'px')
+					}
+				}
+			}
 		})
 		var structNum = 0
 		var quesNum = 0
@@ -114,25 +180,31 @@ function renderTree() {
 				function contextmenuHandler(event) {
 					event.preventDefault()
 					var quesData = window.BiyueCustomData.question_map[item.id]
+					var menuItems = []
 					if (quesData.level_type == 'question') {
 						var nodeData = window.BiyueCustomData.node_list.find(e => {
 							return e.id == item.id
 						})
 						if (nodeData && !quesData.is_merge) { // 合并题不可设置为大题, 当题目处于单元格中时，只能清除大题，不可构建大小题
 							if (nodeData.is_big) {
-								if (item.cell_id) {
-									generateMenuItems(['clearBig'], item.id); // 生成动态菜单	
-								} else {
-									generateMenuItems(['clearBig', 'extendBig'], item.id); // 生成动态菜单
+								menuItems.push('clearBig')
+								if (!item.cell_id) {
+									menuItems.push('setBig2')
 								}
 								updateMenuPos(event)
 							} else if (!item.cell_id) {
-								generateMenuItems(['setBig', 'setBig2'], item.id); // 生成动态菜单
-								updateMenuPos(event)
+								menuItems.push('setBig2')
+								if (item.lvl !== null) {
+									menuItems.push('setBig')
+								}
 							}
 						}
 					} else if (quesData.level_type == 'struct') {
-						generateMenuItems(['question'], item.id)
+						menuItems.push('question')
+					}
+					menuItems.push('setLevel')
+					if (menuItems.length) {
+						generateMenuItems(menuItems, item.id, item.lvl)
 						updateMenuPos(event)
 					}
 				}
@@ -145,8 +217,11 @@ function renderTree() {
 		showCom('#panelTree .none', true)
 		updateText('#panelTree #sum', '')
 	}
+	updateText('#panelTree #edit', '编辑')
+	addClickEvent('#panelTree #edit', (e) => {
+		onEdit(e)
+	})
 }
-
 function updateMenuPos(event) {
 	const menu = document.getElementById('dynamicMenu');
 	// 获取浏览器窗口的宽度、高度
@@ -219,7 +294,10 @@ function updateBig(id) {
 			continue
 		} else if (lvl >= g_tree_info.list[i].lvl) {
 			toIndex = i - 1
-			break	
+			break
+		}
+		if (i == g_tree_info.list.length - 1) {
+			toIndex = i
 		}
 	}
 	if (toIndex > index) {
@@ -240,23 +318,33 @@ function updateBig(id) {
 		})
 		var mleft = parseInt((bigques).css('margin-left'), 10);
 		var minMarginLeft = 100
+		var minlvl = 10
 		for (var j = index + 1; j <= toIndex; ++j) {
 			var item = $(`#panelTree #box-${g_tree_info.list[j].id}`)
 			var parentElement = item.parent();
 			var prevElement = item.prev();
 			var marginLeft = parseInt((item).css('margin-left'), 10);
+			var itemParent = item.parent()
+			marginLeft = parseInt((itemParent).css('margin-left'), 10);
+			var itemLvl = g_tree_info.list[j].lvl
 			big_info.child_ids.push({
 				id: g_tree_info.list[j].id,
 				parent: parentElement ? parentElement.attr('id') : null,
 				prev: prevElement ? prevElement.attr('id') : null,
-				marginLeft: marginLeft
+				marginLeft: marginLeft,
+				lvl: itemLvl
 			})
 			item.css({
 				'background-color': '#fff',
 				'border': '1px solid #bbb'
 			});
+			
+			if (itemLvl !== null) {
+				minlvl = Math.min(minlvl, itemLvl)
+			}
 			minMarginLeft = Math.min(minMarginLeft, marginLeft)
-			item.appendTo(childrenName);
+			$(`#panelTree #hline-${g_tree_info.list[j].id}`).hide()
+			item.parent().appendTo(childrenName);
 			if (g_tree_info.list[j].parent_id && g_tree_info.list[j].parent_id != id) {
 				var parentData = g_tree_info.list.find(e => {
 					return e.id == g_tree_info.list[j].parent_id
@@ -266,14 +354,17 @@ function updateBig(id) {
 				}
 			}
 		}
-		if (minMarginLeft > mleft) {
-			var offset = minMarginLeft - mleft
-			big_info.child_ids.forEach(e => {
-				$(`#panelTree #box-${e.id}`).css({
-					'margin-left': `${e.marginLeft - offset}px`
-				})
+		big_info.child_ids.forEach(e => {
+			var mleft = 0
+			if (e.lvl === null) {
+				mleft = 0
+			} else if (e.lvl > minlvl) {
+				mleft = (e.lvl - minlvl) * 16
+			}
+			$(`#panelTree #box-${e.id}`).parent().css({
+				'margin-left': `${mleft}px`
 			})
-		}
+		})
 		if (big_info.end_id) {
 			$(`#panelTree #box-${big_info.end_id}`).css({
 				'border': '1px solid #95c8ff',
@@ -331,11 +422,12 @@ function resetBig() {
 	big_info = null
 }
 
-function generateMenuItems(options, id) {
+function generateMenuItems(options, id, currentLevel) {
 	const menuContent = $('#menuContent');
 	menuContent.empty(); // 清除旧的菜单项
 	options.forEach(e => {
 		var name = ''
+		var isSubMenu = false
 		switch(e) {
 			case 'setBig': 
 				name = '构建大小题 - 编号'
@@ -352,15 +444,39 @@ function generateMenuItems(options, id) {
 			case 'question':
 				name = '设置为 - 题目'
 				break
+			case 'setLevel':
+				name = currentLevel === null ? '设置级别' : '调整级别'
+				isSubMenu = true
+				break
 			default:
 				break
 		}
 		if (name) {
-			//menuContent.append('<li onclick="alert(\'操作1-1\')">动态操作1-1</li>');
-			// 使用匿名函数包裹 clickMenu 函数并传递参数
-			menuContent.append(`<li>${name}</li>`).children().last().on('click', function() {
-				clickMenu(id, e);
-			});
+			const menuItem = $('<li>').text(name);
+            menuItem.on('click', function() {
+                clickMenu(id, e);
+            });
+            if (isSubMenu) {
+				const submenu = $('<ul class="submenu">');
+                for (let i = 0; i < 10; i++) {
+                    const levelItem = $(`<li>${i + 1}级</li>`);
+                    if (i === currentLevel) {
+                        levelItem.css('color', '#2489f6');  // 突出显示当前级别
+                    }
+                    levelItem.on('click', function() {
+						setLevel(id, i)
+                    });
+                    submenu.append(levelItem);
+                }
+                menuItem.append(submenu);
+
+                menuItem.hover(function() {
+                    submenu.show();
+                }, function() {
+                    submenu.hide();
+                });
+            }
+            menuContent.append(menuItem);
 		}
 	})
 }
@@ -405,7 +521,11 @@ function clickMenu(id, cmd) {
 		updateBig(id)
 	}
 }
-
+function setLevel(id, level) {
+	return setNumberingLevel([id], level).then((res) => {
+		return generateTree()
+	})
+}
 function updateTreeSelect(params) {
 	var data = getDataByParams(params)
 	if (!data || !data.data) {

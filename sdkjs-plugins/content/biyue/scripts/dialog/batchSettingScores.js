@@ -31,7 +31,7 @@
 	} else {
 		showBottomBtns(true)
 		tree_info.tree.forEach(item => {
-			renderTreeNode(rootElement, item, 0)
+			renderTreeNode(rootElement, item, 0, 0)
 		})
 		addEvents()
 		updateHideEmptyStruct()
@@ -46,7 +46,7 @@
 		$('.switch-tree').hide()
 	}
   }
-  function renderTreeNode(parent, item, identation = 0) {
+  function renderTreeNode(parent, item, structId, identation = 0) {
 	if (!parent) {
 		return
 	}
@@ -100,16 +100,15 @@
 	if (item.children && item.children.length > 0) {
 		identation += 20
 		for (var child of item.children) {
-			if (item.level_type == 'struct') {
-				if (child.level_type == 'question') {
-					if (tree_map[item.id]) {
-						tree_map[item.id].push(child.id)
-					} else {
-						tree_map[item.id] = [child.id]
-					}
+			var sId = item.level_type == 'struct' ? item.id : structId
+			if (child.level_type == 'question') {
+				if (tree_map[sId]) {
+					tree_map[sId].push(child.id)
+				} else {
+					tree_map[sId] = [child.id]
 				}
 			}
-			renderTreeNode(parent, child, display_tree ? identation : 0)
+			renderTreeNode(parent, child, sId,  display_tree ? identation : 0)
 		}
 	}
   }
@@ -191,8 +190,8 @@
     let arr = tree_map[struct_id] || []
     for (const key in arr) {
         let id = arr[key]
-        if (question_map[id].ask_list.length > 0) {
-            let ask_list = question_map[id].ask_list || []
+		let ask_list = question_map[id].ask_list || []
+        if (ask_list.length > 0) {
             let sum = 0
             for (const k in ask_list) {
                 ask_list[k].score = value
@@ -214,8 +213,9 @@
         for (const k in tree_map[key]) {
           // 题目的id
           let id = tree_map[key][k]
-          if (question_map[id] && question_map[id].ask_list && question_map[id].ask_list.length > 0) {
-            let ask_list = question_map[id].ask_list || []
+		  var quesData = question_map[id] || question_map[id + '']
+          if (quesData && quesData.ask_list && quesData.ask_list.length > 0) {
+            let ask_list = quesData.ask_list || []
             let sum = 0
             let hasChange = false
             for (const k in ask_list) {
@@ -227,10 +227,10 @@
               sum += parseFloat(ask_list[k].score) || 0
             }
             if (hasChange) {
-              question_map[id].score = sum
+				quesData.score = sum
             }
-          } else if (!question_map[id].score) {
-            question_map[id].score = value
+          } else if (!(quesData.score * 1)) {
+            quesData.score = value
           }
         }
       }

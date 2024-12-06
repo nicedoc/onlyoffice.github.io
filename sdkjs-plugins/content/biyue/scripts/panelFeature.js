@@ -1,7 +1,7 @@
 import ComponentSelect from '../components/Select.js'
 import NumberInput from '../components/NumberInput.js'
 import { ZONE_SIZE, ZONE_TYPE, ZONE_TYPE_NAME } from './model/feature.js'
-import { handleFeature, handleHeader, drawExtroInfo, setLoading, deleteAllFeatures, setInteraction, updateChoice, handleChoiceUpdateResult } from './featureManager.js'
+import { handleFeature, handleHeader, drawExtroInfo, setLoading, deleteAllFeatures, setInteraction, updateChoice, handleChoiceUpdateResult, drawHeaderFooter, drawStatistics } from './featureManager.js'
 import { biyueCallCommand, dispatchCommandResult } from "./command.js";
 import { showCom } from './model/util.js'
 var list_feature = []
@@ -29,8 +29,12 @@ var select_choice_area = null
 var input_choice_num = null
 var timeout_change_choice_num = null
 var imageDimensionsCache = {} // 图片的宽高比缓存
+var STAT_URL = 'https://by-qa-image-cdn.biyue.tech/statistics.png'
 function initExtroInfo() {
 	list_feature = getList()
+	if (window.BiyueCustomData.page_type == 1) {
+		return initPositions1_intro()
+	}
 	return initPositions1()
 }
 
@@ -55,8 +59,7 @@ function getList() {
 			console.log('json parse error', error)
 			return
 		}
-		window.BiyueCustomData.workbook_info.parse_extra_data = extra_info
-		console.log('【extra_info】', extra_info)
+		
 		var choice_display = Object.assign({
 			num_row: 10,
 			area: false,
@@ -78,92 +81,101 @@ function getList() {
 	if (workbook.practise_again) {
 		extra_info.practise_again = workbook.practise_again
 	}
+	if (workbook.page_layout) {
+		extra_info.page_header_text = workbook.page_layout.page_header || ''
+		extra_info.page_footer_text = workbook.page_layout.page_footer || ''
+		extra_info.page_image_url = workbook.page_layout.page_top_left || ''
+	}
+	window.BiyueCustomData.workbook_info.parse_extra_data = extra_info
+	console.log('【extra_info】', extra_info)
 	var list = []
 	var scale = 0.2647058823529412
-	if (extra_info.workbook_qr_code_show) {
-		var size = getValue(extra_info.workbook_qr_code_size, 45 * scale)
+	var page_type = window.BiyueCustomData.page_type
+	if (page_type == 0) {
+		if (extra_info.workbook_qr_code_show) {
+			var size = getValue(extra_info.workbook_qr_code_size, 45 * scale)
+			list.push({
+				zone_type: ZONE_TYPE.QRCODE,
+				  id: ZONE_TYPE_NAME[ZONE_TYPE.QRCODE],
+				  label: '二维码',
+				ox: getValue(extra_info.workbook_qr_code_x, 700 * scale),
+				oy: getValue(extra_info.workbook_qr_code_y, 20 * scale),
+				ow: size,
+				oh: size,
+				url: 'https://by-qa-image-cdn.biyue.tech/qrCodeUnset.png',
+				value_select: 'open'
+			})
+		}
+		if (extra_info.practise_again && extra_info.practise_again.switch) {
+			list.push({
+				zone_type: ZONE_TYPE.AGAIN,
+				id: ZONE_TYPE_NAME[ZONE_TYPE.AGAIN],
+				label: '再练',
+				ox: extra_info.practise_again.x,
+				oy: extra_info.practise_again.y,
+				value_select: 'open'
+			})
+		}
+		if (extra_info.custom_evaluate) {
+			list.push({
+				zone_type: ZONE_TYPE.SELF_EVALUATION,
+				id: ZONE_TYPE_NAME[ZONE_TYPE.SELF_EVALUATION],
+				label: extra_info.self_evaluate || '自我评价',
+				icon_url: workbook.self_evaluate_img, // || 'https://by-base-cdn.biyue.tech/xiaoyue_s.png',
+				flowers: Object.values(extra_info.self_filling_imgs || {}),
+				value_select: 'open'
+			})
+			list.push({
+				zone_type: ZONE_TYPE.THER_EVALUATION,
+				id: ZONE_TYPE_NAME[ZONE_TYPE.THER_EVALUATION],
+				label: '教师评价',
+				icon_url: workbook.teacher_evaluate_img, // || 'https://by-base-cdn.biyue.tech/xiaotao_s.png',
+				flowers: Object.values(extra_info.teacher_filling_imgs || {}),
+				value_select: 'open'
+			})
+			list.push({
+				zone_type: ZONE_TYPE.PASS,
+				id: ZONE_TYPE_NAME[ZONE_TYPE.PASS],
+				label: '通过',
+				value_select: 'open'
+			})
+		} else {
+			list.push({
+				zone_type: ZONE_TYPE.END,
+				id: ZONE_TYPE_NAME[ZONE_TYPE.END],
+				label: '完成',
+				value_select: 'open'
+			})
+		}
 		list.push({
-			zone_type: ZONE_TYPE.QRCODE,
-		  	id: ZONE_TYPE_NAME[ZONE_TYPE.QRCODE],
-		  	label: '二维码',
-			ox: getValue(extra_info.workbook_qr_code_x, 700 * scale),
-			oy: getValue(extra_info.workbook_qr_code_y, 20 * scale),
-			ow: size,
-			oh: size,
-			url: 'https://by-qa-image-cdn.biyue.tech/qrCodeUnset.png',
+			zone_type: ZONE_TYPE.STATISTICS,
+			id: ZONE_TYPE_NAME[ZONE_TYPE.STATISTICS],
+			label: '统计',
 			value_select: 'open'
 		})
-	}
-	if (extra_info.practise_again && extra_info.practise_again.switch) {
 		list.push({
-			zone_type: ZONE_TYPE.AGAIN,
-			id: ZONE_TYPE_NAME[ZONE_TYPE.AGAIN],
-			label: '再练',
-			ox: extra_info.practise_again.x,
-			oy: extra_info.practise_again.y,
+			zone_type: ZONE_TYPE.IGNORE,
+			id: ZONE_TYPE_NAME[ZONE_TYPE.IGNORE],
+			label: '日期/评语',
 			value_select: 'open'
 		})
-	}
-	if (extra_info.custom_evaluate) {
-		list.push({
-			zone_type: ZONE_TYPE.SELF_EVALUATION,
-			id: ZONE_TYPE_NAME[ZONE_TYPE.SELF_EVALUATION],
-			label: extra_info.self_evaluate || '自我评价',
-			icon_url: workbook.self_evaluate_img, // || 'https://by-base-cdn.biyue.tech/xiaoyue_s.png',
-			flowers: Object.values(extra_info.self_filling_imgs || {}),
-			value_select: 'open'
-		})
-		list.push({
-			zone_type: ZONE_TYPE.THER_EVALUATION,
-			id: ZONE_TYPE_NAME[ZONE_TYPE.THER_EVALUATION],
-			label: '教师评价',
-			icon_url: workbook.teacher_evaluate_img, // || 'https://by-base-cdn.biyue.tech/xiaotao_s.png',
-			flowers: Object.values(extra_info.teacher_filling_imgs || {}),
-			value_select: 'open'
-		})
-		list.push({
-			zone_type: ZONE_TYPE.PASS,
-			id: ZONE_TYPE_NAME[ZONE_TYPE.PASS],
-			label: '通过',
-			value_select: 'open'
-		})
-	} else {
-		list.push({
-			zone_type: ZONE_TYPE.END,
-			id: ZONE_TYPE_NAME[ZONE_TYPE.END],
-			label: '完成',
-			value_select: 'open'
-		})
-	}
-
-	list.push({
-		zone_type: ZONE_TYPE.IGNORE,
-		id: ZONE_TYPE_NAME[ZONE_TYPE.IGNORE],
-		label: '日期/评语',
-		value_select: 'open'
-	})
-
-	list.push({
-		zone_type: ZONE_TYPE.STATISTICS,
-		id: ZONE_TYPE_NAME[ZONE_TYPE.STATISTICS],
-		label: '统计',
-		p: 0,
-		v: 1,
-		// hidden: true,
-		url: 'https://by-qa-image-cdn.biyue.tech/statistics.png',
-		value_select: 'open'
-	})
-	if (!extra_info.hidden_correct_region.checked) {
-		var value_select = extra_info.start_interaction.checked ? 'accurate' : 'simple'
-		window.BiyueCustomData.interaction = value_select
-		list.push({
-			id: 'interaction',
-			label: '互动模式',
-			value_select: value_select
-		})
+	} 
+	if (page_type == 0) {
+		if (!extra_info.hidden_correct_region.checked) {
+			var value_select = extra_info.start_interaction.checked ? 'accurate' : 'simple'
+			window.BiyueCustomData.interaction = value_select
+			list.push({
+				id: 'interaction',
+				label: '互动模式',
+				value_select: value_select
+			})
+		} else {
+			window.BiyueCustomData.interaction = 'none'
+		}
 	} else {
 		window.BiyueCustomData.interaction = 'none'
 	}
+
 	return list
 }
 
@@ -301,9 +313,13 @@ function changeAll(data) {
 	}
 	window.BiyueCustomData.interaction = vinteraction
 	if (data.value == 'close') {
-		deleteAllFeatures()
+		deleteAllFeatures(['pagination'])
 	} else {
-		drawExtroInfo([].concat(list_feature)).then(res => {
+		drawExtroInfo([].concat(list_feature), false)
+		.then(() => {
+			return drawPageHeaderFooter(true)
+		})
+		.then(res => {
 			setLoading(false)
 			setInteraction(vinteraction)
 		})
@@ -347,14 +363,21 @@ function changeItem(type, data, id) {
 		if (data.value == 'none') {
 			deleteAllFeatures(null, ['ques_interaction'])
 		} else {
-			setInteraction(data.value)	
+			setInteraction(data.value)
 		}
 		updateAllInteraction(data.value)
 	} else {
 		if (id == ZONE_TYPE_NAME[ZONE_TYPE.STATISTICS]) {
-			drawExtroInfo([Object.assign({}, fdata, {
-				cmd:data.value
-			})]).then(() => {
+			var extra_info = window.BiyueCustomData.workbook_info.parse_extra_data
+			drawStatistics({
+				cmd: data.value,
+				stat: Object.assign({}, extra_info.onlyoffice_options.statis, {
+					width: 4.76,
+					height: 4.76,
+					url: STAT_URL
+				}),
+				page_type: window.BiyueCustomData.page_type
+			}, true).then(() => {
 				setLoading(false)
 			})
 		} else {
@@ -444,9 +467,6 @@ function updateFeatureList(res) {
 		var PageMargins = res.PageMargins
 		var bottom = 6
 		// 后端给的坐标是基于页面尺寸 816*1100 的
-		var lastleft = ((Num - 1) * PageSize.W) / Num
-		var evaluationX = Num > 1 ? lastleft : PageMargins.Left
-		console.log('evaluationX', evaluationX)
 		list_feature.forEach((e, index) => {
 			var x = e.ox != undefined ? e.ox : 0
 			var y = e.oy != undefined ? e.oy : 0
@@ -462,10 +482,10 @@ function updateFeatureList(res) {
 			} else if (e.zone_type == ZONE_TYPE.AGAIN) {
 				page_num = 0
 			} else if (e.zone_type == ZONE_TYPE.SELF_EVALUATION) {
-				x = evaluationX
+				x = PageMargins.Left
 				y = PageSize.H - PageMargins.Bottom
 			} else if (e.zone_type == ZONE_TYPE.THER_EVALUATION) {
-				x = evaluationX + 60
+				x = PageMargins.Left + 60
 				y = PageSize.H - PageMargins.Bottom
 			} else if (e.zone_type == ZONE_TYPE.PASS || e.zone_type == ZONE_TYPE.END) {
 				x = PageSize.W - PageMargins.Right - ZONE_SIZE[ZONE_TYPE.IGNORE].w - 4 - ZONE_SIZE[ZONE_TYPE.PASS].w
@@ -473,21 +493,6 @@ function updateFeatureList(res) {
 			} else if (e.zone_type == ZONE_TYPE.IGNORE) {
 				x = PageSize.W - PageMargins.Right - ZONE_SIZE[ZONE_TYPE.IGNORE].w
 				y = PageSize.H - PageMargins.Bottom
-			} else if (e.zone_type == ZONE_TYPE.STATISTICS) {
-				page_num = e.p
-				var onlyoffice_options = window.BiyueCustomData.workbook_info.parse_extra_data.onlyoffice_options
-				if (onlyoffice_options) {
-					if (onlyoffice_options.statis) {
-						size.right = onlyoffice_options.statis.right
-						size.bottom = onlyoffice_options.statis.bottom
-					}
-					if (onlyoffice_options.pagination) {
-						size.pagination = onlyoffice_options.pagination
-					}
-				} else {
-					size.right = 0
-					size.bottom = 0
-				}
 			}
 			setXY(
 				index,
@@ -516,12 +521,60 @@ function updateFeatureList(res) {
 	})
 }
 
+function initPositions1_intro() {
+	return getPageData().then(res => {
+		updateFeatureList(res)
+		var specifyFeatures = [
+			ZONE_TYPE_NAME[ZONE_TYPE.AGAIN],
+			ZONE_TYPE_NAME[ZONE_TYPE.IGNORE],
+			ZONE_TYPE_NAME[ZONE_TYPE.QRCODE],
+			ZONE_TYPE_NAME[ZONE_TYPE.SELF_EVALUATION],
+			ZONE_TYPE_NAME[ZONE_TYPE.THER_EVALUATION],
+			ZONE_TYPE_NAME[ZONE_TYPE.STATISTICS],
+			ZONE_TYPE_NAME[ZONE_TYPE.PASS],
+			ZONE_TYPE_NAME[ZONE_TYPE.END]
+		]
+		return deleteAllFeatures([], specifyFeatures)
+	}).then(() => { // 插入获取图片宽高比的步骤
+		return loadImages()
+  	})
+  	.then(() => {
+		return drawPageHeaderFooter(true)
+  	})
+	.then(() => {
+		setLoading(false)
+		return MoveCursor()
+	})
+}
+
+function loadImages() {
+	const imageUrls = [];
+	if (window.BiyueCustomData.page_type == 0) {
+		list_feature.forEach(e => {
+			if (e.url) {
+				imageUrls.push(e.url)
+			}
+			if (e.icon_url) {
+				imageUrls.push(e.icon_url)
+			}
+			if (e.flowers) {
+				imageUrls.concat(e.flowers)
+			}
+		})
+	}
+	var extra_info = window.BiyueCustomData.workbook_info.parse_extra_data
+	if (extra_info && extra_info.page_image_url) {
+		imageUrls.push(extra_info.page_image_url)
+	}
+	return Promise.all(imageUrls.map(getImageDimensions));
+}
 function initPositions1() {
 	return getPageData().then(res => {
 		updateFeatureList(res)
 		var specifyFeatures = list_feature.map(e => {
 			return ZONE_TYPE_NAME[e.zone_type]
 		})
+		specifyFeatures.push(ZONE_TYPE_NAME[ZONE_TYPE.STATISTICS])
 		specifyFeatures.push(ZONE_TYPE_NAME[ZONE_TYPE.PAGINATION])
 		return deleteAllFeatures([], specifyFeatures)
 	})
@@ -537,23 +590,15 @@ function initPositions1() {
 		return setInteraction('useself')
 	})
 	.then(() => { // 插入获取图片宽高比的步骤
-	  	const imageUrls = [];
-	  	list_feature.forEach(e => {
-			if (e.url) {
-				imageUrls.push(e.url)
-			}
-			if (e.icon_url) {
-				imageUrls.push(e.icon_url)
-			}
-			if (e.flowers) {
-				imageUrls.concat(e.flowers)
-			}
-	  	})
-	  	return Promise.all(imageUrls.map(getImageDimensions));
+		return loadImages()
 	})
 	.then(() => {
-		return drawExtroInfo(list_feature, imageDimensionsCache)
-	}).then(() => {
+		return drawExtroInfo(list_feature, imageDimensionsCache, false)
+	})
+	.then(() => {
+		return drawPageHeaderFooter(true)
+	})
+	.then(() => {
 		setLoading(false)
 		return MoveCursor()
 	})
@@ -636,5 +681,55 @@ function getImageDimensions(url) {
 		};
 		img.src = url;
 	});
+}
+function drawPageHeaderFooter(recalc) {
+	var extra_info = window.BiyueCustomData.workbook_info.parse_extra_data || {}
+	var page_logo_width = extra_info.page_logo_width
+	if (!page_logo_width && extra_info.page_image_url) {
+		var imageData = imageDimensionsCache[extra_info.page_image_url]
+		if (!extra_info.page_logo_height) {
+			extra_info.page_logo_height = 10
+		}
+		if (imageData) {
+			extra_info.page_logo_width = imageData.aspectRatio * extra_info.page_logo_height
+		}
+	}
+	var logo_absolute_position = extra_info.logo_absolute_position && extra_info.logo_absolute_position.checked
+	var hidden_page_header_border = extra_info.hidden_page_header_border && extra_info.hidden_page_header_border.checked
+	var hidden_page_footer_border = extra_info.hidden_page_footer_border && extra_info.hidden_page_footer_border.checked
+	var options = {
+		header: {
+			text: extra_info.page_header_text,
+			font_family: extra_info.page_header_family,
+			font_bold: extra_info.page_header_bold_font,
+			font_size: extra_info.page_header_font_size || 3.71,
+			align: extra_info.page_header_position,
+			line_visible: hidden_page_header_border === true ? false : true,
+			image_url: extra_info.page_image_url,
+			image_height: extra_info.page_logo_height,
+			image_width: extra_info.page_logo_width,
+			image_x: logo_absolute_position ? extra_info.logo_x : null,
+			image_y: logo_absolute_position ? extra_info.logo_y : null
+		},
+		footer: {
+			text: extra_info.page_footer_text,
+			font_family: extra_info.page_footer_family,
+			font_bold: extra_info.page_footer_bold_font,
+			font_size: extra_info.page_footer_font_size || 3.71,
+			align: extra_info.page_footer_position,
+			line_visible: hidden_page_footer_border === true ? false : true,
+		},
+		pagination: extra_info.onlyoffice_options.pagination,
+		page_type: window.BiyueCustomData.page_type,
+		imageDimensionsCache: imageDimensionsCache
+	}
+	if (options.page_type == 0) {
+		options.stat = Object.assign({}, extra_info.onlyoffice_options.statis, {
+			width: 4.76,
+			height: 4.76,
+			url: STAT_URL
+		})
+	}
+	return drawHeaderFooter(options, recalc)
 }
 export { initFeature, initExtroInfo, syncInteractionWhenReSplit }

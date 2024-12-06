@@ -1,8 +1,8 @@
 @font-face {
   font-family: "iconfont"; /* Project id 4592892 */
-  src: url('iconfont.woff2?t=1731316068178') format('woff2'),
-       url('iconfont.woff?t=1731316068178') format('woff'),
-       url('iconfont.ttf?t=1731316068178') format('truetype');
+  src: url('iconfont.woff2?t=1732613477516') format('woff2'),
+       url('iconfont.woff?t=1732613477516') format('woff'),
+       url('iconfont.ttf?t=1732613477516') format('truetype');
 }
 
 .iconfont {
@@ -11,6 +11,10 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-tips-one:before {
+  content: "\eaa8";
 }
 
 .icon-dingzi-u:before {

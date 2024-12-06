@@ -32,7 +32,11 @@
 				if (parentRun) {
 					var oRun = Api.LookupObject(parentRun.Id)
 					var oRange = oRun.GetRange()
-					oRange.private_SetRangePos(selectionInfo.selectionStart, selectionInfo.selectionEnd)
+					if (oRange.private_SetRangePos) {
+						oRange.private_SetRangePos(selectionInfo.selectionStart, selectionInfo.selectionEnd)
+					} else {
+						console.log('oRange.private_SetRangePos is null')
+					}
 					oRange.Select()
 					let text_data = {
 						data:     "",
@@ -148,7 +152,7 @@
 		} else {
 			showBottomBtns(true)
 			tree_info.tree.forEach(item => {
-				renderTreeNode(rootElement, item, 0)
+				renderTreeNode(rootElement, item, 0, 0)
 			})
 			addEvents()
 			updateHideEmptyStruct()
@@ -167,7 +171,7 @@
 	
 	  function getSelectHtml(id, quesData) {
 		var html = ''
-		if (quesData.level_type == 'struct') {
+		if (quesData && quesData.level_type == 'struct') {
 			html += `<select id="bat-group-${id}" class="type-item">`
 			html += `<option value="" style="display: none;"></option>`
 			for (const key in type_options) {
@@ -191,8 +195,8 @@
 		return html
 	  }
 	
-	  function renderTreeNode(parent, item, identation = 0) {
-		if (!parent) {
+	  function renderTreeNode(parent, item, structId, identation = 0) {
+		if (!parent || !item) {
 			return
 		}
 		var quesData = question_map[item.id]
@@ -225,16 +229,15 @@
 		if (item.children && item.children.length > 0) {
 			identation += 20
 			for (var child of item.children) {
-				if (item.level_type == 'struct') {
-					if (child.level_type == 'question') {
-						if (tree_map[item.id]) {
-							tree_map[item.id].push(child.id)
-						} else {
-							tree_map[item.id] = [child.id]
-						}
+				var sId = item.level_type == 'struct' ? item.id : structId
+				if (child.level_type == 'question') {
+					if (tree_map[sId]) {
+						tree_map[sId].push(child.id)
+					} else {
+						tree_map[sId] = [child.id]
 					}
 				}
-				renderTreeNode(parent, child, display_tree ? identation : 0)
+				renderTreeNode(parent, child, sId,  display_tree ? identation : 0)
 			}
 		}
 	}

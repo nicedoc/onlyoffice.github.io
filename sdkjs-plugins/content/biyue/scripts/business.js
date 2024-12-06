@@ -12,6 +12,7 @@ import {
 import { getBase64, map_base64 } from '../resources/list_base64.js'
 import { biyueCallCommand } from './command.js'
 import { handlePaperInfoResult } from './pageView.js'
+import { showCom } from './model/util.js'
 let paper_info = {} // 从后端返回的试卷信息
 let select_ques_ids = []
 const MM2EMU = 36000 // 1mm = 36000EMU
@@ -36,11 +37,17 @@ function initPaperInfo() {
 				if (paper) {
 					$('#exam_title').text(`《${paper.title}》`)
 					window.BiyueCustomData.exam_title = paper.title
+					var isIntroPage = paper.page_type || 0
+					window.BiyueCustomData.page_type = isIntroPage
 					$('#grade_data').text(
 						`${paper.period_name}${paper.subject_name} / ${
 							paper.edition_name || ''
 						} / ${paper.phase_name || ''}`
 					)
+					showCom('#examPageWrapper', !isIntroPage)
+					showCom('#introPageWrapper', isIntroPage)
+					showCom('#tabQues', !isIntroPage)
+					showCom('#tabTree', !isIntroPage)
 				}
 				var options = res.data.options || {}
 				var paper_options = {}
@@ -101,9 +108,12 @@ function updatePageSizeMargins() {
 						oSection.SetFooterDistance(MM2Twips(workbook.margin.bottom))
 						oSection.SetHeaderDistance(MM2Twips(workbook.margin.top))
 					}
+					oSection.RemoveHeader('default')
+					oSection.RemoveHeader('title')
+					oSection.RemoveHeader('even')
 					oSection.RemoveFooter('default')
 					oSection.RemoveFooter('even')
-					oSection.RemoveHeader('default')
+					oSection.RemoveFooter('title')
 				})
 			}
 			var odrawings = oDocument.GetAllDrawingObjects() || []
@@ -2899,6 +2909,14 @@ function getAllPositions2() {
 			var question_map = Asc.scope.question_map
 			var node_list = Asc.scope.node_list
 			var oTables = oDocument.GetAllTables() || []
+			var oSections = oDocument.GetSections() || []
+			var isTitlePage = oSections.find((oSection) => {
+				return oSection.Section.IsTitlePage()
+			})
+			var isOddEven = oSections.find((oSection) => {
+				return oSection.Section.IsEvenAndOdd()
+			})
+			
 			console.log('------------------------------')
 			function mmToPx(mm) {
 				// 1 英寸 = 25.4 毫米
@@ -3348,8 +3366,8 @@ function getAllPositions2() {
 						let mark_order = 1
 						for (var iask = 0; iask < question_obj.ask_list.length; ++iask) {
 							var ids = [question_obj.ask_list[iask].id]
-							if (question_obj.ask_list[iask].other_fileds) {
-								ids = ids.concat(question_obj.ask_list[iask].other_fileds)
+							if (question_obj.ask_list[iask].other_fields) {
+								ids = ids.concat(question_obj.ask_list[iask].other_fields)
 							}
 							var ask_score = question_obj.ask_list[iask].score || ''
 							var find = false
@@ -3530,21 +3548,61 @@ function getAllPositions2() {
 									titleObj.feature.zone_type == 'statistics' ||
 									titleObj.feature.zone_type == 'pagination'
 								) {
-									let statistics_arr = []
+									var footerType = titleObj.feature.footer_type
+									var findIndex = feature_list.findIndex((e) => {
+										return e.zone_type == titleObj.feature.zone_type
+									})
 									for (var p = 0; p < pageCount; ++p) {
-										statistics_arr.push({
+										var fieldObj = {
 											v: p + 1 + '',
 											page: p + 1,
 											x: mmToPx(paraDrawing.X),
 											y: mmToPx(paraDrawing.Y),
 											w: mmToPx(paraDrawing.Width),
 											h: mmToPx(paraDrawing.Height),
-										})
+										}
+										var valid = false
+										if (footerType == 'title' && p == 0) {
+											valid = true
+										} else if (footerType == 'default') {
+											if (isTitlePage) { // 首页不同
+												if (p > 0) {
+													if (isOddEven) { // 奇偶不同
+														if (p % 2 == 0) {
+															valid = true
+														}
+													}
+												}
+											} else {
+												if (isOddEven) {
+													if (p % 2 == 0) {
+														valid = true
+													}
+												} else {
+													valid = true
+												}
+											}
+										} else if (footerType == 'even') {
+											if (p % 2 == 1) {
+												valid = true
+											}
+										}
+										if (valid) {
+											if (findIndex >= 0) {
+												feature_list[findIndex].fields.push(fieldObj)
+												if (isOddEven) {
+													feature_list[findIndex].fields = feature_list[findIndex].fields.sort((a, b) => {
+														return a.page - b.page
+													})
+												}
+											} else {
+												feature_list.push({
+													zone_type: titleObj.feature.zone_type,
+													fields: [fieldObj],
+												})
+											}
+										}
 									}
-									feature_list.push({
-										zone_type: titleObj.feature.zone_type,
-										fields: statistics_arr,
-									})
 								} else {
 									if (
 										titleObj.feature.zone_type == 'self_evaluation' ||

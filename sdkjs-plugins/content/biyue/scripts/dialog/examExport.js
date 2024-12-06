@@ -326,27 +326,28 @@ import { setXToken } from '../auth.js'
 
     preQuestionPositions = getPositions()
     preEvaluationPosition = getEvaluationPosition()
-    if (Object.keys(preQuestionPositions).length === 0) {
-        $('#error_message').html('没有符合条件的题目，请先进行全量更新!')
-        return
-    }
-    const haveError = checkPositions(preQuestionPositions)
-    if (haveError) {
-        return
-    }
-	for (const key in preQuestionPositions) {
-		let item = preQuestionPositions[key]
-		if (item.content) {
-			delete item.content
+	if (biyueCustomData.page_type == 0) {
+		if (Object.keys(preQuestionPositions).length === 0) {
+			$('#error_message').html('没有符合条件的题目，请先进行全量更新!')
+			return
 		}
-		if (item.text) {
-			delete item.text
+		const haveError = checkPositions(preQuestionPositions)
+		if (haveError) {
+			return
 		}
+		for (const key in preQuestionPositions) {
+			let item = preQuestionPositions[key]
+			if (item.content) {
+				delete item.content
+			}
+			if (item.text) {
+				delete item.text
+			}
+		}
+		// 过滤题目选区里的字段类型,如果是数值类型则还会去除小数位
+		const need_formatted = ['title_region', 'write_ask_region', 'mark_ask_region', 'correct_region', 'correct_ask_region']
+		formattedPositions(preQuestionPositions, need_formatted)
 	}
-    // 过滤题目选区里的字段类型,如果是数值类型则还会去除小数位
-    const need_formatted = ['title_region', 'write_ask_region', 'mark_ask_region', 'correct_region', 'correct_ask_region']
-    formattedPositions(preQuestionPositions, need_formatted)
-
     console.log('本地检查通过')
     // console.log('开始进行服务端检查...')
     // onPaperValidatePosition()
@@ -580,17 +581,21 @@ import { setXToken } from '../auth.js'
   }
 
   function getEvaluationPosition() {
-    var evaluationPosition = {
-      self_evaluation: getFieldsByZoneType('self_evaluation'),
-      teacher_evaluation: getFieldsByZoneType('teacher_evaluation'),
-      pass_regional: getFieldsByZoneType('pass'),
-      ignore_region: getFieldsByZoneType('ignore'),
-      end_regional: getFieldsByZoneType('end'),
-      again_regional: getFieldsByZoneType('again'),
-      stat_regional: getFieldsByZoneType('statistics'),
-      partial_no_dot_regional: questionPositions.partical_no_dot_list || []
-    }
-    // 处理选区的数据类型
+	var evaluationPosition = {
+		partial_no_dot_regional: questionPositions.partical_no_dot_list || []
+	  }
+	if (biyueCustomData.page_type == 0) {
+		evaluationPosition = Object.assign(evaluationPosition, {
+			self_evaluation: getFieldsByZoneType('self_evaluation'),
+			teacher_evaluation: getFieldsByZoneType('teacher_evaluation'),
+			pass_regional: getFieldsByZoneType('pass'),
+			ignore_region: getFieldsByZoneType('ignore'),
+			end_regional: getFieldsByZoneType('end'),
+			again_regional: getFieldsByZoneType('again'),
+			stat_regional: getFieldsByZoneType('statistics'),
+		})
+	}
+	// 处理选区的数据类型
     for (const key in evaluationPosition) {
       evaluationPosition[key] = convertDataToNumber(evaluationPosition[key], numericFields)
     }

@@ -6,6 +6,13 @@
   "description": "",
   "glyphs": [
     {
+      "icon_id": "40070576",
+      "name": "tips-one",
+      "font_class": "tips-one",
+      "unicode": "eaa8",
+      "unicode_decimal": 60072
+    },
+    {
       "icon_id": "1345637",
       "name": "线描－钉子",
       "font_class": "dingzi-u",

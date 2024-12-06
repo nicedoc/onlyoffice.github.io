@@ -9,7 +9,7 @@ import { imageAutoLink, ShowLinkedWhenclickImage } from './linkHandler.js'
 import { layoutDetect } from './layoutFixHandler.js'
 import { setBtnLoading, isLoading } from './model/util.js'
 import { refreshTree } from './panelTree.js'
-import { getChoiceQuesData } from './choiceQuestion.js'
+import { extractChoiceOptions, removeChoiceOptions, getChoiceOptionAndSteam } from './choiceQuestion.js'
 var g_click_value = null
 var upload_control_list = []
 
@@ -85,15 +85,19 @@ function handleContextMenuShow(options) {
 		var bTable = false
 		var oDocument = Api.GetDocument()
 		var selectContent = oDocument.Document.GetSelectedContent()
-		var drawings = []
-		var parentSdts = []
 		var column_num = 0
+		var result = {
+			drawings: [],
+			parentSdts: [],
+			bTable: false,
+			column_num: 0
+		}
 		var paragraph = oDocument.Document.GetCurrentParagraph()
 		if (paragraph) {
 			var oParagraph = Api.LookupObject(paragraph.Id)
 			var oSection = oParagraph.GetSection()
 			if(oSection) {
-				column_num =  oSection.Section.GetColumnsCount()
+				result.column_num =  oSection.Section.GetColumnsCount()
 			}
 		}
 		if (options.type == 'Image' || options.type == 'Shape') {
@@ -101,29 +105,97 @@ function handleContextMenuShow(options) {
 			if (DrawingObjects.length) {
 				DrawingObjects.forEach(e => {
 					if (e.docPr) {
-						drawings.push(e.docPr.title)
+						result.drawings.push(e.docPr.title)
 					}
 				})
 			}
 		} else {
-			var elementsInfo = oDocument.Document.GetSelectedElementsInfo()
+			var elementsInfo = oDocument.Document.GetSelectedElementsInfo() || {}
+			result.bTable = elementsInfo.m_bTable
+			var tableIds = {}
 			if (elementsInfo.m_arrSdts && elementsInfo.m_arrSdts.length) {
-				elementsInfo.m_arrSdts.forEach(e => {
-					parentSdts.push({
+				elementsInfo.m_arrSdts.forEach((e, index) => {
+					var oControl = Api.LookupObject(e.Id)
+					var lvl = null
+					if (oControl.GetClassType() == 'blockLvlSdt') {
+						var paragraphs = oControl.GetAllParagraphs() || []
+						for (var i = 0; i < paragraphs.length; ++i) {
+							var oParagraph = paragraphs[i]
+							if (oParagraph) {
+								var parent1 = oParagraph.Paragraph.Parent
+								var parent2 = parent1.Parent
+								if (parent2 && parent2.Id == oControl.Sdt.GetId()) {
+									var oNumberingLevel = paragraphs[0].GetNumbering()
+									if (oNumberingLevel && oNumberingLevel.Num) {
+										lvl = oNumberingLevel.Num.GetLvl(oNumberingLevel.Lvl)
+									}
+									break
+								}
+							}
+						}
+						if (result.bTable) {
+							result.cells = []
+							if (elementsInfo.m_pParagraph) {
+								var oParagraph = Api.LookupObject(elementsInfo.m_pParagraph.Id)
+								var oCell = oParagraph.GetParentTableCell()
+								if (oCell) {
+									var oParentTable = oCell.GetParentTable()
+									var tableDesc = Api.ParseJSON(oParentTable.GetTableDescription()) || {}
+									result.cells.push({
+										Id: oCell.Cell.Id,
+										recordId: tableDesc[`${oCell.GetRowIndex()}_${oCell.GetIndex()}`],
+										isEmpty: oCell.GetContent().Document.IsEmpty()
+									})
+								}
+							} else {
+								var pageCount = oControl.Sdt.getPageCount()
+								for (var p = 0; p < pageCount; ++p) {
+									var page = oControl.Sdt.GetAbsolutePage(p)
+									var tables = oControl.GetAllTablesOnPage(page)
+									if (tables) {
+										for (var t = 0; t < tables.length; ++t) {
+											var oTable = tables[t]
+											if (tableIds[oTable.Table.Id]) {
+												continue
+											}
+											tableIds[oTable.Table.Id] = 1
+											if (!oTable.Table.IsSelectionUse || !(oTable.Table.IsSelectionUse())) {
+												continue
+											}
+											var cellArray = oTable.Table.GetSelectionArray(false) || []
+											var tableDesc = Api.ParseJSON(oTable.GetTableDescription()) || {}
+											for (var j = 0; j < cellArray.length; ++j) {
+												var oCell = oTable.GetCell(cellArray[j].Row, cellArray[j].Cell)
+												if (!oCell) {
+													continue
+												}
+												var cellContent = oCell.GetContent()
+												if (!cellContent) {
+													continue
+												}
+												result.cells.push({
+													Id: oCell.Cell.Id,
+													recordId: tableDesc[`${cellArray[j].Row}_${cellArray[j].Cell}`],
+													isEmpty: cellContent.Document.IsEmpty()
+												})
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+					result.parentSdts.push({
 						Id: e.Id,
 						Tag: e.Pr ? e.Pr.Tag : null,
-						classType: Api.LookupObject(e.Id).GetClassType()
+						classType: oControl.GetClassType(),
+						lvl: lvl
 					})
 				})
 			}
-			bTable = elementsInfo.m_bTable
+			
 		}
-		return {
-			bTable,
-			drawings,
-			parentSdts,
-			column_num
-		}
+		return result 
 	}, false, false).then(res => {
 		window.Asc.plugin.executeMethod('AddContextMenuItem', [getContextMenuItems(options.type, res)])
 	})
@@ -168,11 +240,11 @@ function getContextMenuItems(type, selectedRes) {
 			id: 'handleImageIgnore',
 			text: '图片铺码',
 			items: [{
-				id: 'handleImageIgnore_del',
+				id: 'handleImageIgnore:del',
 				text: '开启',
 				disabled: ignoreCount == 0
 			}, {
-				id: 'handleImageIgnore_add',
+				id: 'handleImageIgnore:add',
 				text: '关闭',
 				disabled: ignoreCount == count
 			}]
@@ -184,13 +256,13 @@ function getContextMenuItems(type, selectedRes) {
 		if (type == 'Shape') {
 			if (writeCount) {
 				items.push({
-					id: 'updateControlType_writeZone_del',
+					id: 'updateControlType:writeZone:del',
 					text: '删除作答区'
 				})
 			}
 			if (identifyCount) {
 				items.push({
-					id: 'updateControlType_identify_del',
+					id: 'updateControlType:identify:del',
 					text: '删除识别框'
 				})	
 			}
@@ -213,7 +285,7 @@ function getContextMenuItems(type, selectedRes) {
 						})
 						if (askIndex == -1) {
 							askIndex = question_map[id].ask_list.findIndex(e => {
-								return e.other_fileds && e.other_fileds.includes(tag.client_id)
+								return e.other_fields && e.other_fields.includes(tag.client_id)
 							})
 							if (askIndex >= 0) {
 								cData = { ques_id: id, ask_id: tag.client_id, is_merge: true, level_type: 'ask'}
@@ -222,6 +294,10 @@ function getContextMenuItems(type, selectedRes) {
 							cData = { ques_id: id, ask_id: tag.client_id, is_merge: false, ask_index: askIndex, level_type: 'ask'}
 						}
 						if (askIndex >= 0) {
+							if (question_map[id].ask_list[askIndex].other_fields && question_map[id].ask_list[askIndex].other_fields.length) {
+								cData.is_merge_ask = true
+								cData.ask_id = tag.client_id
+							}
 							break
 						}
 					} else if (tag.mid && id == tag.mid) {
@@ -240,6 +316,30 @@ function getContextMenuItems(type, selectedRes) {
 							if (cData.level_type == 'question' && nodeData.is_big) {
 								cData.level_type = 'big'
 							}
+							if ( type != 'Selection' && 
+								selectedRes.cells && 
+								selectedRes.cells.length == 1 && 
+								nodeData.write_list && 
+								question_map[cData.ques_id] && 
+								question_map[cData.ques_id].ask_list) {
+								var cellId = selectedRes.cells[0].Id
+								var cellRecordId = selectedRes.cells[0].recordId
+								var cellWrite = nodeData.write_list.find(e => {
+									return e.sub_type == 'cell' && (e.cell_id == cellId || e.id == cellRecordId)
+								})
+								if (cellWrite) {
+									var find = question_map[cData.ques_id].ask_list.find(e => {
+										return e.id == cellWrite.id || (e.other_fields && e.other_fields.includes(cellWrite.id))
+									})
+									if (find) {
+										cData.level_type = 'ask'
+										if (find.other_fields && find.other_fields.length) {
+											cData.is_merge_ask = true
+											cData.ask_id = cellWrite.id
+										}
+									}
+								}
+							}
 						}
 					}
 				}
@@ -252,7 +352,7 @@ function getContextMenuItems(type, selectedRes) {
 							cData = {
 								level_type: '',
 								parent_level_type: pData.level_type,
-								parent_id: tag2.client_id
+								parent_id: tag2.mid || tag2.client_id
 							}
 							break
 						}
@@ -293,12 +393,26 @@ function getContextMenuItems(type, selectedRes) {
 				text: '设置为 - 小问',
 				icon: 'rect'
 			}, {
+				value: 'mergedAsk',
+				text: '合并为 - 一问',
+				icon: 'rect'
+			},
+			{
+				value: 'choiceOption',
+				text: '设置为 - 选项',
+				icon: 'rect'
+			}, 
+			{
 				value: 'clearBig',
 				text: '清除 - 大题',
 				icon: 'clear'
 			}, {
 				value: 'clearChildren',
 				text: '清除 - 所有小问',
+				icon: 'clear'
+			}, {
+				value: 'clearMergeAsk',
+				text: '解除 - 小问合并',
 				icon: 'clear'
 			}, {
 				value: 'clearMerge',
@@ -327,21 +441,30 @@ function getContextMenuItems(type, selectedRes) {
 				}
 			}
 			var cData = null
+			var lvl = null
 			var curControl = null
 			if (selectedRes.parentSdts.length) {
 				curControl = selectedRes.parentSdts[selectedRes.parentSdts.length - 1]
+				lvl = curControl.lvl
 			} else if (g_click_value) {
 				curControl = g_click_value
 			}
 			if (curControl) {
 				var tag = getJsonData(curControl.Tag)
 				cData = getControlData(tag)
+				console.log('cData', cData)
 				if (curControl.classType == 'blockLvlSdt') {
 					valueMap['clearChildren'] = 1
 					if (!cData || !cData.level_type) {
 						valueMap['question'] = 1
 						valueMap['struct'] = 1
 					}
+				} else if (curControl.classType == 'inlineLvlSdt' && 
+					tag.regionType == 'choiceOption' && 
+					cData.parent_id && 
+					question_map[cData.parent_id] && 
+					(question_map[cData.parent_id].ques_mode == 1 || question_map[cData.parent_id].ques_mode == 5)) {
+					valueMap['choiceOption'] = 1
 				}
 			}
 			if (cData) {
@@ -350,6 +473,15 @@ function getContextMenuItems(type, selectedRes) {
 					valueMap['struct'] = 1
 					if (cData.level_type == 'question' || cData.level_type == 'big') {
 						valueMap['write'] = 1
+						if (question_map[cData.ques_id] && (question_map[cData.ques_id].ques_mode == 1 || question_map[cData.ques_id].ques_mode == 5)) {
+							valueMap['choiceOption'] = 1
+						}
+						if (selectedRes.cells && selectedRes.cells.length > 1) {
+							console.log('支持合并小问')
+							valueMap['mergedAsk'] = 1
+						} else {
+							console.log('================ 未满足单元格条件', selectedRes.cells)
+						}
 					}
 					if (cData.level_type == 'big') {
 						valueMap['clearBig'] = 1
@@ -361,7 +493,9 @@ function getContextMenuItems(type, selectedRes) {
 							valueMap['clearMerge'] = 1
 						} else {
 							valueMap['struct'] = 1
-							valueMap['setBig'] = 1
+							if (lvl) {
+								valueMap['setBig'] = 1
+							}
 							if (selectedRes.bTable) {
 								valueMap['write'] = 1
 							}
@@ -375,6 +509,9 @@ function getContextMenuItems(type, selectedRes) {
 						valueMap['clearBig'] = 1
 					} else if (cData.level_type == 'ask') {
 						splitType.text += '(现为小问)'
+						if (cData.is_merge_ask) {
+							valueMap['clearMergeAsk'] = 1
+						}
 						// if (cData.classType == 'blockLvlSdt') {
 						// 	valueMap['question'] = 1
 						// }
@@ -386,9 +523,13 @@ function getContextMenuItems(type, selectedRes) {
 			
 			list.forEach((e, index) => {
 				if (valueMap[e.value]) {
+					var id = `updateControlType:${e.value}`
+					if (e.value == 'clearMergeAsk') {
+						id = `clearMergeAsk:${cData.ques_id}:${cData.ask_id}`
+					}
 					splitType.items.push({
 						icons: `resources/%theme-type%(light|dark)/%state%(normal)${e.icon}%scale%(100|200).%extension%(png)`,
-						id: `updateControlType_${e.value}`,
+						id: id,
 						text: e.text
 					})
 				}
@@ -398,13 +539,13 @@ function getContextMenuItems(type, selectedRes) {
 				if (cData.level_type == 'ask') {
 					if (!cData.is_merge && cData.ask_index > 0) {
 						items.push({
-							id: `mergeAsk_${cData.ques_id}_${cData.ask_id}_1`,
+							id: `mergeAsk:${cData.ques_id}:${cData.ask_id}:1`,
 							text: '向前合并'
 						})
 					}
 					if (cData.is_merge) {
 						items.push({
-							id: `mergeAsk_${cData.ques_id}_${cData.ask_id}_0`,
+							id: `mergeAsk:${cData.ques_id}:${cData.ask_id}:0`,
 							text: '取消合并'
 						})
 					}
@@ -413,10 +554,10 @@ function getContextMenuItems(type, selectedRes) {
 						id: 'write',
 						text: '作答区',
 						items: [{
-							id: 'updateControlType_writeZone_add',
+							id: 'updateControlType:writeZone:add',
 							text: '添加',
 						}, {
-							id: 'updateControlType_writeZone_del',
+							id: 'updateControlType:writeZone:del',
 							text: '删除',
 						}]
 					})
@@ -425,11 +566,11 @@ function getContextMenuItems(type, selectedRes) {
 						text: '识别框',
 						items: [
 							{
-								id: 'updateControlType_identify_add',
+								id: 'updateControlType:identify:add',
 								text: '添加',
 							},
 							{
-								id: 'updateControlType_identify_del',
+								id: 'updateControlType:identify:del',
 								text: '删除',
 							},
 						],
@@ -441,14 +582,14 @@ function getContextMenuItems(type, selectedRes) {
 				var questypes = window.BiyueCustomData.paper_options ? window.BiyueCustomData.paper_options.question_type : []
 				var itemsQuesType = questypes.map((e) => {
 					return {
-						id: `batchChangeQuesType_${e.value}`,
+						id: `batchChangeQuesType:${e.value}`,
 						text: e.label,
 					}
 				})
 				var itemsProportion = []
 				for (var i = 1; i <= 8; ++i) {
 					itemsProportion.push({
-						id: `batchChangeProportion_${i}`,
+						id: `batchChangeProportion:${i}`,
 						text: i == 1 ? '默认' : `1/${i}`,
 					})
 				}
@@ -471,15 +612,15 @@ function getContextMenuItems(type, selectedRes) {
 							text: '修改互动模式',
 							items: [
 								{
-									id: 'batchChangeInteraction_none',
+									id: 'batchChangeInteraction:none',
 									text: '无互动',
 								},
 								{
-									id: 'batchChangeInteraction_simple',
+									id: 'batchChangeInteraction:simple',
 									text: '简单互动',
 								},
 								{
-									id: 'batchChangeInteraction_accurate',
+									id: 'batchChangeInteraction:accurate',
 									text: '精准互动',
 								},
 							],
@@ -497,13 +638,13 @@ function getContextMenuItems(type, selectedRes) {
 		if (selectedRes.column_num) {
 			if (selectedRes.column_num != 2) {
 				items.push({
-					id: 'setSectionColumn_2',
+					id: 'setSectionColumn:2',
 					text: '分为2栏'
 				})
 			}
 			if (selectedRes.column_num > 1) {
 				items.push({
-					id: 'setSectionColumn_1',
+					id: 'setSectionColumn:1',
 					text: '取消分栏'
 				})
 			}
@@ -519,7 +660,7 @@ function getContextMenuItems(type, selectedRes) {
 }
 
 function onContextMenuClick(id) {
-	var strs = id.split('_')
+	var strs = id.split(':')
 	if (strs && strs.length > 0) {
 		var funcName = strs[0]
 		switch (funcName) {
@@ -528,6 +669,9 @@ function onContextMenuClick(id) {
 					typeName: strs[1],
 					cmd: strs[2] ? strs[2] : null
 				})
+				break
+			case 'clearMergeAsk':
+				clearMergeAsk(strs)
 				break
 			case 'batchChangeQuesType':
 				batchChangeQuesType(strs[1])
@@ -665,7 +809,9 @@ function getNodeList() {
 					} else if (oElement.GetClassType() == 'blockLvlSdt') {
 						getBlockWriteList(oElement, write_list)
 					} else if (oElement.GetClassType() == 'table') {
+						// todo..可能需要过滤下打分区
 						var rows = oElement.GetRowsCount()
+						var tableTitle = Api.ParseJSON(oElement.GetTableDescription()) || {}
 						for (var i1 = 0; i1 < rows; ++i1) {
 							var oRow = oElement.GetRow(i1)
 							var cells = oRow.GetCellsCount()
@@ -674,14 +820,17 @@ function getNodeList() {
 								var shd = oCell.Cell.Get_Shd()
 								var fill = shd.Fill
 								if (fill && fill.r == 255 && fill.g == 191 && fill.b == 191) {
+									var oldId = tableTitle[`${i1}_${i2}`]
 									write_list.push({
 										id: 'c_' + oCell.Cell.Id,
 										sub_type: 'cell',
 										table_id: oElement.Table.Id,
 										cell_id: oCell.Cell.Id,
 										row_index: i1,
-										cell_index: i2
+										cell_index: i2,
+										old_id: oldId
 									})
+									tableTitle[`${i1}_${i2}`] = 'c_' + oCell.Cell.Id
 								} else {
 									var oCellContent = oCell.GetContent()
 									var cnt1 = oCellContent.GetElementsCount()
@@ -699,6 +848,7 @@ function getNodeList() {
 								}
 							}
 						}
+						oElement.SetTableDescription(JSON.stringify(tableTitle))
 					}
 				}
 				var nodeObj = {
@@ -736,7 +886,7 @@ function handleChangeType(res, res2) {
 	var change_list = res.change_list || []
 	if (change_list.length == 0) {
 		if (res.typeName != 'clearChildren') {
-			return	
+			return
 		}
 	}
 	if (res.client_node_id) {
@@ -745,12 +895,16 @@ function handleChangeType(res, res2) {
 	var node_list = window.BiyueCustomData.node_list || []
 	var question_map = window.BiyueCustomData.question_map || {}
 	var level_type = res.typeName
+	if (res.typeName == 'mergedAsk') {
+		level_type = 'write'
+	}
 	var targetLevel = level_type
 	if (res.typeName == 'setBig' || res.typeName == 'clearBig') {
 		targetLevel = 'question'
 	}
 	var addIds = []
 	var update_node_id = g_click_value ? g_click_value.Tag.client_id : 0
+	var other_asks_remove = []
 	function updateAskList(qid, ask_list) {
 		var old_list = question_map[qid].ask_list || []
 		var new_list = []
@@ -767,7 +921,31 @@ function handleChangeType(res, res2) {
 		}
 		question_map[qid].ask_list = new_list
 	}
+	function removeUnvalidAsk(qid, write_list) {
+		let old_list = question_map[qid].ask_list || [];
+		old_list = old_list.filter(item => {
+			// 处理 other_fields
+			if (item.other_fields) {
+				item.other_fields = item.other_fields
+					.map(otherField => {
+						// 在 write_list 中寻找匹配的 id 或 old_id
+						const validItem = write_list.find(e => e.id === otherField.id || e.old_id === otherField.id);
+						return validItem ? validItem.id : null;
+					})
+					.filter(id => id !== null); // 过滤掉无效的 id
+			}
 
+			// 检查主 id
+			const validMainItem = write_list.find(e => e.id === item.id || e.old_id === item.id);
+			if (validMainItem) {
+				item.id = validMainItem.id;
+				return true;
+			}
+			return false;
+		});
+		// 更新 question_map 中的 ask_list
+		question_map[qid].ask_list = old_list;
+	}
 	function updateScore(qid) {
 		if (question_map[qid] && question_map[qid].ask_list && question_map[qid].mark_mode != 2) {
 			var sum = 0
@@ -811,6 +989,45 @@ function handleChangeType(res, res2) {
 		}
 		return aindex
 	}
+	function addOtherRemove(ques_id, ask_id) {
+		if (question_map[ques_id] && question_map[ques_id].ask_list) {
+			var flag = 0
+			for (var i = 0; i < question_map[ques_id].ask_list.length; ++i) {
+				if (question_map[ques_id].ask_list[i].id == ask_id) {
+					flag = 1
+				}
+				if (question_map[ques_id].ask_list[i].other_fields) {
+					if (flag == 0) {
+						var j = question_map[ques_id].ask_list[i].other_fields.findIndex(e => {
+							return e == ask_id
+						})
+						if (j >= 0) {
+							flag = 2
+							question_map[ques_id].ask_list[i].other_fields.splice(j, 1)
+							other_asks_remove.push({
+								ques_id: ques_id,
+								ask_id: question_map[ques_id].ask_list[i].id
+							})
+						}
+					}
+					if (flag) {
+						question_map[ques_id].ask_list[i].other_fields.forEach(e => {
+							other_asks_remove.push({
+								ques_id: ques_id,
+								ask_id: e
+							})
+						})
+						if (flag == 1) {
+							question_map[ques_id].ask_list.splice(i, 1)
+						}
+						return true
+					}
+				}
+			}
+			return true
+		}
+		return false
+	}	
 	if (res.typeName == 'mergeQuestion') {
 		var writelist = []
 		change_list.forEach((item, idx) => {
@@ -936,10 +1153,8 @@ function handleChangeType(res, res2) {
 						if (level_type == 'setBig' || level_type == 'clearBig') {
 							question_map[item.client_id].text = getQuesText(item.text)
 							question_map[item.client_id].ques_default_name = item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(targetLevel, item.text)
-							question_map[item.client_id].level_type = targetLevel
-						} else {
-							question_map[item.client_id].level_type = targetLevel
 						}
+						question_map[item.client_id].level_type = targetLevel
 					}
 				} else if (targetLevel == 'struct') {
 					question_map[item.client_id] = {
@@ -1000,6 +1215,7 @@ function handleChangeType(res, res2) {
 									})
 									updateScore(real_parent_id)
 								}
+								removeUnvalidAsk(real_parent_id, ndata.write_list)
 							}
 						}
 						if (ndata) {
@@ -1062,14 +1278,8 @@ function handleChangeType(res, res2) {
 						}
 					}
 					var real_parent_id = nodeData && nodeData.merge_id ? nodeData.merge_id : item.parent_id
-					if (question_map[real_parent_id] && question_map[real_parent_id].ask_list) {
-						var ask_index = question_map[real_parent_id].ask_list.findIndex(e => {
-							return e.id == item.client_id
-						})
-						if (ask_index >= 0) {
-							question_map[real_parent_id].ask_list.splice(ask_index, 1)
-							updateScore(real_parent_id)
-						}
+					if (addOtherRemove(real_parent_id, item.client_id)) {
+						updateScore(real_parent_id)
 						addIds.push(real_parent_id)
 					}
 				}
@@ -1111,7 +1321,19 @@ function handleChangeType(res, res2) {
 		typequesId = update_node_id
 	}
 	if (typequesId) {
-		return imageAutoLink(typequesId, false).then((res3) => {
+		return reqGetQuestionType([typequesId], 1)
+		.then((res2) => {
+			if (window.BiyueCustomData.question_map[typequesId].ques_mode == 1 || window.BiyueCustomData.question_map[typequesId].ques_mode == 5) {
+				return extractChoiceOptions([typequesId], false)
+			} else {
+				return new Promise((resolve, reject) => {
+					resolve()
+				})
+			}
+		})
+		.then(() => {
+			return imageAutoLink(typequesId, false)
+		}).then((res3) => {
 			if (res3.rev) {
 				return ShowLinkedWhenclickImage({
 					client_id: typequesId
@@ -1121,8 +1343,42 @@ function handleChangeType(res, res2) {
 					resolve()
 				})
 			}
-		}).then(() => {
+		})
+		.then(() => {
 			return splitControl(typequesId)
+		})
+	}
+	if (res.typeName == 'mergedAsk') {
+		return new Promise((resolve, reject) => {
+			mergeOneAsk({
+				ques_id: update_node_id,
+				cmd: 'in',
+				ask_ids: res.change_list.filter(e => {
+					return e.regionType == 'write' && e.type == ''
+				}).map(e => {
+					return e.client_id
+				})
+			})
+			resolve()
+		}).then(() => {
+			if (updateinteraction) {
+				return setInteraction(interaction, addIds)
+			} else {
+				return new Promise((resolve, reject) => {
+					resolve()
+				})
+			}
+		}).then(() => {
+			return notifyQuestionChange(update_node_id)
+		})
+		.then(() => {
+			window.biyue.StoreCustomData()
+		})
+	}
+	if ((res.typeName == 'clear' || res.typeName == 'clearAll') && other_asks_remove.length) {
+		// 需要考虑集中作答区，互动同步
+		return deleteAsks(other_asks_remove, true, true).then(() => {
+			window.biyue.StoreCustomData()
 		})
 	}
 	var updateLinked = res.link_updated
@@ -1308,6 +1564,8 @@ function batchChangeQuesType(type) {
 		var question_map = window.BiyueCustomData.question_map || {}
 		var judgeChoiceAll = false
 		var choice_ids = []
+		var choice_option_add = []
+		var choice_option_remove = []
 		var useGather = window.BiyueCustomData.choice_display && window.BiyueCustomData.choice_display.style != 'brackets_choice_region'
 		var interaction_ids = []
 		res.list.forEach(e => {
@@ -1321,6 +1579,11 @@ function batchChangeQuesType(type) {
 				question_map[e.id].ques_mode = newMode
 				if (newMode == 1 || newMode == 5) {
 					choice_ids.push(e.id)
+					if (oldMode != 1 && oldMode != 5) {
+						choice_option_add.push(e.id)
+					}
+				} else if (oldMode == 1 || oldMode == 5) {
+					choice_option_remove.push(e.id)
 				}
 				if (!judgeChoiceAll && useGather) {
 					judgeChoiceAll = (newMode == 1 || newMode == 5 || oldMode == 1 || oldMode == 5)
@@ -1341,6 +1604,8 @@ function batchChangeQuesType(type) {
 		}
 		return {
 			choice_ids,
+			choice_option_add,
+			choice_option_remove,
 			judgeChoiceAll,
 			interaction_ids
 		}
@@ -1374,7 +1639,18 @@ function batchChangeQuesType(type) {
 				resolve(res)
 			}
 		})
-	})).then(() => {
+	})).then((res) => {
+		if (res.choice_option_add.length) {
+			return extractChoiceOptions(res.choice_option_add, true)
+		} else if (res.choice_option_remove.length) {
+			return removeChoiceOptions(res.choice_option_remove)
+		} else {
+			return new Promise((resolve, reject) => {
+				resolve()
+			})
+		}
+	})
+	.then(() => {
 		window.biyue.StoreCustomData()
 	})
 }
@@ -1570,6 +1846,9 @@ function initControls() {
 				}
 			} else if (tagInfo.regionType == 'num') {
 				tagInfo.clr = tagInfo.color = '#ffffff40'
+				changecolor = true
+			} else if (tagInfo.regionType == 'choiceOption') {
+				tagInfo.color = '#00ff0020'
 				changecolor = true
 			}
 			if (!changecolor && tagInfo.color) {
@@ -1927,7 +2206,11 @@ function confirmLevelSet(levels) {
 	})
 	.then(() => {
 		return refreshTree()
-	}).then(() => {
+	})
+	.then(() => {
+		return extractChoiceOptions()
+	})
+	.then(() => {
 		return imageAutoLink()
 	}).then(() => {
 		console.log("================================ StoreCustomData")
@@ -2004,9 +2287,10 @@ function getQuesMode(question_type) {
 	return ques_mode
 }
 
-function getQuestionHtml(ids) {
+function getQuestionHtml(ids, getLatestParent) {
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	Asc.scope.html_ids = ids
+	Asc.scope.getLatestParent = getLatestParent
 	return biyueCallCommand(window, function() {
 		var question_map = Asc.scope.question_map || {}
 		var target_list = []
@@ -2014,6 +2298,7 @@ function getQuestionHtml(ids) {
 		var controls = oDocument.GetAllContentControls() || []
 		var handled = {}
 		var html_ids = Asc.scope.html_ids
+		var getLatestParent = Asc.scope.getLatestParent
 		function getControlsByClientId(cid) {
 			var findControls = controls.filter(e => {
 				var tag = Api.ParseJSON(e.GetTag())
@@ -2027,23 +2312,10 @@ function getQuestionHtml(ids) {
 				return findControls[0]
 			}
 		}
-		for (var oControl of controls) {
-			var tagInfo = Api.ParseJSON(oControl.GetTag())
-			if (tagInfo.regionType != 'question' || !tagInfo.client_id) {
-				continue
+		function addHtml(qId, quesId, quesData, oControl, lvldata) {
+			if (!quesData) {
+				return
 			}
-			var quesId = tagInfo.mid && question_map[tagInfo.mid] ? tagInfo.mid : tagInfo.client_id
-			if (handled[quesId]) {
-				continue
-			}
-			if (html_ids && html_ids.indexOf(quesId) < 0) {
-				continue
-			}
-			var quesData = question_map[quesId]
-			if (!quesData || quesData.level_type != 'question') {
-				continue
-			}
-			handled[quesId] = true
 			var oRange = null
 			if (quesData.is_merge && quesData.ids) {
 				quesData.ids.forEach(id => {
@@ -2073,20 +2345,175 @@ function getQuestionHtml(ids) {
 				};
 
 				Api.asc_CheckCopy(text_data, 2);
-				target_list.push({
+				var lvltext = ''
+				if (lvldata && lvldata.text) {
+					lvltext = `<div>${lvldata.text}</div>`
+				}
+				var obj = {
 					id: quesId + '',
 					content_type: quesData.level_type,
-					content_html: text_data.data
+					content_html:  lvltext + text_data.data
+				}
+				var index = target_list.findIndex(e => {
+					return e.id == qId
 				})
+				if (quesId != qId) {
+					if (getLatestParent == 1) {
+						target_list.push(obj)
+					} else {
+						if (index >= 0) {
+							target_list[index].context_list.push(obj)
+						} else {
+							target_list.push({
+								id: qId + '',
+								context_list: [obj]
+							})
+						}
+					}
+				} else {
+					if (index >= 0) {
+						target_list[index].content_type = quesData.level_type
+						target_list[index].content_html = lvltext + text_data.data
+					} else {
+						target_list.push(obj)
+					}
+				}
 			}
+		}
+		function getFirstParagraph(oControl) {
+			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
+				return null
+			}
+			var paragraphs = oControl.GetAllParagraphs()
+			for (var i = 0; i < paragraphs.length; ++i) {
+				var oParagraph = paragraphs[i]
+				if (oParagraph) {
+					var parent1 = oParagraph.Paragraph.Parent
+					var parent2 = parent1.Parent
+					if (parent2 && parent2.Id == oControl.Sdt.GetId()) {
+						return oParagraph
+					}
+				}
+			}
+			return null
+		}
+		function getLvl(oControl, paraIndex) {
+			var oParagraph = getFirstParagraph(oControl)
+			if (!oParagraph) {
+				return null
+			}
+			var oNumberingLevel = oParagraph.GetNumbering()
+			if (oNumberingLevel) {
+				if (oNumberingLevel.Num) {
+					var lvl = oNumberingLevel.Num.GetLvl(oNumberingLevel.Lvl)
+					if (lvl) {
+						var LvlText = lvl.GetLvlText() || []
+						var list = []
+						LvlText.forEach(e => {
+							list.push(e.Value)
+						})
+						return {
+							lvl: oNumberingLevel.Lvl,
+							text: list.join('')
+						}
+					}
+				}
+				
+				return {
+					lvl: oNumberingLevel.Lvl,
+					text: ''
+				}
+			}
+			return null
+		}
+		function getQueId(oControl) {
+			var tagInfo = Api.ParseJSON(oControl.GetTag())
+			if (!tagInfo.client_id) {
+				return null
+			}
+			return tagInfo.mid && question_map[tagInfo.mid] ? tagInfo.mid : tagInfo.client_id
+		}
+		for (var i = 0; i < controls.length; ++i) {
+			var oControl = controls[i]
+			var quesId = getQueId(oControl)
+			if (handled[quesId]) {
+				continue
+			}
+			if (html_ids && html_ids.findIndex(e => { return e == quesId }) < 0) {
+				continue
+			}
+			var quesData = question_map[quesId]
+			if (!quesData || (quesData.level_type != 'question' && quesData.level_type != 'struct')) {
+				continue
+			}
+			handled[quesId] = true
+			var lvl1 = getLvl(oControl, 0)
+			if (getLatestParent) {
+				var flag = 0
+				var oParentControl = oControl.GetParentContentControl()
+				if (oParentControl) {
+					var parentId = getQueId(oParentControl)
+					if (parentId && question_map[parentId]) {
+						addHtml(quesId, parentId, question_map[parentId], oParentControl, getLvl(oParentControl, 0))
+						flag = 1
+					}
+				}
+				if (!flag) {
+					var prelvl
+					for (var j = i - 1; j >= 0; --j) {
+						var oControl2 = controls[j]
+						if (oControl2.GetClassType() != 'blockLvlSdt') {
+							continue
+						}
+						var tag2 = Api.ParseJSON(oControl2.GetTag())
+						if (!tag2.client_id) {
+							continue
+						}
+						var quesId2 = tag2.mid && question_map[tag2.mid] ? tag2.mid : tag2.client_id
+						if (question_map[quesId2] && question_map[quesId2].level_type == 'struct') {
+							addHtml(quesId, quesId2, question_map[quesId2], oControl2)
+							break
+						}
+						var lvl2 = getLvl(oControl2, 0)
+						if (lvl1 == null) {
+							if (lvl2 !== null) {
+								if (prelvl) {
+								} else {
+									if (question_map[quesId2] && question_map[quesId2].ques_mode == 6) { // 文本题
+										addHtml(quesId, quesId2, question_map[quesId2], oControl2, lvl2)
+										break
+									} else {
+										if (prelvl) {
+											if (lvl2.lvl < prelvl) {
+												addHtml(quesId, quesId2, question_map[quesId2], oControl2, lvl2)
+												break
+											}
+										} else {
+											prelvl = lvl2.lvl
+										}
+									}
+								}
+							}
+						} else {
+							if (lvl2 === null) {
+								continue
+							} else if (lvl2.lvl < lvl1.lvl) {
+								addHtml(quesId, quesId2, question_map[quesId2], oControl2, lvl2)
+								break
+							}
+						}
+					}
+				}
+			}
+			addHtml(quesId, quesId, quesData, oControl, lvl1)
 		}
 		return target_list
 	}, false, false)
 }
 
 // 获取题型
-function reqGetQuestionType() {
-	return getQuestionHtml().then(control_list => {
+function reqGetQuestionType(ids, getLatestParent) {
+	return getQuestionHtml(ids, getLatestParent).then(control_list => {
 		console.log('[reqGetQuestionType] control_list', control_list)
 		return new Promise((resolve, reject) => {
 			if (!window.BiyueCustomData.paper_uuid || !control_list || control_list.length == 0) {
@@ -2260,7 +2687,7 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 					}
 				} else {
 					deleteControlAccurate(childControls[j])
-					if (childTag.regionType != 'num') {
+					if (childTag.regionType != 'num' && childTag.regionType != 'choiceOption') {
 						Api.asc_RemoveContentControlWrapper(childControls[j].Sdt.GetId())
 					}
 				}
@@ -2292,6 +2719,11 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 				if (question_map[id].interaction != 'none') {
 					updateAccurateText(validIds[blankIndex].control_id)
 				}
+				var score = 0
+				question_map[id].ask_list.forEach(e => {
+					score += e.score * 1
+				})
+				question_map[id].score = score
 			}
 			nodeData.write_list = write_list
 		}
@@ -2456,7 +2888,7 @@ function reqUploadTree() {
 	}).then(() => {
 		return handleUploadPrepare('hide')
 	}).then(() => {
-		return getChoiceQuesData()
+		return getChoiceOptionAndSteam() // getChoiceQuesData()
 	}).then((res) => {
 		Asc.scope.choice_html_map = res
 		return getControlListForUpload()
@@ -2473,6 +2905,104 @@ function reqUploadTree() {
 		  }
 	})
 }
+// 等后端支持结构和题目可同级出现在结构下时，再取代旧代码
+function getControlListForUpload2(tree_info) {
+	Asc.scope.tree_info = tree_info
+	Asc.scope.node_list = window.BiyueCustomData.node_list
+    Asc.scope.question_map = window.BiyueCustomData.question_map
+	return biyueCallCommand(window, function() {
+		var target_list = []
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls()
+		var question_map = Asc.scope.question_map
+		var tree_info = Asc.scope.tree_info
+		var handledcontrol = {}
+		for (var i = 0, imax = controls.length; i < imax; ++i) {
+			var oControl = controls[i]
+			if (handledcontrol[oControl.Sdt.GetId()]) {
+				continue
+			}
+			var tag = Api.ParseJSON(oControl.GetTag() || '{}')
+			if (tag.regionType != 'question' || !tag.client_id) {
+				continue
+			}
+			var quesData
+			var clientid = tag.mid ? tag.mid : tag.client_id
+			var quesData = question_map[clientid]
+			if (!quesData) {
+				continue
+			}
+			if (!question_map[clientid].level_type) {
+				continue
+			}
+			var itemData = tree_info.list.find(e => {
+				return e.id == clientid
+			})
+			if (!itemData) {
+				continue
+			}
+			var parent_id = itemData.parent_id
+			var useControl = oControl
+			if (tag.big) {
+				var childcontrols = oControl.GetAllContentControls() || []
+				var bigControl = childcontrols.find(e => {
+					var btag = Api.ParseJSON(e.GetTag())
+					return e.GetClassType() == 'blockLvlSdt' && btag.onlybig == 1 && btag.link_id == tag.client_id
+				})
+				if (bigControl) {
+					useControl = bigControl
+				}
+			}
+			var oRange = null
+			if (tag.mid) {
+				for (var idkey in quesData.ids) {
+					var control = controls.find(e => {
+						var tag2 = Api.ParseJSON(e.GetTag())
+						return e.GetClassType() == 'blockLvlSdt' && e.GetPosInParent() >= 0 && tag2.client_id == quesData.ids[idkey] && tag2.mid == tag.mid
+					})
+					if (control) {
+						handledcontrol[control.Sdt.GetId()] = 1
+						var parentcell = control.GetParentTableCell()
+						if (!oRange) {
+							oRange = parentcell.GetContent().GetRange()
+						} else {
+							oRange = oRange.ExpandTo(parentcell.GetContent().GetRange())
+						}
+					}
+				}
+			} else {
+				handledcontrol[oControl.Sdt.GetId()] = 1
+				oRange = useControl.GetRange()
+			}
+			oRange.Select()
+			let text_data = {
+				data:     "",
+				// 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
+				pushData: function (format, value) {
+				this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : "";
+				}
+			};
+			Api.asc_CheckCopy(text_data, 2);
+			var content_html = text_data.data
+			target_list.push({
+				id: clientid + '',
+				parent_id: parent_id ? parent_id + '' : '',
+				uuid: question_map[clientid].uuid || '',
+				regionType: question_map[clientid].level_type,
+				content_type: question_map[clientid].level_type,
+				content_xml: '',
+				content_html: content_html,
+				content_text: oRange.GetText(),
+				question_type: question_map[clientid].question_type,
+				question_name: question_map[clientid].ques_name || question_map[clientid].ques_default_name,
+				control_id: oControl.Sdt.GetId(),
+				lvl: itemData.lvl
+			})
+		}
+		console.log('target_list', target_list)
+		return target_list
+	  }, false, false)
+}
 
 function getControlListForUpload() {
 	Asc.scope.node_list = window.BiyueCustomData.node_list
@@ -2484,20 +3014,31 @@ function getControlListForUpload() {
 		var question_map = Asc.scope.question_map
 		console.log('question_map', question_map)
 		var handledcontrol = {}
-		function getLvl(oControl, paraIndex) {
-			if (!oControl) {
+		function getFirstParagraph(oControl) {
+			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
 				return null
 			}
-			var paragrahs = oControl.GetAllParagraphs() || []
-			for (var i = 0; i < paragrahs.length; ++i) {
-				var oParagraph = paragrahs[i]
-				if (paraIndex != -1 && i > paraIndex) {
-					return null
+			var paragraphs = oControl.GetAllParagraphs()
+			for (var i = 0; i < paragraphs.length; ++i) {
+				var oParagraph = paragraphs[i]
+				if (oParagraph) {
+					var parent1 = oParagraph.Paragraph.Parent
+					var parent2 = parent1.Parent
+					if (parent2 && parent2.Id == oControl.Sdt.GetId()) {
+						return oParagraph
+					}
 				}
-				var oNumberingLevel = oParagraph.GetNumbering()
-				if (oNumberingLevel) {
-					return oNumberingLevel.Lvl
-				}
+			}
+			return null
+		}
+		function getLvl(oControl, paraIndex) {
+			var oParagraph = getFirstParagraph(oControl)
+			if (!oParagraph) {
+				return null
+			}
+			var oNumberingLevel = oParagraph.GetNumbering()
+			if (oNumberingLevel) {
+				return oNumberingLevel.Lvl
 			}
 			return null
 		}
@@ -2772,6 +3313,82 @@ function handleXml(controlId, content) {
 
 function handleXmlError() {
 	generateTreeForUpload(upload_control_list)
+}
+
+// 等后端支持结构和题目可同级出现在结构下时，再取代旧代码
+function generateTreeForUpload2(control_list) {
+	return new Promise((resolve, reject) => {
+		if (!control_list) {
+			reject(null)
+		}
+		var tree = []
+		var choicemap = Asc.scope.choice_html_map || {}
+
+		const map = {};
+		control_list.forEach(e => {
+			e.content_html = cleanHtml(e.content_html || '')
+			if (choicemap[e.id]) {
+				e.content_without_opt = cleanHtml(choicemap[e.id].steam || '')
+				e.options = []
+				if (choicemap[e.id].options) {
+					choicemap[e.id].options.forEach(option => {
+						e.options.push({
+							value: option.value,
+							html: cleanHtml(option.html)
+						})
+					})
+				}
+				e.option_type = choicemap[e.id].option_type
+			}
+			map[e.id] = { ...e, children: [] };
+		});
+		control_list.forEach(item => {
+			if (item.parent_id && item.parent_id != item.id) {
+				if (map[item.parent_id] && map[item.parent_id].children) {
+					map[item.parent_id].children.push(map[item.id]);
+				} else {
+					console.log('        cannot find parent', item);
+				}
+			} else {
+				tree.push(map[item.id]);
+			}
+		});
+		var uploadTree = {
+			id: "",
+			uuid: window.BiyueCustomData.paper_uuid,
+			question_type:0,
+			question_name:"",
+			content_type:"paper",
+			content_text:"",
+			content_xml:"",
+			content_html:"",
+			children: tree
+		}
+		console.log('               uploadTree', uploadTree)
+		var version = getTimeString()
+		reqComplete(uploadTree, version).then(res => {
+			console.log('reqComplete', res)
+			console.log('[reqUploadTree end]', Date.now())
+			if (res.data.questions) {
+				res.data.questions.forEach(e => {
+					window.BiyueCustomData.question_map[e.id].uuid = e.uuid
+				})
+				Object.keys(window.BiyueCustomData.question_map).forEach(e => {
+					var index = res.data.questions.findIndex(e2 => {
+						return e2.uuid == window.BiyueCustomData.question_map[e].uuid
+					})
+					if (index == -1) {
+						window.BiyueCustomData.question_map[e].uuid = ''
+					}
+				})
+			}
+			resolve(res)
+		}).catch(res => {
+			console.log('reqComplete fail', res)
+			console.log('[reqUploadTree end]', Date.now())
+			reject(res)
+		})
+	})
 }
 
 function generateTreeForUpload(control_list) {
@@ -3921,17 +4538,18 @@ function focusControl(id) {
 }
 
 function focusAsk(writeData) {
-	if (!writeData) {
+	if (!writeData || !(writeData.length)) {
 		return
 	}
 	Asc.scope.write_data = writeData
 	return biyueCallCommand(window, function() {
-		var write_data = Asc.scope.write_data
+		var writeList = Asc.scope.write_data || []
+		var write_data = writeList[0]
 		var oDocument = Api.GetDocument()
 		var drawings = oDocument.GetAllDrawingObjects() || []
 		var controls = oDocument.GetAllContentControls() || []
 		var oTables = oDocument.GetAllTables() || []
-		function getCell(write_data) {
+		function getCell(wData) {
 			for (var i = 0; i < oTables.length; ++i) {
 				var oTable = oTables[i]
 				if (oTable.GetPosInParent() == -1) { continue }
@@ -3940,14 +4558,13 @@ function focusAsk(writeData) {
 				if (keys.length) {
 					for (var j = 0; j < keys.length; ++j) {
 						var key = keys[j]
-						if (desc[key] == write_data.id) {
+						if (desc[key] == wData.id) {
 							var rc = key.split('_')
-							if (write_data.row_index == undefined) {
+							if (wData.row_index == undefined) {
 								return oTable.GetCell(rc[0], rc[1])
-							} else if (write_data.row_index == rc[0] && write_data.cell_index == rc[1]) {
+							} else if (wData.row_index == rc[0] && wData.cell_index == rc[1]) {
 								return oTable.GetCell(rc[0], rc[1])
 							}
-
 						}
 					}
 				}
@@ -3955,36 +4572,63 @@ function focusAsk(writeData) {
 			return null
 		}
 		if (write_data.sub_type == 'control') {
-			var oControls = controls.filter(e => {
-				var tag = Api.ParseJSON(e.GetTag())
-				if (tag.client_id == write_data.id && e.Sdt) {
-					if (e.GetClassType() == 'blockLvlSdt') {
-						return e.GetPosInParent() >= 0
-					} else if (e.GetClassType() == 'inlineLvlSdt') {
-						return e.Sdt.GetPosInParent() >= 0
-					}
+			var oRange = null
+			var ids = []
+			for (var wData of writeList) {
+				if (wData.sub_type != 'control') {
+					continue
 				}
-			})
-			if (oControls && oControls.length) {
-				if (oControls.length == 1) {
-					oDocument.Document.MoveCursorToContentControl(oControls[0].Sdt.GetId(), true)
-				}
-			}
-		} else if (write_data.sub_type == 'cell') {
-			if (write_data.cell_id) {
-				var oCell = Api.LookupObject(write_data.cell_id)
-				if (oCell && oCell.GetClassType() == 'tableCell') {
-					var table = oCell.GetParentTable()
-					if (table.GetPosInParent() == -1) {
-						oCell = getCell(write_data)
+				var oControls = controls.filter(e => {
+					var tag = Api.ParseJSON(e.GetTag())
+					if (tag.client_id == wData.id && e.Sdt) {
+						if (e.GetClassType() == 'blockLvlSdt') {
+							return e.GetPosInParent() >= 0
+						} else if (e.GetClassType() == 'inlineLvlSdt') {
+							return e.Sdt.GetPosInParent() >= 0
+						}
 					}
-					if (oCell) {
-						var cellContent = oCell.GetContent()
-						if (cellContent) {
-							cellContent.GetRange().Select()
+				})
+				if (oControls && oControls.length) {
+					if (oControls.length == 1) {
+						ids.push(oControls[0].Sdt.GetId())
+						if (oRange) {
+							oRange = oRange.ExpandTo(oControls[0].GetRange())
+						} else {
+							oRange = oControls[0].GetRange()
 						}
 					}
 				}
+			}
+			if (ids.length == 1) {
+				oDocument.Document.MoveCursorToContentControl(ids[0], true)
+			} else if (oRange) {
+				oRange.Select()
+			}
+		} else if (write_data.sub_type == 'cell') {
+			var oRange = null
+			for (var wData of writeList) {
+				if (wData.cell_id) {
+					var oCell = Api.LookupObject(wData.cell_id)
+					if (oCell && oCell.GetClassType() == 'tableCell') {
+						var table = oCell.GetParentTable()
+						if (table.GetPosInParent() == -1) {
+							oCell = getCell(wData)
+						}
+						if (oCell) {
+							var cellContent = oCell.GetContent()
+							if (cellContent) {
+								if (oRange) {
+									oRange = oRange.ExpandTo(cellContent.GetRange())
+								} else {
+									oRange = cellContent.GetRange()
+								}
+							}
+						}
+					}
+				}
+			}
+			if (oRange) {
+				oRange.Select()
 			}
 		} else if (write_data.sub_type == 'write' || write_data.sub_type == 'identify') {
 			var oDrawing = drawings.find(e => {
@@ -4061,382 +4705,6 @@ function setSectionColumn(column) {
             oSection.Section.Set_Columns_Num(column);
             oSection.Section.Set_Columns_Space((25.4 / 72 / 20) * 640)
 			oSection.Section.Set_Columns_Sep(true)
-		}
-	}, false, true)
-}
-
-// 设置选择题选项布局
-function setChoiceOptionLayout(options) {
-	Asc.scope.choice_align_options = options
-	return biyueCallCommand(window, function() {
-		var options = Asc.scope.choice_align_options
-		var oDocument = Api.GetDocument()
-		var controls = oDocument.GetAllContentControls()
-		var part = options.part
-		var identifyLeft = options.indLeft / ((25.4 / 72 / 20))
-		var spaceNum = options.spaceNum
-		var bracket = options.bracket
-		var AF = [65, 66, 67, 68, 69, 70] // A-F
-		var DOTS = [46, 65294] // 半角和全角的.
-		function removeTabAndBreak(oParagraph, firstText) {
-			var startFlag = 0
-			for (var i = 0; i < oParagraph.Paragraph.Content.length; ++i) {
-				var content = oParagraph.Paragraph.Content
-				if (!content[i]) {
-					oParagraph.RemoveElement(i)
-					--i
-					continue
-				}
-				if (content[i].Type != 39) { // 不是run
-					continue
-				}
-				var children1 = content[i].Content
-				if (!children1) {
-					oParagraph.RemoveElement(i)
-					--i
-					continue
-				}
-				for (var j = 0; j < content[i].Content.length; ++j) {
-					var type2 = content[i].Content[j].GetType()
-					if (type2 == 16 && startFlag == 0) {
-						continue
-					}
-					if (startFlag == 0 && content[i].Content[j].Value == firstText.charCodeAt(startFlag)) {
-						if (startFlag < firstText.length - 1) {
-							if (j + 1 < content[i].Content.length) {
-								if (content[i].Content[j + 1].Value == firstText.charCodeAt(startFlag + 1)) {
-									startFlag += 1
-								}
-							} else if (i + 1 < oParagraph.Paragraph.Content.length) {
-								if (content[i + 1] && content[i + 1].Type == 39 && content[i + 1].Content && content[i + 1].Content.length && content[i + 1].Content[0].Value == firstText.charCodeAt(startFlag + 1)) {
-									startFlag += 1
-								}
-							}
-						}
-					}
-					if (type2 == 21 || type2 == 16) { // tab or break
-						content[i].RemoveElement(content[i].Content[j])
-						--j
-					}
-				}
-				if (content[i].Content.length == 0) {
-					oParagraph.RemoveElement(i)
-					--i
-					continue
-				}
-			}
-		}
-		function addTabBreak(count, oRun) {
-			if (part == 1 || ((count + 1) % part == 0)) {
-				oRun.AddLineBreak()
-			} else {
-				oRun.AddTabStop()
-			}
-		}
-		function addTab(oParagraph, addrun, id, i, count) {
-			if (addrun) {
-				var newRun = Api.CreateRun()
-				addTabBreak(count, newRun)
-				oParagraph.AddElement(newRun, i + 1)
-				return i + 1
-			} else {
-				var oRun = Api.LookupObject(id)
-				addTabBreak(count, oRun)
-				return i
-			}
-		}
-		// 之后是否存在某个values中的某个字符
-		function afterHasValue(content, idx, jdx, values) {
-			for (var i = idx; i < content.length; ++i) {
-				if (!content[i]) {
-					continue
-				}
-				if (content[i].Type != 39) { // 不是run
-					continue
-				}
-				var begin = i == idx ? (jdx + 1) : 0
-				for (var j = begin; j < content[i].Content.length; ++j) {
-					if (values.indexOf(content[i].Content[j].Value) != -1) {
-						return {
-							idx: i,
-							jdx: j,
-							v: content[i].Content[j].Value
-						}
-					} else {
-						return null
-					}
-				}
-			}
-			return null
-		}
-		function needAdd(content, idx, jdx) {
-			for (var i = idx; i < content.length; ++i) {
-				if (!content[i]) {
-					continue
-				}
-				if (content[i].Type != 39) { // 不是run
-					continue
-				}
-				var begin = i == idx ? (jdx + 1) : 0
-				for (var j = begin; j < content[i].Content.length; ++j) {
-					var type3 = content[i].Content[j].GetType()
-					if (type3 == 2) { // 空格
-						continue
-					}
-					if (type3 == 1) {
-						if (content[i].Content[j].Value >= 65 &&
-							content[i].Content[j].Value <= 70 && 
-							afterHasValue(content, i, j, DOTS)) {
-							return false
-						} else {
-							return true
-						}
-					} else if (type3 == 22) { // drawing
-						return true
-					}
-				}
-			}
-			return false
-		}
-		function handleBracket(oControl) {
-			if (bracket == 'none' && spaceNum == 0) {
-				return
-			}
-			var askControls = (oControl.GetAllContentControls() || []).filter(e => {
-				if (e.GetClassType() == 'inlineLvlSdt') {
-					var askTag = Api.ParseJSON(e.GetTag())
-					return askTag.regionType == 'write' && askTag.client_id
-				}
-			})
-			if (!askControls || askControls.length == 0) {
-				return
-			}
-			for (var i = 0; i < askControls.length; ++i) {
-				var askControl = askControls[i]
-				var count = askControl.GetElementsCount()
-				var flag = 0
-				var spaceCount = 0
-				for (var j = 0; j < count; ++j) {
-					var oRun = askControl.GetElement(j)
-					if (!oRun.GetClassType || oRun.GetClassType() != 'run') {
-						continue
-					}
-					for (var k = 0; k < oRun.Run.GetElementsCount(); ++k) {
-						var oElement2 = oRun.Run.GetElement(k)
-						var newBarcket = null
-						if (oElement2.Value == 65288 || oElement2.Value == 40) { // 左括号
-							flag = 1
-							if (oElement2.Value == 65288 && bracket == 'eng') {
-								newBarcket = '('
-							} else if (oElement2.Value == 40 && bracket == 'ch') {
-								newBarcket = '（'
-							}
-						} else if (oElement2.Value == 65289 || oElement2.Value == 41) { // 右括号
-							if (flag == 1 && spaceCount < spaceNum) {
-								var str = ''
-								for (var k2 = 0; k2 < spaceNum - spaceCount; ++k2) {
-									str += ' '
-								}
-								spaceCount = spaceNum
-								oRun.Run.AddText(str, k)
-								k += str.length
-								continue
-							}
-							if (oElement2.Value == 65289 && bracket == 'eng') {
-								newBarcket = ')'
-							} else if (oElement2.Value == 41 && bracket == 'ch') {
-								newBarcket = '）'
-							}
-
-						} else if (flag == 1 && spaceNum > 0) {
-							if (oElement2.Value == 32) { // 空格
-								if (spaceCount >= spaceNum) {
-									oRun.Run.RemoveElement(oElement2)
-									--k
-								} else {
-									spaceCount++
-								}
-							} else {
-								oRun.Run.RemoveElement(oElement2)
-								--k
-							}
-						}
-						if (newBarcket) {
-							oRun.Run.RemoveElement(oElement2)
-							oRun.Run.AddText(newBarcket, k)
-						}
-					}
-				}
-			}
-		}
-		for (var qdx = 0; qdx < controls.length; ++qdx) {
-			var oControl = controls[qdx]
-			if (oControl.GetClassType() != 'blockLvlSdt') {
-				continue
-			}
-			if (oControl.GetPosInParent() < 0) {
-				continue
-			}
-			var tag = Api.ParseJSON(oControl.GetTag())
-			if (!tag.client_id) {
-				continue
-			}
-			if (!(options.list.includes(tag.client_id))) {
-				continue
-			}
-			var controlContent = oControl.GetContent()
-			handleBracket(oControl)
-			var oParagraph = null
-			var firstText = ''
-			for (var index = 0; index < controlContent.GetElementsCount(); ++index) {
-				var oElement = controlContent.GetElement(index)
-				if (!oElement) {
-					continue
-				}
-				if (oElement.GetClassType() == 'paragraph') {
-					var text = oElement.GetText()
-					var auto_align_patt = new RegExp(/(?<!data-latex="[^"]*)[A-F][.．].*?/g)
-					var autoAlignRegionArr = text.match(auto_align_patt) || []
-					if (autoAlignRegionArr.length) {
-						firstText = autoAlignRegionArr[0]
-						if (options.from == 'indLeft') {
-							if (options.indLeft >= 0) {
-								oElement.SetIndLeft(identifyLeft)
-								oElement.SetIndFirstLine(0)
-							}
-						} else if (part > 0) {
-							if (oParagraph) {
-								controlContent.RemoveElement(index)
-								var elCount = oElement.GetElementsCount()
-								var insertPos = oParagraph.GetElementsCount()
-								for (var i = elCount; i >= 0; --i) {
-									oParagraph.AddElement(oElement.GetElement(i), insertPos)
-								}
-								--index
-							} else {
-								oParagraph = oElement
-							}
-						}
-					}
-				} else {
-					break
-				}
-			}
-			if (options.from == 'indLeft') {
-				continue
-			}
-			if (!oParagraph) {
-				continue
-			}
-			// var text = oParagraph.GetRange().GetText()
-			if (options.indLeft >= 0) {
-				oParagraph.SetIndLeft(identifyLeft)
-				oParagraph.SetIndFirstLine(0)
-			}
-			if (part == 0) {
-				continue
-			}
-			var section = oParagraph.GetSection()
-			var PageMargins = section.Section.PageMargins
-			var PageSize = section.Section.PageSize
-			var count = 0
-			var w = PageSize.W - PageMargins.Left - PageMargins.Right
-			var tabs = []
-			for (var i = 1; i < part; ++i) {
-				tabs.push(i / part)
-			}
-			var newTabs = []
-			var aligns = []
-			tabs.forEach(e => {
-				newTabs.push((w * e) / (25.4 / 72 / 20) + identifyLeft)
-				aligns.push('left')
-			})
-			oParagraph.SetTabs(newTabs, aligns)
-			// 先删除所有的tab和break
-			removeTabAndBreak(oParagraph, firstText)
-			for (var i = 0; i < oParagraph.Paragraph.Content.length; ++i) {
-				var content = oParagraph.Paragraph.Content
-				if (!content[i]) {
-					oParagraph.RemoveElement(i)
-					--i
-					continue
-				}
-				if (content[i].Type != 39) { // 不是run
-					continue
-				}
-				var children1 = content[i].Content
-				if (!children1 || children1.length == 0) {
-					oParagraph.RemoveElement(i)
-					--i
-					continue
-				}
-				for (var j = 0; j < content[i].Content.length; ++j) {
-					var type2 = content[i].Content[j].GetType()
-					if (type2 == 1) { // text
-						var condition1 = afterHasValue(content, i, j, AF)
-						if (condition1) {
-							var condition2 = afterHasValue(content, condition1.idx, condition1.jdx, DOTS)
-							if (condition2) {
-								i = addTab(oParagraph, true, content[i].Id, i, count)
-								count++
-								break
-							}
-						}
-					} else if (type2 == 2) { // space
-						if (!needAdd(content, i, j)) {
-							if (j + 1 < content[i].Content.length) {
-								if (content[i].Content[j + 1].GetType() == 2) { // 下一个也是空格
-									content[i].RemoveElement(content[i].Content[j])
-									--j
-									continue
-								}
-							}
-							var condition1 = afterHasValue(content, i, j, AF)
-							if (condition1 && condition1.v != 65) {
-								var condition2 = afterHasValue(content, condition1.idx, condition1.jdx, DOTS)
-								if (condition2) {
-									content[i].RemoveElement(content[i].Content[j])
-									if (j < content[i].Content.length) {
-										var newRun = content[i].Split_Run(j)
-										var newRun1 = Api.CreateRun()
-										addTabBreak(count, newRun1)
-										oParagraph.AddElement(newRun1, i + 1)
-										oParagraph.Paragraph.Add_ToContent(i + 2, newRun)
-										--i
-									} else if (content[i].Content.length == 0) {
-										addTabBreak(count, Api.LookupObject(content[i].Id))
-									} else {
-										var newRun = Api.CreateRun()
-										addTabBreak(count, newRun)
-										oParagraph.AddElement(newRun, i + 1)
-										i++
-									}
-									count++
-									break
-								}
-							}
-							content[i].RemoveElement(content[i].Content[j])
-							if (content[i].Content.length == 0) {
-								oParagraph.RemoveElement(i)
-								--i
-								break
-							} else {
-								--j
-							}
-						}
-					} else if (type2 == 22) { // drawing
-						var condition1 = afterHasValue(content, i, j, AF)
-						if (condition1) {
-							var condition2 = afterHasValue(content, condition1.idx, condition1.jdx, DOTS)
-							if (condition2) {
-								i = addTab(oParagraph, condition1.idx == i, content[i].Id, i, count)
-								count++
-								break
-							}
-						}
-					}
-				}
-			}
 		}
 	}, false, true)
 }
@@ -5067,7 +5335,7 @@ function splitControl(qid) {
 					var cellContent = oCell.GetContent()
 					if (cellContent.GetElementsCount() == 1) {
 						var text = control.GetRange().Text
-						if (text.replace(/[\s\r\n]/g, '').length === 0) {
+						if (text && text.replace(/[\s\r\n]/g, '').length === 0) {
 							var oTable = oCell.GetParentTable()
 							result.change_list.push({
 								parent_id: obj.client_id,
@@ -5688,14 +5956,24 @@ function handleUploadPrepare(cmdType) {
 }
 
 function importExam() {
-	setBtnLoading('uploadTree', true)
 	setBtnLoading('importExam', true)
+	if (window.BiyueCustomData.page_type == 1) {
+		return handleUploadPrepare('hide')
+		.then(() => {
+			return getAllPositions2()
+		}).then(res => {
+			Asc.scope.questionPositions = res
+			window.biyue.showDialog('exportExamWindow', '上传试卷', 'examExport.html', 1000, 800, true)
+			setBtnLoading('importExam', false)
+		})
+	}
+	setBtnLoading('uploadTree', true)
 	setInteraction('none', null, false).then(() => {
 		return addOnlyBigControl(false)
 	}).then(() => {
 		return handleUploadPrepare('hide')
 	}).then(() => {
-		return getChoiceQuesData()
+		return getChoiceOptionAndSteam() // getChoiceQuesData()
 	}).then((res) => {
 		Asc.scope.choice_html_map = res
 		return getControlListForUpload()
@@ -5732,6 +6010,125 @@ function importExam() {
 		}
 	})
 }
+function clearMergeAsk(options) {
+	console.log('clearMergeAsk', options)
+	if (!options.length || options.length != 3) {
+		return
+	}
+	var question_map = window.BiyueCustomData.question_map || {}
+	var quesData = question_map[options[1]]
+	if (!quesData || !quesData.ask_list) {
+		return
+	}
+	var targetItem = quesData.ask_list.find(e => {
+		return e.id == options[2] || (e.other_fields && e.other_fields.findIndex(e => {
+			return e == options[2]
+		}) >= 0)
+	})
+	if (!targetItem) {
+		return
+	}
+	var node_list = window.BiyueCustomData.node_list || []
+	var nodeData = node_list.find(item => {
+		return item.id == options[1]
+	})
+	var newFields = targetItem.other_fields.map(id => ({
+		id: id,
+		score: 1
+	}))
+	delete targetItem.other_fields;
+	var ask_list = quesData.ask_list.concat(newFields);
+	ask_list = nodeData.write_list.map(writeItem =>
+        ask_list.find(askItem => askItem.id === writeItem.id)
+    )
+    .filter(item => item !== undefined);  // 过滤掉不存在的元素
+	quesData.ask_list = ask_list
+
+	// 集中作答区暂时先不考虑
+	return new Promise((resolve, reject) => {
+		if (quesData.ques_mode == 1 || quesData.ques_mode == 5) {
+			return deleteChoiceOtherWrite([options[1]], false).then(() => {
+				resolve()
+			})
+		} else {
+			resolve()
+		}
+	}).then(() => {
+		if (quesData.interaction == 'accurate') {
+			return setInteraction(quesData.interaction, [options[1]])
+		} else {
+			return new Promise((resolve, reject) => {
+				resolve()
+			})
+		}
+	}).then(() => {
+		notifyQuestionChange(options[1])
+		window.biyue.StoreCustomData()
+	})
+}
+// 合并小问纯粹只是逻辑上的改动，和OO无关
+function mergeOneAsk(options) {
+	if (!options.ask_ids || options.ask_ids.length == 0) {
+		return
+	}
+	var question_map = window.BiyueCustomData.question_map || {}
+	var quesData = question_map[options.ques_id]
+	if (!quesData || !quesData.ask_list) {
+		return
+	}
+	if (options.cmd == 'in') { // 合并
+		var other_fields = []
+		for (var i = 1; i < options.ask_ids.length; ++i) {
+			for (var j = 0; j < quesData.ask_list.length; ++j) {
+				if (quesData.ask_list[j].id == options.ask_ids[i]) {
+					quesData.ask_list.splice(j, 1)	
+					break
+				} else if (quesData.ask_list[j].other_fields) {
+					var k = quesData.ask_list[j].other_fields.findIndex(e => {
+						return e == options.ask_ids[i]
+					})
+					if (k >= 0) {
+						quesData.ask_list[j].other_fields.splice(k, 1)
+						break
+					}
+				}
+			}
+			other_fields.push(options.ask_ids[i])
+		}
+		var firstIndex = quesData.ask_list.findIndex(e => {
+			return e.id == options.ask_ids[0]
+		})
+		if (firstIndex != -1) {
+			quesData.ask_list[firstIndex].other_fields = other_fields
+		}
+	} else if (options.cmd == 'out') { // 解除合并
+		// 需要考虑解除合并后的小问顺序
+		var alist = [].concat(options.ask_list)
+		for (var i = 0; i < quesData.ask_list.length; ++i) {
+			var i1 = alist.findIndex(e => {
+				return e == alist[i].id
+			})
+			if (i1 >= 0) {
+				alist.splice(i1, 1)
+				continue
+			}
+			if (quesData.ask_list[i].other_fields) {
+				for (var i2 = 0; i2 < quesData.ask_list[i].other_fields.length; ++i2) {
+					var i3 = alist.findIndex(e => {
+						return e == quesData.ask_list[i].other_fields[i2]
+					})
+					if (i3 >= 0) {
+						quesData.ask_list.splice(i + 1, 0, {
+							id: alist[i3],
+							score: 1
+						})
+						alist.splice(i3, 1)
+					}
+				}
+			}
+		}
+	}
+}
 // 合并小问
 function mergeAsk(options) {
 	// 合并小问纯粹只是逻辑上的改动，和OO无关
@@ -5761,19 +6158,19 @@ function mergeAsk(options) {
 		if (askIndex > 0) {
 			quesData.ask_list.splice(askIndex, 1)
 			var preAsk = quesData.ask_list[askIndex - 1]
-			if (!preAsk.other_fileds) {
-				preAsk.other_fileds = []
+			if (!preAsk.other_fields) {
+				preAsk.other_fields = []
 			}
-			preAsk.other_fileds.push(write_id)
+			preAsk.other_fields.push(write_id)
 		}
 	} else { // 取消合并
 		for (var i = 0; i < quesData.ask_list.length; ++i) {
-			if (quesData.ask_list[i].other_fileds) {
-				var fidx = quesData.ask_list[i].other_fileds.findIndex(e => {
+			if (quesData.ask_list[i].other_fields) {
+				var fidx = quesData.ask_list[i].other_fields.findIndex(e => {
 					return e == write_id
 				})
 				if (fidx >= 0) {
-					quesData.ask_list[i].other_fileds.splice(fidx, 1)
+					quesData.ask_list[i].other_fields.splice(fidx, 1)
 					quesData.ask_list.splice(i + 1, 0, {
 						id: write_id,
 						score: 1
@@ -5834,8 +6231,9 @@ function insertSymbol(unicode) {
 					var newRun2 = Api.CreateRun()
 					newRun2.SetFontFamily('iconfont')
 					newRun2.AddText(unicodeChar)
+					newRun2.SetFontSize(36 * 2)
 					if (lastPos == 0) {
-						pos[pos.length - 2].Class.Add_ToContent(0, newRun2.Run)
+						pos[pos.length - 2].Class.Add_ToContent(pos[pos.length - 2].Position, newRun2.Run)
 					} else {
 						var newRun = oRun.Run.Split_Run(lastPos)
 						pos[pos.length - 2].Class.Add_ToContent(pos2 + 1, newRun2.Run)
@@ -5856,20 +6254,31 @@ function preGetExamTree() {
 		var question_map = Asc.scope.question_map || {}
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls() || []
-		function getLvl(oControl, paraIndex) {
-			if (!oControl) {
+		function getFirstParagraph(oControl) {
+			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
 				return null
 			}
-			var paragrahs = oControl.GetAllParagraphs() || []
-			for (var i = 0; i < paragrahs.length; ++i) {
-				var oParagraph = paragrahs[i]
-				if (paraIndex != -1 && i > paraIndex) {
-					return null
+			var paragraphs = oControl.GetAllParagraphs()
+			for (var i = 0; i < paragraphs.length; ++i) {
+				var oParagraph = paragraphs[i]
+				if (oParagraph) {
+					var parent1 = oParagraph.Paragraph.Parent
+					var parent2 = parent1.Parent
+					if (parent2 && parent2.Id == oControl.Sdt.GetId()) {
+						return oParagraph
+					}
 				}
-				var oNumberingLevel = oParagraph.GetNumbering()
-				if (oNumberingLevel) {
-					return oNumberingLevel.Lvl
-				}
+			}
+			return null
+		}
+		function getLvl(oControl, paraIndex) {
+			var oParagraph = getFirstParagraph(oControl)
+			if (!oParagraph) {
+				return null
+			}
+			var oNumberingLevel = oParagraph.GetNumbering()
+			if (oNumberingLevel) {
+				return oNumberingLevel.Lvl
 			}
 			return null
 		}
@@ -5927,61 +6336,79 @@ function preGetExamTree() {
 				lvl = getLvl(oControl, is_big ? 0 : -1)
 			}
 			obj.lvl = lvl
-			if (oParentControl) {
+			if (oParentControl && quesData.level_type == 'question') {
 				var parentTag = Api.ParseJSON(oParentControl.GetTag() || '{}')
 				var p_id = parentTag.mid ? parentTag.mid : parentTag.client_id
 				obj.parent_id = p_id
 				obj.parent_index = list.findIndex(e => {
 					return e.id == p_id
 				})
+				// console.log(qId, '1   p_id', obj.parent_id, obj.parent_index)
 			} else if (lvl === 0) {
 				obj.parent_id = 0
+				obj.parent_index = -1
+				// console.log(qId, '2   p_id', obj.parent_id, obj.parent_index)
 			} else {
 				// 根据level, 查找在它前面的比它lvl小的struct
 				if (list.length > 0) {
 					for (var i = list.length - 1; i >= 0; --i) {
 						if (list[i].lvl === null) {
-							if (lvl === null) {
-								if (list[i].level_type == 'struct') {
-									obj.parent_id = list[i].id
-									obj.parent_index = i
-									break
-								} else if (list[i].is_child) {
-									continue
-								} else {
+							if (list[i].level_type == 'struct') {
+								if (lvl === null) {
 									obj.parent_id = list[i].parent_id
 									obj.parent_index = list[i].parent_index
-									break
+								} else {
+									obj.parent_id = list[i].id
+									obj.parent_index = i
 								}
+								// console.log(qId, '3   p_id', obj.parent_id, obj.parent_index)
+								break
+							} else if (list[i].is_child) {
+								continue
+							} else {
+								obj.parent_id = list[i].parent_id
+								obj.parent_index = list[i].parent_index
+								// console.log(qId, '4   p_id', obj.parent_id, obj.parent_index)
+								break
 							}
 						} else if (list[i].lvl === 0) {
 							if (list[i].level_type == 'struct') {
 								obj.parent_id = list[i].id
 								obj.parent_index = i
+								// console.log(qId, '5   p_id', obj.parent_id, obj.parent_index)
 								break
 							} else {
 								obj.parent_id = 0
 								obj.parent_index = -1
+								// console.log(qId, '6   p_id', obj.parent_id, obj.parent_index)
 								break
 							}
 						} else if (list[i].lvl < lvl) {
 							if (list[i].level_type == 'struct') {
 								obj.parent_id = list[i].id
 								obj.parent_index = i
+								// console.log(qId, '7   p_id', obj.parent_id, obj.parent_index)
 								break
 							} else {
-								obj.parent_id = list[i].parent_id
-								obj.parent_idex = list[i].parent_index
+								if (list[i].is_child) {
+									continue
+								} else {
+									obj.parent_id = list[i].parent_id
+									obj.parent_index = list[i].parent_index
+									// console.log(qId, '8   p_id', obj.parent_id, obj.parent_index)
+								}
 								break
 							}
 						} else if (list[i].lvl === lvl) {
 							if (list[i].level_type == 'struct') {
-								if (list[i].parent_id) {
+								if (list[i].parent_id || quesData.level_type == 'struct') {
 									obj.parent_id = list[i].parent_id
 									obj.parent_index = i
+									// console.log(qId, '9   p_id', obj.parent_id, obj.parent_index)
 								} else {
-									obj.parent_id = 0
-									obj.parent_index = -1
+									obj.parent_id = list[i].id
+									obj.parent_index = i
+									// console.log(qId, '10   p_id', obj.parent_id, obj.parent_index)
 								}
 								break
 							} else if (list[i].level_type == 'question') {
@@ -5992,10 +6419,16 @@ function preGetExamTree() {
 								} else {
 									obj.parent_id = list[i].parent_id
 									obj.parent_index = list[i].parent_index
+									// console.log(qId, '11   p_id', obj.parent_id, obj.parent_index)
 									break
 								}
 							}
 						} else if (list[i].lvl > lvl) {
+							if (list[i].level_type == 'struct' && list[i].parent_id == 0 && quesData.level_type == 'question' && lvl > 0) {
+								obj.parent_id = list[i].id
+								obj.parent_index = i
+								break
+							}
 							continue
 						}
 					}
@@ -6039,6 +6472,7 @@ function preGetExamTree() {
 							lvl: getLvl(oChildControl, childTag.big == 1 ? 0 : -1),
 							is_child: true
 						}
+						// console.log(childId, '12   p_id', parentId2, parentIndex2)
 						var parentTableCell = oChildControl.GetParentTableCell()
 						if (parentTableCell) {
 							obj2.cell_id = parentTableCell.Cell.Id
@@ -6071,6 +6505,92 @@ function preGetExamTree() {
 	}, false, false)
 }
 
+function setNumberingLevel(ids, lvl) {
+	Asc.scope.ids = ids
+	Asc.scope.lvl = lvl
+	return biyueCallCommand(window, function() {
+		var ids = Asc.scope.ids || []
+		var lvl = Asc.scope.lvl
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls()
+		var list = []
+		function getFirstParagraph(oControl) {
+			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
+				return null
+			}
+			var paragraphs = oControl.GetAllParagraphs()
+			for (var i = 0; i < paragraphs.length; ++i) {
+				var oParagraph = paragraphs[i]
+				if (oParagraph) {
+					var parent1 = oParagraph.Paragraph.Parent
+					var parent2 = parent1.Parent
+					if (parent2 && parent2.Id == oControl.Sdt.GetId()) {
+						return oParagraph
+					}
+				}
+			}
+			return null
+		}
+		for (var oControl of controls) {
+			if (oControl.GetClassType() != 'blockLvlSdt') {
+				continue
+			}
+			var tag = Api.ParseJSON(oControl.GetTag() || '{}')
+			var id = tag.mid || tag.client_id
+			if (ids.indexOf(id) == -1) {
+				continue
+			}
+			tag.lvl = lvl
+			oControl.SetTag(JSON.stringify(tag))
+			var numberingtext = ''
+			var oParagraph = getFirstParagraph(oControl)
+			if (oParagraph) {
+				var oNumberingLevel = oParagraph.GetNumbering()
+				if (oNumberingLevel) { // ApiNumberingLevel
+					var oNumbering = oNumberingLevel.GetNumbering()
+					var oNumLvl = oNumbering.GetLevel(lvl)
+					oParagraph.SetNumbering(oNumLvl)
+					numberingtext = oParagraph.Paragraph.GetNumberingText()
+				} else {
+					var oNumbering = Api.GetDocument().CreateNumbering("numbered")  // ApiNumbering
+					for (var i = 0; i < 10; ++i) {
+						var oNumLvl = oNumbering.GetLevel(i)
+						oNumLvl.SetCustomType("none", '', "left");
+						oNumLvl.SetRestart(false);
+						oNumLvl.SetSuff("none")
+						var oParaPr = oNumLvl.GetParaPr()
+						oParaPr.SetIndFirstLine(0);
+						oParaPr.SetIndLeft(0)
+						if (lvl == i) {
+							oParagraph.SetNumbering(oNumLvl)		
+						}
+					}
+				}
+			}
+			list.push({
+				id: id,
+				numbing_text: numberingtext,
+				text: oControl.GetRange().GetText()
+			})
+		}
+		return list
+	}, false, false).then(list => {
+		return new Promise((resolve, reject) => {
+			if (list) {
+				var question_map = window.BiyueCustomData.question_map || {}
+				for (var item of list) {
+					var question = question_map[item.id]
+					if (question) {
+						question.text = item.text
+						question.ques_default_name = item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(question.level_type, question.text)
+					}
+				}
+			}
+			resolve()
+		})
+	})
+}
+
 export {
 	handleDocClick,
 	handleContextMenuShow,
@@ -6096,11 +6616,11 @@ export {
 	tidyNodes,
 	handleUploadPrepare,
 	importExam,
-	setChoiceOptionLayout,
 	getNodeList,
 	handleChangeType,
 	insertSymbol,
 	preGetExamTree,
 	getQuestionHtml,
-	focusControl
+	focusControl,
+	setNumberingLevel
 }

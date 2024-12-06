@@ -103,4 +103,14 @@ function isLoading(elementId) {
 	return loading && loading.length
 }
 
-export { showCom, updateText, addClickEvent, closeOtherSelect, getListByMap, getInfoForServerSave, setBtnLoading, isLoading }
+function getYYMMDDHHMMSS() {
+	var date = new Date()
+	var year = date.getFullYear()
+	var month = date.getMonth() + 1
+	var day = date.getDate()
+	var hour = date.getHours()
+	var minute = date.getMinutes()
+	var second = date.getSeconds()
+	return `${year}_${month}_${day}_${hour}:${minute}:${second}`	
+}
+export { showCom, updateText, addClickEvent, closeOtherSelect, getListByMap, getInfoForServerSave, setBtnLoading, isLoading, getYYMMDDHHMMSS }

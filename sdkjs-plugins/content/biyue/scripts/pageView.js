@@ -20,7 +20,7 @@ import {
 	onAllCheck
 } from './linkHandler.js'
 import { layoutDetect } from './layoutFixHandler.js'
-import { showCom, updateText, addClickEvent, getInfoForServerSave, setBtnLoading, isLoading } from './model/util.js'
+import { showCom, updateText, addClickEvent, getInfoForServerSave, setBtnLoading, isLoading, getYYMMDDHHMMSS } from './model/util.js'
 import { reqSaveInfo, onLatexToImg, logOnlyOffice} from './api/paper.js'
 import { biyueCallCommand, resetStack } from './command.js'
 import { generateTree, updateTreeSelect, clickTreeLock } from './panelTree.js'
@@ -223,6 +223,7 @@ function initView() {
 		}
 	})
 	addClickEvent('#panelTree #lock', clickTreeLock)
+	addClickEvent('#downloadExamHtml', clickDownloadExamHtml)
 }
 
 function handlePaperInfoResult(success, res) {
@@ -532,12 +533,19 @@ function renderTreeNode(parent, item, identation = 0) {
 			var quesType = types.find(e => {
 				return e.value == quesData.question_type
 			})
+			var typeOptions = types.map(e => {
+				return `<option value="${e.value}">${e.label}</option>`
+			})
 			html += `<div class="item" style="padding-left:${identation}px">
         				<div class="content" title="${quesData.text}">
           					<input type="checkbox" id="check_${item.id}">
           					<div class="text-over-ellipsis flex-1 ml-4">${quesData.text}</div>
         				</div>
         				<div class="ques-type-name" id="ques-type-${item.id}">${quesType ? quesType.label : '未定义'}</div>
+						<select class="target-select" id="target_type_${item.id}">
+							<option value="" style="display:none;"></option>
+							${typeOptions.join('')}
+						</select>
       				</div>`;
 		}
 	}
@@ -575,25 +583,39 @@ function onUploadTypeError() {
 		return
 	}
 	var list = []
-	Asc.scope.tree_info.list.forEach(item => {
+	var types = window.BiyueCustomData.paper_options.question_type || []
+	var typeMaps = {}
+	types.forEach(e => {
+		typeMaps[e.value + ''] = e.label
+	})
+	for (var item of Asc.scope.tree_info.list) {
 		var quesData = window.BiyueCustomData.question_map[item.id]
 		if (item.level_type == 'question' && quesData) {
 			var check = $('#check_' + item.id)
 			if (check) {
 				if (check.prop('checked')) {
+					var target_type = $('#target_type_' + item.id).val()
+					if (!target_type) {
+						updateHintById('uploadHint', '请设置目标题型', CLR_FAIL)
+						return
+					}
 					list.push({
+						paper_uuid: window.BiyueCustomData.paper_uuid,
 						id: item.id,
-						question_type: quesData.question_type
+						question_type: quesData.question_type,
+						question_type_name: typeMaps[quesData.question_type + ''],
+						target_type: target_type,
+						target_type_name: typeMaps[target_type + '']
 					})
 				}
 			}
 		}
-	})
+	}
 	if (list.length == 0) {
 		updateHintById('uploadHint', '请勾选需要上传的题目', CLR_FAIL)
 		return
 	}
-	getQuestionHtml(list.map(e => e.id)).then(html_list => {
+	getQuestionHtml(list.map(e => e.id), 2).then(html_list => {
 		if (html_list) {
 			list.forEach(item => {
 				var find = html_list.find(e => {
@@ -602,9 +624,13 @@ function onUploadTypeError() {
 				if (find) {
 					item.content_type = find.content_type
 					item.content_html = find.content_html
+					if (find.context_list && find.context_list.length) {
+						item.context_html = find.context_list.map(e => {
+							return e.content_html
+						}).join('')
+					}
 				}
 			})
-			setBtnLoading('uploadTypeError', true)
 			logQuesTypeError(list, 0)
 		}
 	})
@@ -650,6 +676,60 @@ function hidePops(type, name) {
 			}
 		}
 	}
+}
+
+function clickDownloadExamHtml() {
+	return getQuestionHtml().then(htmlList => {
+		if (htmlList) {
+			var types = window.BiyueCustomData.paper_options.question_type || []
+			var typeMaps = {}
+			types.forEach(e => {
+				typeMaps[e.value + ''] = e.label
+			})
+			var obj = {
+				paper_uuid: window.BiyueCustomData.paper_uuid,
+				exam_title: window.BiyueCustomData.exam_title,
+				content_list: []
+			}
+			for (var item of htmlList) {
+				if (item.content_type == 'question') {
+					var quesData = window.BiyueCustomData.question_map[item.id]
+					if (quesData) {
+						obj.content_list.push({
+							id: item.id,
+							content_type: item.content_type,
+							question_type: quesData.question_type,
+							question_type_name: typeMaps[quesData.question_type + ''],
+							content_html: item.content_html
+						})
+					}
+				} else {
+					obj.content_list.push(item)
+				}
+			}
+			// 创建一个 Blob 对象
+			var textToDownload = JSON.stringify(obj)
+			var blob = new Blob([textToDownload], { type: 'text/plain' });
+
+			// 创建一个指向该 Blob 对象的 URL
+			var url = URL.createObjectURL(blob);
+
+			// 创建一个临时的 <a> 元素，用于触发下载
+			var a = document.createElement('a');
+			a.href = url;
+			a.download = `${getYYMMDDHHMMSS()}_题型识别错误` ; // 指定下载的文件名
+
+			// 触发下载
+			document.body.appendChild(a);
+			a.click();
+
+			// 移除临时 <a> 元素
+			document.body.removeChild(a);
+
+			// 释放这个 URL 对象
+			URL.revokeObjectURL(url);
+		}
+	})
 }
 
 export {

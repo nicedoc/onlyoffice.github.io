@@ -826,12 +826,12 @@ function updateRangeControlType(typeName) {
 				var qid = qids[i]
 				if (question_map[qid].ask_list) {
 					var find = question_map[qid].ask_list.find(e => {
-						return (e.id == askId) || (e.other_fileds && e.other_fileds.includes(askId))
+						return (e.id == askId) || (e.other_fields && e.other_fields.includes(askId))
 					})
 					if (find) {
 						return {
 							ques_id: qid,
-							ask_ids: [find.id].concat(find.other_fileds)
+							ask_ids: [find.id].concat(find.other_fields)
 						}
 					}
 				}
