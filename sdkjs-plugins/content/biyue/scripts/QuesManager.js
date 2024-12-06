@@ -2628,6 +2628,27 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 				// todo.. write为blockLvlSdt时需要另外处理
 			}
 		}
+		function getParentBlock(oControl) {
+			if (!oControl) {
+				return null
+			}
+			if (oControl.GetClassType() == 'inlineLvlSdt') {
+				var parentControl = oControl.GetParentContentControl()
+				if (parentControl) {
+					if (parentControl.GetClassType() == 'blockLvlSdt') {
+						var parentTag = Api.ParseJSON(parentControl.GetTag())
+						if (parentTag.client_id) {
+							return {
+								client_id: parentTag.client_id,
+								control: parentControl
+							}
+						}
+					}
+					return getParentBlock(parentControl)
+				}
+			}
+			return null
+		}
 		for (var i = 0; i < ids.length; ++i) {
 			var id = ids[i]
 			if (question_map[id].level_type != 'question' || question_map[id].question_type == 0) {
@@ -2666,6 +2687,17 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 			for (var j = 0; j < childControls.length; ++j) {
 				var childTag = Api.ParseJSON(childControls[j].GetTag())
 				if (childTag.client_id) {
+					if (question_map[childTag.client_id]) {
+						continue
+					}
+					var parentData = getParentBlock(childControls[j])
+					if (parentData) {
+						if (parentData.client_id) {
+							if (parentData.client_id != nodeData.id && question_map[parentData.client_id]) {
+								continue
+							}
+						}
+					}
 					var childIndex = question_map[id].ask_list.findIndex(e => {
 						return e.id == childTag.client_id
 					})
@@ -6100,32 +6132,6 @@ function mergeOneAsk(options) {
 		})
 		if (firstIndex != -1) {
 			quesData.ask_list[firstIndex].other_fields = other_fields
-		}
-	} else if (options.cmd == 'out') { // 解除合并
-		// 需要考虑解除合并后的小问顺序
-		var alist = [].concat(options.ask_list)
-		for (var i = 0; i < quesData.ask_list.length; ++i) {
-			var i1 = alist.findIndex(e => {
-				return e == alist[i].id
-			})
-			if (i1 >= 0) {
-				alist.splice(i1, 1)
-				continue
-			}
-			if (quesData.ask_list[i].other_fields) {
-				for (var i2 = 0; i2 < quesData.ask_list[i].other_fields.length; ++i2) {
-					var i3 = alist.findIndex(e => {
-						return e == quesData.ask_list[i].other_fields[i2]
-					})
-					if (i3 >= 0) {
-						quesData.ask_list.splice(i + 1, 0, {
-							id: alist[i3],
-							score: 1
-						})
-						alist.splice(i3, 1)
-					}
-				}
-			}
 		}
 	}
 }
