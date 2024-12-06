@@ -136,12 +136,14 @@ function handleContextMenuShow(options) {
 						if (result.bTable) {
 							result.cells = []
 							if (elementsInfo.m_pParagraph) {
-								console.log('1')
 								var oParagraph = Api.LookupObject(elementsInfo.m_pParagraph.Id)
 								var oCell = oParagraph.GetParentTableCell()
 								if (oCell) {
+									var oParentTable = oCell.GetParentTable()
+									var tableDesc = Api.ParseJSON(oParentTable.GetTableDescription()) || {}
 									result.cells.push({
 										Id: oCell.Cell.Id,
+										recordId: tableDesc[`${oCell.GetRowIndex()}_${oCell.GetIndex()}`],
 										isEmpty: oCell.GetContent().Document.IsEmpty()
 									})
 								}
@@ -161,6 +163,7 @@ function handleContextMenuShow(options) {
 												continue
 											}
 											var cellArray = oTable.Table.GetSelectionArray(false) || []
+											var tableDesc = Api.ParseJSON(oTable.GetTableDescription()) || {}
 											for (var j = 0; j < cellArray.length; ++j) {
 												var oCell = oTable.GetCell(cellArray[j].Row, cellArray[j].Cell)
 												if (!oCell) {
@@ -172,6 +175,7 @@ function handleContextMenuShow(options) {
 												}
 												result.cells.push({
 													Id: oCell.Cell.Id,
+													recordId: tableDesc[`${cellArray[j].Row}_${cellArray[j].Cell}`],
 													isEmpty: cellContent.Document.IsEmpty()
 												})
 											}
@@ -319,8 +323,9 @@ function getContextMenuItems(type, selectedRes) {
 								question_map[cData.ques_id] && 
 								question_map[cData.ques_id].ask_list) {
 								var cellId = selectedRes.cells[0].Id
+								var cellRecordId = selectedRes.cells[0].recordId
 								var cellWrite = nodeData.write_list.find(e => {
-									return e.sub_type == 'cell' && e.cell_id == cellId
+									return e.sub_type == 'cell' && (e.cell_id == cellId || e.id == cellRecordId)
 								})
 								if (cellWrite) {
 									var find = question_map[cData.ques_id].ask_list.find(e => {
@@ -804,7 +809,9 @@ function getNodeList() {
 					} else if (oElement.GetClassType() == 'blockLvlSdt') {
 						getBlockWriteList(oElement, write_list)
 					} else if (oElement.GetClassType() == 'table') {
+						// todo..可能需要过滤下打分区
 						var rows = oElement.GetRowsCount()
+						var tableTitle = Api.ParseJSON(oElement.GetTableDescription()) || {}
 						for (var i1 = 0; i1 < rows; ++i1) {
 							var oRow = oElement.GetRow(i1)
 							var cells = oRow.GetCellsCount()
@@ -813,14 +820,17 @@ function getNodeList() {
 								var shd = oCell.Cell.Get_Shd()
 								var fill = shd.Fill
 								if (fill && fill.r == 255 && fill.g == 191 && fill.b == 191) {
+									var oldId = tableTitle[`${i1}_${i2}`]
 									write_list.push({
 										id: 'c_' + oCell.Cell.Id,
 										sub_type: 'cell',
 										table_id: oElement.Table.Id,
 										cell_id: oCell.Cell.Id,
 										row_index: i1,
-										cell_index: i2
+										cell_index: i2,
+										old_id: oldId
 									})
+									tableTitle[`${i1}_${i2}`] = 'c_' + oCell.Cell.Id
 								} else {
 									var oCellContent = oCell.GetContent()
 									var cnt1 = oCellContent.GetElementsCount()
@@ -838,6 +848,7 @@ function getNodeList() {
 								}
 							}
 						}
+						oElement.SetTableDescription(JSON.stringify(tableTitle))
 					}
 				}
 				var nodeObj = {
@@ -910,7 +921,31 @@ function handleChangeType(res, res2) {
 		}
 		question_map[qid].ask_list = new_list
 	}
+	function removeUnvalidAsk(qid, write_list) {
+		let old_list = question_map[qid].ask_list || [];
+		old_list = old_list.filter(item => {
+			// 处理 other_fields
+			if (item.other_fields) {
+				item.other_fields = item.other_fields
+					.map(otherField => {
+						// 在 write_list 中寻找匹配的 id 或 old_id
+						const validItem = write_list.find(e => e.id === otherField.id || e.old_id === otherField.id);
+						return validItem ? validItem.id : null;
+					})
+					.filter(id => id !== null); // 过滤掉无效的 id
+			}
 
+			// 检查主 id
+			const validMainItem = write_list.find(e => e.id === item.id || e.old_id === item.id);
+			if (validMainItem) {
+				item.id = validMainItem.id;
+				return true;
+			}
+			return false;
+		});
+		// 更新 question_map 中的 ask_list
+		question_map[qid].ask_list = old_list;
+	}
 	function updateScore(qid) {
 		if (question_map[qid] && question_map[qid].ask_list && question_map[qid].mark_mode != 2) {
 			var sum = 0
@@ -992,7 +1027,7 @@ function handleChangeType(res, res2) {
 			return true
 		}
 		return false
-	}
+	}	
 	if (res.typeName == 'mergeQuestion') {
 		var writelist = []
 		change_list.forEach((item, idx) => {
@@ -1118,10 +1153,8 @@ function handleChangeType(res, res2) {
 						if (level_type == 'setBig' || level_type == 'clearBig') {
 							question_map[item.client_id].text = getQuesText(item.text)
 							question_map[item.client_id].ques_default_name = item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(targetLevel, item.text)
-							question_map[item.client_id].level_type = targetLevel
-						} else {
-							question_map[item.client_id].level_type = targetLevel
 						}
+						question_map[item.client_id].level_type = targetLevel
 					}
 				} else if (targetLevel == 'struct') {
 					question_map[item.client_id] = {
@@ -1182,6 +1215,7 @@ function handleChangeType(res, res2) {
 									})
 									updateScore(real_parent_id)
 								}
+								removeUnvalidAsk(real_parent_id, ndata.write_list)
 							}
 						}
 						if (ndata) {
@@ -4531,7 +4565,6 @@ function focusAsk(writeData) {
 							} else if (wData.row_index == rc[0] && wData.cell_index == rc[1]) {
 								return oTable.GetCell(rc[0], rc[1])
 							}
-
 						}
 					}
 				}
