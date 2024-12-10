@@ -68,35 +68,14 @@ function initView() {
 			})
 		})
 	}
-	addClickEvent('#reSplitQuestionBtn', () => {
-		window.biyue.showMessageBox({
-			title: '提示',
-			content: '确定要重新切题吗？',
-			extra_data: {
-				func: 'reSplitQustion'
-			}
-		})
-	})
+	addClickEvent('#reSplitQuestionBtn', clickSplitQues)
 	addClickEvent('#reSplitQues', () => {
 		window.biyue.reSplitQustion()
 	})
-	addClickEvent('#uploadTree', () => {
-		var qmap = window.BiyueCustomData.question_map
-		if (!qmap || Object.keys(qmap).length == 0) {
-			window.biyue.showMessageBox({
-				content: '未找到可更新的题目，请检查题目列表',
-				showCancel: false
-			})
-		} else {
-			window.biyue.showMessageBox({
-				content: '确定要全量更新吗？',
-				extra_data: {
-					func: 'reqUploadTree'
-				}
-			})
-		}
+	addClickEvent('#uploadTree', clickUploadTree)
+	addClickEvent('#getQuesType', () => {
+		reqGetQuestionType()
 	})
-	addClickEvent('#getQuesType', reqGetQuestionType)
 	addClickEvent('#viewQuesType', onViewQuesType)
 	addClickEvent('#saveData', onSaveData)
 	addClickEvent('#clearRepeatControl', clearRepeatControl)
@@ -732,9 +711,38 @@ function clickDownloadExamHtml() {
 	})
 }
 
+function clickSplitQues() {
+	window.biyue.showMessageBox({
+		title: '提示',
+		content: '确定要重新切题吗？',
+		extra_data: {
+			func: 'reSplitQustion'
+		}
+	})
+}
+
+function clickUploadTree() {
+	var qmap = window.BiyueCustomData.question_map
+	if (!qmap || Object.keys(qmap).length == 0) {
+		window.biyue.showMessageBox({
+			content: '未找到可更新的题目，请检查题目列表',
+			showCancel: false
+		})
+	} else {
+		window.biyue.showMessageBox({
+			content: '确定要全量更新吗？',
+			extra_data: {
+				func: 'reqUploadTree'
+			}
+		})
+	}
+}
+
 export {
 	initView,
 	handlePaperInfoResult,
 	clearRepeatControl,
-	onSaveData
+	onSaveData,
+	clickSplitQues,
+	clickUploadTree
 }
