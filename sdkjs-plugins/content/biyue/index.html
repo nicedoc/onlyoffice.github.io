@@ -58,9 +58,13 @@
       }
     }
 	#initloading {
-		width: 100%;
-		margin: 24px auto;
-		text-align: center;
+		background-color: #fff;
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		z-index: 100;
 	}
 	#hint1 {
 		padding: 24px;
@@ -464,7 +468,9 @@
 				<!-- 动态生成的菜单项会插入到这里 -->
 			</ul>
 		</div>
-		<div id="initloading">加载中, 请稍候...</div>
+		<div id="initloading">
+			<div style="width: 100%;margin: 24px auto;text-align: center;">加载中, 请稍候...</div>
+		</div>
 		<div id="hint1" class="column-center">
 			<div id="message" style="color: #ff0000;"></div>
 			<div id="retry" class="btn-normal clicked">点击重新请求</div>
