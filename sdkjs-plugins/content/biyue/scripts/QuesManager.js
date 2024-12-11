@@ -4,7 +4,7 @@ import { getQuesType, reqComplete } from '../scripts/api/paper.js'
 import { handleChoiceUpdateResult, setInteraction, updateChoice } from "./featureManager.js";
 import { initExtroInfo } from "./panelFeature.js";
 import { addOnlyBigControl, removeOnlyBigControl, getAllPositions2 } from './business.js'
-import { handleRangeType } from "./classifiedTypes.js"
+import { handleRangeType, addWriteZone } from "./classifiedTypes.js"
 import { imageAutoLink, ShowLinkedWhenclickImage } from './linkHandler.js'
 import { layoutDetect } from './layoutFixHandler.js'
 import { setBtnLoading, isLoading } from './model/util.js'
@@ -63,6 +63,7 @@ function handleDocClick(options) {
 							handleRangeType({
 								typeName: 'write'
 							})
+							return
 						}
 					}
 				}
@@ -665,10 +666,14 @@ function onContextMenuClick(id) {
 		var funcName = strs[0]
 		switch (funcName) {
 			case 'updateControlType':
-				handleRangeType({
-					typeName: strs[1],
-					cmd: strs[2] ? strs[2] : null
-				})
+				if (strs[1] == 'writeZone' && strs[2] == 'add') {
+					addWriteZone()
+				} else {
+					handleRangeType({
+						typeName: strs[1],
+						cmd: strs[2] ? strs[2] : null
+					})
+				}
 				break
 			case 'clearMergeAsk':
 				clearMergeAsk(strs)

@@ -63,7 +63,7 @@
 				],
 			"isViewer": false,
 			"EditorsSupport": [ "word" ],
-			"events": [ "onClick", "onContextMenuShow", "onContextMenuClick", "onFocusContentControl", "onBlurContentControl", "onChangeContentControl"],
+			"events": [ "onClick", "onContextMenuShow", "onContextMenuClick", "onFocusContentControl", "onBlurContentControl", "onChangeContentControl", "onEndAddShape"],
 			"initDataType": "text",
 			"isVisual": true,
 			"isModal": false,

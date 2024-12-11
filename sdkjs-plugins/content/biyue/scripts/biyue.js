@@ -53,6 +53,7 @@ import { setInteraction, updateChoice, deleteAllFeatures } from './featureManage
 import { getInfoForServerSave } from './model/util.js'
 import { refreshTree } from './panelTree.js'
 import { extractChoiceOptions, removeChoiceOptions } from './choiceQuestion.js'
+import { endAddShape } from './classifiedTypes.js'
 (function (window, undefined) {
 	var styleEnable = false
 	let activeQuesItem = ''
@@ -766,6 +767,12 @@ import { extractChoiceOptions, removeChoiceOptions } from './choiceQuestion.js'
 	window.Asc.plugin.attachEvent('onContextMenuShow', function (options) {
 		console.log(options)
 		handleContextMenuShow(options)
+	})
+
+	window.Asc.plugin.attachEvent('onEndAddShape', function (options) {
+		if (Asc.scope.add_write_zone_data) {
+			endAddShape()
+		}
 	})
 
 	window.Asc.plugin.event_onContextMenuClick = function (id) {
