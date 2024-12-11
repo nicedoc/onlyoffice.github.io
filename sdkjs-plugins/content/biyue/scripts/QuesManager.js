@@ -2923,7 +2923,10 @@ function reqUploadTree() {
 		return getChoiceOptionAndSteam() // getChoiceQuesData()
 	}).then((res) => {
 		Asc.scope.choice_html_map = res
-		return getControlListForUpload()
+		return preGetExamTree()
+	}).then((res) => {
+		Asc.scope.tree_info = res
+		return getControlListForUpload(res)
 	}).then(control_list => {
 		if (control_list && control_list.length) {
 			generateTreeForUpload(control_list).then(() => {
@@ -2937,8 +2940,8 @@ function reqUploadTree() {
 		  }
 	})
 }
-// 等后端支持结构和题目可同级出现在结构下时，再取代旧代码
-function getControlListForUpload2(tree_info) {
+// 后端已支持结构和题目可同级出现在结构下，取代旧代码
+function getControlListForUpload(tree_info) {
 	Asc.scope.tree_info = tree_info
 	Asc.scope.node_list = window.BiyueCustomData.node_list
     Asc.scope.question_map = window.BiyueCustomData.question_map
@@ -2947,7 +2950,7 @@ function getControlListForUpload2(tree_info) {
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls()
 		var question_map = Asc.scope.question_map
-		var tree_info = Asc.scope.tree_info
+		var tree_info = Asc.scope.tree_info || {}
 		var handledcontrol = {}
 		for (var i = 0, imax = controls.length; i < imax; ++i) {
 			var oControl = controls[i]
@@ -2965,6 +2968,9 @@ function getControlListForUpload2(tree_info) {
 				continue
 			}
 			if (!question_map[clientid].level_type) {
+				continue
+			}
+			if (!tree_info.list) {
 				continue
 			}
 			var itemData = tree_info.list.find(e => {
@@ -3036,7 +3042,7 @@ function getControlListForUpload2(tree_info) {
 	  }, false, false)
 }
 
-function getControlListForUpload() {
+function getControlListForUpload2() {
 	Asc.scope.node_list = window.BiyueCustomData.node_list
     Asc.scope.question_map = window.BiyueCustomData.question_map
 	return biyueCallCommand(window, function() {
@@ -3347,8 +3353,8 @@ function handleXmlError() {
 	generateTreeForUpload(upload_control_list)
 }
 
-// 等后端支持结构和题目可同级出现在结构下时，再取代旧代码
-function generateTreeForUpload2(control_list) {
+// 后端已支持结构和题目可同级出现在结构下，取代旧代码
+function generateTreeForUpload(control_list) {
 	return new Promise((resolve, reject) => {
 		if (!control_list) {
 			reject(null)
@@ -3423,7 +3429,7 @@ function generateTreeForUpload2(control_list) {
 	})
 }
 
-function generateTreeForUpload(control_list) {
+function generateTreeForUpload2(control_list) {
 	return new Promise((resolve, reject) => {
 		if (!control_list) {
 			reject(null)
@@ -6008,7 +6014,10 @@ function importExam() {
 		return getChoiceOptionAndSteam() // getChoiceQuesData()
 	}).then((res) => {
 		Asc.scope.choice_html_map = res
-		return getControlListForUpload()
+		return preGetExamTree()
+	}).then((res) => {
+		Asc.scope.tree_info = res
+		return getControlListForUpload(res)
 	}).then(control_list => {
 		if (control_list && control_list.length) {
 			generateTreeForUpload(control_list).then(() => {
