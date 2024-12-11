@@ -1,6 +1,6 @@
 import { biyueCallCommand, dispatchCommandResult } from "./command.js";
 function layoutDetect(all) {
-	Asc.scope.layout_all_range = all
+	Asc.scope.layout_all_range = !!all
 	return removeAllComment().then(() => {
 		return biyueCallCommand(window, function() {
 			var oDocument = Api.GetDocument()

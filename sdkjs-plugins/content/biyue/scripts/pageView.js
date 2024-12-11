@@ -25,10 +25,8 @@ import { reqSaveInfo, onLatexToImg, logOnlyOffice} from './api/paper.js'
 import { biyueCallCommand, resetStack } from './command.js'
 import { generateTree, updateTreeSelect, clickTreeLock } from './panelTree.js'
 import ComponentSelect from '../components/Select.js'
-var select_ask_shortcut = null
 var timeout_paste_hint = null
 var select_image_link = null
-let visible_ques_type_tree = false
 let check_text_ques = true
 let check_level = false
 let inner_pop_list = ['link_container', 'func_key_container', 'tree_container']
@@ -38,10 +36,9 @@ function initView() {
 	showCom('#initloading', true)
 	showCom('#hint1', false)
 	showCom('.tabs', false)
-	showCom('#panelList', false)
 	showCom('#panelTree', false)
 	initListener()
-	window.tab_select = 'tabList'
+	window.tab_select = 'tabTree'
 	$('.tabitem').on('click', changeTab)
 	document.addEventListener('clickSingleQues', function (event) {
 		if (window.tab_select == 'tabTree' && window.tree_lock) {
@@ -68,15 +65,9 @@ function initView() {
 			})
 		})
 	}
-	addClickEvent('#reSplitQuestionBtn', clickSplitQues)
 	addClickEvent('#reSplitQues', () => {
 		window.biyue.reSplitQustion()
 	})
-	addClickEvent('#uploadTree', clickUploadTree)
-	addClickEvent('#getQuesType', () => {
-		reqGetQuestionType()
-	})
-	addClickEvent('#viewQuesType', onViewQuesType)
 	addClickEvent('#saveData', onSaveData)
 	addClickEvent('#clearRepeatControl', clearRepeatControl)
 	addClickEvent('#extroSwitch', (e) => {
@@ -95,40 +86,10 @@ function initView() {
 			console.log('commandStack len:', window.commandStack.length)
 		}
 	})
-	addClickEvent('#clearStack', resetStack)
 	addClickEvent('#tidyNodes', tidyNodes)
 	addClickEvent('#mathpix', onMathpix)
 	addClickEvent('#paste', onPaste)
 	addClickEvent('#pasteclear', onPasteInputClear)
-	addClickEvent('#showShortcutKey', () => {
-		showButton('func_key_container')
-		hidePops('except', 'func_key_container')
-	})
-	showCom('#func_key_container', false)
-	var vShortcut = '0'
-	if (window.BiyueCustomData && window.BiyueCustomData.ask_shortcut) {
-		vShortcut = window.BiyueCustomData.ask_shortcut
-	}
-	select_ask_shortcut = new ComponentSelect({
-		id: 'shortcutKeyDiv',
-		options: [
-			{ value: '0', label: '未定义' },
-			{ value: 'ctrl', label: '双击 + ctrl' },
-			{ value: 'alt', label: '双击 + alt' },
-			{ value: 'shift', label: '双击 + shift' }
-		],
-		value_select: vShortcut,
-		callback_item: (data) => {
-			changeAskShortcut(data)
-		},
-		width: '60%',
-		pop_width: '100%'
-	})
-	addClickEvent('#showLinkPop', () => {
-		showButton('link_container')
-		hidePops('except', 'link_container')
-	})
-	showCom('#link_container', false)
 	select_image_link = new ComponentSelect({
 		id: 'imageLinkSelect',
 		options: [
@@ -146,20 +107,6 @@ function initView() {
 	showCom('#imageLinkTip')
 	addClickEvent('#btnImageLink', onImageLink)
 	addClickEvent('#imageLinkCheck', onImageLinkCheck)
-	addClickEvent('#addWord', openSymbol)
-	addClickEvent('#fixLayout', () => {
-		layoutDetect(true)
-	})
-	addClickEvent('#uploadQuestionTypeError', () => {
-		visible_ques_type_tree = !visible_ques_type_tree
-		showButton('tree_container', visible_ques_type_tree)
-		if (visible_ques_type_tree) {
-			showQuesTypeInfo()
-		}
-		hidePops('except', 'tree_container')
-	})
-	showCom('#tree_container', false)
-	visible_ques_type_tree = false
 	if ($('#check_level')) {
 		$('#check_level').prop('checked', check_level)
 		$('#check_level').on('click', () => {
@@ -177,12 +124,17 @@ function initView() {
 	addClickEvent('#uploadTypeError', onUploadTypeError)
 	showCom('#uploadHint', false)
 	showCom('#panelFeature', false)
+	showCom('#panelLink', false)
+	showCom('#panelTypeErrorUpload', false)
 	addClickEvent('#tabFeature', () => {
 		$('#panelFeature').show()
 		initFeature()
 	})
-	addClickEvent('#returnBtn', () => {
-		showCom('#panelFeature', false)
+	addClickEvent('.panelclose', (e) => {
+		var target = e.currentTarget || e.target
+		if (target && target.dataset && target.dataset.panel) {
+			showCom(`#${target.dataset.panel}`, false)
+		}
 	})
 	addClickEvent('#extrolclose', () => {
 		showButton('extro_buttons', false)
@@ -209,7 +161,7 @@ function handlePaperInfoResult(success, res) {
 	showCom('#initloading', false)
 	if (success) {
 		showCom('.tabs', true)
-		changeTabPanel('tabList')
+		// changeTabPanel('tabTree')
 	} else {
 		showCom('#hint1', true)
 		if (res && res.status) {
@@ -228,7 +180,6 @@ function changeTab(e) {
 		id = e.currentTarget.id
 	}
 	changeTabPanel(id)
-
 }
 
 function changeTabPanel(id, event) {
@@ -268,10 +219,6 @@ function changeTabPanel(id, event) {
 		generateTree()
 	}
 	scroll(false)
-}
-
-function onViewQuesType() {
-	// console.log('展示题型') todo..
 }
 
 function onSaveData(print = true) {
@@ -322,9 +269,6 @@ function scroll(isBottom) {
 }
 
 function showButton(id, bshow) {
-	if (bshow === false && id == 'tree_container') {
-		visible_ques_type_tree = false
-	}
 	var com = $(`#${id}`)
 	if (!com) {
 		return
@@ -333,24 +277,6 @@ function showButton(id, bshow) {
 		com.toggle()
 	} else {
 		bshow ? com.show() : com.hide()
-	}
-}
-
-function changeAskShortcut(data) {
-	window.BiyueCustomData.ask_shortcut = data.value
-}
-
-async function getClipboardContents() {
-	try {
-		const clipboardItems = await navigator.clipboard.read()
-		for (const clipboardItem of clipboardItems) {
-			for (const type of clipboardItem.types) {
-				const blob = await clipboardItem.getType(type)
-				console.log('blob', blob)
-			}
-		}
-	} catch(err) {
-		console.log(err)
 	}
 }
 
@@ -458,10 +384,6 @@ function onPasteInputClear() {
 	com.val('')
 }
 
-function openSymbol() {
-	window.biyue.showDialog('addSymbolWindow', '插入符号', 'addSymbol.html', 600, 400, false)
-}
-
 function changeImageLink(data) {
 	enableBtnImageLink(data.value * 1)
 }
@@ -550,13 +472,6 @@ function renderQuesTypeTree() {
 	} 
 }
 
-function showQuesTypeInfo() {
-	preGetExamTree().then(res => {
-		Asc.scope.tree_info = res
-		renderQuesTypeTree()
-	})
-}
-
 function onUploadTypeError() {
 	if (isLoading('uploadTypeError')) {
 		return
@@ -594,6 +509,9 @@ function onUploadTypeError() {
 		updateHintById('uploadHint', '请勾选需要上传的题目', CLR_FAIL)
 		return
 	}
+	if (!list || list.length == 0) {
+		return
+	}
 	getQuestionHtml(list.map(e => e.id), 2).then(html_list => {
 		if (html_list) {
 			list.forEach(item => {
@@ -614,13 +532,12 @@ function onUploadTypeError() {
 		}
 	})
 }
-
 function logQuesTypeError(list, index) {
 	if (index >= list.length) {
 		updateHintById('uploadHint', '上传成功', CLR_SUCCESS)
 		setTimeout(() => {
 			setBtnLoading('uploadTypeError', false)
-			hidePops('only', 'tree_container')
+			showCom('#panelTypeErrorUpload', false)
 		}, 2000)
 		return
 	}
@@ -738,11 +655,21 @@ function clickUploadTree() {
 	}
 }
 
+function showTypeErrorPanel() {
+	showCom('#panelTypeErrorUpload', true)
+	preGetExamTree().then(res => {
+		Asc.scope.tree_info = res
+		renderQuesTypeTree()
+	})
+}
+
 export {
 	initView,
 	handlePaperInfoResult,
 	clearRepeatControl,
 	onSaveData,
 	clickSplitQues,
-	clickUploadTree
+	clickUploadTree,
+	showTypeErrorPanel,
+	changeTabPanel
 }

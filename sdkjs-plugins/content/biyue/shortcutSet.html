@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8" />
+		<title>message</title>
+		<script
+			type="text/javascript"
+			src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.js"
+		></script>
+		<script
+			type="text/javascript"
+			src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins-ui.js"
+		></script>
+		<link
+			rel="stylesheet"
+			href="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.css"
+		/>
+		<link rel="stylesheet" href="resources/css/appuse.css">
+		<script src="vendor/jQuery-2.2.2-min/jquery-v2.2.2-min.js"></script>
+		<style>
+			.info {
+				display: flex;
+				flex-direction: column;
+				padding: 16px;
+			}
+			.title {
+				margin-bottom: 4px;
+				font-size: 14px;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="info">
+			<div class="inner-pop-wrapper br2">
+				<div class="title">小问快捷键</div>
+				<div id="shortcutKeyDiv" style="width: 60%;">
+				</div>
+			</div>
+		</div>
+	</body>
+</html>
+<script type="module" type="text/javascript" src="scripts/dialog/shortcutSet.js"></script>
+<!-- <script type="module" type="text/javascript" src="scripts/components/Select.js"></script> -->
+<script>
+	// 监听消息事件
+	window.addEventListener('message', function (event) {
+		// 检查消息来源是否合法
+		if (event.origin !== window.location.origin) return
+
+		// 处理接收到的值
+		var receivedData = event.data
+		// console.log('接收到的值:', receivedData)
+	})
+</script>

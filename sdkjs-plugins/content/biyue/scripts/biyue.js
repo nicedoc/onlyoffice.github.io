@@ -37,20 +37,21 @@ import {
 	handleUploadPrepare,
 	importExam,
 	insertSymbol,
-	preGetExamTree
+	preGetExamTree,
+	reqGetQuestionType
 } from './QuesManager.js'
 import {
 	tagImageCommon,
 	updateLinkedInfo,
 	locateItem
 } from './linkHandler.js'
-import { layoutRepair, removeAllComment } from './layoutFixHandler.js'
+import { layoutRepair, removeAllComment, layoutDetect } from './layoutFixHandler.js'
 import { reqSaveInfo } from './api/paper.js'
 
-import { initView, onSaveData } from './pageView.js'
+import { initView, onSaveData, clickSplitQues, clickUploadTree, showTypeErrorPanel, changeTabPanel } from './pageView.js'
 
 import { setInteraction, updateChoice, deleteAllFeatures } from './featureManager.js'
-import { getInfoForServerSave } from './model/util.js'
+import { getInfoForServerSave, showCom } from './model/util.js'
 import { refreshTree } from './panelTree.js'
 import { extractChoiceOptions, removeChoiceOptions } from './choiceQuestion.js'
 import { endAddShape } from './classifiedTypes.js'
@@ -233,6 +234,22 @@ import { endAddShape } from './classifiedTypes.js'
 			
 			case 'showMessageBox':
 				modal.command('initMessageBox', Asc.scope.messageData)
+				break
+			case 'initDialog':
+				if (message.initmsg) {
+					modal.command(message.initmsg, {
+						BiyueCustomData: window.BiyueCustomData
+					})
+				}
+				break
+			case 'shortcutMessage':
+				if (message.cmd == 'update') {
+					if (message.data) {
+						Object.keys(message.data).forEach(key => {
+							window.BiyueCustomData[key] = message.data[key]
+						})
+					}
+				}
 				break
 			case 'onMessageDialog':
 				closeWindow(modal.id)
@@ -708,7 +725,7 @@ import { endAddShape } from './classifiedTypes.js'
 	// 插件初始化
 	window.Asc.plugin.init = function () {
 		console.log('biyue plugin inited.')
-
+		this.executeMethod("AddToolbarMenuItem", [getToolbarItems()]);
 		// create style
 		if (window.BiyueCustomData === undefined) {
 			this.callCommand(
@@ -739,6 +756,133 @@ import { endAddShape } from './classifiedTypes.js'
 					console.log('biyue plugin inited BiyueCustomData:', window.BiyueCustomData)
 				}
 			)
+		}
+		this.attachToolbarMenuClickEvent("repair", function() {
+			layoutDetect(true)
+		});
+		this.attachToolbarMenuClickEvent('splitQuestion', clickSplitQues)
+		this.attachToolbarMenuClickEvent('getQuesType', function () {
+			reqGetQuestionType()
+		})
+		this.attachToolbarMenuClickEvent("shortcutSet", function (data) {
+			window.biyue.showDialog('shortcutSet', '快捷键设置', 'shortcutSet.html', 400, 800, false, 'panelRight')
+		});
+		this.attachToolbarMenuClickEvent("insertSymbol", function (data) {
+			window.biyue.showDialog('addSymbolWindow', '插入符号', 'addSymbol.html', 600, 400, false)
+		});
+		this.attachToolbarMenuClickEvent("batchScore", onBatchScoreSet);
+		this.attachToolbarMenuClickEvent("batchQuesType", onBatchQuesTypeSet);
+		this.attachToolbarMenuClickEvent("imageLink", function (data) {
+			showCom('#panelLink', true)
+		});
+		this.attachToolbarMenuClickEvent("allUpload", clickUploadTree);
+		this.attachToolbarMenuClickEvent("uploadTypeError", function () {
+			showTypeErrorPanel()
+		})
+		function getToolbarItems() {
+		let items = {
+			guid: window.Asc.plugin.info.guid,
+			tabs: [{
+			id: "tab_biyue",
+			text: "笔曰",
+			items: [
+				{
+					id: "repair",
+					type: "button",
+					text: "排版修复",
+					hint: "排版修复",
+					icons: "resources/buttons/repair.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: false
+				}, {
+					id: "splitQuestion",
+					type: "button",
+					text: "自动切题",
+					hint: "自动切题",
+					icons: "resources/buttons/split.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: false
+				}, {
+					id: "getQuesType",
+					type: "button",
+					text: "重获题型",
+					hint: "重新获取题型",
+					icons: "resources/buttons/type.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: false
+				}, 
+				{
+					id: "shortcutSet",
+					type: "button",
+					text: "按键配置",
+					hint: "点击配置小问快捷键",
+					icons: "resources/buttons/set.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: true
+				}, {
+					id: "insertSymbol",
+					type: "button",
+					text: "插入符号",
+					hint: "插入符号",
+					icons: "resources/buttons/symbol.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: false
+				}, {
+					id: "batchScore",
+					type: "button",
+					text: "批量分数",
+					hint: "批量设置题目分数",
+					icons: "resources/buttons/batch.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: false
+				}, {
+					id: "batchQuesType",
+					type: "button",
+					text: "批量题型",
+					hint: "批量设置题目题型",
+					icons: "resources/buttons/batch.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: false
+				}, {
+					id: "imageLink",
+					type: "button",
+					text: "图片关联",
+					hint: "图片或表格关联",
+					icons: "resources/buttons/image.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: false
+				}, {
+					id: "allUpload",
+					type: "button",
+					text: "全量更新",
+					hint: "全量更新",
+					icons: "resources/buttons/upload.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: false
+				}, {
+					id: "uploadTypeError",
+					type: "button",
+					text: "题型错误上报",
+					hint: "题型错误上报",
+					icons: "resources/buttons/error.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: true
+				}
+			]
+			}]
+		};
+	
+		return items;
 		}
 	}
 
@@ -2214,6 +2358,8 @@ import { endAddShape } from './classifiedTypes.js'
 					ReplaceRubyField().then(() => {
 						initExtroInfo().then(() => {
 							removeAllComment()
+						}).then(() => {
+							changeTabPanel('tabTree')
 						})
 					})
 					// reSplitQustion()
@@ -2223,9 +2369,13 @@ import { endAddShape } from './classifiedTypes.js'
 					}
 					initControls().then(() => {
 						Asc.scope.split_getdoc = false
-						return initExtroInfo()
+						return initExtroInfo().then(() => {
+							changeTabPanel('tabTree')
+						})
 					}).then(() => {
-						removeAllComment()
+						removeAllComment().then(() => {
+							changeTabPanel('tabTree')
+						})
 					})
 				}
 			})

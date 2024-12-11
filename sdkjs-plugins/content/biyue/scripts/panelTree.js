@@ -10,6 +10,15 @@ var big_info = {
 	end_id: 0
 }
 function generateTree() {
+	if (window.BiyueCustomData.page_type * 1) {
+		showCom('#panelTree .none', false)
+		updateText('#panelTree #sum', '')
+		showCom('#panelTree #lock', false)
+		showCom('#introPageWrapper', true)
+		return
+	}
+	showCom('#introPageWrapper', false)
+	showCom('#panel #lock', true)
 	return preGetExamTree().then(res => {
 		Asc.scope.tree_info = res
 		g_tree_info = res || {}

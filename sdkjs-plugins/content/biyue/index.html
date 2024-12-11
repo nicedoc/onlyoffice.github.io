@@ -166,7 +166,6 @@
     .tabs {
       display: flex;
       flex-direction: row;
-      justify-content: space-around;
       border-bottom: 1px solid #bbb;
 	  font-weight: 400;
       .tabitem {
@@ -178,78 +177,32 @@
 		font-weight: 700;
       }
     }
-	#panelList {
-		font-size: 12px;
-		color: #555555;
-		margin-bottom: 20px;
-		.wrapper {
-			border-bottom: 1px solid #ccc;
-		}
-		.row-title {
-			font-weight: 700;
-		}
-		.btns {
-			display: flex;
-			flex-wrap: wrap;
-			padding: 4px 8px;
-		}
-		.btn-dange {
-			border: 1px solid #ff0000 !important;
-			color: #ff0000 !important;
-		}
-		.btn-normal {
-			border-radius: 2px;
-			background-color: #D9D9D9;
-			color: #555;
-			padding: 6px 0;
-			border: 1px solid #D9D9D9;
-			width: calc(33.3% - 12px);
-			margin: 4px 6px;
-			display: flex;
-			flex-direction: row;
-			justify-content: center;
-		}
-		#saveData {
-			width: 80px;
-    		height: 32px;
-    		margin-right: 12px;
-			background-color: #D9D9D9;
-			color: #555;
-		}
-		.exambottom {
-			position: fixed;
-			bottom: 30px;
-			display: flex;
-			flex-direction: row;
-			left: 13px;
-			right: 13px;
-		}
-		.inner-pop-wrapper {
-			background-color: #fff;
-			border: 1px solid #ccc;
-			padding: 8px;
-			width: 100%;
-			.title {
-				font-size: 13px;
-    			font-weight: bold;
-    			margin-left: 2px;
-			}
-		}
-		#shortcutKeyDiv {
-			width: 80%;
-			margin-top: 4px;
-		}
-		.arrow-up {
-            width: 0;
-            height: 0;
-            border-left: 8px solid transparent;
-            border-right: 8px solid transparent;
-            border-bottom: 8px solid #ccc;
-        }
-		#imageLinkCheck {
-			padding: 4px;
-			margin: 8px 3px 0 3px;
-		}
+	#saveData {
+		width: 80px;
+		height: 32px;
+		margin-right: 12px;
+		background-color: #D9D9D9;
+		color: #555;
+	}
+	.exambottom {
+		position: fixed;
+		bottom: 30px;
+		display: flex;
+		flex-direction: row;
+		left: 13px;
+		right: 13px;
+	}
+	.btn-normal {
+		border-radius: 2px;
+		background-color: #D9D9D9;
+		color: #555;
+		padding: 6px 0;
+		border: 1px solid #D9D9D9;
+		width: calc(33.3% - 12px);
+		margin: 4px 6px;
+		display: flex;
+		flex-direction: row;
+		justify-content: center;
 	}
     #panelQues {
       padding: 12px;
@@ -307,7 +260,7 @@
 		border-radius: 2px;
 	  }
     }
-    #panelFeature {
+	.panel-box {
 		position: absolute;
 		z-index: 3;
 		left: 0;
@@ -315,18 +268,20 @@
 		bottom: 0;
 		top: 0;
 		background-color: #fff;
-      	padding: 12px 12px 24px 12px;
-		display: block;
     	max-height: calc(100vh - 30px);
     	overflow-y: auto;
+	}
+    #panelFeature {
+		display: block;
+		padding: 12px 12px 24px 12px;
 		#wrapperFeature {
 			height: calc(100% - 30px);
 			overflow-y: auto;
 		}
-      .padding-small {
-        padding-right: 8px;
-        padding-bottom: 8px;
-      }
+      	.padding-small {
+        	padding-right: 8px;
+        	padding-bottom: 8px;
+      	}
     }
 
 		.btn-text-default {
@@ -383,10 +338,14 @@
 			margin-bottom: 8px;
 			padding-bottom: 4px;
 		}
-		
+		#panelTypeErrorUpload {
+			display: flex;
+			flex-direction: column;
+			padding: 12px;
+		}
 		#typeErrorDiv {
-			padding: 0 4px;
-			max-height: 190px;
+			padding: 8px 4px;
+			flex: 1;
 			overflow-y: auto;
 			.item {
 				display: flex;
@@ -408,9 +367,12 @@
 			.target-select {
 				width: 70px;
 			}
+			select:focus-visible {
+				outline: none;
+			}
 		}
 		.upload-wrapper {
-			padding: 4px 0;
+			padding-top: 12px;
 			text-align: center;
 		}
 		#panelTree {
@@ -441,9 +403,12 @@
 				margin-bottom: 6px;
 				margin-right: 4px;
 				flex: 1;
+				&:hover {
+					background-color: #95c8ff;
+				}
 			}
 			#tree {
-				max-height: calc(100% - 20px);
+				max-height: calc(100% - 56px);
 				overflow-y: auto;
 				padding-left: 24px;
 				.selected {
@@ -505,99 +470,9 @@
 			<div id="retry" class="btn-normal clicked">点击重新请求</div>
 		</div>
         <div class="tabs font-14">
-          <div class="tabitem clicked" id="tabList">基础面板</div>
-          <div class="tabitem clicked" id="tabQues">单题详情</div>
+          <!-- <div class="tabitem clicked" id="tabList">基础面板</div> -->
 		  <div class="tabitem clicked" id="tabTree">题目列表</div>
-        </div>
-        <div class="list" id="panelList">
-          <div class="wrapper font-12">
-			<div>
-				<span class="row-title">校本：</span>
-				<span id="workbookName"></span>
-				<span id="workbookId"></span>
-			</div>
-			<div>
-				<span class="row-title">课时：</span>
-				<span id="exam_title"></span>
-			</div>
-			<div>
-				<span class="row-title">版本：</span>
-				<span id="grade_data"></span>
-			</div>
-          </div>
-		  <div id="examPageWrapper">
-			<div style="font-weight: bold;margin-top: 10px; margin-left: 14px;font-size: 14px;">排版</div>
-			<div class="btns">
-				<div id="addWord" class="clicked btn-normal">插入符号</div>
-				<div id="getQuesType" class="clicked btn-normal" style="font-size: 10px;">重新获取题型</div>
-				<div id="reSplitQuestionBtn" class="clicked btn-normal btn-dange">重新切题</div>
-				<div id="fixLayout" class="clicked btn-normal btn-normal">排版修复</div>
-			</div>
-			<div style="font-weight: bold;margin-left: 14px;font-size: 14px;">数据</div>
-			<div class="btns">
-				<div id="showLinkPop" class="clicked btn-normal">图片关联</div>
-				<div id="batchScoreSet" class="clicked btn-normal">批量分数</div>
-				<div id="batchQuesType" class="clicked btn-normal">批量题型</div>
-				<div id="link_container" style="width: 100%;">
-					<div class="arrow-up" id="arrowUp_funckey" style="margin-left: 48px;"></div>
-					<div class="inner-pop-wrapper br2">
-						<div class="title">图片关联</div>
-						<div style="margin: 4px 0;display: flex;flex-direction: row;justify-content: space-around;align-items: center;">
-							<div id="imageLinkSelect"></div>
-							<div id="btnImageLink" class="btn-text-default" style="width: 36%;margin-bottom: 0;min-height: 22px;" title="当图片整个在题目范围内时，才会关联">关联</div>
-						</div>
-						<div id="imageLinkTip"></div>
-						<div id="imageLinkCheck" class="btn-text-default">关联检查</div>
-					</div>
-				</div>
-				<div id="uploadTree" class="clicked btn-normal">全量更新</div>
-			</div>
-			<div style="font-weight: bold;margin-left: 14px;font-size: 14px;">其他</div>
-			<div class="btns">
-				<div id="showShortcutKey" class="clicked btn-normal">快捷键设置</div>
-				<div id="uploadQuestionTypeError" class="clicked btn-normal" style="font-size: 10px;">题型错误上报</div>
-				<div id="func_key_container" class="w100">
-					<div class="arrow-up" id="arrowUp_funckey" style="margin-left: 48px;"></div>
-					<div class="inner-pop-wrapper br2">
-						<div class="title">小问快捷键</div>
-						<div id="shortcutKeyDiv"></div>
-					</div>
-				</div>
-				<div id="tree_container" class="w100">
-					<div class="arrow-up" id="arrowUp_funckey" style="margin-left: 48%;"></div>
-					<div class="inner-pop-wrapper br2">
-						<div class="title">
-							题型错误上报
-							<span class="clicked" style="color: #2489f6;" id="downloadExamHtml">下载题目html</span>
-						</div>
-						<div id="uploadHint"></div>
-						<div class="b-b-b ml-4 row-between" style="padding-bottom: 4px;margin-top: 2px;">
-							<div >
-								<span for="check_level"><input type="checkbox" id="check_level" style="margin-right: 2px;">展示层级结构</span>
-								<span for="check_text_ques ml-4"><input type="checkbox" id="check_text_ques" style="margin-right: 2px;">显示文本题</span>
-							</div>
-							<div style="margin-right: 8px;">目标题型</div>
-						</div>
-						<div id="typeErrorDiv"></div>
-						<div class="upload-wrapper row-center w100 b-t-b">
-							<div id="uploadTypeError" class="flex bg1 clr-white p-4-8 w-fit br2 clicked">上报日志</div>
-						</div>
-					</div>
-				</div>
-			</div>
-		  </div>
-		  <div id="introPageWrapper" style="color: #bbb;" class="column-center">
-			<i class="iconfont icon-tips-one" style="font-size: 80px;"></i>
-			<div>该课时为导学页，</div>
-			<div>请在调整后进行卷面上传</div>
-		  </div>
-		  <div class="exambottom">
-			<div id="saveData" class="row-center br2 clicked">
-				<i class="iconfont icon-baocun font-12 mr-4"></i>
-				<span>保存</span>
-			</div>
-			<div id="importExam" class="flex-1 bg1 clr-white h-32 row-center br2 clicked">上传卷面</div>
-		  </div>
+          <div class="tabitem clicked" id="tabQues">单题详情</div>
         </div>
 		<div id="extroSwitch" class="clicked">
 			<i class="iconfont icon-qitafuwu" style="color: #aaa;" title="点击显示辅助调试按钮"></i>
@@ -620,13 +495,60 @@
 				<div class="clr-gray">未检测到题目信息</div>
 				<div class="flex w-fit p-4-8 bg1 clr-white mt-8 br4 clicked" id="reSplitQues">重新切题</div>
 			</div>
+			<div id="introPageWrapper" style="color: #bbb;" class="column-center">
+				<i class="iconfont icon-tips-one" style="font-size: 80px;"></i>
+				<div>该课时为导学页，</div>
+				<div>请在调整后进行卷面上传</div>
+			</div>
+			<div class="exambottom">
+			<div id="saveData" class="row-center br2 clicked">
+				<i class="iconfont icon-baocun font-12 mr-4"></i>
+				<span>保存</span>
+			</div>
+			<div id="importExam" class="flex-1 bg1 clr-white h-32 row-center br2 clicked">上传卷面</div>
+			</div>
 		</div>
-        <div id="panelFeature">
+        <div class="panel-box" id="panelFeature">
 			<div class="row-between">
 				<div class="font-14 bold">智批元素</div>
-				<div class="clicked bg1 clr-white br4 border-b" id="returnBtn" style="padding: 2px 8px;">返回<i class="iconfont icon-return clr-white"></i></div>
+				<div class="clicked bg1 clr-white br4 border-b panelclose" data-panel="panelFeature" style="padding: 2px 8px;">返回<i class="iconfont icon-return clr-white"></i></div>
 			</div>
 			<div id="wrapperFeature"></div>
+		</div>
+		<div class="panel-box" id="panelLink" style="padding: 12px;">
+			<div class="row-between">
+				<div class="font-14 bold">图片关联</div>
+				<div class="clicked bg1 clr-white br4 border-b panelclose" data-panel="panelLink" style="padding: 2px 8px;">返回<i class="iconfont icon-return clr-white"></i></div>
+			</div>
+			<div style="margin: 8px 0;" class="row-arround">
+				<div id="imageLinkSelect"></div>
+				<div id="btnImageLink" class="btn-text-default" style="width: 36%;margin-bottom: 0;min-height: 22px;" title="当图片整个在题目范围内时，才会关联">关联</div>
+			</div>
+			<div id="imageLinkTip"></div>
+			<div class="row-center w100 b-t-b">
+				<div id="imageLinkCheck" class="bg1 clr-white h-32 row-center br2 clicked" style="padding: 0 32px;margin-top: 16px;">关联检查</div>
+			</div>
+		</div>
+		<div class="panel-box" id="panelTypeErrorUpload">
+			<div class="row-between">
+				<div class="font-14 bold">
+					题型错误上报
+					<span class="clicked" style="color: #2489f6;" id="downloadExamHtml">下载题目html</span>
+				</div>
+				<div class="clicked bg1 clr-white br4 border-b panelclose" data-panel="panelTypeErrorUpload" style="padding: 2px 8px;">关闭<i class="iconfont icon-return clr-white"></i></div>
+			</div>
+			<div id="uploadHint"></div>
+			<div class="b-b-b ml-4 row-between" style="padding-bottom: 4px;margin-top: 2px;">
+				<div>
+					<span for="check_level"><input type="checkbox" id="check_level" style="margin-right: 2px;">展示层级结构</span>
+					<span for="check_text_ques ml-4"><input type="checkbox" id="check_text_ques" style="margin-right: 2px;">显示文本题</span>
+				</div>
+				<div style="margin-right: 8px;">目标题型</div>
+			</div>
+			<div id="typeErrorDiv"></div>
+			<div class="upload-wrapper row-center w100 b-t-b">
+				<div id="uploadTypeError" class="flex bg1 clr-white p-4-8 w-fit br2 clicked">上报日志</div>
+			</div>
 		</div>
         <div class="button_wrapper">
           <div id="extro_buttons">
