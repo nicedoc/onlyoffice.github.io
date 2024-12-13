@@ -870,6 +870,9 @@ a {
 .bold {
 	font-weight: bold;
 }
+.clr1 {
+	color: #2489f6;
+}
 
 .bg1 {
 	background-color: #2489f6;

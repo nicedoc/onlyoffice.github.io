@@ -38,7 +38,9 @@ import {
 	importExam,
 	insertSymbol,
 	preGetExamTree,
-	reqGetQuestionType
+	reqGetQuestionType,
+	focusAsk,
+	focusControl
 } from './QuesManager.js'
 import {
 	tagImageCommon,
@@ -55,6 +57,7 @@ import { getInfoForServerSave, showCom } from './model/util.js'
 import { refreshTree } from './panelTree.js'
 import { extractChoiceOptions, removeChoiceOptions } from './choiceQuestion.js'
 import { endAddShape } from './classifiedTypes.js'
+import { getFocusAskData } from './model/ques.js'
 (function (window, undefined) {
 	var styleEnable = false
 	let activeQuesItem = ''
@@ -201,37 +204,21 @@ import { endAddShape } from './classifiedTypes.js'
           			window.BiyueCustomData.question_map = message.data.question_map
           			console.log('更新question_map', message.data)
                     StoreCustomData(() => {
-						closeWindow(modal.id)
+						// closeWindow(modal.id)
+						if (window.tab_select == 'tabQues') {
+							document.dispatchEvent(new CustomEvent('refreshQues'))
+						}
                         console.log('store custom data done')
 						if (message.data.needUpdateInteraction) {
 							setInteraction('useself').then(() => {
-								if (message.data.needUpdateChoice) {
-									deleteChoiceOtherWrite(null, false).then(() => {
-										updateChoice(true)
-									}).then(() => {
-										if (new_choice_ids.length) {
-											return extractChoiceOptions(new_choice_ids.concat(remove_choice_ids), true)
-										} else if (remove_choice_ids.length) {
-											return removeChoiceOptions(remove_choice_ids)
-										}
-									})
-								}
+								updateQuesChange(message.data.needUpdateChoice, new_choice_ids, remove_choice_ids)
 							})
-						} else if (message.data.needUpdateChoice) {
-							deleteChoiceOtherWrite(null, false).then((res) => {
-								updateChoice(true).then(() => {
-									if (new_choice_ids.length) {
-										return extractChoiceOptions(new_choice_ids.concat(remove_choice_ids), true)
-									} else if (remove_choice_ids.length) {
-										return removeChoiceOptions(remove_choice_ids)
-									}
-								})
-							})
+						} else {
+							updateQuesChange(message.data.needUpdateChoice, new_choice_ids, remove_choice_ids)
 						}
                     })
         		}
         		break
-			
 			case 'showMessageBox':
 				modal.command('initMessageBox', Asc.scope.messageData)
 				break
@@ -304,8 +291,60 @@ import { endAddShape } from './classifiedTypes.js'
 				// closeWindow(modal.id)
 				insertSymbol(message.data)
 				break
+			case 'focusQuestion':
+				var event = new CustomEvent('focusQuestion', {
+					detail: message.data
+				})
+				document.dispatchEvent(event)
+				if (message.data.ask_index) {
+					var focusList = getFocusAskData(message.data.ques_id, message.data.ask_index)
+					if (focusList) {
+						focusAsk(focusList)
+					}
+				} else if (message.data.ques_id) {
+					focusControl(message.data.ques_id)
+				}
+				break
+			case 'updateScore':
+				window.BiyueCustomData.question_map = message.data.question_map
+				console.log('更新question_map', message.data)
+				// todo.. 有打分区时，需要更新打分区
+				StoreCustomData(() => {
+					if (window.tab_select == 'tabQues') {
+						document.dispatchEvent(new CustomEvent('refreshQues'))
+					}
+				})
+				break
+			case 'RefreshPaper':
+				preGetExamTree().then(res => {
+					Asc.scope.tree_info = res
+					modal.command('quesMapUpdate', {
+						tree_info: Asc.scope.tree_info,
+						question_map: window.BiyueCustomData.question_map,
+						node_list: window.BiyueCustomData.node_list
+					})
+				})
+				break
 			default:
 				break
+		}
+	}
+
+	function updateQuesChange(needUpdateChoice, new_choice_ids, remove_choice_ids) {
+		if (needUpdateChoice) {
+			return deleteChoiceOtherWrite(null, false).then((res) => {
+				return updateChoice(true)
+			}).then(() => {
+				if (new_choice_ids.length) {
+					return extractChoiceOptions(new_choice_ids.concat(remove_choice_ids), true)
+				} else if (remove_choice_ids.length) {
+					return removeChoiceOptions(remove_choice_ids)
+				} else {
+					return new Promise((resolve, reject) => {
+						return resolve()
+					})
+				}
+			})
 		}
 	}
 
@@ -2411,6 +2450,8 @@ import { endAddShape } from './classifiedTypes.js'
 			})
 		}
 		windows[winName].show(variation)
+		windows[winName].activate()
+
 		var win = windowList.find(e => {
 			return e.winName == winName
 		})
@@ -2425,21 +2466,30 @@ import { endAddShape } from './classifiedTypes.js'
 		}
 		return windows[winName]
 	}
-
+	function sendMessageToWindow(winName, msgId, data) {
+		var win = windowList.find(e => {
+			return e.name == winName
+		})
+		if (!win || !(win.visible)) {
+			return
+		}
+		windows[winName].command(msgId, data) // 往modal传递信息
+	}
 	
-  function onBatchScoreSet() {
-	preGetExamTree().then(res => {
-		Asc.scope.tree_info = res
-		showDialog('batchSettingScoresWindow', '批量操作 - 修改分数', 'batchSettingScores.html', 800, 600, false)
-	})
-  }
+	function onBatchScoreSet() {
+		preGetExamTree().then(res => {
+			Asc.scope.tree_info = res
+			showDialog('batchScoresWindow', '批量操作 - 修改分数', 'batchScore.html', 800, 600, false, 'panelRight')
+		})
+	}
 
-  function onBatchQuesTypeSet() {
-	preGetExamTree().then(res => {
-		Asc.scope.tree_info = res
-		showDialog('batchSettingQuestionTypeWindow', '批量操作 - 修改题型', 'batchSettingQuestionType.html', 800, 600, false)
-	})
-  }
+	function onBatchQuesTypeSet() {
+		preGetExamTree().then(res => {
+			Asc.scope.tree_info = res
+			// showDialog('batchSettingQuestionTypeWindow', '批量操作 - 修改题型', 'batchSettingQuestionType.html', 800, 600, false)
+			showDialog('batchQuestionTypeWindow', '批量操作 - 修改题型', 'batchQuestionType.html', 800, 600, false, 'panelRight')
+		})
+	}
 
 	window.insertHtml = insertHtml
 
@@ -2499,6 +2549,7 @@ import { endAddShape } from './classifiedTypes.js'
 		showMessageBox: showMessageBox,
 		reqUploadTree: reqUploadTree,
 		handleInit: handleInit,
-		onBatchScoreSet: onBatchScoreSet
+		onBatchScoreSet: onBatchScoreSet,
+		sendMessageToWindow: sendMessageToWindow
 	}
 })(window, undefined)

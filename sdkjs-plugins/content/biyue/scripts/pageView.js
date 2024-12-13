@@ -6,7 +6,6 @@ import {
 
 import { showQuesData, initListener } from './panelQuestionDetail.js'
 import {
-	reqGetQuestionType,
 	handleAllWrite,
 	showAskCells,
 	g_click_value,
@@ -19,11 +18,10 @@ import {
 	imageAutoLink,
 	onAllCheck
 } from './linkHandler.js'
-import { layoutDetect } from './layoutFixHandler.js'
 import { showCom, updateText, addClickEvent, getInfoForServerSave, setBtnLoading, isLoading, getYYMMDDHHMMSS } from './model/util.js'
 import { reqSaveInfo, onLatexToImg, logOnlyOffice} from './api/paper.js'
-import { biyueCallCommand, resetStack } from './command.js'
-import { generateTree, updateTreeSelect, clickTreeLock } from './panelTree.js'
+import { biyueCallCommand } from './command.js'
+import { generateTree, updateTreeSelect, clickTreeLock, initTreeListener } from './panelTree.js'
 import ComponentSelect from '../components/Select.js'
 var timeout_paste_hint = null
 var select_image_link = null
@@ -38,6 +36,7 @@ function initView() {
 	showCom('.tabs', false)
 	showCom('#panelTree', false)
 	initListener()
+	initTreeListener()
 	window.tab_select = 'tabTree'
 	$('.tabitem').on('click', changeTab)
 	document.addEventListener('clickSingleQues', function (event) {
@@ -662,7 +661,6 @@ function showTypeErrorPanel() {
 		renderQuesTypeTree()
 	})
 }
-
 export {
 	initView,
 	handlePaperInfoResult,

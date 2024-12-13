@@ -1656,6 +1656,9 @@ function batchChangeQuesType(type) {
 		}
 	})
 	.then(() => {
+		window.biyue.sendMessageToWindow('batchQuestionTypeWindow', 'quesMapUpdate', {
+			question_map: window.BiyueCustomData.question_map
+		})
 		window.biyue.StoreCustomData()
 	})
 }

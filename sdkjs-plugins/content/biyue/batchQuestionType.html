@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <title>batchScore</title>
+    <script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.js"></script>
+    <script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins-ui.js"></script>
+    <link rel="stylesheet" href="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.css">
+    <link rel="stylesheet" href="resources/css/batchSetting.css">
+	<link rel="stylesheet" href="resources/css/appuse.css">
+    <script src="vendor/jQuery-2.2.2-min/jquery-v2.2.2-min.js"></script>
+    <script src="vendor/lodash.min.js"></script>
+	<style>
+		.window-body {
+			padding: 12px;
+			height: 100% !important;
+		}
+		.batch-setting-info {
+			max-height: calc(100vh - 80px) ;
+			overflow-y: auto;
+		}
+		.bat-set {
+			.input {
+				margin-right: 0 !important;
+			}
+		}
+		.bat-set-btn {
+			margin-left: 0 !important;
+		}
+		.type-item {
+			margin-left: 4px;
+			height: 22px;
+			border-color: #aaa;
+			margin-right: 0 !important;
+		}
+		.question {
+			display: flex !important;
+		}
+	</style>
+</head>
+<body>
+  <div class="window-body">
+	<div class="row-between bold" style="font-size: 14px;">
+		<div>题型预览</div>
+		<div id="refresh" class="clr1 clicked">手动刷新</div>
+	</div>
+    <div class="batch-setting-info" style="padding: 0;">
+    </div>
+	<div class="row-center w100" style="padding: 12px 0;">
+		<div class="br2 bg1 clr-white clicked" id="confirm" style="padding: 4px 24px;">保存</divd>
+	</div>
+  </div>
+</body>
+</html>
+<script type="module" type="text/javascript" src="scripts/dialog/batchQuestionType.js"></script>
+<script type="module" type="text/javascript" src="scripts/model/util.js"></script>
+<script type="module" type="text/javascript" src="components/Select.js"></script>
+<script>
+  // 监听消息事件
+  window.addEventListener('message', function(event) {
+    // 检查消息来源是否合法
+    if (event.origin !== window.location.origin) return;
+
+    // 处理接收到的值
+    var receivedData = event.data;
+    // console.log("接收到的值:", receivedData);
+  });
+</script>

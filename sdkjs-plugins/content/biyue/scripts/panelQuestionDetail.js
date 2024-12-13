@@ -4,7 +4,7 @@ import { reqSaveQuestion } from './api/paper.js'
 import { setInteraction } from './featureManager.js'
 import { changeProportion, deleteAsks, focusAsk, updateAllChoice, deleteChoiceOtherWrite, getQuesMode, updateQuesScore, splitControl } from './QuesManager.js'
 import { addClickEvent, getListByMap, showCom } from '../scripts/model/util.js'
-import { getDataByParams } from '../scripts/model/ques.js'
+import { getDataByParams, getFocusAskData } from '../scripts/model/ques.js'
 import { extractChoiceOptions, removeChoiceOptions, setChoiceOptionLayout } from './choiceQuestion.js'
 // 单题详情
 var proportionTypes = [
@@ -357,14 +357,16 @@ function updateElements(quesData, hint, ignore_ask_list) {
 	})
 }
 
-
-
 function showQuesData(params) {
 	console.log('showQuesData', params)
 	if(window.tab_select != 'tabQues') {
 		return
 	}
 	var data = getDataByParams(params)
+	updateDetail(data)
+}
+
+function updateDetail(data) {
 	if (!data) {
 		updateElements(null)
 		return
@@ -560,6 +562,39 @@ function initListener() {
 			}
 		}
 	})
+	document.addEventListener('focusQuestion', (params) => {
+		if (window.tab_select != 'tabQues') return
+		var detail = params.detail
+		if (detail && detail.ques_id) {
+			if (g_ques_id != detail.ques_id) {
+				var quesData = window.BiyueCustomData.question_map[detail.ques_id]
+				if (quesData) {
+					updateDetail({
+						ques_client_id: detail.ques_id,
+						level_type: quesData.level_type,
+						data: quesData,
+						findIndex: detail.ask_index
+					})
+				}
+			} else {
+				updateAskSelect(detail.ask_index)
+			}
+		}
+	})
+	document.addEventListener('refreshQues', (params) => {
+		if (window.tab_select != 'tabQues') return
+		if (g_ques_id) {
+			var quesData = window.BiyueCustomData.question_map[g_ques_id]
+			if (quesData) {
+				updateDetail({
+					ques_client_id: g_ques_id,
+					level_type: quesData.level_type,
+					data: quesData,
+					findIndex: select_ask_index
+				})
+			}
+		}
+	})
 }
 
 function changeQuesName(data) {
@@ -653,6 +688,15 @@ function autoSave(updatescore) {
 	}
 	clearTimeout(timeout_save)
 	timeout_save = setTimeout(() => {
+		window.biyue.sendMessageToWindow('batchQuestionTypeWindow', 'quesMapUpdate', {
+			question_map: window.BiyueCustomData.question_map
+		})
+		if (updatescore) {
+			window.biyue.sendMessageToWindow('batchScoresWindow', 'quesMapUpdate', {
+				question_map: window.BiyueCustomData.question_map,
+				node_list: window.BiyueCustomData.node_list
+			})
+		}
 		window.biyue.StoreCustomData()
 		if (updatescore && !workbook_id) {
 			updateQuesScore([g_ques_id]).then(() => {
@@ -713,40 +757,15 @@ function deleteAsk(index) {
 }
 
 function onFocusAsk(id, idx) {
+	console.log('onFocusAsk', id, idx)
 	var index = id.replace('ask', '') * 1
-	var quesData = window.BiyueCustomData.question_map[g_ques_id]
-	if (!quesData || !quesData.ask_list || index >= quesData.ask_list.length) {
-		return
+	var focusList = getFocusAskData(g_ques_id, index)
+	if (focusList) {
+		focusAsk(focusList)
+		updateAskSelect(idx)
+	} else {
+		console.log('找不到小问数据,node_list和question_map里的数据不一致')
 	}
-	var nlist = window.BiyueCustomData.node_list || []
-	var ids = quesData.is_merge ? quesData.ids : [g_ques_id]
-	var focusList = []
-	var targetIds = [quesData.ask_list[index].id]
-	if (quesData.ask_list[index].other_fields) {
-		targetIds = targetIds.concat(quesData.ask_list[index].other_fields)
-	}
-	for (var id of ids) {
-		var nodeData = nlist.find(e => {
-			return e.id == id
-		})
-		if (nodeData) {
-			for (var wData of nodeData.write_list) {
-				var targetIndex = targetIds.findIndex(e => {
-					return e == wData.id
-				})
-				if (targetIndex >= 0) {
-					focusList.push(wData)
-					targetIds.splice(targetIndex, 1)
-					if (targetIds.length == 0) {
-						focusAsk(focusList)
-						updateAskSelect(idx)
-						return
-					}
-				}
-			}
-		}
-	}
-	console.log('找不到小问数据,node_list和question_map里的数据不一致')
 }
 
 function updateQuesMode(ques_mode) {

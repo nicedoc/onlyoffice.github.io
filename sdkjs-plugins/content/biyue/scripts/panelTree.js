@@ -35,6 +35,15 @@ function refreshTree() {
 	}
 }
 
+function initTreeListener() {
+	document.addEventListener('focusQuestion', (params) => {
+		if (window.tab_select != 'tabTree') return
+		if (params.detail && params.detail.ques_id) {
+			updateSelect(params.detail.ques_id, true)
+		}
+	})
+}
+
 function renderTreeNode(parent, item, parentData) {
 	if (!parent) {
 		return
@@ -580,5 +589,6 @@ export {
 	generateTree,
 	refreshTree,
 	updateTreeSelect,
-	clickTreeLock
+	clickTreeLock,
+	initTreeListener
 }
