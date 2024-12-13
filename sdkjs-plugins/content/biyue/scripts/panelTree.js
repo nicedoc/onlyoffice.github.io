@@ -82,7 +82,9 @@ function renderTreeNode(parent, item, parentData) {
 		html += `<div class="qwrapper"  style="margin-left: ${identation}px;">
 					<div id="group-${item.id}">
 						<div class="struct font-12" style="left:${-24 - identation}px" id="struct${item.id}">构</div>
-						<div class="itemques text-over-ellipsis flex-1 clicked" id="box-${item.id}" title="${quesData.text}">${quesData.ques_name || quesData.text}</div>
+						<div class="itemques">
+							<div class="text-over-ellipsis flex-1 clicked" id="box-${item.id}" title="${quesData.text}">${quesData.ques_name || quesData.text}</div>
+						</div>
 					</div>
 					<div class="children" id="ques-${item.id}-children"></div>
 					${item.children && item.children.length > 0 ? `<div class="vline" id="vline-${item.id}" style="left: ${vlineleft}px"></div>` : ''}
