@@ -107,14 +107,25 @@ function renderTreeNode(parent, item, parentData) {
 		}
 	}
 }
+
+function countAllDescendants(node, isLastChild) {
+	if (!node.children || node.children.length === 0) {
+        return isLastChild ? 1 : 0; // 叶子节点; 只有最后一个算作 1
+    }
+    let count = 0;
+    const numChildren = node.children.length;
+    for (let i = 0; i < numChildren; i++) {
+        const child = node.children[i];
+		count += 1 + countAllDescendants(child);
+    }
+    return count;
+}
 function countDescendants(node, isLastChild = false) {
     if (!node.children || node.children.length === 0) {
         return isLastChild ? 1 : 0; // 叶子节点; 只有最后一个算作 1
     }
-
     let count = 0;
     const numChildren = node.children.length;
-
     for (let i = 0; i < numChildren; i++) {
         const child = node.children[i];
         const childIsLast = (i === numChildren - 1);
@@ -124,7 +135,7 @@ function countDescendants(node, isLastChild = false) {
             count += 1;
         } else {
             // 非最后一个孩子，需要计算自己+其子孙的叶子节点数量
-            count += 1 + countDescendants(child);
+            count += 1 + countAllDescendants(child);
         }
     }
     return count;
