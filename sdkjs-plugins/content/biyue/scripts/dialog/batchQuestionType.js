@@ -1,4 +1,4 @@
-import { setBtnLoading } from '../model/util.js'
+import { setBtnLoading, showCom, addClickEvent } from '../model/util.js'
 var _ = window._;
 ;(function (window, undefined) {
 	let biyueCustomData = {}
@@ -23,11 +23,11 @@ var _ = window._;
 	  needUpdateChoice = false
 	  needUpdateInteraction = false
 	  getOptions()
-	  $('#refresh').on('click', onRefresh)
-	  $('#confirm').on('click', onConfirm)
-	  $('#hidden_empty_struct').on('click', onSwitchStruct)
+	  addClickEvent('#refresh', onRefresh)
+	  addClickEvent('#confirm', onConfirm)
+	  addClickEvent('#hidden_empty_struct', onSwitchStruct)
 	  $('#switch_tree').prop('checked', display_tree)
-	  $('#switch_tree').on('click', onSwitchTree)
+	  addClickEvent('#switch_tree', onSwitchTree)
 	}
   
 	function getOptions() {
@@ -59,13 +59,8 @@ var _ = window._;
 	}
   
 	function showBottomBtns(v) {
-	  if (v) {
-		  $('.hidden_empty_struct').show()
-		  $('.switch-tree').show()
-	  } else {
-		  $('.hidden_empty_struct').hide()
-		  $('.switch-tree').hide()
-	  }
+		showCom('.hidden_empty_struct', v)
+		showCom('.switch-tree', v)
 	}
   
 	function getSelectHtml(id, quesData) {

@@ -19,12 +19,16 @@ function updateText(comname, v) {
 }
 
 function addClickEvent(comname, func) {
+	addTypeEvent(comname, 'click', func)
+}
+
+function addTypeEvent(comname, eventType, func) {
 	var com = $(comname)
 	if (!com) {
 		return
 	}
-	com.off('click', func)
-	com.on('click', func)
+	com.off(eventType, func)
+	com.on(eventType, func)
 }
 
 // 关闭其他select弹窗
@@ -113,4 +117,4 @@ function getYYMMDDHHMMSS() {
 	var second = date.getSeconds()
 	return `${year}_${month}_${day}_${hour}:${minute}:${second}`	
 }
-export { showCom, updateText, addClickEvent, closeOtherSelect, getListByMap, getInfoForServerSave, setBtnLoading, isLoading, getYYMMDDHHMMSS }
+export { showCom, updateText, addClickEvent, closeOtherSelect, getListByMap, getInfoForServerSave, setBtnLoading, isLoading, getYYMMDDHHMMSS, addTypeEvent }
