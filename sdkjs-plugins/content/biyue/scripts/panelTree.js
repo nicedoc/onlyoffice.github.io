@@ -149,14 +149,18 @@ function countDescendants(node, isLastChild = false) {
     }
     return count;
 }
-function traverse(node, result) {
+function traverse(node, result, result2) {
 	if (!node) return;
 	result[node.id] = countDescendants(node);
+	if (node.children && node.children.length) {
+		result2[node.id] = node.children[node.children.length - 1].id
+	} else {
+		result2[node.id] = 0
+	}
 	for (let child of node.children) {
-		traverse(child, result);
+		traverse(child, result, result2);
 	}
 }
-
 function renderTree() {
 	var tree_info = g_tree_info
 	big_info = null
@@ -169,21 +173,27 @@ function renderTree() {
 			renderTreeNode(rootElement, item, null)
 		})
 		var vCountMap = {}
+		let vLastChildMap = {}
 		for (let rootNode of tree_info.tree) {
-			traverse(rootNode, vCountMap);
+			traverse(rootNode, vCountMap, vLastChildMap);
 		}
 		tree_info.list.forEach(item => {
 			var itemCount = vCountMap[item.id]
-			if (itemCount > 0) {
+			if (itemCount > 0 && vLastChildMap[item.id]) {
+				var lastHLine = $(`#hline-${vLastChildMap[item.id]}`)
+				var hlineParentRect = lastHLine.parent()[0].getBoundingClientRect()
+				var lastHlineTop = lastHLine.css('top').replace('px', '') * 1
 				var linecom = $(`#panelTree #vline-${item.id}`)
 				if (linecom && linecom.length > 0) {
-					linecom.css('height', (itemCount * 25.7 + 6 * (itemCount - 1)) + 'px');
+					var parent = linecom.parent()
+					var parentRect = parent[0].getBoundingClientRect()
+					var vlineTop = linecom.css('top').replace('px', '') * 1
+					linecom.css('height', (hlineParentRect.top - parentRect.top + lastHlineTop - vlineTop) + 'px')
 				}
 			}
 			if (item.parent_id) {
 				if (item.level_type == 'struct') {
 					var structCom = $(`#panelTree #struct${item.id}`)
-					var childrenAncestorsCount = structCom.parents().filter('.children').length;
 					if (item.lvl !== null) {
 						structCom.css('left', (-24 - item.lvl * 16) + 'px')
 					} else {
