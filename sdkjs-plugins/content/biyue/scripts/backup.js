@@ -1034,7 +1034,8 @@ function updateRangeControlType(typeName) {
 					break
 			}
 		} else {
-			if (!oRange.Paragraphs || oRange.Paragraphs.length === 0) {
+			var paragrahs = oRange.GetAllParagraphs()
+			if (!paragrahs || paragrahs.length === 0) {
 				return {
 					code: 0,
 					message: '选中范围内无段落',
@@ -1211,9 +1212,10 @@ function updateRangeControlType(typeName) {
 					// 若存在完全重叠的区域，只修改tag
 					var isInCell = false
 					var level = 0
-					if (!completeOverlapControl && typeName != 'write' && oRange.Paragraphs.length) { // 未重叠
-						var oParagraph = oRange.Paragraphs[0]
-						var NumPr = oRange.Paragraphs[0].GetNumbering()
+					var rangeParagraphs = oRange.GetAllParagraphs()
+					if (!completeOverlapControl && typeName != 'write' && rangeParagraphs.length) { // 未重叠
+						var oParagraph = rangeParagraphs[0]
+						var NumPr = rangeParagraphs[0].GetNumbering()
 						if (NumPr) {
 							level = NumPr.Lvl
 						}
@@ -1228,7 +1230,7 @@ function updateRangeControlType(typeName) {
 										if (oParent2.GetClassType() == 'tableCell') {
 											isInCell = true
 										} else if (oParent2.GetClassType() == 'blockLvlSdt') {
-											if (oParent2.GetAllParagraphs().length == oRange.Paragraphs.length) {
+											if (oParent2.GetAllParagraphs().length == rangeParagraphs.length) {
 												completeOverlapControl = oParent2
 											}
 										}
@@ -1283,9 +1285,10 @@ function updateRangeControlType(typeName) {
 							}
 						}
 						var type = 1
-						if (oRange.Paragraphs.length) {
+						var rangeParagraphs = oRange.GetAllParagraphs() || []
+						if (rangeParagraphs.length) {
 							if (typeName == 'write') {
-								var f = oRange.Paragraphs.find((e, index) => {
+								var f = rangeParagraphs.find((e, index) => {
 									if (!e.Paragraph.IsEmpty()) {
 										var cnt = e.GetElementsCount()
 										if (!e.Paragraph.Selection.Use) {

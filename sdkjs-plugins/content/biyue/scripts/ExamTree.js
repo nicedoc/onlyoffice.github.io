@@ -924,7 +924,8 @@ function updateRangeControlType(typeName) {
 				}
 			}
 		} else {
-			if (!oRange.Paragraphs || oRange.Paragraphs.length === 0) {
+			var rangeParagraphs = oRange.GetAllParagraphs()
+			if (!rangeParagraphs || rangeParagraphs.length === 0) {
 				return {
 					code: 0,
 					message: '选中范围内无段落',

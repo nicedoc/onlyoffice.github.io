@@ -1844,24 +1844,21 @@ import { getFocusAskData } from './model/ques.js'
 					console.log('no range')
 					return
 				}
-				if (!oRange.Paragraphs) {
-					console.log('no paragraph')
-					return
-				}
-				if (oRange.Paragraphs.length === 0) {
+				var rangeParagraphs = oRange.GetAllParagraphs() || []
+				if (rangeParagraphs.length === 0) {
 					console.log('no paragraph')
 					return
 				}
 				// Api.asc_AddContentControl(1);
 				// Api.asc_RemoveSelection();
 				// oRange.SetBold(true);
-				var hasContentControl = oRange.Paragraphs[0].GetParentContentControl()
+				var hasContentControl = rangeParagraphs[0].GetParentContentControl()
 				var type = 1
 				if (hasContentControl) {
 					// sdt.Pr.Tag 存储题目相关信息
 					type = 2
 				}
-				console.log('oRange::', oRange.Paragraphs[0].GetParentContentControl())
+				console.log('oRange::', rangeParagraphs[0].GetParentContentControl())
 				console.log(
 					'aSections::',
 					oDocument.GetRangeBySelect(),

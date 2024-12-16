@@ -11,13 +11,18 @@ function layoutDetect(all) {
 				oRange = oDocument.GetRangeBySelect()
 				if (!oRange) {
 					var currentContentControl = oDocument.Document.GetContentControl()
-					oRange = Api.LookupObject(currentContentControl.Id).GetRange()
+					if (currentContentControl) {
+						var oControl = Api.LookupObject(currentContentControl.Id)
+						if (oControl) {
+							oRange = oControl.GetRange()
+						}
+					}
 				}
 			}
 			if (!oRange) {
 				return null
 			}
-			var paragraphs = oRange.Paragraphs || []
+			var paragraphs = oRange.GetAllParagraphs() || []
 			var result = {
 				has32: false, // 存在空格具有下划线属性
 				has160: false, // 存在ASCII码160，这是一个不可打印字符，称为不间断空格（NBSP）
@@ -160,14 +165,16 @@ function layoutRepair(cmdData) {
 			oRange = oDocument.GetRangeBySelect()
 			if (!oRange) {
 				var currentContentControl = oDocument.Document.GetContentControl()
-				oRange = Api.LookupObject(currentContentControl.Id).GetRange()
+				if (currentContentControl) {
+					oRange = Api.LookupObject(currentContentControl.Id).GetRange()
+				}
 			}
 		}
 		if (!oRange) {
 			return null
 		}
 		var allComments = oDocument.GetAllComments() || []
-		var paragrahs = oRange.Paragraphs || []
+		var paragrahs = oRange.GetAllParagraphs() || []
 		var oneSpaceWidth = 2.11 // 一个空格的宽度
 		var bflag = []
 		var type_map = {
