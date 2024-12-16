@@ -48,8 +48,11 @@ let SearchRubyField = function (text) {
             }
             else if (node.type == "fldChar" && node.fldCharType == "end")
             {
-                cur_range.end = res.path;
-                ranges.push(cur_range);
+                if (cur_range.Ruby !== null)
+                {
+                    cur_range.end = res.path;
+                    ranges.push(cur_range);
+                }
                 cur_range = null;
             }
             else if (node.type == "instrText")
