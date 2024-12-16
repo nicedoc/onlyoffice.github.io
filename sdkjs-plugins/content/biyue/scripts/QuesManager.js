@@ -2253,7 +2253,15 @@ function GetDefaultName(level_type, str) {
 	if (level_type == 'struct') {
 		const pattern = /^[一二三四五六七八九十0-9]+.*?(?=[：:])/
 		const result = pattern.exec(text)
-		return result ? result[0] : null
+		if (result) {
+			return result[0]
+		} else {
+			var texts2 = text.split('\r')
+			if (texts2 && texts2.length) {
+				return text.substring(0, Math.min(8, texts2[0].length))
+			}
+			return text
+		}
 	} else if (level_type == 'question')  {
 		const regex = /^([^.．、]*)/
 		var match = text.match(regex)
