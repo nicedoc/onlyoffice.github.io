@@ -481,6 +481,20 @@ function getChoiceOptionAndSteam(ids) {
 												isecond = optElement.i2
 												ithird = optElement.i3
 											}
+										} else if (nextElement.Data.Value == 32 || nextElement.Data.Value == 12288) { // 空格或全角空格
+											var nextNextElement = getNextElement(nextElement.i3, oChildControl.GetElement(nextElement.i2).Run.Content, nextElement.i2, oChildControl)
+											if (nextNextElement) {
+												isecond = nextNextElement.i2
+												ithird = nextNextElement.i3
+												if ((nextNextElement.Data.Value == 46 || nextNextElement.Data.Value == 65294)) { // .
+													flag2 = 'A'
+													var optElement = getNextElement(nextNextElement.i3, oChildControl.GetElement(nextNextElement.i2).Run.Content, nextNextElement.i2, oChildControl)
+													if (optElement) {
+														isecond = optElement.i2
+														ithird = optElement.i3
+													}
+												}
+											}
 										}
 									}
 								} else if (element3.Value >= 9312 && element3.Value <= 9320 && (!firstType || firstType == 'c1')) { // 圈1-圈9
@@ -760,20 +774,20 @@ function extractChoiceOptions(ids, calc) {
 									if (element3.Value >= 65 && element3.Value <= 72 && (!firstType || firstType == 'A')) { // A-H
 										var nextElement = getNextElement(i3, runContent, i2, oElement)
 										if (nextElement) {
-											if (nextElement.Data.Value == 46) { // .
+											if (nextElement.Data.Value == 65294 || nextElement.Data.Value == 46) { // ．全角半角都算
+												flag2 = 'A'
+												var optElement = getNextElement(nextElement.i3, oElement.GetElement(nextElement.i2).Run.Content, nextElement.i2, oElement)
+												if (optElement) {
+													beginPath = `$['sdtContent']` + `['content'][${i}]['content'][${i2}]['content'][${i3}]`
+												}
+											} else if (nextElement.Data.Value == 32 || nextElement.Data.Value == 12288) { // 空格 or 全角空格
 												var nextNextElement = getNextElement(nextElement.i3, oElement.GetElement(nextElement.i2).Run.Content, nextElement.i2, oElement)
-												if (nextNextElement && (nextNextElement.Data.Value == 32 || nextNextElement.Data.Value == 12288)) { // 空格 or 全角空格
+												if (nextNextElement && (nextNextElement.Data.Value == 46 || nextNextElement.Data.Value == 65294)) {
 													flag2 = 'A'
 													var optElement = getNextElement(nextNextElement.i3, oElement.GetElement(nextNextElement.i2).Run.Content, nextNextElement.i2, oElement)
 													if (optElement) {
 														beginPath = `$['sdtContent']` + `['content'][${i}]['content'][${i2}]['content'][${i3}]`
 													}
-												}
-											} else if (nextElement.Data.Value == 65294) { // ．全角的点
-												flag2 = 'A'
-												var optElement = getNextElement(nextElement.i3, oElement.GetElement(nextElement.i2).Run.Content, nextElement.i2, oElement)
-												if (optElement) {
-													beginPath = `$['sdtContent']` + `['content'][${i}]['content'][${i2}]['content'][${i3}]`
 												}
 											}
 										}
