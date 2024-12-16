@@ -19,7 +19,7 @@ import ComponentSelect from '../../components/Select.js'
 			callback_item: (data) => {
 				changeAskShortcut(data)
 			},
-			width: '60%',
+			width: '100%',
 			pop_width: '100%'
 		})
 	}
