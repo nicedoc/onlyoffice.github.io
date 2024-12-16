@@ -270,10 +270,11 @@ function updateMenuPos(event) {
     const windowHeight = window.innerHeight;
 	var x = event.pageX
 	var y = event.pageY
+	// 显示菜单
+	menu.style.display = 'block';
 	// 设置菜单初始位置
     menu.style.left = `${x}px`;
     menu.style.top = `${y}px`;
-
     // 检查菜单是否会超出窗口边界
     if (x + menu.offsetWidth > windowWidth) {
         menu.style.left = `${windowWidth - menu.offsetWidth}px`;
@@ -281,9 +282,6 @@ function updateMenuPos(event) {
     if (y + menu.offsetHeight > windowHeight) {
         menu.style.top = `${windowHeight - menu.offsetHeight}px`;
     }
-
-    // 显示菜单
-    menu.style.display = 'block';
 	window.show_dynamic_menu = true
 }
 
@@ -513,6 +511,22 @@ function generateMenuItems(options, id, currentLevel) {
 
                 menuItem.hover(function() {
                     submenu.show();
+					var viewportHeight = window.innerHeight // $(window).height();  // 获取窗口高度
+					var menuBottom = submenu.offset().top + submenu.outerHeight();  // 获取菜单底部相对于document的位置
+					// 判断是否超出窗口底部
+					if (menuBottom > viewportHeight) {
+						var overflowHeight = menuBottom - viewportHeight;  // 超出的高度
+						var currentTop = parseInt(submenu.css('top'), 10);  // 获取当前top值
+						submenu.css('top', currentTop - overflowHeight);  // 调整top值使菜单不超出窗口底部
+					}
+					var viewportWidth = window.innerWidth
+					var menuRight = submenu.offset().left + submenu.outerWidth();  // 获取菜单右边相对于document的位置
+					// 判断是否超出窗口右边
+					if (menuRight > viewportWidth) {
+						var overflowWidth = menuRight - viewportWidth;  // 超出的宽度
+						var currentLeft = parseInt(submenu.css('left'), 10);  // 获取当前left值
+						submenu.css('left', currentLeft - overflowWidth);  // 调整left值使菜单不超出窗口右边
+					}
                 }, function() {
                     submenu.hide();
                 });
