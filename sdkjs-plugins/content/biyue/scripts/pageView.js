@@ -215,7 +215,7 @@ function changeTabPanel(id, event) {
 			showQuesData(event ? event.detail : null)
 		}
 	} else if (id == 'tabTree') {
-		generateTree()
+		return generateTree()
 	}
 	scroll(false)
 }

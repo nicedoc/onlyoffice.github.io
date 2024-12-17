@@ -154,11 +154,11 @@ function traverse(node, result, result2) {
 	result[node.id] = countDescendants(node);
 	if (node.children && node.children.length) {
 		result2[node.id] = node.children[node.children.length - 1].id
+		for (let child of node.children) {
+			traverse(child, result, result2);
+		}
 	} else {
 		result2[node.id] = 0
-	}
-	for (let child of node.children) {
-		traverse(child, result, result2);
 	}
 }
 function renderTree() {

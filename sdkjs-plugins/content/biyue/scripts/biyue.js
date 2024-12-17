@@ -2391,27 +2391,25 @@ import { getFocusAskData } from './model/ques.js'
 				}
 				if (isFirstLoad) {
 					Asc.scope.split_getdoc = true
-					ReplaceRubyField().then(() => {
-						initExtroInfo().then(() => {
-							removeAllComment()
-						}).then(() => {
-							changeTabPanel('tabTree')
-						})
+					return ReplaceRubyField().then(() => {
+						return initExtroInfo()
+					}).then(() => {
+						return removeAllComment()
+					}).then(() => {
+						changeTabPanel('tabTree')
 					})
 					// reSplitQustion()
 				} else {
 					if (res2.data && res2.data.paper && res2.data.paper.info) {
 						updateDataBySavedData(res2.data.paper.info)
 					}
-					initControls().then(() => {
+					return initControls().then(() => {
 						Asc.scope.split_getdoc = false
-						return initExtroInfo().then(() => {
-							changeTabPanel('tabTree')
-						})
+						return initExtroInfo()
 					}).then(() => {
-						removeAllComment().then(() => {
-							changeTabPanel('tabTree')
-						})
+						return removeAllComment()
+					}).then(() => {
+						return changeTabPanel('tabTree')
 					})
 				}
 			})
