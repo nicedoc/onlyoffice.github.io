@@ -3,6 +3,7 @@ import { showCom, updateText, addClickEvent } from './model/util.js'
 import { handleRangeType } from "./classifiedTypes.js"
 import { getDataByParams } from '../scripts/model/ques.js'
 var g_tree_info = {}
+var map_open_status = {}
 var big_info = {
 	big_id: 0,
 	visible_big_set: false,
@@ -22,6 +23,16 @@ function generateTree() {
 	return preGetExamTree().then(res => {
 		Asc.scope.tree_info = res
 		g_tree_info = res || {}
+		if (map_open_status && g_tree_info.list) {
+			var keys = Object.keys(map_open_status)
+			for (var key of keys) {
+				if (!(g_tree_info.list.find(e => {
+					return e.id == key
+				}))) {
+					delete map_open_status[key]
+				}
+			}
+		}
 		console.log('=========generateTree ', g_tree_info)
 		renderTree()
 	})
@@ -86,13 +97,26 @@ function renderTreeNode(parent, item, parentData) {
 	if (identation < 0) {
 		identation = 0
 	}
+	var openIcon = ''
+	if (item.children && item.children.length) {
+		// if (map_open_status[item.id] == 1) { // 展开状态中
+		// 	openIcon = 'icon-shouqi'
+		// } else if (map_open_status[item.id] == -1) { // 收起状态中
+		// 	openIcon = 'icon-zhankai'
+		// } else {
+		// 	openIcon = 'icon-shouqi'
+		// }
+		openIcon = 'icon-shouqi'
+	}
+	var strIcon = openIcon ? `<i class="iconfont iopen clicked icon-shouqi" id="iopen-${item.id}" data-id="${item.id}"></i>` : ''
 	if (item.level_type == 'struct') {
 		var vlineleft = 0 // (identation > 16 ? (identation - 16) : 0)
 		html += `<div class="qwrapper"  style="margin-left: ${identation}px;">
 					<div id="group-${item.id}">
 						<div class="struct font-12" style="left:${-24 - identation}px" id="struct${item.id}">构</div>
 						<div class="itemques">
-							<div class="text-over-ellipsis flex-1 clicked" id="box-${item.id}" title="${quesData.text}">${quesData.ques_name || quesData.text}</div>
+							<div class="text-over-ellipsis flex-1 clicked" id="box-${item.id}" title="${quesData.text}">${item.id}-${quesData.ques_name || quesData.text}</div>
+							${strIcon}
 						</div>
 					</div>
 					<div class="children" id="ques-${item.id}-children"></div>
@@ -102,7 +126,8 @@ function renderTreeNode(parent, item, parentData) {
 	} else if (item.level_type == 'question') {
 		html += `<div class="qwrapper" style="margin-left: ${identation}px;">
 					<div class="itemques" id="box-${item.id}" >
-						<div title="${quesData.text}" id="ques-${item.id}" class="text-over-ellipsis clicked flex-1">${quesData.text}</div>
+						<div title="${quesData.text}" id="ques-${item.id}" class="text-over-ellipsis clicked flex-1">${item.id}-${quesData.text}</div>
+						${strIcon}
 						<div class="children" id="ques-${item.id}-children"></div>
 					</div>
 					${item.children && item.children.length && !item.is_big ? `<div class="vline" style="left: ${identation}px" id="vline-${item.id}"></div>` : ''}
@@ -178,19 +203,20 @@ function renderTree() {
 			traverse(rootNode, vCountMap, vLastChildMap);
 		}
 		tree_info.list.forEach(item => {
-			var itemCount = vCountMap[item.id]
-			if (itemCount > 0 && vLastChildMap[item.id]) {
-				var lastHLine = $(`#hline-${vLastChildMap[item.id]}`)
-				var hlineParentRect = lastHLine.parent()[0].getBoundingClientRect()
-				var lastHlineTop = lastHLine.css('top').replace('px', '') * 1
-				var linecom = $(`#panelTree #vline-${item.id}`)
-				if (linecom && linecom.length > 0) {
-					var parent = linecom.parent()
-					var parentRect = parent[0].getBoundingClientRect()
-					var vlineTop = linecom.css('top').replace('px', '') * 1
-					linecom.css('height', (hlineParentRect.top - parentRect.top + lastHlineTop - vlineTop) + 'px')
-				}
-			}
+			// var itemCount = vCountMap[item.id]
+			item.lastChildId = vLastChildMap[item.id]
+			// if (itemCount > 0 && vLastChildMap[item.id]) {
+			// 	var lastHLine = $(`#hline-${vLastChildMap[item.id]}`)
+			// 	var hlineParentRect = lastHLine.parent()[0].getBoundingClientRect()
+			// 	var lastHlineTop = lastHLine.css('top').replace('px', '') * 1
+			// 	var linecom = $(`#panelTree #vline-${item.id}`)
+			// 	if (linecom && linecom.length > 0) {
+			// 		var parent = linecom.parent()
+			// 		var parentRect = parent[0].getBoundingClientRect()
+			// 		var vlineTop = linecom.css('top').replace('px', '') * 1
+			// 		linecom.css('height', (hlineParentRect.top - parentRect.top + lastHlineTop - vlineTop) + 'px')
+			// 	}
+			// }
 			if (item.parent_id) {
 				if (item.level_type == 'struct') {
 					var structCom = $(`#panelTree #struct${item.id}`)
@@ -202,6 +228,7 @@ function renderTree() {
 				}
 			}
 		})
+		updateVlineHeight()
 		var structNum = 0
 		var quesNum = 0
 		tree_info.list.forEach(item => {
@@ -254,14 +281,16 @@ function renderTree() {
 			}
 		})
 		updateText('#panelTree #sum', `总计：结构${structNum}个，题目${quesNum}个`)
+		var openIcons = document.querySelectorAll('.iopen') || []
+		openIcons.forEach(dom => {
+			dom.removeEventListener('click', onOpenIcon)
+			dom.addEventListener('click', onOpenIcon)
+		})
+		updateChildrenStatus()
 	} else {
 		showCom('#panelTree .none', true)
 		updateText('#panelTree #sum', '')
 	}
-	updateText('#panelTree #edit', '编辑')
-	addClickEvent('#panelTree #edit', (e) => {
-		onEdit(e)
-	})
 }
 function updateMenuPos(event) {
 	const menu = document.getElementById('dynamicMenu');
@@ -355,7 +384,6 @@ function updateBig(id) {
 			'background-color': '#fff',
 			'border': '1px solid #bbb'
 		})
-		var mleft = parseInt((bigques).css('margin-left'), 10);
 		var minMarginLeft = 100
 		var minlvl = 10
 		for (var j = index + 1; j <= toIndex; ++j) {
@@ -411,8 +439,13 @@ function updateBig(id) {
 				'color': '#2489f6'
 			})
 		}
+		var iopen = $(`#panelTree #iopen-${id}`)
+		if (iopen) {
+			iopen.hide()
+		}
 		showBigBox(childrenName)
 		updateSelect(0)
+		updateVlineHeight()
 	}
 }
 
@@ -605,6 +638,83 @@ function updateSelect(qid, updateScroll) {
 					scrollTop: $target.offset().top - $container.offset().top + $container.scrollTop()
 				}, 500); // 500 is the duration of the animation in milliseconds
 			}
+		}
+	}
+}
+
+function onOpenIcon(e) {
+	e.cancelBubble = true
+	e.preventDefault()
+	var target = e.target || e.srcElement
+	if (!target) {
+		return
+	}
+	var dataset = target.dataset
+	if (!dataset || !dataset.id) {
+		return
+	}
+	if(target.classList.contains('icon-zhankai')) {
+		map_open_status[dataset.id] = 1
+	} else if(target.classList.contains('icon-shouqi')) {
+		map_open_status[dataset.id] = -1
+	}
+	updateOpenStatus2(dataset.id, map_open_status[dataset.id] != -1)
+	updateVlineHeight()
+}
+// 更新父节点的展开收起状态
+function updateOpenStatus2(id, open) {
+	var targetIcon = $(`#panelTree #iopen-${id}`)
+	if (targetIcon) {
+		if (open) {
+			targetIcon.removeClass('icon-zhankai')
+			targetIcon.addClass('icon-shouqi')
+		} else {
+			targetIcon.removeClass('icon-shouqi')
+			targetIcon.addClass('icon-zhankai')
+		}
+	}
+	var children = $(`#panelTree #ques-${id}-children`)
+	if (children && children.length) {
+		if (open) {
+			children.show()
+		} else {
+			children.hide()
+		}
+	}
+}
+// 更新展开收起状态
+function updateChildrenStatus() {
+	if (!g_tree_info || !g_tree_info.list) {
+		return
+	}
+	var list = g_tree_info.list
+	for (var i = list.length - 1; i >= 0; --i) {
+		if (list[i].lastChildId) {
+			var id = list[i].id
+			var isClose = map_open_status && map_open_status[id] && map_open_status[id] == -1
+			updateOpenStatus2(id, !isClose)
+		}
+	}
+}
+// 更新父节点竖线高度
+function updateVlineHeight() {
+	if (!g_tree_info || !g_tree_info.list) {
+		return
+	}
+	for (var item of g_tree_info.list) {
+		var lastHLine = $(`#hline-${item.lastChildId}`)
+		var hlineParent = lastHLine.parent()
+		if (hlineParent.length == 0) {
+			continue
+		}
+		var hlineParentRect = lastHLine.parent()[0].getBoundingClientRect()
+		var lastHlineTop = lastHLine.css('top').replace('px', '') * 1
+		var linecom = $(`#panelTree #vline-${item.id}`)
+		if (linecom && linecom.length > 0) {
+			var parent = linecom.parent()
+			var parentRect = parent[0].getBoundingClientRect()
+			var vlineTop = linecom.css('top').replace('px', '') * 1
+			linecom.css('height', (hlineParentRect.top - parentRect.top + lastHlineTop - vlineTop) + 'px')
 		}
 	}
 }
