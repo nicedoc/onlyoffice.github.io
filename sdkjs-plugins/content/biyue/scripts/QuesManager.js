@@ -1856,7 +1856,7 @@ function initControls() {
 				tagInfo.clr = tagInfo.color = '#ffffff40'
 				changecolor = true
 			} else if (tagInfo.regionType == 'choiceOption') {
-				tagInfo.color = '#00ff0020'
+				tagInfo.clr = tagInfo.color = '#00ff0020'
 				changecolor = true
 			}
 			if (!changecolor && tagInfo.color) {
@@ -3922,6 +3922,11 @@ function changeProportion(idList, proportion) {
 				if (element.GetTableTitle() != TABLE_TITLE) {
 					break
 				}
+				// todo..分栏里的表格尚未考虑
+				// var tableBounds = element.Table.GetPageBounds(0)
+				// var tableWidth = tableBounds.Right - tableBounds.Left
+				var sectPr = element.Table.Get_SectPr()
+				var sectWidth = sectPr.PageSize.W - sectPr.PageMargins.Left - sectPr.PageMargins.Right
 				var rows = element.GetRowsCount()
 				if (rows != 1) {
 					break
@@ -3938,7 +3943,9 @@ function changeProportion(idList, proportion) {
 					if (!TableCellW) {
 						continue
 					}
-					var W = TableCellW.W
+					var pagebounds = oCell.Cell.GetPageBounds(0)
+					var cellWidth = pagebounds.Right - pagebounds.Left
+					var W = cellWidth * 100 / sectWidth // TableCellW.W
 					var cellContent = oCell.GetContent()
 					var contents = []
 					var elementcount = cellContent.GetElementsCount()
@@ -4062,9 +4069,15 @@ function changeProportion(idList, proportion) {
 				tables[i].cells.forEach((cell, cidx) => {
 					AddControlToCell2(templist[count].content, oTable.GetCell(0, cell.icell))
 					count++
-					// console.log('============== ++++++++ 4', cell, oTable.Table.CalculatedTableW)
-					var twips = oTable.Table.CalculatedTableW * (100 / cell.W)
-					oTable.GetCell(0, cell.icell).SetWidth('twips', twips)
+					if (cell.W > 0) {
+						var cw = cell.W <= 0 ? 1 : cell.W
+						var twips = oTable.Table.CalculatedTableW * (100 / cw)
+						if (cw > 1) {
+							oTable.GetCell(0, cell.icell).SetWidth('percent', cw)
+						} else {
+							oTable.GetCell(0, cell.icell).SetWidth('twips', twips)
+						}
+					}					
 					// oTable.GetCell(0, cell.icell).SetWidth('percent', cell.W)
 				})
 				if (i >= toIndex) {
