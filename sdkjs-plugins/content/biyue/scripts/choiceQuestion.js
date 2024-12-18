@@ -1535,6 +1535,14 @@ function setChoiceOptionLayout(options) {
 				var PageMargins = section.Section.PageMargins
 				var PageSize = section.Section.PageSize
 				var w = PageSize.W - PageMargins.Left - PageMargins.Right
+				var oCell = oOptionParagraph.GetParentTableCell()
+				if (oCell) {
+					var oTable = oCell.GetParentTable()
+					var tablePr = oTable.Table.Pr
+					if (tablePr && tablePr.TableW && tablePr.TableW.Type == 3) {
+						w = w * (tablePr.TableW.W / 100)
+					}
+				}
 				var newTabs = []
 				var aligns = []
 				if (options.indLeft) { // 存在左缩进
