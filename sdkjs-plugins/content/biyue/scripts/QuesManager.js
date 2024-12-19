@@ -9,7 +9,7 @@ import { imageAutoLink, ShowLinkedWhenclickImage } from './linkHandler.js'
 import { layoutDetect } from './layoutFixHandler.js'
 import { setBtnLoading, isLoading } from './model/util.js'
 import { refreshTree } from './panelTree.js'
-import { extractChoiceOptions, removeChoiceOptions, getChoiceOptionAndSteam } from './choiceQuestion.js'
+import { extractChoiceOptions, removeChoiceOptions, getChoiceOptionAndSteam, setChoiceOptionLayout } from './choiceQuestion.js'
 var g_click_value = null
 var upload_control_list = []
 
@@ -3574,9 +3574,16 @@ function batchChangeProportion(proportion) {
 				question_map[e.id].proportion = proportion
 			}
 		})
-		batchProportion(res.list, proportion).then(() => {
-			return window.biyue.StoreCustomData()
-		})
+		return batchProportion(res.list, proportion)
+	}).then(() => {
+		return setChoiceOptionLayout({
+			list: (Asc.scope.change_id_list || []).map(e => {
+				return e.id
+			}),
+			from: 'proportion'
+		})	
+	}).then(() => {
+		return window.biyue.StoreCustomData()
 	})
 }
 
@@ -3789,9 +3796,7 @@ function batchProportion(idList, proportion) {
 				}
 			}
 		}
-	}, false, true).then(res => {
-		console.log('batchProportion', res)
-	})
+	}, false, false)
 }
 
 function changeProportion(idList, proportion) {
@@ -4172,7 +4177,7 @@ function changeProportion(idList, proportion) {
 			idList: idList,
 			proportion: target_proportion
 		}
-	}, false, true).then(res => {
+	}, false, false).then(res => {
 		console.log('changeProportion result', res)
 		if (res && res.idList && window.BiyueCustomData.question_map) {
 			res.idList.forEach(id => {
@@ -4181,6 +4186,10 @@ function changeProportion(idList, proportion) {
 				}
 			})
 		}
+		return setChoiceOptionLayout({
+			list: idList,
+			from: 'proportion'
+		})
 	})
 }
 

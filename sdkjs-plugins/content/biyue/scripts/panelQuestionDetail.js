@@ -32,7 +32,7 @@ var scoreLayoutTypes = [
 	{ value: 2,	label: '嵌入式'}
 ]
 var choiceAlignTypes = [
-	{ value: 0, label: '未设置'},
+	{ value: 0, label: '不处理'},
 	{ value: 4, label: '一行4个'},
 	{ value: 2, label: '一行2个'},
 	{ value: 1, label: '一行1个'},
@@ -288,6 +288,18 @@ function updateElements(quesData, hint, ignore_ask_list) {
 	}
 	if (select_interaction) {
 		select_interaction.setSelect(quesData.interaction || 'none')
+	}
+	if (select_choice_align) {
+		select_choice_align.setSelect(quesData.part || '0')
+	}
+	if (select_choice_ind_left) {
+		select_choice_ind_left.setSelect(quesData.indLeft === undefined ? '-1' : quesData.indLeft + '')
+	}
+	if (select_choice_bracket) {
+		select_choice_bracket.setSelect(quesData.bracket || 'none')
+	}
+	if (input_choice_space) {
+		input_choice_space.setValue((quesData.spaceNum || '') + '')
 	}
 	if (input_score) {
 		input_score.setValue((quesData.score || 0) + '')
@@ -1002,6 +1014,18 @@ function onApplyAllQues(forAll) {
 function notifyChoiceAlign(from) {
 	var question_map = window.BiyueCustomData.question_map || {}
 	var list = []
+	var spaceNum = 0
+	if (input_choice_space) {
+		spaceNum = input_choice_space.getValue()
+		if (spaceNum == '') {
+			spaceNum = 0
+		} else {
+			spaceNum *= 1
+		}
+	}
+	var part = select_choice_align ? select_choice_align.getValue() * 1 : 0
+	var indLeft = select_choice_ind_left ? select_choice_ind_left.getValue() * 1 : -1
+	var bracket = select_choice_bracket ? select_choice_bracket.getValue() : 'none'
 	if (choice_check && question_map[g_ques_id]) {
 		var qmode = question_map[g_ques_id].ques_mode
 		Object.keys(question_map).forEach(id => {
@@ -1012,20 +1036,25 @@ function notifyChoiceAlign(from) {
 	} else {
 		list = [g_ques_id * 1]
 	}
-	var spaceNum = 0
-	if (input_choice_space) {
-		spaceNum = input_choice_space.getValue()
-		if (spaceNum == '') {
-			spaceNum = 0
-		} else {
-			spaceNum *= 1
+	for (var id of list) {
+		if (part) {
+			question_map[id].part = part
+		}
+		if (indLeft != -1) {
+			question_map[id].indLeft = indLeft
+		}
+		if (bracket != 'none') {
+			question_map[id].bracket = bracket
+		}
+		if (spaceNum) {
+			question_map[id].spaceNum = spaceNum
 		}
 	}
 	setChoiceOptionLayout({
 		list: list,
-		part: select_choice_align ? select_choice_align.getValue() * 1 : 0,
-		indLeft: select_choice_ind_left ? select_choice_ind_left.getValue() * 1 : -1,
-		bracket: select_choice_bracket ? select_choice_bracket.getValue() : 'none',
+		part: part,
+		indLeft: indLeft,
+		bracket: bracket,
 		spaceNum: spaceNum,
 		from: from
 	})
