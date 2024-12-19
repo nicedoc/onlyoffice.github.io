@@ -857,6 +857,9 @@ function handleRangeType(options) {
 					break
 				}
 			}
+			if (templist.length == 0) {
+				return false
+			}
 			for (var i = 0; i < templist.length; ++i) {
 				oParent.RemoveElement(posinparent + 1)
 			}
@@ -866,6 +869,7 @@ function handleRangeType(options) {
 					oControl.AddElement(e, count + index)
 				})
 			}
+			return true
 		}
 		// 表格中存在题目
 		function hasQuestion(oTable) {
@@ -1494,17 +1498,23 @@ function handleRangeType(options) {
 				if (typeName == 'setBig' && options.big_id && options.end_id) {
 					var oBlockControl = getControlsByClientId(options.big_id)
 					clearBig(oBlockControl)
-					setBig(oBlockControl)
-					updateControlTag(oBlockControl, 'question', getParentId(oBlockControl))
+					if (setBig(oBlockControl)) {
+						updateControlTag(oBlockControl, 'question', getParentId(oBlockControl))
+					} else {
+						result.message = '没找到可包含的小题'
+					}
 				} else {
 					if (curBlockSdt && ((selectionInfo.isSelection && completeOverlap) || (!selectionInfo.isSelection))) {
 						if (curBlockSdt) {
 							if (typeName == 'setBig') {
-								setBig(oBlockControl)
-							} else {
+								if (setBig(oBlockControl)) {
+									updateControlTag(oBlockControl, 'question', getParentId(oBlockControl))
+								} else {
+									result.message = '没找到可包含的小题'
+								}							} else {
 								clearBig(oBlockControl)
+								updateControlTag(oBlockControl, 'question', getParentId(oBlockControl))
 							}
-							updateControlTag(oBlockControl, 'question', getParentId(oBlockControl))
 						}
 					}
 				}
