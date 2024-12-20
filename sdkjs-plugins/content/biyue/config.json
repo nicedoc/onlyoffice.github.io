@@ -63,7 +63,7 @@
 				],
 			"isViewer": false,
 			"EditorsSupport": [ "word" ],
-			"events": [ "onClick", "onContextMenuShow", "onContextMenuClick", "onFocusContentControl", "onBlurContentControl", "onChangeContentControl"],
+			"events": [ "onClick", "onContextMenuShow", "onContextMenuClick", "onFocusContentControl", "onBlurContentControl", "onChangeContentControl", "onEndAddShape", "onToolbarMenuClick"],
 			"initDataType": "text",
 			"isVisual": true,
 			"isModal": false,
@@ -84,7 +84,7 @@
 					"light" : "resources/store/icons",
 					"dark"  : "resources/store/icons"
 				},
-				"categories": ["specAbilities"]
+				"categories": ["specAbilities", "work"]
 			},
 			"buttons": [
 				{

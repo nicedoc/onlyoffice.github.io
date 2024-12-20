@@ -88,7 +88,41 @@ function getDataByParams(params) {
 		}
 	}
 }
+function getFocusAskData(quesId, index) {
+	var quesData = window.BiyueCustomData.question_map[quesId]
+	if (!quesData || !quesData.ask_list || index >= quesData.ask_list.length) {
+		return null
+	}
+	var nlist = window.BiyueCustomData.node_list || []
+	var ids = quesData.is_merge ? quesData.ids : [quesId]
+	var focusList = []
+	var targetIds = [quesData.ask_list[index].id]
+	if (quesData.ask_list[index].other_fields) {
+		targetIds = targetIds.concat(quesData.ask_list[index].other_fields)
+	}
+	for (var qid of ids) {
+		var nodeData = nlist.find(e => {
+			return e.id == qid
+		})
+		if (nodeData) {
+			for (var wData of nodeData.write_list) {
+				var targetIndex = targetIds.findIndex(e => {
+					return e == wData.id
+				})
+				if (targetIndex >= 0) {
+					focusList.push(wData)
+					targetIds.splice(targetIndex, 1)
+					if (targetIds.length == 0) {
+						return focusList
+					}
+				}
+			}
+		}
+	}
+	return null
+}
 
 export {
-	getDataByParams
+	getDataByParams,
+	getFocusAskData
 }

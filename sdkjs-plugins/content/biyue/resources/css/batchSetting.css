@@ -63,7 +63,7 @@
 	font-size: 12px;
 	user-select: none;
 	.bat-set-btn {
-		color: #4caf50;
+		color: #2489f6;
 		cursor: pointer;
 		margin-left: 5px;
 	}
@@ -88,8 +88,8 @@
 		margin: 0 10px 0 0;
 	}
 	.input {
-		width: 60px;
-		max-width: 60px;
+		width: 50px;
+		max-width: 50px;
 	}
 	.type-item {
 		width: 100px;

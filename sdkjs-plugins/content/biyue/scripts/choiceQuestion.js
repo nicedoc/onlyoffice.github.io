@@ -481,6 +481,20 @@ function getChoiceOptionAndSteam(ids) {
 												isecond = optElement.i2
 												ithird = optElement.i3
 											}
+										} else if (nextElement.Data.Value == 32 || nextElement.Data.Value == 12288) { // 空格或全角空格
+											var nextNextElement = getNextElement(nextElement.i3, oChildControl.GetElement(nextElement.i2).Run.Content, nextElement.i2, oChildControl)
+											if (nextNextElement) {
+												isecond = nextNextElement.i2
+												ithird = nextNextElement.i3
+												if ((nextNextElement.Data.Value == 46 || nextNextElement.Data.Value == 65294)) { // .
+													flag2 = 'A'
+													var optElement = getNextElement(nextNextElement.i3, oChildControl.GetElement(nextNextElement.i2).Run.Content, nextNextElement.i2, oChildControl)
+													if (optElement) {
+														isecond = optElement.i2
+														ithird = optElement.i3
+													}
+												}
+											}
 										}
 									}
 								} else if (element3.Value >= 9312 && element3.Value <= 9320 && (!firstType || firstType == 'c1')) { // 圈1-圈9
@@ -760,20 +774,20 @@ function extractChoiceOptions(ids, calc) {
 									if (element3.Value >= 65 && element3.Value <= 72 && (!firstType || firstType == 'A')) { // A-H
 										var nextElement = getNextElement(i3, runContent, i2, oElement)
 										if (nextElement) {
-											if (nextElement.Data.Value == 46) { // .
+											if (nextElement.Data.Value == 65294 || nextElement.Data.Value == 46) { // ．全角半角都算
+												flag2 = 'A'
+												var optElement = getNextElement(nextElement.i3, oElement.GetElement(nextElement.i2).Run.Content, nextElement.i2, oElement)
+												if (optElement) {
+													beginPath = `$['sdtContent']` + `['content'][${i}]['content'][${i2}]['content'][${i3}]`
+												}
+											} else if (nextElement.Data.Value == 32 || nextElement.Data.Value == 12288) { // 空格 or 全角空格
 												var nextNextElement = getNextElement(nextElement.i3, oElement.GetElement(nextElement.i2).Run.Content, nextElement.i2, oElement)
-												if (nextNextElement && (nextNextElement.Data.Value == 32 || nextNextElement.Data.Value == 12288)) { // 空格 or 全角空格
+												if (nextNextElement && (nextNextElement.Data.Value == 46 || nextNextElement.Data.Value == 65294)) {
 													flag2 = 'A'
 													var optElement = getNextElement(nextNextElement.i3, oElement.GetElement(nextNextElement.i2).Run.Content, nextNextElement.i2, oElement)
 													if (optElement) {
 														beginPath = `$['sdtContent']` + `['content'][${i}]['content'][${i2}]['content'][${i3}]`
 													}
-												}
-											} else if (nextElement.Data.Value == 65294) { // ．全角的点
-												flag2 = 'A'
-												var optElement = getNextElement(nextElement.i3, oElement.GetElement(nextElement.i2).Run.Content, nextElement.i2, oElement)
-												if (optElement) {
-													beginPath = `$['sdtContent']` + `['content'][${i}]['content'][${i2}]['content'][${i3}]`
 												}
 											}
 										}
@@ -1125,16 +1139,14 @@ function getChoiceQuesOption(e) {
 // 设置选择题选项布局
 function setChoiceOptionLayout(options) {
 	Asc.scope.choice_align_options = options
+	Asc.scope.question_map = window.BiyueCustomData.question_map
 	return biyueCallCommand(window, function() {
 		var options = Asc.scope.choice_align_options
+		var question_map = Asc.scope.question_map || {}
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls()
-		var part = options.part
-		var identifyLeft = options.indLeft >= 0 ? (options.indLeft / ((25.4 / 72 / 20))) : 0 
-		var spaceNum = options.spaceNum
-		var bracket = options.bracket
 		// 选项可能是A-H, 也可能是圈数字
-		function handleBracket(oControl) {
+		function handleBracket(oControl, bracket, spaceNum) {
 			if (bracket == 'none' && spaceNum == 0) {
 				return
 			}
@@ -1268,7 +1280,8 @@ function setChoiceOptionLayout(options) {
 			}
 			return null
 		}
-		function addTabBreak2(count, newRun) {
+		function addTabBreak2(count, newRun, identifyLeft, part) {
+			// console.log('addTabBreak2 identifyLeft', identifyLeft, 'part', part)
 			if (identifyLeft) {
 				if (count) {
 					if (part == 1) {
@@ -1318,7 +1331,7 @@ function setChoiceOptionLayout(options) {
 			}
 			return false
 		}
-		function addTabs(oParagraph, optionMin, optionMax) {
+		function addTabs(oParagraph, optionMin, optionMax, identifyLeft, part) {
 			var optionList = []
 			for (var i1 = 0; i1 < oParagraph.GetElementsCount(); ++i1) {
 				var oElement = oParagraph.GetElement(i1)
@@ -1380,13 +1393,13 @@ function setChoiceOptionLayout(options) {
 								if ((optionList.length == 0 && identifyLeft) || (optionList.length && optionList[optionList.length - 1].type == 'text')) { // 第1个, 且有左缩进
 									if (i2 == 0) { // run的第1个字符, 在其前面添加tab
 										var newRun = Api.CreateRun()
-										addTabBreak2(optionList.length, newRun)
+										addTabBreak2(optionList.length, newRun, identifyLeft, part)
 										oParagraph.AddElement(newRun, i1)
 										++i1
 									} else {
 										var newRun = oElement.Run.Split_Run(i2)
 										var newRun1 = Api.CreateRun()
-										addTabBreak2(optionList.length, newRun1)
+										addTabBreak2(optionList.length, newRun1, identifyLeft, part)
 										oParagraph.AddElement(newRun1, i1 + 1)
 										oParagraph.Paragraph.Add_ToContent(i1 + 2, newRun)
 										i1 += 2
@@ -1424,7 +1437,7 @@ function setChoiceOptionLayout(options) {
 					}
 					if (identifyLeft || optionList.length) {
 						var newRun = Api.CreateRun()
-						addTabBreak2(optionList.length, newRun)
+						addTabBreak2(optionList.length, newRun, identifyLeft, part)
 						oParagraph.AddElement(newRun, i1)
 						++i1
 					}
@@ -1447,12 +1460,22 @@ function setChoiceOptionLayout(options) {
 			if (!tag.client_id) {
 				continue
 			}
-			if (!(options.list.includes(tag.client_id))) {
+			var qid = tag.mid || tag.client_id
+			if (!(options.list.includes(qid))) {
+				continue
+			}
+			var quesData = question_map[qid]
+			if (!quesData || (quesData.ques_mode != 1 && quesData.ques_mode != 5)) {
 				continue
 			}
 			var controlContent = oControl.GetContent()
 			// 处理括号
-			handleBracket(oControl)
+			if (options.bracket != undefined && options.spaceNum != undefined) {
+				handleBracket(oControl, quesData.bracket, quesData.spaceNum)
+			}
+			if (options.part === 0 && options.indLeft == -1) {
+				continue
+			}
 			// 移除tab键
 			removeTabs(oControl)
 			var childControls = oControl.GetAllContentControls()
@@ -1516,26 +1539,40 @@ function setChoiceOptionLayout(options) {
 				oOptionParagraph.SetIndLeft(0)
 				oOptionParagraph.SetIndFirstLine(0)
 				// 插入tab
-				addTabs(oOptionParagraph, optionMin, optionMax)
+				addTabs(oOptionParagraph, optionMin, optionMax, quesData.indLeft, quesData.part)
 				var section = oOptionParagraph.GetSection()
 				var PageMargins = section.Section.PageMargins
 				var PageSize = section.Section.PageSize
+				// todo..暂不考虑分栏的情况
 				var w = PageSize.W - PageMargins.Left - PageMargins.Right
+				var oCell = oOptionParagraph.GetParentTableCell()
+				if (oCell && oCell.Cell && oCell.Cell.GetPageBounds) {
+					var cellBounds = oCell.Cell.GetPageBounds(0)
+					if (cellBounds) {
+						var cellw = cellBounds.Right - cellBounds.Left
+						w = cellw
+					}
+				}
 				var newTabs = []
 				var aligns = []
-				if (options.indLeft) { // 存在左缩进
+				var identifyLeft = quesData.indLeft !== undefined && quesData.indLeft >= 0 ? (quesData.indLeft / ((25.4 / 72 / 20))) : 0 
+				if (quesData.indLeft >= 0) { // 存在左缩进
 					newTabs.push(identifyLeft)
 					aligns.push('left')
 				}
 				var tabs = []
-				for (var i = 1; i < part; ++i) {
-					tabs.push(i / part)
+				if (quesData.part) {
+					for (var i = 1; i < quesData.part; ++i) {
+						tabs.push(i / quesData.part)
+					}
 				}
 				tabs.forEach(e => {
 					newTabs.push((w * e) / (25.4 / 72 / 20) + identifyLeft)
 					aligns.push('left')
 				})
-				oOptionParagraph.SetTabs(newTabs, aligns)
+				if (newTabs.length) {
+					oOptionParagraph.SetTabs(newTabs, aligns)
+				}
 			} else {
 				console.log('未找到选项所在段落')
 			}

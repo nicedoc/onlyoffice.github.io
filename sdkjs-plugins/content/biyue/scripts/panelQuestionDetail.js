@@ -4,7 +4,7 @@ import { reqSaveQuestion } from './api/paper.js'
 import { setInteraction } from './featureManager.js'
 import { changeProportion, deleteAsks, focusAsk, updateAllChoice, deleteChoiceOtherWrite, getQuesMode, updateQuesScore, splitControl } from './QuesManager.js'
 import { addClickEvent, getListByMap, showCom } from '../scripts/model/util.js'
-import { getDataByParams } from '../scripts/model/ques.js'
+import { getDataByParams, getFocusAskData } from '../scripts/model/ques.js'
 import { extractChoiceOptions, removeChoiceOptions, setChoiceOptionLayout } from './choiceQuestion.js'
 // 单题详情
 var proportionTypes = [
@@ -32,7 +32,7 @@ var scoreLayoutTypes = [
 	{ value: 2,	label: '嵌入式'}
 ]
 var choiceAlignTypes = [
-	{ value: 0, label: '未设置'},
+	{ value: 0, label: '不处理'},
 	{ value: 4, label: '一行4个'},
 	{ value: 2, label: '一行2个'},
 	{ value: 1, label: '一行1个'},
@@ -289,6 +289,18 @@ function updateElements(quesData, hint, ignore_ask_list) {
 	if (select_interaction) {
 		select_interaction.setSelect(quesData.interaction || 'none')
 	}
+	if (select_choice_align) {
+		select_choice_align.setSelect(quesData.part || '0')
+	}
+	if (select_choice_ind_left) {
+		select_choice_ind_left.setSelect(quesData.indLeft === undefined ? '-1' : quesData.indLeft + '')
+	}
+	if (select_choice_bracket) {
+		select_choice_bracket.setSelect(quesData.bracket || 'none')
+	}
+	if (input_choice_space) {
+		input_choice_space.setValue((quesData.spaceNum || '') + '')
+	}
 	if (input_score) {
 		input_score.setValue((quesData.score || 0) + '')
 	}
@@ -357,14 +369,16 @@ function updateElements(quesData, hint, ignore_ask_list) {
 	})
 }
 
-
-
 function showQuesData(params) {
 	console.log('showQuesData', params)
 	if(window.tab_select != 'tabQues') {
 		return
 	}
 	var data = getDataByParams(params)
+	updateDetail(data)
+}
+
+function updateDetail(data) {
 	if (!data) {
 		updateElements(null)
 		return
@@ -560,6 +574,39 @@ function initListener() {
 			}
 		}
 	})
+	document.addEventListener('focusQuestion', (params) => {
+		if (window.tab_select != 'tabQues') return
+		var detail = params.detail
+		if (detail && detail.ques_id) {
+			if (g_ques_id != detail.ques_id) {
+				var quesData = window.BiyueCustomData.question_map[detail.ques_id]
+				if (quesData) {
+					updateDetail({
+						ques_client_id: detail.ques_id,
+						level_type: quesData.level_type,
+						data: quesData,
+						findIndex: detail.ask_index
+					})
+				}
+			} else {
+				updateAskSelect(detail.ask_index)
+			}
+		}
+	})
+	document.addEventListener('refreshQues', (params) => {
+		if (window.tab_select != 'tabQues') return
+		if (g_ques_id) {
+			var quesData = window.BiyueCustomData.question_map[g_ques_id]
+			if (quesData) {
+				updateDetail({
+					ques_client_id: g_ques_id,
+					level_type: quesData.level_type,
+					data: quesData,
+					findIndex: select_ask_index
+				})
+			}
+		}
+	})
 }
 
 function changeQuesName(data) {
@@ -653,6 +700,15 @@ function autoSave(updatescore) {
 	}
 	clearTimeout(timeout_save)
 	timeout_save = setTimeout(() => {
+		window.biyue.sendMessageToWindow('batchQuestionTypeWindow', 'quesMapUpdate', {
+			question_map: window.BiyueCustomData.question_map
+		})
+		if (updatescore) {
+			window.biyue.sendMessageToWindow('batchScoresWindow', 'quesMapUpdate', {
+				question_map: window.BiyueCustomData.question_map,
+				node_list: window.BiyueCustomData.node_list
+			})
+		}
 		window.biyue.StoreCustomData()
 		if (updatescore && !workbook_id) {
 			updateQuesScore([g_ques_id]).then(() => {
@@ -713,40 +769,15 @@ function deleteAsk(index) {
 }
 
 function onFocusAsk(id, idx) {
+	console.log('onFocusAsk', id, idx)
 	var index = id.replace('ask', '') * 1
-	var quesData = window.BiyueCustomData.question_map[g_ques_id]
-	if (!quesData || !quesData.ask_list || index >= quesData.ask_list.length) {
-		return
+	var focusList = getFocusAskData(g_ques_id, index)
+	if (focusList) {
+		focusAsk(focusList)
+		updateAskSelect(idx)
+	} else {
+		console.log('找不到小问数据,node_list和question_map里的数据不一致')
 	}
-	var nlist = window.BiyueCustomData.node_list || []
-	var ids = quesData.is_merge ? quesData.ids : [g_ques_id]
-	var focusList = []
-	var targetIds = [quesData.ask_list[index].id]
-	if (quesData.ask_list[index].other_fields) {
-		targetIds = targetIds.concat(quesData.ask_list[index].other_fields)
-	}
-	for (var id of ids) {
-		var nodeData = nlist.find(e => {
-			return e.id == id
-		})
-		if (nodeData) {
-			for (var wData of nodeData.write_list) {
-				var targetIndex = targetIds.findIndex(e => {
-					return e == wData.id
-				})
-				if (targetIndex >= 0) {
-					focusList.push(wData)
-					targetIds.splice(targetIndex, 1)
-					if (targetIds.length == 0) {
-						focusAsk(focusList)
-						updateAskSelect(idx)
-						return
-					}
-				}
-			}
-		}
-	}
-	console.log('找不到小问数据,node_list和question_map里的数据不一致')
 }
 
 function updateQuesMode(ques_mode) {
@@ -983,6 +1014,18 @@ function onApplyAllQues(forAll) {
 function notifyChoiceAlign(from) {
 	var question_map = window.BiyueCustomData.question_map || {}
 	var list = []
+	var spaceNum = 0
+	if (input_choice_space) {
+		spaceNum = input_choice_space.getValue()
+		if (spaceNum == '') {
+			spaceNum = 0
+		} else {
+			spaceNum *= 1
+		}
+	}
+	var part = select_choice_align ? select_choice_align.getValue() * 1 : 0
+	var indLeft = select_choice_ind_left ? select_choice_ind_left.getValue() * 1 : -1
+	var bracket = select_choice_bracket ? select_choice_bracket.getValue() : 'none'
 	if (choice_check && question_map[g_ques_id]) {
 		var qmode = question_map[g_ques_id].ques_mode
 		Object.keys(question_map).forEach(id => {
@@ -993,20 +1036,25 @@ function notifyChoiceAlign(from) {
 	} else {
 		list = [g_ques_id * 1]
 	}
-	var spaceNum = 0
-	if (input_choice_space) {
-		spaceNum = input_choice_space.getValue()
-		if (spaceNum == '') {
-			spaceNum = 0
-		} else {
-			spaceNum *= 1
+	for (var id of list) {
+		if (part) {
+			question_map[id].part = part
+		}
+		if (indLeft != -1) {
+			question_map[id].indLeft = indLeft
+		}
+		if (bracket != 'none') {
+			question_map[id].bracket = bracket
+		}
+		if (spaceNum) {
+			question_map[id].spaceNum = spaceNum
 		}
 	}
 	setChoiceOptionLayout({
 		list: list,
-		part: select_choice_align ? select_choice_align.getValue() * 1 : 0,
-		indLeft: select_choice_ind_left ? select_choice_ind_left.getValue() * 1 : -1,
-		bracket: select_choice_bracket ? select_choice_bracket.getValue() : 'none',
+		part: part,
+		indLeft: indLeft,
+		bracket: bracket,
 		spaceNum: spaceNum,
 		from: from
 	})

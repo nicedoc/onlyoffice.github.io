@@ -846,7 +846,7 @@ function drawList(list, recalc = true) {
 							var oFill = Api.CreateNoFill()
 							var stroke_width = options.size.stroke_width || 0.1
 							var oStroke = Api.CreateStroke(
-								stroke_width * 36e3,
+								(options.zone_type == ZONE_TYPE.AGAIN ? 0 : stroke_width) * 36e3,
 								Api.CreateSolidFill(Api.CreateRGBColor(53, 53, 53))
 							)
 							oDrawing = Api.CreateShape(
@@ -856,6 +856,11 @@ function drawList(list, recalc = true) {
 								oFill,
 								oStroke
 							)
+							if (options.zone_type == ZONE_TYPE.AGAIN) {
+								var outLineStroke = Api.CreateStroke(stroke_width * 2 * 36e3, Api.CreateSolidFill(Api.CreateRGBColor(53, 53, 53)))
+								outLineStroke.Ln.setPrstDash(0)
+								oDrawing.SetOutLine(outLineStroke)
+							}
 							var drawDocument = oDrawing.GetContent()
 							var paragraphs = drawDocument.GetAllParagraphs()
 							if (paragraphs && paragraphs.length > 0) {

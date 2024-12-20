@@ -423,7 +423,7 @@ import { setXToken } from '../auth.js'
         need_update = true
       }
       let score = parseFloat(postions[key].score) || 0
-      if (!score || score <= 0) {
+      if ((!score || score <= 0) && postions[key].ques_type != 6) { // 文本题不需要分数判断
         ques_score_err.push({
           ques_name: postions[key].ques_name,
           text: postions[key].text

@@ -857,6 +857,9 @@ function handleRangeType(options) {
 					break
 				}
 			}
+			if (templist.length == 0) {
+				return false
+			}
 			for (var i = 0; i < templist.length; ++i) {
 				oParent.RemoveElement(posinparent + 1)
 			}
@@ -866,6 +869,7 @@ function handleRangeType(options) {
 					oControl.AddElement(e, count + index)
 				})
 			}
+			return true
 		}
 		// 表格中存在题目
 		function hasQuestion(oTable) {
@@ -1494,17 +1498,23 @@ function handleRangeType(options) {
 				if (typeName == 'setBig' && options.big_id && options.end_id) {
 					var oBlockControl = getControlsByClientId(options.big_id)
 					clearBig(oBlockControl)
-					setBig(oBlockControl)
-					updateControlTag(oBlockControl, 'question', getParentId(oBlockControl))
+					if (setBig(oBlockControl)) {
+						updateControlTag(oBlockControl, 'question', getParentId(oBlockControl))
+					} else {
+						result.message = '没找到可包含的小题'
+					}
 				} else {
 					if (curBlockSdt && ((selectionInfo.isSelection && completeOverlap) || (!selectionInfo.isSelection))) {
 						if (curBlockSdt) {
 							if (typeName == 'setBig') {
-								setBig(oBlockControl)
-							} else {
+								if (setBig(oBlockControl)) {
+									updateControlTag(oBlockControl, 'question', getParentId(oBlockControl))
+								} else {
+									result.message = '没找到可包含的小题'
+								}							} else {
 								clearBig(oBlockControl)
+								updateControlTag(oBlockControl, 'question', getParentId(oBlockControl))
 							}
-							updateControlTag(oBlockControl, 'question', getParentId(oBlockControl))
 						}
 					}
 				}
@@ -1696,7 +1706,135 @@ function handleRangeType(options) {
 		}
 	})
 }
+// 添加作答区
+function addWriteZone() {
+	Asc.scope.question_map = window.BiyueCustomData.question_map
+	return biyueCallCommand(window, function() {
+		var question_map = Asc.scope.question_map || {}
+		var oDocument = Api.GetDocument()
+		var curControl = oDocument.Document.GetContentControl()
+		if (!curControl) {
+			result.message = '未处于题目中无法处理'
+			return result
+		}
+		function getParentBlock(oControl) {
+			if (!oControl) {
+				return null
+			}
+			if (oControl.GetClassType() == 'inlineLvlSdt') {
+				var parentControl = oControl.GetParentContentControl()
+				if (parentControl) {
+					if (parentControl.GetClassType() == 'blockLvlSdt') {
+						return parentControl
+					} else {
+						return getParentBlock(parentControl)
+					}
+				}
+			} else if (oControl.GetClassType() == 'blockLvlSdt') {
+				return oControl.GetParentContentControl()
+			}
+			return null
+		}
+		var quesControl = Api.LookupObject(curControl.Id)
+		if (!quesControl) {
+			return false
+		}
+		if (quesControl.GetClassType() == 'inlineLvlSdt') {
+			quesControl = getParentBlock(quesControl)
+			if (!quesControl) {
+				return false
+			}
+		}
+		var quesTag = Api.ParseJSON(quesControl.GetTag())
+		if (!quesTag.client_id) {
+			return false
+		}
+		var qId = quesTag.mid || quesTag.client_id
+		var quesData = question_map[qId]
+		if (!quesData || quesData.level_type != 'question') { // 只有题目才能处理作答区
+			return false
+		}
+		Api.StartAddShape('rect', true)
+		var oShapes = oDocument.GetAllShapes() || []
+		var shapeIds = oShapes.map(e => {
+			return e.Drawing.Id
+		})
+		return {
+			shapeIds: shapeIds,
+			ques_id: qId
+		}
+	}, false, false).then(res => {
+		Asc.scope.add_write_zone_data = res
+	})
+}
+
+function endAddShape() {
+	var params = Asc.scope.add_write_zone_data
+	if (!params || !params.ques_id) {
+		return
+	}
+	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
+	return biyueCallCommand(window, function() {
+		var oDocument = Api.GetDocument()
+		var params = Asc.scope.add_write_zone_data
+		if (!params || !params.ques_id || !params.shapeIds) {
+			return
+		}
+		var result = {
+			cmd: "add",
+			typeName: "write",
+			client_node_id: Asc.scope.client_node_id
+		}
+		var oShapes = oDocument.GetAllShapes() || []
+		var oDrawing = oShapes.find(e => {
+			return !(params.shapeIds.includes(e.Drawing.Id))
+		})
+		if (oDrawing) {
+			var oFill = Api.CreateSolidFill(Api.CreateRGBColor(255, 0, 0))
+			oFill.UniFill.transparent = 255 * 0.2 // 透明度
+			oDrawing.Fill(oFill)
+			var oStroke = Api.CreateStroke(3600, Api.CreateNoFill())
+			oDrawing.SetOutLine(oStroke)
+			oDrawing.SetWrappingStyle('inFront')
+			result.client_node_id += 1
+			var titleobj = {
+				feature: {
+					zone_type: 'question',
+					sub_type: 'write',
+					parent_id: params.ques_id,
+					client_id: result.client_node_id
+				}
+			}
+			oDrawing.SetTitle(JSON.stringify(titleobj))
+			if (oDrawing.SetPaddings) {
+				oDrawing.SetPaddings(0, 0, 0, 0)
+			}
+			result.change_list = [{
+				client_id: result.client_node_id,
+				parent_id: params.ques_id,
+				regionType: 'write',
+				sub_type: 'write',
+				shape_id: oDrawing.Drawing.Id,
+				drawing_id: oDrawing.Drawing.Id
+			}]
+		}
+		return result
+	}, false, false).then(res1 => {
+		delete Asc.scope.add_write_zone_data
+		if (res1) {
+			if (res1.message && res1.message != '') {
+				alert(res1.message)
+			} else {
+				getNodeList().then(res2 => {
+					handleChangeType(res1, res2)
+				})
+			}
+		}
+	})
+}
 
 export {
-	handleRangeType
+	handleRangeType,
+	addWriteZone,
+	endAddShape
 }

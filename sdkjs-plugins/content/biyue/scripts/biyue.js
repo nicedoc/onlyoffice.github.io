@@ -37,22 +37,27 @@ import {
 	handleUploadPrepare,
 	importExam,
 	insertSymbol,
-	preGetExamTree
+	preGetExamTree,
+	reqGetQuestionType,
+	focusAsk,
+	focusControl
 } from './QuesManager.js'
 import {
 	tagImageCommon,
 	updateLinkedInfo,
 	locateItem
 } from './linkHandler.js'
-import { layoutRepair, removeAllComment } from './layoutFixHandler.js'
+import { layoutRepair, removeAllComment, layoutDetect } from './layoutFixHandler.js'
 import { reqSaveInfo } from './api/paper.js'
 
-import { initView, onSaveData } from './pageView.js'
+import { initView, onSaveData, clickSplitQues, clickUploadTree, showTypeErrorPanel, changeTabPanel } from './pageView.js'
 
 import { setInteraction, updateChoice, deleteAllFeatures } from './featureManager.js'
-import { getInfoForServerSave } from './model/util.js'
+import { getInfoForServerSave, showCom } from './model/util.js'
 import { refreshTree } from './panelTree.js'
 import { extractChoiceOptions, removeChoiceOptions } from './choiceQuestion.js'
+import { endAddShape } from './classifiedTypes.js'
+import { getFocusAskData } from './model/ques.js'
 (function (window, undefined) {
 	var styleEnable = false
 	let activeQuesItem = ''
@@ -199,39 +204,39 @@ import { extractChoiceOptions, removeChoiceOptions } from './choiceQuestion.js'
           			window.BiyueCustomData.question_map = message.data.question_map
           			console.log('更新question_map', message.data)
                     StoreCustomData(() => {
-						closeWindow(modal.id)
+						// closeWindow(modal.id)
+						if (window.tab_select == 'tabQues') {
+							document.dispatchEvent(new CustomEvent('refreshQues'))
+						}
                         console.log('store custom data done')
 						if (message.data.needUpdateInteraction) {
 							setInteraction('useself').then(() => {
-								if (message.data.needUpdateChoice) {
-									deleteChoiceOtherWrite(null, false).then(() => {
-										updateChoice(true)
-									}).then(() => {
-										if (new_choice_ids.length) {
-											return extractChoiceOptions(new_choice_ids.concat(remove_choice_ids), true)
-										} else if (remove_choice_ids.length) {
-											return removeChoiceOptions(remove_choice_ids)
-										}
-									})
-								}
+								updateQuesChange(message.data.needUpdateChoice, new_choice_ids, remove_choice_ids)
 							})
-						} else if (message.data.needUpdateChoice) {
-							deleteChoiceOtherWrite(null, false).then((res) => {
-								updateChoice(true).then(() => {
-									if (new_choice_ids.length) {
-										return extractChoiceOptions(new_choice_ids.concat(remove_choice_ids), true)
-									} else if (remove_choice_ids.length) {
-										return removeChoiceOptions(remove_choice_ids)
-									}
-								})
-							})
+						} else {
+							updateQuesChange(message.data.needUpdateChoice, new_choice_ids, remove_choice_ids)
 						}
                     })
         		}
         		break
-			
 			case 'showMessageBox':
 				modal.command('initMessageBox', Asc.scope.messageData)
+				break
+			case 'initDialog':
+				if (message.initmsg) {
+					modal.command(message.initmsg, {
+						BiyueCustomData: window.BiyueCustomData
+					})
+				}
+				break
+			case 'shortcutMessage':
+				if (message.cmd == 'update') {
+					if (message.data) {
+						Object.keys(message.data).forEach(key => {
+							window.BiyueCustomData[key] = message.data[key]
+						})
+					}
+				}
 				break
 			case 'onMessageDialog':
 				closeWindow(modal.id)
@@ -286,8 +291,60 @@ import { extractChoiceOptions, removeChoiceOptions } from './choiceQuestion.js'
 				// closeWindow(modal.id)
 				insertSymbol(message.data)
 				break
+			case 'focusQuestion':
+				var event = new CustomEvent('focusQuestion', {
+					detail: message.data
+				})
+				document.dispatchEvent(event)
+				if (message.data.ask_index) {
+					var focusList = getFocusAskData(message.data.ques_id, message.data.ask_index)
+					if (focusList) {
+						focusAsk(focusList)
+					}
+				} else if (message.data.ques_id) {
+					focusControl(message.data.ques_id)
+				}
+				break
+			case 'updateScore':
+				window.BiyueCustomData.question_map = message.data.question_map
+				console.log('更新question_map', message.data)
+				// todo.. 有打分区时，需要更新打分区
+				StoreCustomData(() => {
+					if (window.tab_select == 'tabQues') {
+						document.dispatchEvent(new CustomEvent('refreshQues'))
+					}
+				})
+				break
+			case 'RefreshPaper':
+				preGetExamTree().then(res => {
+					Asc.scope.tree_info = res
+					modal.command('quesMapUpdate', {
+						tree_info: Asc.scope.tree_info,
+						question_map: window.BiyueCustomData.question_map,
+						node_list: window.BiyueCustomData.node_list
+					})
+				})
+				break
 			default:
 				break
+		}
+	}
+
+	function updateQuesChange(needUpdateChoice, new_choice_ids, remove_choice_ids) {
+		if (needUpdateChoice) {
+			return deleteChoiceOtherWrite(null, false).then((res) => {
+				return updateChoice(true)
+			}).then(() => {
+				if (new_choice_ids.length) {
+					return extractChoiceOptions(new_choice_ids.concat(remove_choice_ids), true)
+				} else if (remove_choice_ids.length) {
+					return removeChoiceOptions(remove_choice_ids)
+				} else {
+					return new Promise((resolve, reject) => {
+						return resolve()
+					})
+				}
+			})
 		}
 	}
 
@@ -707,7 +764,7 @@ import { extractChoiceOptions, removeChoiceOptions } from './choiceQuestion.js'
 	// 插件初始化
 	window.Asc.plugin.init = function () {
 		console.log('biyue plugin inited.')
-
+		this.executeMethod("AddToolbarMenuItem", [getToolbarItems()]);
 		// create style
 		if (window.BiyueCustomData === undefined) {
 			this.callCommand(
@@ -739,6 +796,133 @@ import { extractChoiceOptions, removeChoiceOptions } from './choiceQuestion.js'
 				}
 			)
 		}
+		this.attachToolbarMenuClickEvent("repair", function() {
+			layoutDetect(true)
+		});
+		this.attachToolbarMenuClickEvent('splitQuestion', clickSplitQues)
+		this.attachToolbarMenuClickEvent('getQuesType', function () {
+			reqGetQuestionType()
+		})
+		this.attachToolbarMenuClickEvent("shortcutSet", function (data) {
+			window.biyue.showDialog('shortcutSet', '快捷键设置', 'shortcutSet.html', 400, 800, false, 'panelRight')
+		});
+		this.attachToolbarMenuClickEvent("insertSymbol", function (data) {
+			window.biyue.showDialog('addSymbolWindow', '插入符号', 'addSymbol.html', 600, 400, false)
+		});
+		this.attachToolbarMenuClickEvent("batchScore", onBatchScoreSet);
+		this.attachToolbarMenuClickEvent("batchQuesType", onBatchQuesTypeSet);
+		this.attachToolbarMenuClickEvent("imageLink", function (data) {
+			showCom('#panelLink', true)
+		});
+		this.attachToolbarMenuClickEvent("allUpload", clickUploadTree);
+		this.attachToolbarMenuClickEvent("uploadTypeError", function () {
+			showTypeErrorPanel()
+		})
+		function getToolbarItems() {
+		let items = {
+			guid: window.Asc.plugin.info.guid,
+			tabs: [{
+			id: "tab_biyue",
+			text: "笔曰",
+			items: [
+				{
+					id: "repair",
+					type: "button",
+					text: "排版修复",
+					hint: "排版修复",
+					icons: "resources/buttons/repair.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: false
+				}, {
+					id: "splitQuestion",
+					type: "button",
+					text: "自动切题",
+					hint: "自动切题",
+					icons: "resources/buttons/split.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: false
+				}, {
+					id: "getQuesType",
+					type: "button",
+					text: "重获题型",
+					hint: "重新获取题型",
+					icons: "resources/buttons/type.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: false
+				}, 
+				{
+					id: "shortcutSet",
+					type: "button",
+					text: "按键配置",
+					hint: "点击配置小问快捷键",
+					icons: "resources/buttons/set.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: true
+				}, {
+					id: "insertSymbol",
+					type: "button",
+					text: "插入符号",
+					hint: "插入符号",
+					icons: "resources/buttons/symbol.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: false
+				}, {
+					id: "batchScore",
+					type: "button",
+					text: "批量分数",
+					hint: "批量设置题目分数",
+					icons: "resources/buttons/batch.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: false
+				}, {
+					id: "batchQuesType",
+					type: "button",
+					text: "批量题型",
+					hint: "批量设置题目题型",
+					icons: "resources/buttons/batch.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: false
+				}, {
+					id: "imageLink",
+					type: "button",
+					text: "图片关联",
+					hint: "图片或表格关联",
+					icons: "resources/buttons/image.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: false
+				}, {
+					id: "allUpload",
+					type: "button",
+					text: "全量更新",
+					hint: "全量更新",
+					icons: "resources/buttons/upload.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: false
+				}, {
+					id: "uploadTypeError",
+					type: "button",
+					text: "题型错误上报",
+					hint: "题型错误上报",
+					icons: "resources/buttons/error.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: true
+				}
+			]
+			}]
+		};
+	
+		return items;
+		}
 	}
 
 	function StoreCustomData(callback) {
@@ -766,6 +950,12 @@ import { extractChoiceOptions, removeChoiceOptions } from './choiceQuestion.js'
 	window.Asc.plugin.attachEvent('onContextMenuShow', function (options) {
 		console.log(options)
 		handleContextMenuShow(options)
+	})
+
+	window.Asc.plugin.attachEvent('onEndAddShape', function (options) {
+		if (Asc.scope.add_write_zone_data) {
+			endAddShape()
+		}
 	})
 
 	window.Asc.plugin.event_onContextMenuClick = function (id) {
@@ -1654,24 +1844,21 @@ import { extractChoiceOptions, removeChoiceOptions } from './choiceQuestion.js'
 					console.log('no range')
 					return
 				}
-				if (!oRange.Paragraphs) {
-					console.log('no paragraph')
-					return
-				}
-				if (oRange.Paragraphs.length === 0) {
+				var rangeParagraphs = oRange.GetAllParagraphs() || []
+				if (rangeParagraphs.length === 0) {
 					console.log('no paragraph')
 					return
 				}
 				// Api.asc_AddContentControl(1);
 				// Api.asc_RemoveSelection();
 				// oRange.SetBold(true);
-				var hasContentControl = oRange.Paragraphs[0].GetParentContentControl()
+				var hasContentControl = rangeParagraphs[0].GetParentContentControl()
 				var type = 1
 				if (hasContentControl) {
 					// sdt.Pr.Tag 存储题目相关信息
 					type = 2
 				}
-				console.log('oRange::', oRange.Paragraphs[0].GetParentContentControl())
+				console.log('oRange::', rangeParagraphs[0].GetParentContentControl())
 				console.log(
 					'aSections::',
 					oDocument.GetRangeBySelect(),
@@ -2204,21 +2391,25 @@ import { extractChoiceOptions, removeChoiceOptions } from './choiceQuestion.js'
 				}
 				if (isFirstLoad) {
 					Asc.scope.split_getdoc = true
-					ReplaceRubyField().then(() => {
-						initExtroInfo().then(() => {
-							removeAllComment()
-						})
+					return ReplaceRubyField().then(() => {
+						return initExtroInfo()
+					}).then(() => {
+						return removeAllComment()
+					}).then(() => {
+						changeTabPanel('tabTree')
 					})
 					// reSplitQustion()
 				} else {
 					if (res2.data && res2.data.paper && res2.data.paper.info) {
 						updateDataBySavedData(res2.data.paper.info)
 					}
-					initControls().then(() => {
+					return initControls().then(() => {
 						Asc.scope.split_getdoc = false
 						return initExtroInfo()
 					}).then(() => {
-						removeAllComment()
+						return removeAllComment()
+					}).then(() => {
+						return changeTabPanel('tabTree')
 					})
 				}
 			})
@@ -2254,6 +2445,8 @@ import { extractChoiceOptions, removeChoiceOptions } from './choiceQuestion.js'
 			})
 		}
 		windows[winName].show(variation)
+		windows[winName].activate()
+
 		var win = windowList.find(e => {
 			return e.winName == winName
 		})
@@ -2268,21 +2461,30 @@ import { extractChoiceOptions, removeChoiceOptions } from './choiceQuestion.js'
 		}
 		return windows[winName]
 	}
-
+	function sendMessageToWindow(winName, msgId, data) {
+		var win = windowList.find(e => {
+			return e.name == winName
+		})
+		if (!win || !(win.visible)) {
+			return
+		}
+		windows[winName].command(msgId, data) // 往modal传递信息
+	}
 	
-  function onBatchScoreSet() {
-	preGetExamTree().then(res => {
-		Asc.scope.tree_info = res
-		showDialog('batchSettingScoresWindow', '批量操作 - 修改分数', 'batchSettingScores.html', 800, 600, false)
-	})
-  }
+	function onBatchScoreSet() {
+		preGetExamTree().then(res => {
+			Asc.scope.tree_info = res
+			showDialog('batchScoresWindow', '批量操作 - 修改分数', 'batchScore.html', 800, 600, false, 'panelRight')
+		})
+	}
 
-  function onBatchQuesTypeSet() {
-	preGetExamTree().then(res => {
-		Asc.scope.tree_info = res
-		showDialog('batchSettingQuestionTypeWindow', '批量操作 - 修改题型', 'batchSettingQuestionType.html', 800, 600, false)
-	})
-  }
+	function onBatchQuesTypeSet() {
+		preGetExamTree().then(res => {
+			Asc.scope.tree_info = res
+			// showDialog('batchSettingQuestionTypeWindow', '批量操作 - 修改题型', 'batchSettingQuestionType.html', 800, 600, false)
+			showDialog('batchQuestionTypeWindow', '批量操作 - 修改题型', 'batchQuestionType.html', 800, 600, false, 'panelRight')
+		})
+	}
 
 	window.insertHtml = insertHtml
 
@@ -2342,6 +2544,7 @@ import { extractChoiceOptions, removeChoiceOptions } from './choiceQuestion.js'
 		showMessageBox: showMessageBox,
 		reqUploadTree: reqUploadTree,
 		handleInit: handleInit,
-		onBatchScoreSet: onBatchScoreSet
+		onBatchScoreSet: onBatchScoreSet,
+		sendMessageToWindow: sendMessageToWindow
 	}
 })(window, undefined)

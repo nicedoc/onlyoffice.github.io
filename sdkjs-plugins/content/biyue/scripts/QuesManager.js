@@ -4,12 +4,12 @@ import { getQuesType, reqComplete } from '../scripts/api/paper.js'
 import { handleChoiceUpdateResult, setInteraction, updateChoice } from "./featureManager.js";
 import { initExtroInfo } from "./panelFeature.js";
 import { addOnlyBigControl, removeOnlyBigControl, getAllPositions2 } from './business.js'
-import { handleRangeType } from "./classifiedTypes.js"
+import { handleRangeType, addWriteZone } from "./classifiedTypes.js"
 import { imageAutoLink, ShowLinkedWhenclickImage } from './linkHandler.js'
 import { layoutDetect } from './layoutFixHandler.js'
 import { setBtnLoading, isLoading } from './model/util.js'
 import { refreshTree } from './panelTree.js'
-import { extractChoiceOptions, removeChoiceOptions, getChoiceOptionAndSteam } from './choiceQuestion.js'
+import { extractChoiceOptions, removeChoiceOptions, getChoiceOptionAndSteam, setChoiceOptionLayout } from './choiceQuestion.js'
 var g_click_value = null
 var upload_control_list = []
 
@@ -63,6 +63,7 @@ function handleDocClick(options) {
 							handleRangeType({
 								typeName: 'write'
 							})
+							return
 						}
 					}
 				}
@@ -665,10 +666,14 @@ function onContextMenuClick(id) {
 		var funcName = strs[0]
 		switch (funcName) {
 			case 'updateControlType':
-				handleRangeType({
-					typeName: strs[1],
-					cmd: strs[2] ? strs[2] : null
-				})
+				if (strs[1] == 'writeZone' && strs[2] == 'add') {
+					addWriteZone()
+				} else {
+					handleRangeType({
+						typeName: strs[1],
+						cmd: strs[2] ? strs[2] : null
+					})
+				}
 				break
 			case 'clearMergeAsk':
 				clearMergeAsk(strs)
@@ -1651,6 +1656,9 @@ function batchChangeQuesType(type) {
 		}
 	})
 	.then(() => {
+		window.biyue.sendMessageToWindow('batchQuestionTypeWindow', 'quesMapUpdate', {
+			question_map: window.BiyueCustomData.question_map
+		})
 		window.biyue.StoreCustomData()
 	})
 }
@@ -1848,7 +1856,7 @@ function initControls() {
 				tagInfo.clr = tagInfo.color = '#ffffff40'
 				changecolor = true
 			} else if (tagInfo.regionType == 'choiceOption') {
-				tagInfo.color = '#00ff0020'
+				tagInfo.clr = tagInfo.color = '#00ff0020'
 				changecolor = true
 			}
 			if (!changecolor && tagInfo.color) {
@@ -2245,7 +2253,15 @@ function GetDefaultName(level_type, str) {
 	if (level_type == 'struct') {
 		const pattern = /^[一二三四五六七八九十0-9]+.*?(?=[：:])/
 		const result = pattern.exec(text)
-		return result ? result[0] : null
+		if (result) {
+			return result[0]
+		} else {
+			var texts2 = text.split('\r')
+			if (texts2 && texts2.length) {
+				return text.substring(0, Math.min(8, texts2[0].length))
+			}
+			return text
+		}
 	} else if (level_type == 'question')  {
 		const regex = /^([^.．、]*)/
 		var match = text.match(regex)
@@ -2915,7 +2931,10 @@ function reqUploadTree() {
 	}
   	// 先关闭智批元素，避免智批元素在全量更新的时候被带到题目里 更新之后再打开
   	setBtnLoading('uploadTree', true)
-	setInteraction('none', null, false).then(() => {
+	return setInteraction('none', null, false).then(() => {
+		return preGetExamTree()	// 获取题目树需要在addOnlyBigControl之前执行，否则可能出现父节点出错的情况
+	}).then((res) => {
+		Asc.scope.tree_info = res
 		return addOnlyBigControl(false)
 	}).then(() => {
 		return handleUploadPrepare('hide')
@@ -2923,10 +2942,7 @@ function reqUploadTree() {
 		return getChoiceOptionAndSteam() // getChoiceQuesData()
 	}).then((res) => {
 		Asc.scope.choice_html_map = res
-		return preGetExamTree()
-	}).then((res) => {
-		Asc.scope.tree_info = res
-		return getControlListForUpload(res)
+		return getControlListForUpload()
 	}).then(control_list => {
 		if (control_list && control_list.length) {
 			generateTreeForUpload(control_list).then(() => {
@@ -2941,8 +2957,7 @@ function reqUploadTree() {
 	})
 }
 // 后端已支持结构和题目可同级出现在结构下，取代旧代码
-function getControlListForUpload(tree_info) {
-	Asc.scope.tree_info = tree_info
+function getControlListForUpload() {
 	Asc.scope.node_list = window.BiyueCustomData.node_list
     Asc.scope.question_map = window.BiyueCustomData.question_map
 	return biyueCallCommand(window, function() {
@@ -3559,9 +3574,16 @@ function batchChangeProportion(proportion) {
 				question_map[e.id].proportion = proportion
 			}
 		})
-		batchProportion(res.list, proportion).then(() => {
-			return window.biyue.StoreCustomData()
-		})
+		return batchProportion(res.list, proportion)
+	}).then(() => {
+		return setChoiceOptionLayout({
+			list: (Asc.scope.change_id_list || []).map(e => {
+				return e.id
+			}),
+			from: 'proportion'
+		})	
+	}).then(() => {
+		return window.biyue.StoreCustomData()
 	})
 }
 
@@ -3774,9 +3796,7 @@ function batchProportion(idList, proportion) {
 				}
 			}
 		}
-	}, false, true).then(res => {
-		console.log('batchProportion', res)
-	})
+	}, false, false)
 }
 
 function changeProportion(idList, proportion) {
@@ -3907,6 +3927,11 @@ function changeProportion(idList, proportion) {
 				if (element.GetTableTitle() != TABLE_TITLE) {
 					break
 				}
+				// todo..分栏里的表格尚未考虑
+				// var tableBounds = element.Table.GetPageBounds(0)
+				// var tableWidth = tableBounds.Right - tableBounds.Left
+				var sectPr = element.Table.Get_SectPr()
+				var sectWidth = sectPr.PageSize.W - sectPr.PageMargins.Left - sectPr.PageMargins.Right
 				var rows = element.GetRowsCount()
 				if (rows != 1) {
 					break
@@ -3923,7 +3948,9 @@ function changeProportion(idList, proportion) {
 					if (!TableCellW) {
 						continue
 					}
-					var W = TableCellW.W
+					var pagebounds = oCell.Cell.GetPageBounds(0)
+					var cellWidth = pagebounds.Right - pagebounds.Left
+					var W = cellWidth * 100 / sectWidth // TableCellW.W
 					var cellContent = oCell.GetContent()
 					var contents = []
 					var elementcount = cellContent.GetElementsCount()
@@ -4047,9 +4074,15 @@ function changeProportion(idList, proportion) {
 				tables[i].cells.forEach((cell, cidx) => {
 					AddControlToCell2(templist[count].content, oTable.GetCell(0, cell.icell))
 					count++
-					// console.log('============== ++++++++ 4', cell, oTable.Table.CalculatedTableW)
-					var twips = oTable.Table.CalculatedTableW * (100 / cell.W)
-					oTable.GetCell(0, cell.icell).SetWidth('twips', twips)
+					if (cell.W > 0) {
+						var cw = cell.W <= 0 ? 1 : cell.W
+						var twips = oTable.Table.CalculatedTableW * (100 / cw)
+						if (cw > 1) {
+							oTable.GetCell(0, cell.icell).SetWidth('percent', cw)
+						} else {
+							oTable.GetCell(0, cell.icell).SetWidth('twips', twips)
+						}
+					}					
 					// oTable.GetCell(0, cell.icell).SetWidth('percent', cell.W)
 				})
 				if (i >= toIndex) {
@@ -4144,7 +4177,7 @@ function changeProportion(idList, proportion) {
 			idList: idList,
 			proportion: target_proportion
 		}
-	}, false, true).then(res => {
+	}, false, false).then(res => {
 		console.log('changeProportion result', res)
 		if (res && res.idList && window.BiyueCustomData.question_map) {
 			res.idList.forEach(id => {
@@ -4153,6 +4186,10 @@ function changeProportion(idList, proportion) {
 				}
 			})
 		}
+		return setChoiceOptionLayout({
+			list: idList,
+			from: 'proportion'
+		})
 	})
 }
 
@@ -6006,7 +6043,10 @@ function importExam() {
 		})
 	}
 	setBtnLoading('uploadTree', true)
-	setInteraction('none', null, false).then(() => {
+	return setInteraction('none', null, false).then(() => {
+		return preGetExamTree() // 获取题目树需要在addOnlyBigControl之前执行，否则可能出现父节点出错的情况
+	}).then((res) => {
+		Asc.scope.tree_info = res
 		return addOnlyBigControl(false)
 	}).then(() => {
 		return handleUploadPrepare('hide')
@@ -6014,10 +6054,7 @@ function importExam() {
 		return getChoiceOptionAndSteam() // getChoiceQuesData()
 	}).then((res) => {
 		Asc.scope.choice_html_map = res
-		return preGetExamTree()
-	}).then((res) => {
-		Asc.scope.tree_info = res
-		return getControlListForUpload(res)
+		return getControlListForUpload()
 	}).then(control_list => {
 		if (control_list && control_list.length) {
 			generateTreeForUpload(control_list).then(() => {
@@ -6497,27 +6534,39 @@ function preGetExamTree() {
 					}
 				}
 			}
-			
 		}
-		const tree = [];
-		const map = {};
-	
-		list.forEach(item => {
-			map[item.id] = { ...item, children: [] };
-		});
-		list.forEach(item => {
-			if (item.parent_id && item.parent_id != item.id) {
-				if (map[item.parent_id] && map[item.parent_id].children) {
-					map[item.parent_id].children.push(map[item.id]);
-				} else {
-					console.log('        cannot find parent', item);
-				}
-			} else {
-				tree.push(map[item.id]);
+		return list
+	}, false, false).then((list => {
+		// 传入OO处理的js代码的列表结构不支持层级过深，嵌套达到5级，就会导致树形结构出错，command无法返回结果
+		return new Promise((resolve, reject) => {
+			if (!list) {
+				return resolve({})
 			}
-		});
-		return { list, tree}
-	}, false, false)
+			const tree = [];
+			// 使用 Map 对象，以 id 作为 key，这样能更快地找到任何一个节点
+			let map = new Map();
+			list.forEach(item => {
+				map.set(item.id, { ...item, children: [] });
+			});
+	
+			list.forEach(item => {
+				if (item.parent_id && item.parent_id != item.id) {
+					if (map.has(item.parent_id)) {
+						let parent = map.get(item.parent_id);
+						if (parent.parent_id != item.id) {
+							parent.children.push(map.get(item.id));
+						} else {
+							console.error('Circular reference detected', item, parent);
+						}
+					}
+				} else {
+					tree.push(map.get(item.id));
+				}
+			});
+			Asc.scope.tree_info = {list: list, tree: tree}
+			resolve({list: list, tree: tree})
+		})
+	}))
 }
 
 function setNumberingLevel(ids, lvl) {
