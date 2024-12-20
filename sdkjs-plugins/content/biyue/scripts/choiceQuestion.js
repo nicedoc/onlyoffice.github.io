@@ -1348,7 +1348,6 @@ function setChoiceOptionLayout(options) {
 
 export { 
 	extractChoiceOptions,
-	getChoiceQuesInfo, 
 	getChoiceQuesOption, 
 	getChoiceQuesData, 
 	removeChoiceOptions,
