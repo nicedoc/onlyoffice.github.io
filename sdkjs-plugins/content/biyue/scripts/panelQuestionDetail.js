@@ -3,7 +3,7 @@ import NumberInput from '../components/NumberInput.js'
 import { reqSaveQuestion } from './api/paper.js'
 import { setInteraction } from './featureManager.js'
 import { changeProportion, deleteAsks, focusAsk, updateAllChoice, deleteChoiceOtherWrite, getQuesMode, updateQuesScore, splitControl } from './QuesManager.js'
-import { addClickEvent, debounce, getListByMap, showCom } from '../scripts/model/util.js'
+import { addClickEvent,  getListByMap, showCom } from '../scripts/model/util.js'
 import { getDataByParams, getFocusAskData } from '../scripts/model/ques.js'
 import { extractChoiceOptions, removeChoiceOptions, setChoiceOptionLayout } from './choiceQuestion.js'
 // 单题详情
