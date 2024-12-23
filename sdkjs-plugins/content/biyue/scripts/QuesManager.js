@@ -5179,6 +5179,7 @@ function splitControl(qid) {
 		var node_list = Asc.scope.node_list
 		var qid = Asc.scope.qid
 		var client_node_id = Asc.scope.client_node_id
+		const WORDS = [0xe753, 0xe754, 0xe755, 0xe756, 0xe757, 0xe758]
 		var oDocument = Api.GetDocument()
 		var result = {
 			change_list: [],
@@ -5208,6 +5209,51 @@ function splitControl(qid) {
 				parent_id = parentTag.client_id || 0
 			}
 			return parent_id
+		}
+		function handleParagraph(oParagraph, parentId, quesId) {
+			if (!oParagraph) {
+				return
+			}
+			for (var i1 = 0; i1 < oParagraph.GetElementsCount(); ++i1) {
+				var oElement = oParagraph.GetElement(i1)
+				if (oElement.GetClassType() == 'run') {
+					var fontfamily = oElement.GetFontFamily()
+					if (fontfamily != 'iconfont') {
+						continue
+					}
+					var run = oElement.Run
+					var elCount2 = run.GetElementsCount()
+					for (var i2 = 0; i2 < elCount2; ++i2) {
+						var oElement2 = run.GetElement(i2)
+						if (WORDS.includes(oElement2.Value)) {
+							oElement.GetRange(i2, i2 + 1).Select()
+							client_node_id += 1
+							var tag = JSON.stringify({ regionType: 'write', mode: 3, client_id: client_node_id, color: '#ff000040' })
+							var oResult = Api.asc_AddContentControl(2, { Tag: tag })
+							if (oResult) {
+								result.change_list.push({
+									client_id: client_node_id,
+									control_id: oResult.InternalId,
+									parent_id: parentId,
+									ques_id: quesId,
+									regionType: 'write'
+								})
+							}
+							Api.asc_RemoveSelection();
+						}
+					}
+				}
+			}
+		}
+		function addWordAsk(oControl, client_id, qid) {
+			var controlContent = oControl.GetContent()
+			var elementCount = controlContent.GetElementsCount()
+			for (var i = 0; i < elementCount; ++i) {
+				var oElement1 = controlContent.GetElement(i)
+				if (oElement1.GetClassType() == 'paragraph') {
+					handleParagraph(oElement1, client_id, qid)
+				}
+			}
 		}
 		function splitOneNode(nodeId) {
 			var nodeData = node_list.find(e => {
@@ -5433,6 +5479,7 @@ function splitControl(qid) {
 					}
 				}
 			}
+			addWordAsk(control, obj.client_id, obj.client_id || obj.mid)
 		}
 		var quesData = Asc.scope.question_map[qid]
 		if (!quesData) {
@@ -6250,9 +6297,74 @@ function mergeAsk(options) {
 // 插入符号
 function insertSymbol(unicode) {
 	Asc.scope.symbol = unicode
+	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
+	Asc.scope.question_map = window.BiyueCustomData.question_map
+	var isCalc = false
+	var validUnicodes = ['e753', 'e754', 'e755', 'e756', 'e757', 'e758']
+	if (!validUnicodes.indexOf(unicode)) {
+		isCalc = true
+	}
 	return biyueCallCommand(window, function() {
 		var unicode = Asc.scope.symbol
+		var client_node_id = Asc.scope.client_node_id
+		var question_map = Asc.scope.question_map
+		var validUnicodes = ['e753', 'e754', 'e755', 'e756', 'e757', 'e758']
+		var result = {
+			typeName: 'write',
+			change_list: [],
+			client_node_id: client_node_id
+		}
 		var oDocument = Api.GetDocument()
+		function getParentControlData(oRun) {
+			var oParentControl = oRun.GetParentContentControl()
+			var ques_id = 0
+			var parent_id = 0
+			if (oParentControl && oParentControl.GetClassType() == 'blockLvlSdt') {
+				var oEle = Api.LookupObject(oParentControl.Sdt.Id)
+				if (oEle) {
+					if (oEle.GetClassType() == 'documentContent') {
+						var parentId = oEle.Document.Parent.Id
+						oParentControl = Api.LookupObject(parentId)
+					}
+				}
+			}
+			if (oParentControl && oParentControl.GetClassType() == 'blockLvlSdt') {
+				var strTag = oParentControl.GetTag()
+				var tag = Api.ParseJSON(strTag)
+				var qid = tag.mid ? tag.mid : tag.client_id
+				if (question_map[qid] && question_map[qid].level_type == 'question') {
+					ques_id = qid
+				}
+				parent_id = tag.client_id	
+			}
+			return { parent_id, ques_id }
+		}
+		function addAsk(oRun, parent_id, ques_id, moveRight, from, end) {
+			if (!(validUnicodes.includes(unicode)) || !parent_id) {
+				if (moveRight) {
+					oDocument.Document.MoveCursorRight()
+				}
+				return
+			}
+			var oRange = from && end ? oRun.GetRange(from, end) : oRun.GetRange()
+			oRange.Select()
+			result.client_node_id += 1
+			var asktag = JSON.stringify({ regionType: 'write', mode: 3, client_id: result.client_node_id, color: '#ff000040' })
+			var oResult = Api.asc_AddContentControl(2, { Tag: asktag })
+			if (oResult) {
+				result.change_list.push({
+					client_id: result.client_node_id,
+					control_id: oResult.InternalId,
+					parent_id: parent_id,
+					ques_id: ques_id,
+					regionType: 'write'
+				})
+			}
+			Api.asc_RemoveSelection();
+			var oWriteControl = Api.LookupObject(oResult.InternalId)
+			oWriteControl.Sdt.MoveCursorToContentControl(false)
+			oDocument.Document.MoveCursorRight()
+		}
 		var pos = oDocument.Document.Get_CursorLogicPosition()
 		if (pos) {
 			var lastElement = pos[pos.length - 1].Class
@@ -6264,9 +6376,10 @@ function insertSymbol(unicode) {
 				var fontfamily = oRun.GetFontFamily()
 				const unicodeDecimal = parseInt(unicode, 16);
 				const unicodeChar = String.fromCharCode(unicodeDecimal);
+				const { parent_id, ques_id } = getParentControlData(oRun)
 				if (fontfamily == 'iconfont') {
 					oRun.Run.AddText(unicodeChar, lastPos + 1)
-					oDocument.Document.MoveCursorRight()
+					addAsk(oRun, parent_id, ques_id, false, lastPos, lastPos + 1)
 				} else {
 					if (lastPos == 0 && pos2 > 0) {
 						// 判断前一个run的字体
@@ -6275,7 +6388,7 @@ function insertSymbol(unicode) {
 							var oRun3 = oParent.GetElement(pos2 - 1)
 							if (oRun3 && oRun3.GetClassType() == 'run' && oRun3.GetFontFamily() == 'iconfont') {
 								oRun3.AddText(unicodeChar)
-								oDocument.Document.MoveCursorRight()
+								addAsk(oRun3, parent_id, ques_id, true)
 								return
 							}
 						}
@@ -6290,12 +6403,23 @@ function insertSymbol(unicode) {
 						var newRun = oRun.Run.Split_Run(lastPos)
 						pos[pos.length - 2].Class.Add_ToContent(pos2 + 1, newRun2.Run)
 						pos[pos.length - 2].Class.Add_ToContent(pos2 + 2, newRun)
-						oDocument.Document.MoveCursorRight()
 					}
+					addAsk(newRun2, parent_id, ques_id, true)
 				}
 			}
 		}
-	}, false, true)
+		return result
+	}, false, isCalc).then(res1 => {
+		if (res1 && res1.change_list.length) {
+			return getNodeList().then(res2 => {
+				return handleChangeType(res1, res2)
+			})
+		} else {
+			return new Promise((resolve, reject) => {
+				resolve()
+			})
+		}
+	})
 }
 
 function preGetExamTree() {
@@ -6654,6 +6778,57 @@ function setNumberingLevel(ids, lvl) {
 		})
 	})
 }
+// 将单个字设置为小问
+function splitWordAsk() {
+	return biyueCallCommand(window, function() {
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls() || []
+		const WORDS = [0xe753, 0xe754, 0xe755, 0xe756, 0xe757, 0xe758]
+		function handleParagraph(oParagraph) {
+			if (!oParagraph) {
+				return
+			}
+			var elCount = oParagraph.GetElementsCount()
+			for (var i1 = 0; i1 < elCount; ++i1) {
+				var oElement = oParagraph.GetElement(i1)
+				if (oElement.GetClassType() == 'run') {
+					var fontfamily = oElement.GetFontFamily()
+					if (fontfamily != 'iconfont') {
+						continue
+					}
+					var run = oElement.Run
+					var elCount2 = run.GetElementsCount()
+					for (var i2 = 0; i2 < elCount2; ++i2) {
+						var oElement2 = run.GetElement(i2)
+						if (WORDS.includes(oElement2.Value)) {
+							oElement.GetRange(i2, i2 + 1).Select()
+							var tag = JSON.stringify({ regionType: 'write', mode: 3, color: '#ff000040' })
+							Api.asc_AddContentControl(2, { "Tag": tag });
+							Api.asc_RemoveSelection();
+						}
+					}
+				}
+			}
+		}
+		for (var oControl of controls) {
+			if (oControl.GetClassType() != 'blockLvlSdt') {
+				continue
+			}
+			var tag = Api.ParseJSON(oControl.GetTag())
+			if (tag.regionType != 'question') {
+				continue
+			}
+			var controlContent = oControl.GetContent()
+			var elementCount = controlContent.GetElementsCount()
+			for (var i = 0; i < elementCount; ++i) {
+				var oElement1 = controlContent.GetElement(i)
+				if (oElement1.GetClassType() == 'paragraph') {
+					handleParagraph(oElement1)
+				}
+			}
+		}
+	})
+}
 
 export {
 	handleDocClick,
@@ -6686,5 +6861,6 @@ export {
 	preGetExamTree,
 	getQuestionHtml,
 	focusControl,
-	setNumberingLevel
+	setNumberingLevel,
+	splitWordAsk
 }

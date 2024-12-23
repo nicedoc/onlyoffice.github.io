@@ -3,7 +3,20 @@
 	window.Asc.plugin.init = function () {
 		window.Asc.plugin.sendToPlugin('onWindowMessage', { type: 'showSymbols' })
 	}
-
+	function attachIconBoxClickEvent(iconBox, glyphUnicode, confirmButton) {
+		iconBox.addEventListener('click', function(e) {
+			const allIconItems = document.querySelectorAll('.icon-item');
+			allIconItems.forEach(item => item.classList.remove('selected'));
+			// Add selected class to the current item
+			iconBox.classList.add('selected');
+			// Enable the confirm button
+			if (confirmButton) {
+				confirmButton.classList.remove('disabled');
+				confirmButton.classList.add('enabled');
+			}
+			select_value = glyphUnicode
+		})
+	}
 	async function loadIcons() {
 		const response = await fetch('./resources/iconfont_word/iconfont.json'); // 相对路径指向数据文件
 		const data = await response.json();
@@ -13,31 +26,22 @@
 		if (confirmButton) {
 			confirmButton.classList.add('disabled');
 		}
-		glyphs.forEach(glyph => {
+		const ignores = ['e749', 'e607', 'e628']
+		for (var glyph of glyphs) {
+			if (ignores.includes(glyph.unicode)) {
+				continue
+			}
 			const iconBox = document.createElement('div');
 			iconBox.className = 'icon-item';
+			iconBox.id = `${glyph.unicode}`
 			iconBox.title = glyph.unicode
 			iconBox.innerHTML = `
 				<i class="iconfont icon-${glyph.font_class}" aria-hidden="true"></i>
 				<div>${glyph.name}</div>
 			`;
-			
-			iconBox.addEventListener('click', function() {
-				const allIconItems = document.querySelectorAll('.icon-item');
-                allIconItems.forEach(item => item.classList.remove('selected'));
-                    
-                // Add selected class to the current item
-            	iconBox.classList.add('selected');
-				// Enable the confirm button
-				if (confirmButton) {
-					confirmButton.classList.remove('disabled');
-					confirmButton.classList.add('enabled');
-				}
-				select_value = glyph.unicode
-			});
-
+			attachIconBoxClickEvent(iconBox, glyph.unicode, confirmButton)
 			container.appendChild(iconBox);
-		});
+		}
 		confirmButton.addEventListener('click', onConfirm)
 		const cancelButton = document.getElementById('cancel');
 		if (cancelButton) {

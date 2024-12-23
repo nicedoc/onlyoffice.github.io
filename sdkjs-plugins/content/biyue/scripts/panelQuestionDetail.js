@@ -3,7 +3,7 @@ import NumberInput from '../components/NumberInput.js'
 import { reqSaveQuestion } from './api/paper.js'
 import { setInteraction } from './featureManager.js'
 import { changeProportion, deleteAsks, focusAsk, updateAllChoice, deleteChoiceOtherWrite, getQuesMode, updateQuesScore, splitControl } from './QuesManager.js'
-import { addClickEvent, getListByMap, showCom } from '../scripts/model/util.js'
+import { addClickEvent, debounce, getListByMap, showCom } from '../scripts/model/util.js'
 import { getDataByParams, getFocusAskData } from '../scripts/model/ques.js'
 import { extractChoiceOptions, removeChoiceOptions, setChoiceOptionLayout } from './choiceQuestion.js'
 // 单题详情
@@ -74,6 +74,7 @@ var timeout_save = null
 var workbook_id = 0
 var select_ask_index = -1
 var choice_check = false
+var focus_lock = false
 
 function getTdText(colspan, width, title, id) {
 	return `<td class="padding-small" colspan=${colspan} width=${width}>
@@ -334,7 +335,15 @@ function updateElements(quesData, hint, ignore_ask_list) {
 						changeScore(id, data)
 					},
 					focus: (id) => {
+						// 防止重复触发，之前这里会触发两次，且两次的e.target不同
+						if (focus_lock) {
+							return
+						}
+						focus_lock = true
 						onFocusAsk(id, index)
+						setTimeout(() => {
+							focus_lock = false
+						}, 100)
 					}
 				})
 				list_ask.push(askInput)
@@ -769,7 +778,6 @@ function deleteAsk(index) {
 }
 
 function onFocusAsk(id, idx) {
-	console.log('onFocusAsk', id, idx)
 	var index = id.replace('ask', '') * 1
 	var focusList = getFocusAskData(g_ques_id, index)
 	if (focusList) {
