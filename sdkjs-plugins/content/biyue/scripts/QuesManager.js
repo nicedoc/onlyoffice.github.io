@@ -964,35 +964,29 @@ function handleChangeType(res, res2) {
 			question_map[qid].score = sum
 		}
 	}
-	function getAskIndex(ques_id, parent_id, write_id) {
+	function reSortAsks(ques_id) {
 		var quesData = question_map[ques_id]
-		var ids = []
-		if (quesData.is_merge) {
-			ids = quesData.ids
-		} else {
-			ids = [ques_id]
-		}
-		var aindex = 0
+		var ids = quesData.is_merge ? quesData.ids : [ques_id]
+		var targetAsks = []
 		for (var i1 = 0; i1 < ids.length; ++i1) {
 			var ndata = res2.find(e => {
 				return e.id == ids[i1]
 			})
-			var find = false
 			if (ndata && ndata.write_list) {
-				for (var i2 = 0; i2 < ndata.write_list.length; ++i2) {
-					if (ndata.write_list[i2].id == write_id) {
-						find = true
-						break
-					} else {
-						aindex++ 
-					}
-				}
-			}
-			if (find) {
-				break
+				targetAsks = targetAsks.concat(ndata.write_list)
 			}
 		}
-		return aindex
+		var targetMap = {}
+		targetAsks.forEach((e, index) => {
+			targetMap[e.id] = index
+		})
+		var ask_list = quesData.ask_list
+		if (ask_list) {
+			ask_list = ask_list.sort((a, b) => {
+				return targetMap[a.id] - targetMap[b.id]
+			})
+			quesData.ask_list = ask_list
+		}
 	}
 	function addOtherRemove(ques_id, ask_id) {
 		if (question_map[ques_id] && question_map[ques_id].ask_list) {
@@ -1030,6 +1024,7 @@ function handleChangeType(res, res2) {
 				} else if (flag == 1) {
 					question_map[ques_id].ask_list.splice(i, 1)
 					--i
+					return true
 				}
 			}
 			return true
@@ -1216,11 +1211,12 @@ function handleChangeType(res, res2) {
 										updateScore(real_parent_id)
 									}
 								} else if (index2 < 0) {
-									var toIndex = getAskIndex(real_parent_id, parent_id, item.client_id)
+									var toIndex = 0
 									question_map[real_parent_id].ask_list.splice(toIndex, 0, {
 										id: item.client_id,
 										score: 1
 									})
+									reSortAsks(real_parent_id)
 									updateScore(real_parent_id)
 								}
 								removeUnvalidAsk(real_parent_id, ndata.write_list)
