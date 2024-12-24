@@ -1929,7 +1929,7 @@ function drawStatistics(options, recalc) {
 					}
 				}
 			}
-		} else if (options.cmd == 'add') {
+		} else if (options.cmd == 'open') {
 			function updateFooter(oFooter, type, PageMargins, PageSize) {
 				if (!oFooter) {
 					return
