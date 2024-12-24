@@ -883,6 +883,21 @@ function getNodeList() {
 	}, false, true)
 }
 
+function updateScore(qid) {
+	var question_map = window.BiyueCustomData.question_map
+	if (question_map[qid] && question_map[qid].ask_list && question_map[qid].mark_mode != 2) {
+		var sum = 0
+		question_map[qid].ask_list.forEach(e => {
+			var ascore = e.score * 1
+			if (isNaN(ascore)) {
+				ascore = 0
+			}
+			sum += ascore
+		})
+		question_map[qid].score = sum
+	}
+}
+
 function handleChangeType(res, res2) {
 	console.log('handleChangeType', res, res2)
 	if (!res) {
@@ -934,7 +949,7 @@ function handleChangeType(res, res2) {
 				item.other_fields = item.other_fields
 					.map(otherField => {
 						// 在 write_list 中寻找匹配的 id 或 old_id
-						const validItem = write_list.find(e => e.id === otherField.id || e.old_id === otherField.id);
+						const validItem = write_list.find(e => e.id === otherField || e.old_id === otherField);
 						return validItem ? validItem.id : null;
 					})
 					.filter(id => id !== null); // 过滤掉无效的 id
@@ -950,19 +965,6 @@ function handleChangeType(res, res2) {
 		});
 		// 更新 question_map 中的 ask_list
 		question_map[qid].ask_list = old_list;
-	}
-	function updateScore(qid) {
-		if (question_map[qid] && question_map[qid].ask_list && question_map[qid].mark_mode != 2) {
-			var sum = 0
-			question_map[qid].ask_list.forEach(e => {
-				var ascore = e.score * 1
-				if (isNaN(ascore)) {
-					ascore = 0
-				}
-				sum += ascore
-			})
-			question_map[qid].score = sum
-		}
 	}
 	function reSortAsks(ques_id) {
 		var quesData = question_map[ques_id]
@@ -6168,7 +6170,7 @@ function clearMergeAsk(options) {
     )
     .filter(item => item !== undefined);  // 过滤掉不存在的元素
 	quesData.ask_list = ask_list
-
+	updateScore(options[1])
 	// 集中作答区暂时先不考虑
 	return new Promise((resolve, reject) => {
 		if (quesData.ques_mode == 1 || quesData.ques_mode == 5) {
@@ -6226,6 +6228,7 @@ function mergeOneAsk(options) {
 		if (firstIndex != -1) {
 			quesData.ask_list[firstIndex].other_fields = other_fields
 		}
+		updateScore(options.ques_id)
 	}
 }
 // 合并小问
