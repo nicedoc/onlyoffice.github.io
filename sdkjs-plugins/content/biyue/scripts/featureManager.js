@@ -2194,7 +2194,7 @@ function drawHeaderFooter(options, calc) {
 				if (paraDrawing2) {
 					// 统计以左上角为基点
 					oStatsDrawing.SetHorPosition('rightMargin', (PageMargins.Right - stat.right || 0) * 36e3)
-					oStatsDrawing.SetVerPosition('bottomMargin', (PageMargins.Bottom - stat.bottom || 0) * 36e3)
+					oStatsDrawing.SetVerPosition('page', (PageSize.H - stat.bottom || 0) * 36e3)
 					paraDrawing2.Set_DrawingType(2);
 					var titleobj = {
 						feature: {
@@ -2210,7 +2210,6 @@ function drawHeaderFooter(options, calc) {
 			}
 			// 页码
 			var oAddNum = getPageNumberDrawing(20, options.pagination.font_size, type) // numberDrawing.Copy()
-
 			var align = 'center'
 			if (options.pagination.align_style == 'oddLeftEvenRight') {
 				align = type == 'even' ? 'right' : 'left'
@@ -2218,7 +2217,7 @@ function drawHeaderFooter(options, calc) {
 				align = type == 'even' ? 'left' : 'right'
 			}
 			setPaginationAlign(oAddNum, align, options.pagination.margin)
-			oAddNum.SetVerPosition('bottomMargin', (PageMargins.Bottom - options.pagination.bottom || 0) * 36e3)
+			oAddNum.SetVerPosition('page', (PageSize.H - options.pagination.bottom || 0) * 36e3)
 			oParagraph.AddDrawing(oAddNum)
 			var paraDrawing3 = oAddNum.getParaDrawing()
 			if (paraDrawing3) {
@@ -2296,7 +2295,7 @@ function drawHeaderFooter(options, calc) {
 			// numberDrawing = getPageNumberDrawing(20, options.pagination.font_size)
 			footerList.forEach((footerObj) => {
 				updateFooter(footerObj.oFooter, footerObj.type, PageMargins, PageSize)
-				oSection.SetFooterDistance((PageMargins.Bottom - 2) / (25.4 / 72 / 20))
+				oSection.SetFooterDistance((PageMargins.Bottom - 4) / (25.4 / 72 / 20))
 			})
 		}
 		console.log('==================== draw header footer end')

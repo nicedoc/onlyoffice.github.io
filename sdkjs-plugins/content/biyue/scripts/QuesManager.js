@@ -4824,6 +4824,7 @@ function updateQuesScore(ids) {
 				return null
 			}
 			for (var i = 0, imax = shapes.length; i < imax; ++i) {
+				var oShape = Api.LookupObject(shapes[i].Shape.Id)
 				var titleObj = Api.ParseJSON(oShape.GetTitle())
 				if (titleObj.feature && titleObj.feature.type == 'score' && titleObj.feature.ques_id == id) {
 					return oShape
