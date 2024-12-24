@@ -2000,8 +2000,31 @@ function drawStatistics(options, recalc) {
 		}
 	}, false, recalc)
 }
-// 绘制页眉页脚
+function removeAllHeaderFooter() {
+	return biyueCallCommand(window, function() {
+		var oDocument = Api.GetDocument()
+		var oSections = oDocument.GetSections()
+		if (!oSections) {
+			return
+		}
+		for (var i = 0; i < oSections.length; ++i) {
+			var oSection = oSections[i]
+			oSection.RemoveHeader('default')
+			oSection.RemoveHeader('title')
+			oSection.RemoveHeader('even')
+			oSection.RemoveFooter('default')
+			oSection.RemoveFooter('even')
+			oSection.RemoveFooter('title')
+		}
+	}, false, false)
+}
 function drawHeaderFooter(options, calc) {
+	return removeAllHeaderFooter().then(()=> {
+		return drawHeaderFooter0(options, calc)
+	})
+}
+// 绘制页眉页脚
+function drawHeaderFooter0(options, calc) {
 	Asc.scope.options_header_footer = options
 	return biyueCallCommand(window, function() {
 		var options = Asc.scope.options_header_footer || {}
