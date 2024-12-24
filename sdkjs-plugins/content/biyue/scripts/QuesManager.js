@@ -1027,6 +1027,9 @@ function handleChangeType(res, res2) {
 						}
 						return true
 					}
+				} else if (flag == 1) {
+					question_map[ques_id].ask_list.splice(i, 1)
+					--i
 				}
 			}
 			return true
