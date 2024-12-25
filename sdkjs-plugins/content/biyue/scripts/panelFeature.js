@@ -139,7 +139,7 @@ function getList() {
 				label: '通过',
 				value_select: 'open'
 			})
-		} else {
+		} else if (extra_info.hiddenComplete && extra_info.hiddenComplete.checked === false) {
 			list.push({
 				zone_type: ZONE_TYPE.END,
 				id: ZONE_TYPE_NAME[ZONE_TYPE.END],
@@ -571,12 +571,16 @@ function loadImages() {
 function initPositions1() {
 	return getPageData().then(res => {
 		updateFeatureList(res)
-		var specifyFeatures = list_feature.map(e => {
-			return ZONE_TYPE_NAME[e.zone_type]
-		})
-		specifyFeatures.push(ZONE_TYPE_NAME[ZONE_TYPE.STATISTICS])
-		specifyFeatures.push(ZONE_TYPE_NAME[ZONE_TYPE.PAGINATION])
-		return deleteAllFeatures([], specifyFeatures)
+		// var specifyFeatures = list_feature.map(e => {
+		// 	return ZONE_TYPE_NAME[e.zone_type]
+		// })
+		// if (!specifyFeatures.includes(ZONE_TYPE_NAME[ZONE_TYPE.STATISTICS])) {
+		// 	specifyFeatures.push(ZONE_TYPE_NAME[ZONE_TYPE.STATISTICS])
+		// }
+		// if (!specifyFeatures.includes(ZONE_TYPE_NAME[ZONE_TYPE.PAGINATION])) {
+		// 	specifyFeatures.push(ZONE_TYPE_NAME[ZONE_TYPE.PAGINATION])
+		// }
+		return deleteAllFeatures([])
 	})
 	.then(() => {
 		return updateChoice(false)

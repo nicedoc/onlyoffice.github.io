@@ -218,7 +218,8 @@ function drawHeader(cmdType, examTitle) {
 		handleNext()
 	})
 }
-// 删除所有功能区
+// 删除所有功能区 exceptList 指定不删除的功能区
+// specifyFeatures 指定要删除的功能区 如果不指定则删除所有
 function deleteAllFeatures(exceptList, specifyFeatures) {
 	Asc.scope.exceptList = exceptList
 	Asc.scope.specifyFeatures = specifyFeatures
