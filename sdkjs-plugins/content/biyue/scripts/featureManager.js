@@ -2021,6 +2021,8 @@ function removeAllHeaderFooter() {
 function drawHeaderFooter(options, calc) {
 	return removeAllHeaderFooter().then(()=> {
 		return drawHeaderFooter0(options, calc)
+	}).then(() => {
+		return updateHederFooterDistance()
 	})
 }
 // 绘制页眉页脚
@@ -2072,6 +2074,7 @@ function drawHeaderFooter0(options, calc) {
 			oParagraph.RemoveAllElements()
 			var header = options.header || {}
 			updateText(header, oParagraph, 'center')
+			oParagraph.SetVertAlign('baseline')
 			oParagraph.SetBottomBorder(header.line_visible ? 'single' : 'none', 1, 2, 153, 153, 153)
 			if (header.image_url) {
 				var width = header.image_width || 10 // mm
@@ -2178,7 +2181,8 @@ function drawHeaderFooter0(options, calc) {
 					oRun.AddText('线外请勿作答')
 					paragraphs[0].AddElement(oRun)
 					paragraphs[0].SetColor(153, 153, 153, false)
-					paragraphs[0].SetFontSize(18)
+					var twips = 2.71 / (25.4 / 72 / 20)
+					paragraphs[0].SetFontSize(twips / 10)
 				}
 				oDrawing.SetPaddings(0, 0, 0, 0)
 				var paraDrawing = oDrawing.getParaDrawing()
@@ -2323,6 +2327,36 @@ function drawHeaderFooter0(options, calc) {
 		}
 		console.log('==================== draw header footer end')
 	}, false, calc)
+}
+
+function updateHederFooterDistance() {
+	return biyueCallCommand(window, function() {
+		var oDocument = Api.GetDocument()
+		var oSections = oDocument.GetSections()
+		if (!oSections || oSections.length == 0) {
+			return
+		}
+		function updateHeader(oHeader, PageMargins) {
+			if (!oHeader) {
+				return
+			}
+			var oParagraph = oHeader.GetElement(0)
+			if (!oParagraph) {
+				return
+			}
+			var oParaBounds = oParagraph.Paragraph.getPageBounds(0)
+			var height = oParaBounds.Bottom - oParaBounds.Top
+			if (height && PageMargins.Top > height) {
+				oSection.SetHeaderDistance((PageMargins.Top - height) / (25.4 / 72 / 20))
+			}
+		}
+		for (var oSection of oSections) {
+			var PageMargins = oSection.Section.PageMargins
+			updateHeader(oSection.GetHeader('title', false), PageMargins)
+			updateHeader(oSection.GetHeader('default', false), PageMargins)
+			updateHeader(oSection.GetHeader('even', false), PageMargins)
+		}
+	}, false, false)
 }
 
 export { handleFeature, handleHeader, drawExtroInfo, setLoading, deleteAllFeatures, setInteraction, updateChoice, handleChoiceUpdateResult, showOrHidePagination,drawHeaderFooter, drawStatistics }
