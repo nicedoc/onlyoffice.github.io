@@ -6080,6 +6080,9 @@ function handleUploadPrepare(cmdType) {
 }
 
 function importExam() {
+	if (isLoading('importExam')) { 
+		return
+	}
 	setBtnLoading('importExam', true)
 	if (window.BiyueCustomData.page_type == 1) {
 		return handleUploadPrepare('hide')
