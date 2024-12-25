@@ -26,7 +26,7 @@ import ComponentSelect from '../components/Select.js'
 var timeout_paste_hint = null
 var select_image_link = null
 let check_text_ques = true
-let check_level = false
+let check_level = true
 let inner_pop_list = ['link_container', 'func_key_container', 'tree_container']
 const CLR_SUCCESS = '#4EAB6D'
 const CLR_FAIL = '#ff0000'

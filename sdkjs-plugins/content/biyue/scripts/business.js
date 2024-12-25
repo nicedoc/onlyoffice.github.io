@@ -136,6 +136,7 @@ function updatePageSizeMargins() {
 				oDrawing.ClearShadow()
 			})
 			Api.asc_SetGlobalContentControlShowHighlight(true, 255, 191, 191)
+			Api.asc_SetTab('tab_biyue')
 			return null
 		},
 		false,

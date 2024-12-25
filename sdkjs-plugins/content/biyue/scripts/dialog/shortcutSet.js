@@ -22,6 +22,15 @@ import ComponentSelect from '../../components/Select.js'
 			width: '100%',
 			pop_width: '100%'
 		})
+		$("#myIcon").on('click', function(){
+			$("#tooltip").toggle();
+		});
+		$("#myIcon").on('mouseover', function(){
+			$("#tooltip").show();
+		});
+		$("#myIcon").on('mouseout', function(){
+			$("#tooltip").hide();
+		});
 	}
 
 	function changeAskShortcut(data) {

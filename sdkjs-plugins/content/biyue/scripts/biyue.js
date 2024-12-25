@@ -40,7 +40,8 @@ import {
 	preGetExamTree,
 	reqGetQuestionType,
 	focusAsk,
-	focusControl
+	focusControl,
+	splitWordAsk
 } from './QuesManager.js'
 import {
 	tagImageCommon,
@@ -2510,6 +2511,9 @@ import { getFocusAskData } from './model/ques.js'
 			.then(() => {
 				console.log('3.处理答题区域')
 				return checkAnswerRegion()
+			})
+			.then(() => {
+				return splitWordAsk()
 			})
 			.then(() => {
 				return splitEnd()

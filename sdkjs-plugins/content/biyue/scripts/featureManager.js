@@ -218,7 +218,8 @@ function drawHeader(cmdType, examTitle) {
 		handleNext()
 	})
 }
-// 删除所有功能区
+// 删除所有功能区 exceptList 指定不删除的功能区
+// specifyFeatures 指定要删除的功能区 如果不指定则删除所有
 function deleteAllFeatures(exceptList, specifyFeatures) {
 	Asc.scope.exceptList = exceptList
 	Asc.scope.specifyFeatures = specifyFeatures
@@ -1929,7 +1930,7 @@ function drawStatistics(options, recalc) {
 					}
 				}
 			}
-		} else if (options.cmd == 'add') {
+		} else if (options.cmd == 'open') {
 			function updateFooter(oFooter, type, PageMargins, PageSize) {
 				if (!oFooter) {
 					return
@@ -2000,8 +2001,33 @@ function drawStatistics(options, recalc) {
 		}
 	}, false, recalc)
 }
-// 绘制页眉页脚
+function removeAllHeaderFooter() {
+	return biyueCallCommand(window, function() {
+		var oDocument = Api.GetDocument()
+		var oSections = oDocument.GetSections()
+		if (!oSections) {
+			return
+		}
+		for (var i = 0; i < oSections.length; ++i) {
+			var oSection = oSections[i]
+			oSection.RemoveHeader('default')
+			oSection.RemoveHeader('title')
+			oSection.RemoveHeader('even')
+			oSection.RemoveFooter('default')
+			oSection.RemoveFooter('even')
+			oSection.RemoveFooter('title')
+		}
+	}, false, false)
+}
 function drawHeaderFooter(options, calc) {
+	return removeAllHeaderFooter().then(()=> {
+		return drawHeaderFooter0(options, calc)
+	}).then(() => {
+		return updateHederFooterDistance()
+	})
+}
+// 绘制页眉页脚
+function drawHeaderFooter0(options, calc) {
 	Asc.scope.options_header_footer = options
 	return biyueCallCommand(window, function() {
 		var options = Asc.scope.options_header_footer || {}
@@ -2049,6 +2075,7 @@ function drawHeaderFooter(options, calc) {
 			oParagraph.RemoveAllElements()
 			var header = options.header || {}
 			updateText(header, oParagraph, 'center')
+			oParagraph.SetVertAlign('baseline')
 			oParagraph.SetBottomBorder(header.line_visible ? 'single' : 'none', 1, 2, 153, 153, 153)
 			if (header.image_url) {
 				var width = header.image_width || 10 // mm
@@ -2155,7 +2182,8 @@ function drawHeaderFooter(options, calc) {
 					oRun.AddText('线外请勿作答')
 					paragraphs[0].AddElement(oRun)
 					paragraphs[0].SetColor(153, 153, 153, false)
-					paragraphs[0].SetFontSize(18)
+					var twips = 2.71 / (25.4 / 72 / 20)
+					paragraphs[0].SetFontSize(twips / 10)
 				}
 				oDrawing.SetPaddings(0, 0, 0, 0)
 				var paraDrawing = oDrawing.getParaDrawing()
@@ -2194,7 +2222,7 @@ function drawHeaderFooter(options, calc) {
 				if (paraDrawing2) {
 					// 统计以左上角为基点
 					oStatsDrawing.SetHorPosition('rightMargin', (PageMargins.Right - stat.right || 0) * 36e3)
-					oStatsDrawing.SetVerPosition('bottomMargin', (PageMargins.Bottom - stat.bottom || 0) * 36e3)
+					oStatsDrawing.SetVerPosition('page', (PageSize.H - stat.bottom || 0) * 36e3)
 					paraDrawing2.Set_DrawingType(2);
 					var titleobj = {
 						feature: {
@@ -2210,7 +2238,6 @@ function drawHeaderFooter(options, calc) {
 			}
 			// 页码
 			var oAddNum = getPageNumberDrawing(20, options.pagination.font_size, type) // numberDrawing.Copy()
-
 			var align = 'center'
 			if (options.pagination.align_style == 'oddLeftEvenRight') {
 				align = type == 'even' ? 'right' : 'left'
@@ -2218,7 +2245,7 @@ function drawHeaderFooter(options, calc) {
 				align = type == 'even' ? 'left' : 'right'
 			}
 			setPaginationAlign(oAddNum, align, options.pagination.margin)
-			oAddNum.SetVerPosition('bottomMargin', (PageMargins.Bottom - options.pagination.bottom || 0) * 36e3)
+			oAddNum.SetVerPosition('page', (PageSize.H - options.pagination.bottom || 0) * 36e3)
 			oParagraph.AddDrawing(oAddNum)
 			var paraDrawing3 = oAddNum.getParaDrawing()
 			if (paraDrawing3) {
@@ -2296,11 +2323,41 @@ function drawHeaderFooter(options, calc) {
 			// numberDrawing = getPageNumberDrawing(20, options.pagination.font_size)
 			footerList.forEach((footerObj) => {
 				updateFooter(footerObj.oFooter, footerObj.type, PageMargins, PageSize)
-				oSection.SetFooterDistance((PageMargins.Bottom - 2) / (25.4 / 72 / 20))
+				oSection.SetFooterDistance((PageMargins.Bottom - 4) / (25.4 / 72 / 20))
 			})
 		}
 		console.log('==================== draw header footer end')
 	}, false, calc)
+}
+
+function updateHederFooterDistance() {
+	return biyueCallCommand(window, function() {
+		var oDocument = Api.GetDocument()
+		var oSections = oDocument.GetSections()
+		if (!oSections || oSections.length == 0) {
+			return
+		}
+		function updateHeader(oHeader, PageMargins) {
+			if (!oHeader) {
+				return
+			}
+			var oParagraph = oHeader.GetElement(0)
+			if (!oParagraph) {
+				return
+			}
+			var oParaBounds = oParagraph.Paragraph.getPageBounds(0)
+			var height = oParaBounds.Bottom - oParaBounds.Top
+			if (height && PageMargins.Top > height) {
+				oSection.SetHeaderDistance((PageMargins.Top - height) / (25.4 / 72 / 20))
+			}
+		}
+		for (var oSection of oSections) {
+			var PageMargins = oSection.Section.PageMargins
+			updateHeader(oSection.GetHeader('title', false), PageMargins)
+			updateHeader(oSection.GetHeader('default', false), PageMargins)
+			updateHeader(oSection.GetHeader('even', false), PageMargins)
+		}
+	}, false, false)
 }
 
 export { handleFeature, handleHeader, drawExtroInfo, setLoading, deleteAllFeatures, setInteraction, updateChoice, handleChoiceUpdateResult, showOrHidePagination,drawHeaderFooter, drawStatistics }
