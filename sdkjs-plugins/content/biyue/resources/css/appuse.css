@@ -966,3 +966,15 @@ a {
 .inline-block {
 	display: inline-block;
 }
+
+.tooltip {
+    position: absolute;
+    z-index: 1;
+    width: auto;
+    max-width: 80vw;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 4px;
+    min-width: 100px;
+}
