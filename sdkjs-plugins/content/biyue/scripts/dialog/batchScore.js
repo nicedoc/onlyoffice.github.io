@@ -1,4 +1,4 @@
-import { setBtnLoading, addClickEvent, addTypeEvent, showCom, updateText } from '../model/util.js'
+import { setBtnLoading, addClickEvent, addTypeEvent, showCom, updateText, getFixedValue } from '../model/util.js'
 var _ = window._;
 ;(function (window, undefined) {
 	let biyueCustomData = {}
@@ -109,15 +109,16 @@ var _ = window._;
 			if (showAsks) {
 				if (quesData.ask_list && quesData.ask_list.length > 0) {
 					quesData.ask_list.forEach((ask, index) => {
+						var ascore = getFixedValue(ask.score)
 						if (index == 0) {
-							html += `<input type="text" data-qid=${item.id} data-aidx=${index} class="score ques-${item.id} ask-index-${index} ask-${ask.id}" value=${ask.score || 0}>`
+							html += `<input type="text" data-qid=${item.id} data-aidx=${index} class="score ques-${item.id} ask-index-${index} ask-${ask.id}" value=${ascore}>`
 						} else {
-							html += `<div style="padding-left: 12px"><input type="text" data-qid=${item.id} data-aidx=${index} class="score ques-${item.id} ask-index-${index} ask-${ask.id}" value=${ask.score || 0}></div>`
+							html += `<div style="padding-left: 12px"><input type="text" data-qid=${item.id} data-aidx=${index} class="score ques-${item.id} ask-index-${index} ask-${ask.id}" value=${ascore}></div>`
 						}
 					})
 				}
 			} else {
-				html += `<input type="text" data-qid=${item.id} class="score ques-${ item.id }" value="${ quesData.score || 0 }">`
+				html += `<input type="text" data-qid=${item.id} class="score ques-${ item.id }" value="${ getFixedValue(quesData.score) }">`
 			}
 			html += `</span>`
 			questionList.push(item.id)
@@ -419,10 +420,11 @@ var _ = window._;
 	}
   
 	function changeScore({id, type, index, score}) {
+		var s = score.toFixed(1) * 1
 	  if (type == 'ask') {
-		question_map[id].ask_list[index].score = score
+		question_map[id].ask_list[index].score = s
 	  } else {
-		question_map[id].score = score
+		question_map[id].score = s
 	  }
 	}
 

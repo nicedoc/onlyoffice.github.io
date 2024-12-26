@@ -3,7 +3,7 @@ import NumberInput from '../components/NumberInput.js'
 import { reqSaveQuestion } from './api/paper.js'
 import { setInteraction } from './featureManager.js'
 import { changeProportion, deleteAsks, focusAsk, updateAllChoice, deleteChoiceOtherWrite, getQuesMode, updateQuesScore, splitControl } from './QuesManager.js'
-import { addClickEvent,  getListByMap, showCom } from '../scripts/model/util.js'
+import { addClickEvent,  getListByMap, showCom, getFixedValue } from '../scripts/model/util.js'
 import { getDataByParams, getFocusAskData } from '../scripts/model/ques.js'
 import { extractChoiceOptions, removeChoiceOptions, setChoiceOptionLayout } from './choiceQuestion.js'
 import { hasInteraction, getInteractionTypes } from '../scripts/model/feature.js'
@@ -346,7 +346,7 @@ function updateElements(quesData, hint, ignore_ask_list) {
 					}
 				})
 				list_ask.push(askInput)
-				askInput.setValue((ask.score || 0) + '')
+				askInput.setValue(getFixedValue(ask.score))
 			}
 			$(`#ask${index}_delete`).on('click', () => {
 				deleteAsk(index)

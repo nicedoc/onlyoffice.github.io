@@ -117,4 +117,10 @@ function getYYMMDDHHMMSS() {
 	var second = date.getSeconds()
 	return `${year}_${month}_${day}_${hour}:${minute}:${second}`	
 }
-export { showCom, updateText, addClickEvent, closeOtherSelect, getListByMap, getInfoForServerSave, setBtnLoading, isLoading, getYYMMDDHHMMSS, addTypeEvent }
+
+function getFixedValue(v, fractionDigits = 1) {
+	var v = v || 0
+	v = v.toFixed(fractionDigits) * 1
+	return v + ''
+}
+export { showCom, updateText, addClickEvent, closeOtherSelect, getListByMap, getInfoForServerSave, setBtnLoading, isLoading, getYYMMDDHHMMSS, addTypeEvent, getFixedValue }
