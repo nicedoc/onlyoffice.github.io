@@ -10,6 +10,7 @@ import { layoutDetect } from './layoutFixHandler.js'
 import { setBtnLoading, isLoading } from './model/util.js'
 import { refreshTree } from './panelTree.js'
 import { extractChoiceOptions, removeChoiceOptions, getChoiceOptionAndSteam, setChoiceOptionLayout } from './choiceQuestion.js'
+import { getInteractionTypes } from './model/feature.js'
 var g_click_value = null
 var upload_control_list = []
 
@@ -611,20 +612,12 @@ function getContextMenuItems(type, selectedRes) {
 						{
 							id: 'batchChangeInteraction',
 							text: '修改互动模式',
-							items: [
-								{
-									id: 'batchChangeInteraction:none',
-									text: '无互动',
-								},
-								{
-									id: 'batchChangeInteraction:simple',
-									text: '简单互动',
-								},
-								{
-									id: 'batchChangeInteraction:accurate',
-									text: '精准互动',
-								},
-							],
+							items: getInteractionTypes().map((e) => {
+								return {
+									id: `batchChangeInteraction:${e.value}`,
+									text: e.label
+								}
+							})
 						},
 					],
 				})
@@ -3684,6 +3677,7 @@ function batchProportion(idList, proportion) {
 			var isInCell = false
 			var parentTable = null
 			var parentCell = null
+			oControl.Sdt.GetLogicDocument().PreventPreDelete = true
 			if (oParent && oParent.GetClassType && oParent.GetClassType() == 'documentContent') {
 				var parent2 = oParent.Document.GetParent()
 				if (parent2) {
@@ -3955,6 +3949,7 @@ function changeProportion(idList, proportion) {
 					var cellContent = oCell.GetContent()
 					var contents = []
 					var elementcount = cellContent.GetElementsCount()
+					oControl.Sdt.GetLogicDocument().PreventPreDelete = true
 					for (var k = 0; k < elementcount; ++k) {
 						contents.push(cellContent.GetElement(k))
 					}

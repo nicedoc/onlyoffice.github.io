@@ -91,5 +91,41 @@ var ZONE_SIZE = {
 		imgSize: 35 * 0.25
 	},
 }
+// 是否有互动
+function hasInteraction() {
+	if (window.BiyueCustomData && 
+		window.BiyueCustomData.workbook_info && 
+		window.BiyueCustomData.workbook_info.parse_extra_data &&
+		window.BiyueCustomData.workbook_info.parse_extra_data.hidden_correct_region
+	) {
+		if (window.BiyueCustomData.workbook_info.parse_extra_data.hidden_correct_region.checked === false) {
+			return true
+		}
+	}
+	return false
+}
+// 获取互动类型列表
+function getInteractionTypes() {
+	var interactionTypes = [{
+		value: 'none',
+		label: '无互动'
+	}]
+	var extra_info = window.BiyueCustomData.workbook_info.parse_extra_data
+	if (extra_info && extra_info.hidden_correct_region) {
+		if (!extra_info.hidden_correct_region.checked) {
+			interactionTypes.push({
+				value: 'simple',
+				label: '简单互动'
+			})
+			if (extra_info.start_interaction.checked) {
+				interactionTypes.push({
+					value: 'accurate',
+					label: '精准互动'
+				})
+			}
+		}
+	}
+	return interactionTypes
+}
 
-export { ZONE_TYPE, ZONE_SIZE, ZONE_TYPE_NAME }
+export { ZONE_TYPE, ZONE_SIZE, ZONE_TYPE_NAME, hasInteraction, getInteractionTypes }

@@ -6,6 +6,7 @@ import { changeProportion, deleteAsks, focusAsk, updateAllChoice, deleteChoiceOt
 import { addClickEvent,  getListByMap, showCom } from '../scripts/model/util.js'
 import { getDataByParams, getFocusAskData } from '../scripts/model/ques.js'
 import { extractChoiceOptions, removeChoiceOptions, setChoiceOptionLayout } from './choiceQuestion.js'
+import { hasInteraction, getInteractionTypes } from '../scripts/model/feature.js'
 // 单题详情
 var proportionTypes = [
 	{ value: 1, label: '默认' },
@@ -16,11 +17,6 @@ var proportionTypes = [
 	{ value: 6, label: '1/6' },
 	{ value: 7, label: '1/7' },
 	{ value: 8, label: '1/8' },
-]
-var interactionTypes = [
-	{ value: 'none', label: '无互动'},
-	{ value: 'simple', label: '简单互动'},
-	{ value: 'accurate', label: '精准互动'}
 ]
 var scoreModes = [
 	{ value: 0, label: '自动选择'},
@@ -84,6 +80,7 @@ function getTdText(colspan, width, title, id) {
 }
 function initElements() {
 	console.log('====================================================== panelquestiondetail initElements')
+	var hasInter = hasInteraction()
 	var content = ''
 	content = `
   	<div class="hint" style="text-align:center">请先选中一道题</div>
@@ -107,7 +104,7 @@ function initElements() {
         		</tr>
 				<tr id="proportionTr">
 					${getTdText("1", "50%", '占比', "proportion")}
-					${getTdText("1", "50%", '互动', "quesInteraction")}
+					${ hasInter ? getTdText("1", "50%", '互动', "quesInteraction") : ''}
 				</tr>
 				<tr id="weightTr">
 					${getTdText("2", "100%", '权重/分数', "ques_weight")}
@@ -187,7 +184,9 @@ function initElements() {
 		val = checkInputValue(val, 100)
     	$(`#ques_weight input`).val(val)
   	})
-	select_interaction = createSelect('quesInteraction', interactionTypes, 'none', changeInteraction)
+	if (hasInteraction()) {
+		select_interaction = createSelect('quesInteraction', getInteractionTypes(), 'none', changeInteraction)
+	}
 	var markModes = mark_type_info ? getListByMap(mark_type_info.mark_type_map) : []
 	select_mark_mode = createSelect('markMode', markModes, 'none', changeMarkMode, '100%')
 	select_score_mode = createSelect('scoreMode', scoreModes, 0, changeScoreMode)
