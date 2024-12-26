@@ -178,23 +178,23 @@ var _ = window._;
 	}
   
 	function batchSetStructQuestionType(struct_id, value) {
-	  // 根据结构批量写入题目类型
-	  let arr = tree_map[struct_id] || []
-	  for (const key in arr) {
-		  let id = arr[key]
-		  var oldMode = question_map[id].ques_mode
-		  var ques_mode = getQuesMode(parseFloat(value) || 0)
-		  question_map[id].ques_mode = ques_mode
-		  question_map[id].question_type = value
-		  if (!needUpdateInteraction) {
-			  needUpdateInteraction = question_map[id].interaction != 'none' && (oldMode == 6 || ques_mode == 6) 
-		  }
-		  if (!needUpdateChoice) {
-			  needUpdateChoice = oldMode == 1 || oldMode == 5 || ques_mode == 1 || ques_mode == 5
-		  }
-	  }
-  
-	  renderData()
+		saveDataBeforeRender()
+		// 根据结构批量写入题目类型
+		let arr = tree_map[struct_id] || []
+		for (const key in arr) {
+			let id = arr[key]
+			var oldMode = question_map[id].ques_mode
+			var ques_mode = getQuesMode(parseFloat(value) || 0)
+			question_map[id].ques_mode = ques_mode
+			question_map[id].question_type = value
+			if (!needUpdateInteraction) {
+				needUpdateInteraction = question_map[id].interaction != 'none' && (oldMode == 6 || ques_mode == 6) 
+			}
+			if (!needUpdateChoice) {
+				needUpdateChoice = oldMode == 1 || oldMode == 5 || ques_mode == 1 || ques_mode == 5
+			}
+		}
+	  	renderData()
 	}
   
 	function getQuestionTypeNum() {
@@ -276,24 +276,26 @@ var _ = window._;
 	  }
 	  return ques_mode
 	}
-  
+	function saveDataBeforeRender() {
+		for (const key in questionList) {
+			let id = questionList[key] || ''
+			let dom = $('.ques-'+id)
+			if (id && question_map[id] && dom) {
+			  	let params = {
+					id: id,
+					question_type: dom.val()
+			  	}
+			  	changeQuestionType(params)
+			}
+		}
+	}
 	function onConfirm() {
 		if (isLock) {
 			return
 		}
 		setBtnLoading('confirm', true)
 		isLock = true
-	  for (const key in questionList) {
-		let id = questionList[key] || ''
-		let dom = $('.ques-'+id)
-		if (id && question_map[id] && dom) {
-		  let params = {
-			id: id,
-			question_type: dom.val()
-		  }
-		  changeQuestionType(params)
-		}
-	  }
+		saveDataBeforeRender()
 	  // 将窗口的信息传递出去
 	  window.Asc.plugin.sendToPlugin('onWindowMessage', {
 		type: 'changeQuestionMap',
