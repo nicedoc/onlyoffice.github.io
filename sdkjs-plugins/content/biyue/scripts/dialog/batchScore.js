@@ -251,6 +251,7 @@ var _ = window._;
 	}
   
 	function batchSetStructScore(struct_id, value) {
+		saveDataBeforeRender()
 		// 根据结构批量写入分数
 		let arr = tree_map[struct_id] || []
 		for (const key in arr) {
@@ -267,7 +268,6 @@ var _ = window._;
 				question_map[id].score = value
 			}
 		}
-	
 		renderData()
 	}
   
@@ -349,13 +349,7 @@ var _ = window._;
 	  $('#switch_tree').prop('checked', display_tree)
 	  renderData()
 	}
-  
-	function onConfirm() {
-		if (isLock) {
-			return
-		}
-		setBtnLoading('confirm', true)
-		isLock = true
+	function saveDataBeforeRender() {
 		let choice_display = biyueCustomData.choice_display || {}
 		let show_choice_region = choice_display.style == 'show_choice_region' // 判断是否为开启集中作答区
 		let node_list = biyueCustomData.node_list || []
@@ -401,6 +395,14 @@ var _ = window._;
 			}
 			}
 		}
+	}
+	function onConfirm() {
+		if (isLock) {
+			return
+		}
+		setBtnLoading('confirm', true)
+		isLock = true
+		saveDataBeforeRender()
 		// 将窗口的信息传递出去
 		window.Asc.plugin.sendToPlugin('onWindowMessage', {
 			type: 'updateScore',
