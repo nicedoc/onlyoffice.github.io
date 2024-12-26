@@ -10,6 +10,7 @@ import { layoutDetect } from './layoutFixHandler.js'
 import { setBtnLoading, isLoading } from './model/util.js'
 import { refreshTree } from './panelTree.js'
 import { extractChoiceOptions, removeChoiceOptions, getChoiceOptionAndSteam, setChoiceOptionLayout } from './choiceQuestion.js'
+import { getInteractionTypes } from './model/feature.js'
 var g_click_value = null
 var upload_control_list = []
 
@@ -611,20 +612,12 @@ function getContextMenuItems(type, selectedRes) {
 						{
 							id: 'batchChangeInteraction',
 							text: '修改互动模式',
-							items: [
-								{
-									id: 'batchChangeInteraction:none',
-									text: '无互动',
-								},
-								{
-									id: 'batchChangeInteraction:simple',
-									text: '简单互动',
-								},
-								{
-									id: 'batchChangeInteraction:accurate',
-									text: '精准互动',
-								},
-							],
+							items: getInteractionTypes().map((e) => {
+								return {
+									id: `batchChangeInteraction:${e.value}`,
+									text: e.label
+								}
+							})
 						},
 					],
 				})

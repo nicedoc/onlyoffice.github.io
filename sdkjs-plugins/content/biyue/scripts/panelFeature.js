@@ -1,6 +1,6 @@
 import ComponentSelect from '../components/Select.js'
 import NumberInput from '../components/NumberInput.js'
-import { ZONE_SIZE, ZONE_TYPE, ZONE_TYPE_NAME } from './model/feature.js'
+import { ZONE_SIZE, ZONE_TYPE, ZONE_TYPE_NAME, getInteractionTypes } from './model/feature.js'
 import { handleFeature, handleHeader, drawExtroInfo, setLoading, deleteAllFeatures, setInteraction, updateChoice, handleChoiceUpdateResult, drawHeaderFooter, drawStatistics } from './featureManager.js'
 import { biyueCallCommand, dispatchCommandResult } from "./command.js";
 import { showCom } from './model/util.js'
@@ -164,14 +164,14 @@ function getList() {
 		if (!extra_info.hidden_correct_region.checked) {
 			var value_select = extra_info.start_interaction.checked ? 'accurate' : 'simple'
 			window.BiyueCustomData.interaction = value_select
-			list.push({
-				id: 'interaction',
-				label: '互动模式',
-				value_select: value_select
-			})
 		} else {
 			window.BiyueCustomData.interaction = 'none'
 		}
+		list.push({
+			id: 'interaction',
+			label: '互动模式',
+			value_select: value_select
+		})
 	} else {
 		window.BiyueCustomData.interaction = 'none'
 	}
@@ -190,19 +190,8 @@ function initFeature() {
 			label: '开',
 		},
 	]
-	var interactionTypes = [
-		{
-			value: 'none',
-			label: '无互动'
-		},
-		{
-			value: 'simple',
-			label: '简单互动'
-		}, {
-			value: 'accurate',
-			label: '精准互动'
-		}
-	]
+	var interactionTypes = getInteractionTypes()
+	console.log('=============== initFeature interactionTypes', interactionTypes)
 	$('#wrapperFeature').empty()
 	var content = '<table style="width: 100%"><tbody>'
 	content += `<tr><td colspan="2"><label class="header">全部</label></td></tr><tr><td class="padding-small" width="100%" colspan="2"><div id='all'></div></td></tr>`
