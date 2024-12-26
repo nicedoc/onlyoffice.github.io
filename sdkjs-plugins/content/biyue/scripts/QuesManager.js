@@ -3684,6 +3684,7 @@ function batchProportion(idList, proportion) {
 			var isInCell = false
 			var parentTable = null
 			var parentCell = null
+			oControl.Sdt.GetLogicDocument().PreventPreDelete = true
 			if (oParent && oParent.GetClassType && oParent.GetClassType() == 'documentContent') {
 				var parent2 = oParent.Document.GetParent()
 				if (parent2) {
