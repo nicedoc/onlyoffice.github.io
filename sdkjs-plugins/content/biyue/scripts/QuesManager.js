@@ -3955,6 +3955,7 @@ function changeProportion(idList, proportion) {
 					var cellContent = oCell.GetContent()
 					var contents = []
 					var elementcount = cellContent.GetElementsCount()
+					oControl.Sdt.GetLogicDocument().PreventPreDelete = true
 					for (var k = 0; k < elementcount; ++k) {
 						contents.push(cellContent.GetElement(k))
 					}
