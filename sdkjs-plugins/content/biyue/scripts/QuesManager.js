@@ -4105,6 +4105,7 @@ function changeProportion(idList, proportion) {
 			if (!oControl) {
 				continue
 			}
+			oControl.Sdt.GetLogicDocument().PreventPreDelete = true
 			var oTable = oControl.GetParentTable()
 			var posinparent = oControl.GetPosInParent()
 			var parent = oControl.Sdt.GetParent()
@@ -4562,6 +4563,10 @@ function deleteAsks(askList, recalc = true, notify = true) {
 					return resolve({})
 				})
 			}
+		} else {
+			return new Promise((resolve, reject) => {
+				return resolve({})
+			})
 		}
 	})
 }
