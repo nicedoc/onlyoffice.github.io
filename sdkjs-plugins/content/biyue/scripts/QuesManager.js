@@ -756,12 +756,19 @@ function getNodeList() {
 								if (title) {
 									var titleObj = Api.ParseJSON(title)
 									if (titleObj.feature && (titleObj.feature.sub_type == 'write' || titleObj.feature.sub_type == 'identify')) {
-										write_list.push({
+										var obj = {
+											index: write_list.length,
 											id: titleObj.feature.client_id,
 											sub_type: titleObj.feature.sub_type,
 											drawing_id: oChild2.Id,
-											shape_id: oChild2.GraphicObj.Id
-										})
+											shape_id: oChild2.GraphicObj.Id,
+										}
+										obj.bpage = oChild2.PageNum + 1
+										obj.bx = oChild2.X
+										obj.by = oChild2.Y
+										obj.ex = oChild2.X + oChild2.Width
+										obj.ey = oChild2.Y + oChild2.Height
+										write_list.push(obj)
 									}
 								}
 							}
@@ -770,11 +777,21 @@ function getNodeList() {
 				} else if (childType == 'inlineLvlSdt') {
 					var childTag = Api.ParseJSON(oChild.GetTag())
 					if (childTag.regionType == 'write') {
-						write_list.push({
+						var obj = {
+							index: write_list.length,
 							id: childTag.client_id,
 							sub_type: 'control',
-							control_id: oChild.Sdt.GetId()
-						})
+							control_id: oChild.Sdt.GetId(),
+						}
+						var bounds = oChild.Sdt.Bounds
+						if (bounds && bounds[0]) {
+							obj.bpage = bounds[0].Page + 1
+							obj.bx = bounds[0].X
+							obj.by = bounds[0].Y
+							obj.ex = bounds[0].X + bounds[0].W
+							obj.ey = bounds[0].Y + bounds[0].H
+						}
+						write_list.push(obj)
 					}
 				}
 			}
@@ -785,12 +802,45 @@ function getNodeList() {
 			}
 			var childTag = Api.ParseJSON(oElement.GetTag())
 			if (childTag.regionType == 'write') {
-				write_list.push({
+				var obj = {
+					index: write_list.length,
 					id: childTag.client_id,
 					sub_type: 'control',
-					control_id: oElement.Sdt.GetId()
-				})
+					control_id: oElement.Sdt.GetId(),
+				}
+				var bounds = oControl.Sdt.Bounds
+				if (bounds && bounds[0]) {
+					obj.bpage = bounds[0].Page + 1
+					obj.bx = bounds[0].X
+					obj.by = bounds[0].Y
+					obj.ex = bounds[0].X + bounds[0].W
+					obj.ey = bounds[0].Y + bounds[0].H
+				}
+				write_list.push(obj)
 			}
+		}
+		function getCellBounds(oCell) {
+			if (!oCell || oCell.GetClassType() != 'tableCell') {
+				return {}
+			}
+			var pagesCount = oCell.Cell.PagesCount
+			for (var p = 0; p < pagesCount; ++p) {
+				var pagebounds = oCell.Cell.GetPageBounds(p)
+				if (!pagebounds) {
+					continue
+				}
+				if (pagebounds.Right == 0 && pagebounds.Left == 0) {
+					continue
+				}
+				return {
+					bpage: oCell.Cell.Get_AbsolutePage(p) + 1,
+					bx: pagebounds.Left,
+					by: pagebounds.Top,
+					ex: pagebounds.Right,
+					ey: pagebounds.Bottom
+				}
+			}
+			return {}
 		}
 		for (var i = 0, imax = controls.length; i < imax; ++i) {
 			var oControl = controls[i]
@@ -819,7 +869,8 @@ function getNodeList() {
 								var fill = shd.Fill
 								if (fill && fill.r == 255 && fill.g == 191 && fill.b == 191) {
 									var oldId = tableTitle[`${i1}_${i2}`]
-									write_list.push({
+									var obj = Object.assign({}, {
+										index: write_list.length,
 										id: 'c_' + oCell.Cell.Id,
 										sub_type: 'cell',
 										table_id: oElement.Table.Id,
@@ -827,7 +878,8 @@ function getNodeList() {
 										row_index: i1,
 										cell_index: i2,
 										old_id: oldId
-									})
+									}, getCellBounds(oCell))
+									write_list.push(obj)
 									tableTitle[`${i1}_${i2}`] = 'c_' + oCell.Cell.Id
 								} else {
 									var oCellContent = oCell.GetContent()
@@ -857,16 +909,61 @@ function getNodeList() {
 				if (tagInfo.mid && oControl.GetParentTableCell()) {
 					if (tagInfo.cask == 1) {
 						var oCell = oControl.GetParentTableCell()
-						write_list.push({
+						var obj = Object.assign({}, {
 							id: 'c_' + oCell.Cell.Id,
 							sub_type: 'cell',
 							table_id: oCell.GetParentTable().Table.Id,
 							cell_id: oCell.Cell.Id,
 							row_index: oCell.GetRowIndex(),
 							cell_index: oCell.GetIndex()
-						})
+						}, getCellBounds(oCell))
 						nodeObj.cell_ask = true
 					}
+				}
+				// 当有作答区小问时，才需要排序
+				if (write_list.length > 1 && write_list.find(e => {
+					return e.sub_type == 'write'
+				})) {
+					console.log('====================== begin')
+					write_list.forEach((e, index) => {
+						console.log(e.index, e.id, e.bx, e.by, e.ex, e.ey)
+					})
+					console.log('====================== end')
+					write_list = write_list.sort((a, b) => {
+						if (a.bpage && b.bpage) {
+							if (a.bpage != b.bpage) {
+								return a.bpage - b.bpage
+							} else {
+								if (a.by == b.by) {
+									return a.bx - b.bx
+								} else {
+									if (a.ey <= b.by) {
+										return -1
+									} else if (b.ey <= a.by) {
+										return 1
+									} else {
+										if (b.by > (a.by + (a.ey - a.by) * 0.5)) {
+											return -1
+										} else if (a.by > (b.by + (b.ey - b.by) * 0.5)) {
+											return 1
+										} else {
+											return a.bx - b.bx
+										}
+									}
+								}
+							}
+						} else {
+							return a.index - b.index
+						}
+					})
+					write_list.forEach(e => {
+						delete e.index
+						delete e.bpage
+						delete e.bx
+						delete e.by
+						delete e.ex
+						delete e.ey
+					})
 				}
 				nodeObj.write_list = write_list
 				node_list.push(nodeObj)
