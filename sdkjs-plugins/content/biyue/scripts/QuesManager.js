@@ -924,11 +924,6 @@ function getNodeList() {
 				if (write_list.length > 1 && write_list.find(e => {
 					return e.sub_type == 'write'
 				})) {
-					console.log('====================== begin')
-					write_list.forEach((e, index) => {
-						console.log(e.index, e.id, e.bx, e.by, e.ex, e.ey)
-					})
-					console.log('====================== end')
 					write_list = write_list.sort((a, b) => {
 						if (a.bpage && b.bpage) {
 							if (a.bpage != b.bpage) {
