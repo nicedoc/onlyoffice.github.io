@@ -2,11 +2,12 @@ import ComponentSelect from '../components/Select.js'
 import NumberInput from '../components/NumberInput.js'
 import { reqSaveQuestion } from './api/paper.js'
 import { setInteraction } from './featureManager.js'
-import { changeProportion, deleteAsks, focusAsk, updateAllChoice, deleteChoiceOtherWrite, getQuesMode, updateQuesScore, splitControl } from './QuesManager.js'
+import { deleteAsks, focusAsk, updateAllChoice, deleteChoiceOtherWrite, getQuesMode, updateQuesScore, splitControl } from './QuesManager.js'
 import { addClickEvent,  getListByMap, showCom, getFixedValue } from '../scripts/model/util.js'
 import { getDataByParams, getFocusAskData } from '../scripts/model/ques.js'
 import { extractChoiceOptions, removeChoiceOptions, setChoiceOptionLayout } from './choiceQuestion.js'
 import { hasInteraction, getInteractionTypes } from '../scripts/model/feature.js'
+import proportionHandler from './handler/proportionHandler.js'
 // 单题详情
 var proportionTypes = [
 	{ value: 1, label: '默认' },
@@ -515,7 +516,7 @@ function updateQuesType(quesMode, oldMode) {
 }
 // 修改占比
 function onChangeProportion(data) {
-	changeProportion([g_ques_id], data.value).then(() => {
+	proportionHandler.changeProportion([g_ques_id], data.value).then(() => {
 		window.biyue.StoreCustomData()
 	})
 }
