@@ -507,7 +507,7 @@ function getContextMenuItems(type, selectedRes) {
 						valueMap['question'] = 1
 					} else if (cData.level_type == 'big') {
 						splitType.text += '(现为大题)'
-						valueMap['struct'] = 1
+						valueMap['struct'] = 0
 						valueMap['clearBig'] = 1
 					} else if (cData.level_type == 'ask') {
 						splitType.text += '(现为小问)'
