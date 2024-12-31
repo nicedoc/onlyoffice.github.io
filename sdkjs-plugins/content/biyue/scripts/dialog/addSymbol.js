@@ -15,6 +15,10 @@
 				confirmButton.classList.add('enabled');
 			}
 			select_value = glyphUnicode
+			window.Asc.plugin.sendToPlugin('onWindowMessage', {
+				type: 'insertSymbol',
+				data: select_value
+			})
 		})
 	}
 	async function loadIcons() {
@@ -37,7 +41,7 @@
 			iconBox.title = glyph.unicode
 			iconBox.innerHTML = `
 				<i class="iconfont icon-${glyph.font_class}" aria-hidden="true"></i>
-				<div>${glyph.name}</div>
+				<div class="icon-name">${glyph.name}</div>
 			`;
 			attachIconBoxClickEvent(iconBox, glyph.unicode, confirmButton)
 			container.appendChild(iconBox);
