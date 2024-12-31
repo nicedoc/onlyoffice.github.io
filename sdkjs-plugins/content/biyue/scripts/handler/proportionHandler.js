@@ -1,6 +1,9 @@
 // 这个文件专门处理占比相关
 import { biyueCallCommand } from '../command.js'
 import { setChoiceOptionLayout } from '../choiceQuestion.js'
+import { isChoiceMode, isTextMode } from '../model/ques.js'
+import { getWorkbookInteraction } from '../model/feature.js'
+import { setInteraction } from '../featureManager.js'
 // 批量修改占比
 function batchProportion(idList, proportion) {
 	if (!idList || idList.length == 0) {
@@ -26,6 +29,7 @@ function batchProportion(idList, proportion) {
 		var rangeTableIds = []
 		var wBefore = 0
 		var targetStartPos = -1
+		var effect_id_list = []
 		function getControlsByClientId(cid) {
 			var allControls = oDocument.GetAllContentControls() || []
 			var findControls = allControls.filter(e => {
@@ -99,6 +103,7 @@ function batchProportion(idList, proportion) {
 						if (tag.client_id && idList.find(e => {return e.id == tag.client_id})) {
 							cellW = newW
 						}
+						effect_id_list.push(tag.client_id)
 					}
 					tempList.push({
 						oElement: oCellChild,
@@ -233,6 +238,7 @@ function batchProportion(idList, proportion) {
 					}
 					if (flag1 > 0) {
 						addToTable(newW, element.GetPosInParent())
+						effect_id_list.push(tag.client_id)
 						tempList.push({
 							oElement: element,
 							oParent: oDocument,
@@ -248,6 +254,9 @@ function batchProportion(idList, proportion) {
 				}
 			}
 		}
+		// console.log('====== templist', tempList)
+		// console.log('====== tables', tables)
+		// console.log('====== rangeTableIds', rangeTableIds)
 		// 从后往前删除内容
 		for (var j = tempList.length - 1; j >= 0; --j) {
 			tempList[j].oParent.RemoveElement(tempList[j].posinparent)
@@ -310,21 +319,72 @@ function batchProportion(idList, proportion) {
 			}
 		}
 		if (iTable >= rangeTableIds.length) {
-			// todo..
+			// todo..可能需要将多余的表格删除
 		}
-	}, false, false).then(() => {
-		if (window.BiyueCustomData.question_map) {
-			idList.forEach(id => {
-				if (window.BiyueCustomData.question_map[id]) {
-					window.BiyueCustomData.question_map[id].proportion = res.proportion
-				}
-			})
-			return setChoiceOptionLayout({
-				list: idList,
-				from: 'proportion'
-			})
+		return {
+			proportion_list: idList.map(e => {
+				return e.id
+			}),
+			effect_id_list: effect_id_list,
+			proportion: target_proportion
 		}
+	}, false, false).then((res) => {
+		return handleProportionSuccess(res)
 	})
+}
+// 占比修改成功后的处理
+function handleProportionSuccess(res) {
+	if (window.BiyueCustomData.question_map) {
+		res.proportion_list.forEach(id => {
+			if (window.BiyueCustomData.question_map[id]) {
+				window.BiyueCustomData.question_map[id].proportion = res.proportion
+			}
+		})
+		var interaction_list = []
+		var layout_list = []
+		if (res.effect_id_list) {
+			var workbookInteraction = getWorkbookInteraction()
+			for (var id of res.effect_id_list) {
+				var quesData = window.BiyueCustomData.question_map[id]
+				if (!quesData || quesData.level_type == 'struct') {
+					continue
+				}
+				if (isTextMode(quesData.ques_mode)) {
+					continue
+				}
+				if (quesData.interaction === undefined) {
+					if (workbookInteraction != 'none') {
+						interaction_list.push(id)	
+					}
+				} else if (quesData.interaction != 'none') {
+					interaction_list.push(id)
+				}
+				if (isChoiceMode(quesData.ques_mode) && quesData.part != undefined && quesData.part !== 1) {
+					layout_list.push(id)
+				}
+			}
+		}
+		return new Promise((resolve, reject) => {
+			if (interaction_list.length) {
+				return setInteraction('useself', interaction_list, false).then(() => {
+					return resolve()
+				})
+			} else {
+				return resolve()
+			}
+		}).then(() => {
+			if (layout_list.length) {
+				return setChoiceOptionLayout({
+					list: layout_list,	
+					from: 'proportion'
+				})
+			} else {
+				return new Promise((resolve, reject) => {
+					resolve()
+				})
+			}
+		})
+	}
 }
 function changeProportion(idList, proportion) {
 	if (!idList || idList.length == 0) {
@@ -342,18 +402,19 @@ function changeProportion(idList, proportion) {
 		var oControls = oDocument.GetAllContentControls()
 		var TABLE_TITLE = 'questionTable'
 		var newW = 100 / target_proportion
+		var effect_id_list = []
 		function AddControlToCell(oControl, oCell) {
 			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
 				return
 			}
-			var templist = []
-			templist.push(oControl)
+			var temp = []
+			temp.push(oControl)
 			var posinparent = oControl.GetPosInParent()
 			var parent = oControl.Sdt.GetParent()
 			var oParent = Api.LookupObject(parent.Id)
 			oParent.RemoveElement(posinparent)
 			oCell.SetWidth('percent', 100 / target_proportion)
-			oCell.AddElement(0, templist[0])
+			oCell.AddElement(0, temp[0])
 			if (oCell.GetContent().GetElementsCount() == 2) {
 				oCell.GetContent().RemoveElement(1)
 			}
@@ -389,6 +450,7 @@ function changeProportion(idList, proportion) {
 			var tables = {}
 			var wBefore = 0
 			var toIndex = -1
+			var tag = Api.ParseJSON(oControl.GetTag())
 			var startTablePos = startTable.GetPosInParent()
 			var dataHandled = {}
 			dataHandled.parentTable = oControl.GetParentTable()
@@ -401,6 +463,9 @@ function changeProportion(idList, proportion) {
 			} else {
 				dataHandled.pos = oControl.GetPosInParent()
 				if (dataHandled.pos < startTablePos) {
+					if (tag.client_id) {
+						effect_id_list.push(tag.client_id)
+					}
 					templist.push({
 						content: [oControl]
 					})
@@ -424,6 +489,9 @@ function changeProportion(idList, proportion) {
 				var element = oStartTableParent.GetElement(i1)
 				if (element.GetClassType() != 'table') {
 					if (dataHandled.pos != undefined && dataHandled.pos == i1 && element.GetClassType() == 'blockLvlSdt' && element.Sdt.GetId() == oControl.Sdt.GetId()) {
+						if (tag.client_id) {
+							effect_id_list.push(tag.client_id)
+						}
 						templist.push({
 							content: [oControl]
 						})
@@ -481,7 +549,14 @@ function changeProportion(idList, proportion) {
 					var elementcount = cellContent.GetElementsCount()
 					oControl.Sdt.GetLogicDocument().PreventPreDelete = true
 					for (var k = 0; k < elementcount; ++k) {
-						contents.push(cellContent.GetElement(k))
+						var cellChild = cellContent.GetElement(k)
+						if (cellChild.GetClassType() == 'blockLvlSdt') { 
+							var ctag = Api.ParseJSON(cellChild.Sdt.GetTag())
+							if (ctag.client_id) {
+								effect_id_list.push(ctag.client_id)
+							}
+						}
+						contents.push(cellChild)
 					}
 					for (var k = 0; k < elementcount; ++k) {
 						cellContent.RemoveElement(0)
@@ -543,6 +618,10 @@ function changeProportion(idList, proportion) {
 							}
 						}
 					} else { // 当前未处于表格中
+						if (tables[iTable] && tables[iTable].W + W > 100) {
+							++iTable
+							wBefore = 0
+						}
 						if (!tables[iTable]) {
 							tables[iTable] = {
 								cells: [{
@@ -699,21 +778,12 @@ function changeProportion(idList, proportion) {
 			}
 		}
 		return {
-			idList: idList,
+			proportion_list: idList,
+			effect_id_list: effect_id_list,
 			proportion: target_proportion
 		}
 	}, false, false).then(res => {
-		if (res && res.idList && window.BiyueCustomData.question_map) {
-			res.idList.forEach(id => {
-				if (window.BiyueCustomData.question_map[id]) {
-					window.BiyueCustomData.question_map[id].proportion = res.proportion
-				}
-			})
-		}
-		return setChoiceOptionLayout({
-			list: idList,
-			from: 'proportion'
-		})
+		return handleProportionSuccess(res)
 	})
 }
 
