@@ -128,7 +128,7 @@ function handleContextMenuShow(options) {
 								var parent1 = oParagraph.Paragraph.Parent
 								var parent2 = parent1.Parent
 								if (parent2 && parent2.Id == oControl.Sdt.GetId()) {
-									var oNumberingLevel = paragraphs[0].GetNumbering()
+									var oNumberingLevel = paragraphs[i].GetNumbering()
 									if (oNumberingLevel && oNumberingLevel.Num) {
 										lvl = oNumberingLevel.Num.GetLvl(oNumberingLevel.Lvl)
 									}
