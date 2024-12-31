@@ -388,10 +388,6 @@ function getContextMenuItems(type, selectedRes) {
 				text: '设置为 - 题组(结构)',
 				icon: 'struct',
 			}, {
-				value: 'setBig',
-				text: '设置为 - 大题',
-				icon: 'rect'
-			}, {
 				value: 'write',
 				text: '设置为 - 小问',
 				icon: 'rect'
@@ -496,9 +492,6 @@ function getContextMenuItems(type, selectedRes) {
 							valueMap['clearMerge'] = 1
 						} else {
 							valueMap['struct'] = 1
-							if (lvl) {
-								valueMap['setBig'] = 1
-							}
 							if (selectedRes.bTable) {
 								valueMap['write'] = 1
 							}
