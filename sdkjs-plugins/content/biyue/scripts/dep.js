@@ -512,18 +512,18 @@ let newSplit = function (text) {
     
     // 获取结构区域    
     // $..content[?(typeof(@) == "string"  && @.match('^\\d+\\.'))] 
-    const structPatt = "$..content[?(typeof(@) == 'string'  && @.match('[一二三四五六七八九十]+、'))]";
-    JSONPath({
-        path: structPatt, json: k, resultType: "path", callback: function (res) {
-            ranges.push({
-                beg: res,
-                end: prev_paragraph(res, 0),
-                info: { 'regionType': 'struct', 'mode': 1,  column: 1  },
-                controlType: 1,
-                major_pos: major_pos(res)
-            })
-        }
-    });    
+    // const structPatt = "$..content[?(typeof(@) == 'string'  && @.match('[一二三四五六七八九十]+、'))]";
+    // JSONPath({
+    //     path: structPatt, json: k, resultType: "path", callback: function (res) {
+    //         ranges.push({
+    //             beg: res,
+    //             end: prev_paragraph(res, 0),
+    //             info: { 'regionType': 'struct', 'mode': 1,  column: 1  },
+    //             controlType: 1,
+    //             major_pos: major_pos(res)
+    //         })
+    //     }
+    // });    
 
     // 获取题目区域
     // $..content[?(typeof(@) == "string"  && @.match('^\\d+\\.'))] 
@@ -563,7 +563,6 @@ let newSplit = function (text) {
         }
         return true;
     });
-  
     for (var i = 0  ; i < ranges.length; i++) {
         var range = ranges[i];
         if (range.end) continue;
