@@ -273,7 +273,7 @@ function getContextMenuItems(type, selectedRes) {
 	} else {
 		var question_map = window.BiyueCustomData.question_map || {}
 		var node_list = window.BiyueCustomData.node_list || []
-		function getControlData(tag) {
+		function getControlData(tag, jstart) {
 			var cData = null
 			if (tag.client_id) {
 				var keys = Object.keys(question_map)
@@ -347,10 +347,10 @@ function getContextMenuItems(type, selectedRes) {
 					}
 				}
 			} else {
-				for (var j = selectedRes.parentSdts.length - 2; j >= 0; --j) {
+				for (var j = jstart; j >= 0; --j) {
 					if (selectedRes.parentSdts[j].classType == 'blockLvlSdt') {
 						var tag2 = getJsonData(selectedRes.parentSdts[j].Tag)
-						var pData = getControlData(tag2)
+						var pData = getControlData(tag2, jstart - 1)
 						if (pData && pData.level_type) {
 							cData = {
 								level_type: '',
@@ -450,7 +450,7 @@ function getContextMenuItems(type, selectedRes) {
 			}
 			if (curControl) {
 				var tag = getJsonData(curControl.Tag)
-				cData = getControlData(tag)
+				cData = getControlData(tag, selectedRes.parentSdts.length - 2)
 				console.log('cData', cData)
 				if (curControl.classType == 'blockLvlSdt') {
 					valueMap['clearChildren'] = 1
