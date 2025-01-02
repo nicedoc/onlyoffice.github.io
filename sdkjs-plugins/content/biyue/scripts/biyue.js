@@ -59,6 +59,7 @@ import { refreshTree } from './panelTree.js'
 import { extractChoiceOptions, removeChoiceOptions } from './choiceQuestion.js'
 import { endAddShape } from './classifiedTypes.js'
 import { getFocusAskData } from './model/ques.js'
+import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 (function (window, undefined) {
 	var styleEnable = false
 	let activeQuesItem = ''
@@ -1285,7 +1286,7 @@ import { getFocusAskData } from './model/ques.js'
 	}
 
 	$(document).ready(function () {
-		document.getElementById("versionTag").innerHTML = getVersion();
+		document.getElementById("versionTag").innerHTML = (VUE_APP_VER_PREFIX ? VUE_APP_VER_PREFIX + '_' : '') + getVersion();
 
 		// 获取文档描述信息
 		let btnGetDocInfo = document.getElementById('getDocInfo')
