@@ -648,7 +648,9 @@ import { setXToken } from '../auth.js'
           files.sort((a, b) => {
             const aName = a[0]
             const bName = b[0]
-            return aName.localeCompare(bName)
+			var aNum = (aName.match(/\d+/)) * 1
+			var bNum = (bName.match(/\d+/)) * 1
+			return aNum[0] - bNum[0]
           })
 
           for (const [filename, file] of files) {
