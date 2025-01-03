@@ -46,7 +46,9 @@
 			attachIconBoxClickEvent(iconBox, glyph.unicode, confirmButton)
 			container.appendChild(iconBox);
 		}
-		confirmButton.addEventListener('click', onConfirm)
+		if (confirmButton) {
+			confirmButton.addEventListener('click', onConfirm)
+		}
 		const cancelButton = document.getElementById('cancel');
 		if (cancelButton) {
 			cancelButton.addEventListener('click', onCancel)
