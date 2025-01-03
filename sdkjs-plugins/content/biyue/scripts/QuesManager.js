@@ -2635,7 +2635,7 @@ function reqGetQuestionType(ids, getLatestParent) {
 		})
 	})
 }
-// 删除选择题多余的空
+// 删除单选题多余的空
 function deleteChoiceOtherWrite(ids, recalc = true) {
 	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
 	Asc.scope.node_list = window.BiyueCustomData.node_list || []
@@ -2757,8 +2757,8 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 				})
 				ques_mode = find ? find.ques_mode : 3
 			}
-			// 不是单选也不是多选
-			if (ques_mode != 1 && ques_mode != 5) {
+			// 不是单选
+			if (ques_mode != 1) {
 				continue
 			}
 			var nodeData = node_list.find(e => {
