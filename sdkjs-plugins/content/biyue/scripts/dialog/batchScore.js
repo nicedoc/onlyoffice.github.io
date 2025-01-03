@@ -420,7 +420,7 @@ var _ = window._;
 	}
   
 	function changeScore({id, type, index, score}) {
-		var s = score === undefined ? 0 : score.toFixed(1) * 1
+		var s = score === undefined ? 0 : (score * 1).toFixed(1) * 1
 	  if (type == 'ask') {
 		question_map[id].ask_list[index].score = s
 	  } else {
