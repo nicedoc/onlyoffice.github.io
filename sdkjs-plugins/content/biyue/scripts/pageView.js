@@ -82,7 +82,16 @@ function initView() {
 	showCom('#tool_buttons', false)
 	addClickEvent('#printStack', () => {
 		if (window.commandStack) {
-			console.log('commandStack len:', window.commandStack.length)
+			var len = window.commandStack.length
+			updateText('#printStack', '输出当前stack length：' + len)
+			console.log('commandStack len:', len)
+			if (len == 0) {
+				setTimeout(() => {
+					updateText('#printStack', '输出当前stack length')
+				}, 1000);
+			} else {
+				$('#printStack').css('color', "#ff0000")
+			}
 		}
 	})
 	addClickEvent('#tidyNodes', tidyNodes)

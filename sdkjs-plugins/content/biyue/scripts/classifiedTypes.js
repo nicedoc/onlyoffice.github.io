@@ -1790,6 +1790,9 @@ function endAddShape() {
 			return !(params.shapeIds.includes(e.Drawing.Id))
 		})
 		if (oDrawing) {
+			if (oDrawing.GetContent && !(oDrawing.GetContent())) {
+				oDrawing.Shape.createTextBoxContent()
+			}
 			var oFill = Api.CreateSolidFill(Api.CreateRGBColor(255, 0, 0))
 			oFill.UniFill.transparent = 255 * 0.2 // 透明度
 			oDrawing.Fill(oFill)

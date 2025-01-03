@@ -121,8 +121,18 @@ function getFocusAskData(quesId, index) {
 	}
 	return null
 }
+// 是否文本题
+function isTextMode(quesMode) {
+	return quesMode == 6
+}
+// 作答模式是否选择题
+function isChoiceMode(quesMode) {
+	return quesMode == 1 || quesMode == 5
+}
 
 export {
 	getDataByParams,
-	getFocusAskData
+	getFocusAskData,
+	isTextMode,
+	isChoiceMode
 }

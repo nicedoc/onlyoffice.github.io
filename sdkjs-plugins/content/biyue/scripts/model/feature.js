@@ -128,4 +128,18 @@ function getInteractionTypes() {
 	return interactionTypes
 }
 
-export { ZONE_TYPE, ZONE_SIZE, ZONE_TYPE_NAME, hasInteraction, getInteractionTypes }
+function getWorkbookInteraction() {
+	var extra_info = window.BiyueCustomData.workbook_info.parse_extra_data
+	if (extra_info && extra_info.hidden_correct_region) {
+		if (!extra_info.hidden_correct_region.checked) {
+			if (extra_info.start_interaction.checked) {
+				return 'accurate'
+			} else {
+				return 'simple'
+			}
+		}
+	}
+	return 'none'
+}
+
+export { ZONE_TYPE, ZONE_SIZE, ZONE_TYPE_NAME, hasInteraction, getInteractionTypes, getWorkbookInteraction }

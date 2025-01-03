@@ -1059,8 +1059,10 @@ function setInteraction(type, quesIds, recalc = true) {
 	Asc.scope.interaction_quesIds = quesIds
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	Asc.scope.node_list = window.BiyueCustomData.node_list
+	Asc.scope.simple_interaction = 2 // window.BiyueCustomData.simple_interaction
 	return biyueCallCommand(window, function() {
 		var interaction_type_use = Asc.scope.interaction_type_use
+		var simple_interaction = Asc.scope.simple_interaction
 		var interaction_type = interaction_type_use
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls()
@@ -1162,9 +1164,96 @@ function setInteraction(type, quesIds, recalc = true) {
 				oParagraph.Paragraph.Add_ToContent(0, oInlineLvlSdt.Sdt)
 			}
 		}
+		// 用添加shape的方式为段落添加简单互动
+		function showSimpleShape(oParagraph, vshow) {
+			if (!oParagraph) {
+				return
+			}
+			var existDrawing = getExistDrawing(oParagraph.GetAllDrawingObjects(), ['simple'])
+			if (existDrawing) {
+				existDrawing.forEach(e => {
+					deleShape(e)
+				})
+			}
+			if (!vshow) {
+				return
+			}
+			var oFill = Api.CreateNoFill()
+			var oStroke = Api.CreateStroke(
+				3600,
+				Api.CreateNoFill()
+			)
+			var width = 5
+			var height = 5
+			var oDrawing = Api.CreateShape(
+				'rect',
+				width * 36e3,
+				height * 36e3,
+				oFill,
+				oStroke
+			)
+			var drawDocument = oDrawing.GetContent()
+			var paragraphs = drawDocument.GetAllParagraphs()
+			if (paragraphs && paragraphs.length > 0) {
+				var oRun = paragraphs[0].GetElement(0)
+				oRun.SetFontFamily('iconfont')
+				oRun.AddText("\ue749")
+				oRun.SetFontSize(24)
+				oRun.SetColor(3, 3, 3, false)
+				paragraphs[0].SetSpacingAfter(0)
+				oDrawing.SetPaddings(0, 0, 0, 0)
+				var titleobj = {
+					feature: {
+						zone_type: 'question',
+						type: 'ques_interaction',
+						sub_type: 'simple'
+					}
+				}
+				oDrawing.SetTitle(JSON.stringify(titleobj))
+			}
+			
+			var horOffset = 0
+			var hasLevel = false
+			var oNumberingLevel = oParagraph.GetNumbering()
+			if (oNumberingLevel) {
+				if (oNumberingLevel.Num) {
+					var lvl = oNumberingLevel.Num.GetLvl(oNumberingLevel.Lvl)
+					if (lvl) {
+						var arrText = lvl.GetLvlText()
+						var numberingRect = Api.asc_GetParagraphNumberingBoundingRect(oParagraph.Paragraph.Id, arrText.length)
+						if (numberingRect) {
+							horOffset = 0 - (numberingRect.X1 - numberingRect.X0)
+							hasLevel = true
+						}
+					}
+				}
+			}
+			var style = 'inFront'
+			if (!hasLevel) {
+				var parentCell = oParagraph.GetParentTableCell()
+				if (parentCell && parentCell.GetIndex() > 0) {
+					style = 'tight'
+				}
+			}
+			oDrawing.SetWrappingStyle(style)
+			horOffset -= 5
+			oDrawing.SetHorPosition('character', horOffset * 36e3)
+			oDrawing.SetVerPosition('line', 0.5 * 36e3)
+			var oRun = Api.CreateRun()
+			oRun.AddDrawing(oDrawing)
+			oParagraph.AddElement(oRun, 0)
+		}
 		function showSimple(oParagraph, vshow) {
 			if (!oParagraph) {
 				return
+			}
+			if (simple_interaction == 2) {
+				showSimpleShape(oParagraph, vshow)
+				if (vshow) {
+					return
+				}
+			} else {
+				showSimpleShape(oParagraph, false)
 			}
 			var oNumberingLevel = oParagraph.GetNumbering()
 			if (!oNumberingLevel) {
@@ -2270,7 +2359,7 @@ function drawHeaderFooter0(options, calc) {
 				}
 			}
 			if (oTitleFooter) {
-				footerList.push({
+					footerList.push({
 					type: 'title',
 					oFooter: oTitleFooter
 				})

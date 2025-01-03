@@ -3113,7 +3113,10 @@ function getAllPositions2() {
 							}
 						}
 					}
-					correct_region = getSimplePos(oControl)
+					var simpleRegion = getSimplePos(oControl)
+					if (simpleRegion) {
+						correct_region = simpleRegion
+					}
 				}
 				return {
 					correct_ask_region,

@@ -31,26 +31,36 @@
 				display: flex;
 				flex-wrap: wrap;
 				gap: 10px;
+				
 			}
 			.icon-item {
 				display: flex;
 				flex-direction: column;
 				align-items: center;
 				justify-content: center;
-				width: 80px;
-				height: 40px;
-				padding: 8px;
-				border: 1px solid #ddd;
-				border-radius: 5px;
+				width: 53px;
+				height: 53px;
+				border: 1px solid rgb(221, 221, 221);
+				border-radius: 2px;
 				cursor: pointer;
 				transition: background-color 0.3s;
+				box-shadow: 0px 4px 4px 0px rgba(95, 95, 95, 0.25);
+				background-color: #fff;
+				margin-bottom: 8px;
+				margin-left: 4px;
 			}
 			.icon-item:hover {
 				background-color: #f0f0f0;
 				position: relative;
+				box-shadow: 0px 4px 4px 0px rgba(36, 137, 246, 0.25);
+				border: 1px solid rgba(36, 137, 246, 1);
 			}
 			.icon-item.selected {
-				background-color: #d0e0f0;
+				border: 1px solid rgba(36, 137, 246, 1);
+				box-shadow: 0px 4px 4px 0px rgba(36, 137, 246, 0.25);
+			}
+			.icon-name {
+				font-size: 10px;
 			}
 			.iconfont {
 				font-family: "iconfont";
@@ -97,13 +107,9 @@
 	</head>
 	<body>
 		<div class="info">
-			<div>请选择要插入的符号:</div>
+			<div style="margin-left: 4px;margin-top: 4px;">请选择要插入的符号:</div>
 			<div class="box">
 				<div id="icon-container"></div>
-			</div>
-			<div class="confirm-wrapper">
-				<div id="cancel" class="btn-cancel">关闭</div>
-				<div id="confirm" class="btn-confirm">插入</div>
 			</div>
 		</div>
 	</body>

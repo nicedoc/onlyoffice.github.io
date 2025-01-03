@@ -805,10 +805,10 @@ import { getFocusAskData } from './model/ques.js'
 			reqGetQuestionType()
 		})
 		this.attachToolbarMenuClickEvent("shortcutSet", function (data) {
-			window.biyue.showDialog('shortcutSet', '快捷键设置', 'shortcutSet.html', 400, 800, false, 'panelRight')
+			window.biyue.showDialog('shortcutSet', '快捷键设置', 'shortcutSet.html', 400, 800, false, 'panelRight', ['resources/light/keyset.png'])
 		});
 		this.attachToolbarMenuClickEvent("insertSymbol", function (data) {
-			window.biyue.showDialog('addSymbolWindow', '插入符号', 'addSymbol.html', 600, 400, false)
+			window.biyue.showDialog('addSymbolWindow', '插入符号', 'addSymbol.html', 600, 400, false, 'panelRight', ['resources/light/symbol.png'])
 		});
 		this.attachToolbarMenuClickEvent("batchScore", onBatchScoreSet);
 		this.attachToolbarMenuClickEvent("batchQuesType", onBatchQuesTypeSet);
@@ -886,7 +886,7 @@ import { getFocusAskData } from './model/ques.js'
 					type: "button",
 					text: "批量题型",
 					hint: "批量设置题目题型",
-					icons: "resources/buttons/batch.png", 
+					icons: "resources/buttons/settype.png", 
 					lockInViewMode: true,
 					enableToggle: false,
 					separator: false
@@ -2417,7 +2417,7 @@ import { getFocusAskData } from './model/ques.js'
 		})
 	}
 
-	function showDialog(winName, name, url, width, height, isModal = false, type) {
+	function showDialog(winName, name, url, width, height, isModal, type, icons) {
 		let location = window.location
 		let start = location.pathname.lastIndexOf('/') + 1
 		let file = location.pathname.substring(start)
@@ -2434,6 +2434,9 @@ import { getFocusAskData } from './model/ques.js'
 		}
 		if (type) {
 			variation.type = type
+		}
+		if (icons) {
+			variation.icons = icons
 		}
 		if (!windows) {
 			console.log('windows is null')
@@ -2475,7 +2478,7 @@ import { getFocusAskData } from './model/ques.js'
 	function onBatchScoreSet() {
 		preGetExamTree().then(res => {
 			Asc.scope.tree_info = res
-			showDialog('batchScoresWindow', '批量操作 - 修改分数', 'batchScore.html', 800, 600, false, 'panelRight')
+			showDialog('batchScoresWindow', '批量操作 - 修改分数', 'batchScore.html', 800, 600, false, 'panelRight', ['resources/light/edit.png'])
 		})
 	}
 
@@ -2483,7 +2486,7 @@ import { getFocusAskData } from './model/ques.js'
 		preGetExamTree().then(res => {
 			Asc.scope.tree_info = res
 			// showDialog('batchSettingQuestionTypeWindow', '批量操作 - 修改题型', 'batchSettingQuestionType.html', 800, 600, false)
-			showDialog('batchQuestionTypeWindow', '批量操作 - 修改题型', 'batchQuestionType.html', 800, 600, false, 'panelRight')
+			showDialog('batchQuestionTypeWindow', '批量操作 - 修改题型', 'batchQuestionType.html', 800, 600, false, 'panelRight', ['resources/light/settype.png'])
 		})
 	}
 
