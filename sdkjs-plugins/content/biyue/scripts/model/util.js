@@ -120,6 +120,7 @@ function getYYMMDDHHMMSS() {
 
 function getFixedValue(v, fractionDigits = 1) {
 	var v = v || 0
+	v *= 1
 	v = v.toFixed(fractionDigits) * 1
 	return v + ''
 }
