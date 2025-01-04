@@ -2592,6 +2592,7 @@ import { getFocusAskData } from './model/ques.js'
 		if (dialogParams) {
 			var win = windows[dialogParams.winName]
 			if (win) {
+				win.activate()
 				win.command(msgId, data)
 			} else {
 				const { winName, name, url, width, height, isModal, type, icons } = dialogParams
