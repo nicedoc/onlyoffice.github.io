@@ -12,6 +12,7 @@ import { refreshTree } from './panelTree.js'
 import { extractChoiceOptions, removeChoiceOptions, getChoiceOptionAndSteam, setChoiceOptionLayout } from './choiceQuestion.js'
 import { getInteractionTypes } from './model/feature.js'
 import proportionHandler from './handler/proportionHandler.js'
+import uploadValidateHandler from './handler/validateUpload.js'
 var g_click_value = null
 var upload_control_list = []
 
@@ -3003,7 +3004,6 @@ function showAskCells(cmdType) {
 	}, false, true)
 }
 
-
 // 全量更新
 function reqUploadTree() {
 	if (isLoading('uploadTree')) {
@@ -5594,7 +5594,8 @@ function importExam() {
 					Asc.scope.questionPositions = res
 					return removeOnlyBigControl()
 				}).then(() => {
-					window.biyue.showDialog('exportExamWindow', '上传试卷', 'examExport.html', 1000, 800, true)
+					uploadValidateHandler.onValidate()
+					// window.biyue.showDialog('exportExamWindow', '上传试卷', 'examExport.html', 1000, 800, true)
 					setBtnLoading('importExam', false)
 				})
 			}).catch((res) => {

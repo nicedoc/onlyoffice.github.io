@@ -3553,9 +3553,6 @@ function getAllPositions2() {
 									titleObj.feature.zone_type == 'pagination'
 								) {
 									var footerType = titleObj.feature.footer_type
-									var findIndex = feature_list.findIndex((e) => {
-										return e.zone_type == titleObj.feature.zone_type
-									})
 									for (var p = 0; p < pageCount; ++p) {
 										var fieldObj = {
 											v: p + 1 + '',
@@ -3592,6 +3589,9 @@ function getAllPositions2() {
 											}
 										}
 										if (valid) {
+											var findIndex = feature_list.findIndex((e) => {
+												return e.zone_type == titleObj.feature.zone_type
+											})
 											if (findIndex >= 0) {
 												feature_list[findIndex].fields.push(fieldObj)
 												if (isOddEven) {
