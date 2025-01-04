@@ -614,7 +614,7 @@ import { setXToken } from '../auth.js'
     for (const key in arr) {
       const w = arr[key].w || 0
       const h = arr[key].h || 0
-      const v = arr[key].h || 0
+      const v = arr[key].v || 0
       if (w * 1 + h * 1 === 0 || checkValue && v * 1 === 0) {
         return true
       }
@@ -648,10 +648,14 @@ import { setXToken } from '../auth.js'
           files.sort((a, b) => {
             const aName = a[0]
             const bName = b[0]
-			var aNum = (aName.match(/\d+/)) * 1
-			var bNum = (bName.match(/\d+/)) * 1
-			return aNum[0] - bNum[0]
+			var aNum = (aName.replace('image', '').split('.')[0]) * 1 
+			var bNum = (bName.replace('image', '').split('.')[0]) * 1
+			return aNum - bNum
           })
+		  console.log('========== 排序后')
+		  files.forEach(e => {
+			console.log('===== ', e[0])
+		  })
 
           for (const [filename, file] of files) {
             if (!file.dir) { // 只处理文件，忽略文件夹
