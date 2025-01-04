@@ -3478,7 +3478,7 @@ function getAllPositions2() {
 						return arr.map(({ mark_order, ...rest }) => rest)
 					}
 					item.write_ask_region = removeField(item.write_ask_region)
-				} else {
+				} else if (question_obj.ques_mode != 1 && question_obj.ques_mode != 2 &&  question_obj.ques_mode != 5) { // 单选，填空，多选不适用直接将题干作为作答区
 					// 没有小问的题目 暂时使用当前的题干区域作为批改和作答区 同时如果存在多个题干区，也只算作一个题目的批改区
 					bounds.forEach((e) => {
 						item.write_ask_region.push({
