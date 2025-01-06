@@ -758,11 +758,12 @@ function getNodeList() {
 											drawing_id: oChild2.Id,
 											shape_id: oChild2.GraphicObj.Id,
 										}
-										obj.bpage = oChild2.PageNum + 1
-										obj.bx = oChild2.X
-										obj.by = oChild2.Y
-										obj.ex = oChild2.X + oChild2.Width
-										obj.ey = oChild2.Y + oChild2.Height
+										// obj.bpage = oChild2.PageNum + 1
+										// obj.bx = oChild2.X
+										// obj.by = oChild2.Y
+										// obj.ex = oChild2.X + oChild2.Width
+										// obj.ey = oChild2.Y + oChild2.Height
+										obj.t = titleObj.feature.t ? titleObj.feature.t * 1 : 0
 										write_list.push(obj)
 									}
 								}
@@ -778,14 +779,14 @@ function getNodeList() {
 							sub_type: 'control',
 							control_id: oChild.Sdt.GetId(),
 						}
-						var bounds = oChild.Sdt.Bounds
-						if (bounds && bounds[0]) {
-							obj.bpage = bounds[0].Page + 1
-							obj.bx = bounds[0].X
-							obj.by = bounds[0].Y
-							obj.ex = bounds[0].X + bounds[0].W
-							obj.ey = bounds[0].Y + bounds[0].H
-						}
+						// var bounds = oChild.Sdt.Bounds
+						// if (bounds && bounds[0]) {
+						// 	obj.bpage = bounds[0].Page + 1
+						// 	obj.bx = bounds[0].X
+						// 	obj.by = bounds[0].Y
+						// 	obj.ex = bounds[0].X + bounds[0].W
+						// 	obj.ey = bounds[0].Y + bounds[0].H
+						// }
 						write_list.push(obj)
 					}
 				}
@@ -803,14 +804,14 @@ function getNodeList() {
 					sub_type: 'control',
 					control_id: oElement.Sdt.GetId(),
 				}
-				var bounds = oControl.Sdt.Bounds
-				if (bounds && bounds[0]) {
-					obj.bpage = bounds[0].Page + 1
-					obj.bx = bounds[0].X
-					obj.by = bounds[0].Y
-					obj.ex = bounds[0].X + bounds[0].W
-					obj.ey = bounds[0].Y + bounds[0].H
-				}
+				// var bounds = oControl.Sdt.Bounds
+				// if (bounds && bounds[0]) {
+				// 	obj.bpage = bounds[0].Page + 1
+				// 	obj.bx = bounds[0].X
+				// 	obj.by = bounds[0].Y
+				// 	obj.ex = bounds[0].X + bounds[0].W
+				// 	obj.ey = bounds[0].Y + bounds[0].H
+				// }
 				write_list.push(obj)
 			}
 		}
@@ -837,6 +838,28 @@ function getNodeList() {
 			}
 			return {}
 		}
+		// 获取所有作答区
+		function getWriteList() {
+			var list = []
+			var shapes = oDocument.GetAllShapes() || []
+			for (var oShape of shapes) {
+				if (oShape.GetTitle) {
+					var titleObj = Api.ParseJSON(oShape.GetTitle())	
+					if (titleObj.feature && titleObj.feature.zone_type == 'question' && titleObj.feature.sub_type == 'write') {
+						list.push({
+							id: titleObj.feature.client_id,
+							parent_id: titleObj.feature.parent_id,
+							sub_type: titleObj.feature.sub_type,
+							t: titleObj.feature.t,
+							drawing_id: oShape.Drawing.Id,
+							shape_id: oShape.Shape.Id
+						})
+					}
+				}
+			}
+			return list
+		}
+		var all_write_list = getWriteList()
 		for (var i = 0, imax = controls.length; i < imax; ++i) {
 			var oControl = controls[i]
 			var tagInfo = Api.ParseJSON(oControl.GetTag())
@@ -873,7 +896,7 @@ function getNodeList() {
 										row_index: i1,
 										cell_index: i2,
 										old_id: oldId
-									}, getCellBounds(oCell))
+									})
 									write_list.push(obj)
 									tableTitle[`${i1}_${i2}`] = 'c_' + oCell.Cell.Id
 								} else {
@@ -896,6 +919,20 @@ function getNodeList() {
 						oElement.SetTableDescription(JSON.stringify(tableTitle))
 					}
 				}
+				if (all_write_list.length) {
+					for (var write of all_write_list) {
+						if (write.parent_id == tagInfo.client_id) {
+							var exist = write_list.find(e => {
+								if (e.shape_id == write.shape_id) {
+									return true
+								}
+							})
+							if (!exist) {
+								write_list.push(write)
+							}
+						}
+					}
+				}
 				var nodeObj = {
 					id: tagInfo.client_id,
 					regionType: tagInfo.regionType,
@@ -911,7 +948,8 @@ function getNodeList() {
 							cell_id: oCell.Cell.Id,
 							row_index: oCell.GetRowIndex(),
 							cell_index: oCell.GetIndex()
-						}, getCellBounds(oCell))
+						})
+						write_list.push(obj)
 						nodeObj.cell_ask = true
 					}
 				}
@@ -919,33 +957,40 @@ function getNodeList() {
 				if (write_list.length > 1 && write_list.find(e => {
 					return e.sub_type == 'write'
 				})) {
-					write_list = write_list.sort((a, b) => {
-						if (a.bpage && b.bpage) {
-							if (a.bpage != b.bpage) {
-								return a.bpage - b.bpage
-							} else {
-								if (a.by == b.by) {
-									return a.bx - b.bx
-								} else {
-									if (a.ey <= b.by) {
-										return -1
-									} else if (b.ey <= a.by) {
-										return 1
-									} else {
-										if (b.by > (a.by + (a.ey - a.by) * 0.5)) {
-											return -1
-										} else if (a.by > (b.by + (b.ey - b.by) * 0.5)) {
-											return 1
-										} else {
-											return a.bx - b.bx
-										}
-									}
-								}
-							}
-						} else {
-							return a.index - b.index
-						}
-					})
+					var sortType = 'time'
+					if (sortType == 'pos') {
+						// write_list = write_list.sort((a, b) => {
+						// 	if (a.bpage && b.bpage) {
+						// 		if (a.bpage != b.bpage) {
+						// 			return a.bpage - b.bpage
+						// 		} else {
+						// 			if (a.by == b.by) {
+						// 				return a.bx - b.bx
+						// 			} else {
+						// 				if (a.ey <= b.by) {
+						// 					return -1
+						// 				} else if (b.ey <= a.by) {
+						// 					return 1
+						// 				} else {
+						// 					if (b.by > (a.by + (a.ey - a.by) * 0.5)) {
+						// 						return -1
+						// 					} else if (a.by > (b.by + (b.ey - b.by) * 0.5)) {
+						// 						return 1
+						// 					} else {
+						// 						return a.bx - b.bx
+						// 					}
+						// 				}
+						// 			}
+						// 		}
+						// 	} else {
+						// 		return a.index - b.index
+						// 	}
+						// })
+					} else if (sortType == 'time') {
+						write_list = write_list.sort((a, b) => {
+							return a.t - b.t
+						})
+					}
 					write_list.forEach(e => {
 						delete e.index
 						delete e.bpage
@@ -953,6 +998,8 @@ function getNodeList() {
 						delete e.by
 						delete e.ex
 						delete e.ey
+						delete e.index
+						delete e.t
 					})
 				}
 				nodeObj.write_list = write_list
@@ -981,12 +1028,16 @@ function updateScore(qid) {
 function handleChangeType(res, res2) {
 	console.log('handleChangeType', res, res2)
 	if (!res) {
-		return
+		return new Promise((resolve, reject) => {
+			return resolve()
+		})
 	}
 	var change_list = res.change_list || []
 	if (change_list.length == 0) {
 		if (res.typeName != 'clearChildren') {
-			return
+			return new Promise((resolve, reject) => {
+				return resolve()
+			})
 		}
 	}
 	if (res.client_node_id) {
@@ -1267,16 +1318,18 @@ function handleChangeType(res, res2) {
 						if (ndata && ndata.write_list) {
 							if (parentNode.merge_id) {
 								parentNode.cell_ask = ndata.cell_ask
+								addIds = [parentNode.merge_id]
 							}
 							var writeIndex = ndata.write_list.findIndex(e => {
 								return e.id == item.client_id
 							})
 							if (writeIndex == -1 && item.type != 'remove') {
-								ndata.write_list.push({
-									id: item.client_id,
-									control_id: item.control_id,
-									regionType: item.regionType
+								var obj = Object.assign({}, item, {
+									id: item.client_id
 								})
+								delete obj.client_id
+								delete obj.parent_id
+								ndata.write_list.push(obj)
 								writeIndex = 0
 							}
 							var real_parent_id = parentNode.merge_id ? parentNode.merge_id : parent_id
@@ -1301,7 +1354,20 @@ function handleChangeType(res, res2) {
 									reSortAsks(real_parent_id)
 									updateScore(real_parent_id)
 								}
-								removeUnvalidAsk(real_parent_id, ndata.write_list)
+								if (parentNode.merge_id) {
+									var wlist = []
+									for (var id3 of question_map[real_parent_id].ids) {
+										var ndata3 = res2.find(e => {
+											return e.id == id3
+										})
+										if (ndata3) {
+											wlist = wlist.concat(ndata3.write_list)
+										}
+									}
+									removeUnvalidAsk(real_parent_id, wlist)
+								} else {
+									removeUnvalidAsk(real_parent_id, ndata.write_list)
+								}
 							}
 						}
 						if (ndata) {
@@ -1502,7 +1568,7 @@ function handleChangeType(res, res2) {
 				})
 			})
 		} else {
-			deleteChoiceOtherWrite(null, true).then(res => {
+			return deleteChoiceOtherWrite(null, true).then(res => {
 				return notifyQuestionChange(update_node_id)
 			}).then(() => {
 				window.biyue.StoreCustomData(() => {
@@ -3815,6 +3881,32 @@ function deleteAsks(askList, recalc = true, notify = true) {
 			}
 			return null
 		}
+		function deleteQuesWrites(qid) {
+			var allDrawings = oDocument.GetAllShapes() || []
+			for (var j = 0; j < allDrawings.length; ++j) {
+				var paraDrawing = allDrawings[j].getParaDrawing()
+				if (!paraDrawing) {
+					continue
+				}
+				var tag = Api.ParseJSON(allDrawings[j].GetTitle())
+				if (tag.feature && tag.feature.zone_type == 'question' && tag.feature.sub_type == 'write' && tag.feature.parent_id == qid) {
+					var run = paraDrawing.GetRun()
+					if (run) {
+						var paragraph = run.GetParagraph()
+						if (paragraph) {
+							var oParagraph = Api.LookupObject(paragraph.Id)
+							var ipos = run.GetPosInParent()
+							if (ipos >= 0) {
+								allDrawings[j].Delete()
+								if (oParagraph) {
+									oParagraph.RemoveElement(ipos)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 		function deleteOneNode(node_id, index, sum, quesId) {
 			var nodeData = node_list.find(e => {
 				return e.id == node_id
@@ -3879,6 +3971,8 @@ function deleteAsks(askList, recalc = true, notify = true) {
 						}
 					}
 				}
+				// 删除全文中属于我的write，这些write未必相对于我浮动
+				deleteQuesWrites(node_id)
 				// 删除所有单元格小问
 				var pageCount = quesControl.Sdt.getPageCount()
 				for (var p = 0; p < pageCount; ++p) {
@@ -4643,12 +4737,16 @@ function updateQuesScore(ids) {
 // 针对单道题，进行重新切题
 function splitControl(qid) {
 	if (!qid) {
-		return
+		return new Promise((resolve, reject) => {
+			return resolve({})
+		})
 	}
 	var question_map = window.BiyueCustomData.question_map || {}
 	var node_list = window.BiyueCustomData.node_list || []
 	if (!question_map[qid]) {
-		return
+		return new Promise((resolve, reject) => {
+			return resolve({})
+		})
 	}
 	Asc.scope.node_list = node_list
 	Asc.scope.question_map = question_map
@@ -4934,7 +5032,7 @@ function splitControl(qid) {
 				if (oCell) {
 					var cellContent = oCell.GetContent()
 					if (cellContent.GetElementsCount() == 1) {
-						var text = control.GetRange().Text
+						var text = control.GetRange().GetText()
 						if (text && text.replace(/[\s\r\n]/g, '').length === 0) {
 							var oTable = oCell.GetParentTable()
 							result.change_list.push({
@@ -4978,21 +5076,27 @@ function splitControl(qid) {
 		if (res1) {
 			if (res1.message && res1.message != '') {
 				alert(res1.message)
-			} else {
-				if (!res1.change_list || res1.change_list.length == 0) {
-					if (res1.ques_id) {
-						return notifyQuestionChange(res1.ques_id)
-					} else {
-						return new Promise((resolve, reject) => {
-							resolve()
-						})
-					}
+				return new Promise((resolve, reject) => {
+					return resolve({})
+				})
+			}
+			if (!res1.change_list || res1.change_list.length == 0) {
+				if (res1.ques_id) {
+					return notifyQuestionChange(res1.ques_id)
 				} else {
-					return getNodeList().then(res2 => {
-						return handleChangeType(res1, res2)
+					return new Promise((resolve, reject) => {
+						resolve()
 					})
 				}
+			} else {
+				return getNodeList().then(res2 => {
+					return handleChangeType(res1, res2)
+				})
 			}
+		} else {
+			return new Promise((resolve, reject) => {
+				return resolve({})
+			})
 		}
 	})
 }

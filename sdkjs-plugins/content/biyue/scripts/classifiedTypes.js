@@ -1,6 +1,6 @@
 // 划分类型，处理结构，题目，小问的增删维护
 import { biyueCallCommand, dispatchCommandResult } from "./command.js";
-import { getNodeList, handleChangeType } from './QuesManager.js'
+import { deleteAsks, getNodeList, handleChangeType } from './QuesManager.js'
 function handleRangeType(options) {
 	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
 	Asc.scope.node_list = window.BiyueCustomData.node_list
@@ -376,7 +376,8 @@ function handleRangeType(options) {
 					zone_type: 'question',
 					sub_type: sub_type,
 					parent_id: parent_id,
-					client_id: result.client_node_id
+					client_id: result.client_node_id,
+					t: Date.now()
 				}
 			}
 			oDrawing.SetTitle(JSON.stringify(titleobj))
@@ -498,6 +499,20 @@ function handleRangeType(options) {
 				})
 			}
 		}
+		function getWriteListByQuesId(qId) {
+			var list = []
+			var shapes = oDocument.GetAllShapes() || []
+			for (var oShape of shapes) {
+				if (oShape.GetTitle) {
+					var titleObj = Api.ParseJSON(oShape.GetTitle())
+					if (titleObj.feature && titleObj.feature.zone_type == 'question' &&
+						 titleObj.feature.sub_type == 'write' && titleObj.feature.parent_id == qId) {
+						list.push(oShape)
+					}
+				}
+			}
+			return list
+		}
 		function delShapeAsk(curBlockSdt, sub_type) {
 			var drawings = []
 			var selectedDrawings = oDocument.GetSelectedDrawings() // 返回的类型可能是ApiImage，ApiShape等等
@@ -508,8 +523,14 @@ function handleRangeType(options) {
 					}
 				}
 			} else if (curBlockSdt) {
+				// 这里返回的应该是题目的所有作答区，不仅包括在题目范围内的，还有浮动在题目外的
 				var oControl = Api.LookupObject(curBlockSdt.Id)
-				drawings = oControl.GetAllDrawingObjects()
+				var tagobj = Api.ParseJSON(oControl.GetTag())
+				if (tagobj.client_id) {
+					drawings = getWriteListByQuesId(tagobj.client_id)
+				} else {
+					drawings = oControl.GetAllDrawingObjects()
+				}
 			}
 			if (drawings && drawings.length) {
 				for (var i = 0; i < drawings.length; ++i) {
@@ -522,7 +543,7 @@ function handleRangeType(options) {
 					}
 				}
 			}
-		}		
+		}
 		
 		function updateControlTag(oControl, regionType, parent_id) {
 			if (!oControl) {
@@ -1213,7 +1234,7 @@ function handleRangeType(options) {
 					} else {
 						var tag = Api.ParseJSON(oElement.GetTag())
 						result.merge_data.ids.push(tag.client_id)
-						textList.push(oElement.GetRange().Text)
+						textList.push(oElement.GetRange().GetText())
 						var numbing_text = GetNumberingValue(oControl) 
 						result.change_list.push({
 							client_id: tag.client_id,
@@ -1298,7 +1319,7 @@ function handleRangeType(options) {
 								}
 							}
 						}
-						textList.push(oControl.GetRange().Text)
+						textList.push(oControl.GetRange().GetText())
 						if (tag.cask == 1) {
 							// todo..互动
 							addCellAsk(oCell, tag.client_id, '')
@@ -1698,13 +1719,88 @@ function handleRangeType(options) {
 		if (res1) {
 			if (res1.message && res1.message != '') {
 				alert(res1.message)
-			} else {
-				getNodeList().then(res2 => {
-					handleChangeType(res1, res2)
+				return new Promise((resolve, reject) => {
+					return resolve({})
 				})
 			}
+			var delete_asks = []
+			if (res1.change_list && res1.change_list.length) {
+				if (res1.typeName == 'write') {
+					if (options.typeName == 'identify' || options.typeName == 'writeZone') {
+						if (options.cmd == 'add') {
+							delete_asks = deleteMutualAsks(res1.change_list[0].parent_id, 'identify')
+						}
+					} else {
+						delete_asks = deleteMutualAsks(res1.change_list[0].parent_id, 'control')
+					}
+				} else if (res1.typeName == 'mergedAsk') {
+					delete_asks = deleteMutualAsks(res1.change_list[0].parent_id, 'control')
+				}
+			}
+			return new Promise((resolve, reject) => {
+				if (delete_asks.length) {
+					return deleteAsks(delete_asks, false, false).then(() => {
+						return resolve({})
+					})
+				} else {
+					return resolve({})
+				}
+			}).then(() => {
+				return getNodeList()
+			}).then(res2 => {
+				return handleChangeType(res1, res2)
+			})
 		}
 	})
+}
+// 删除互斥的小问
+function deleteMutualAsks(ques_id, addWriteType) {
+	var deleteAskTypes = []
+	if (addWriteType == 'identify' || addWriteType == 'write') {
+		deleteAskTypes = ['control', 'cell']
+	} else {
+		deleteAskTypes = ['identify', 'write']
+	}
+	var question_map = window.BiyueCustomData.question_map || {}
+	var node_list = window.BiyueCustomData.node_list || []
+	var quesIdMaps = Object.keys(question_map)
+	var node_ids = [ques_id]
+	var real_ques_id = ques_id
+	if (!quesIdMaps[ques_id]) {
+		for (var qid of quesIdMaps) {
+			if (qid == ques_id) {
+				if (question_map[qid].is_merge) {
+					node_ids = question_map[qid].ids
+				}
+				break
+			}
+			if (question_map[qid].is_merge && question_map[qid].ids.find(e => {
+				return e == ques_id
+			})) {
+				node_ids = question_map[qid].ids
+				real_ques_id = qid
+				break
+			}
+		}	
+	}
+	var delete_asks = []
+	for (var nodeId of node_ids) {
+		var nodeData = node_list.find(e => {
+			return e.id == nodeId
+		})
+		if (nodeData && nodeData.write_list) {
+			for (var write of nodeData.write_list) {
+				if (deleteAskTypes.includes(write.sub_type
+				)) {
+					delete_asks.push({
+						ques_id: real_ques_id,
+						ask_id: write.id
+					})
+				}
+			}
+		}
+	}
+	return delete_asks
 }
 // 添加作答区
 function addWriteZone() {
@@ -1761,7 +1857,7 @@ function addWriteZone() {
 		})
 		return {
 			shapeIds: shapeIds,
-			ques_id: qId
+			ques_id: quesTag.client_id
 		}
 	}, false, false).then(res => {
 		Asc.scope.add_write_zone_data = res
@@ -1805,7 +1901,8 @@ function endAddShape() {
 					zone_type: 'question',
 					sub_type: 'write',
 					parent_id: params.ques_id,
-					client_id: result.client_node_id
+					client_id: result.client_node_id,
+					t: Date.now()
 				}
 			}
 			oDrawing.SetTitle(JSON.stringify(titleobj))
@@ -1827,15 +1924,25 @@ function endAddShape() {
 		if (res1) {
 			if (res1.message && res1.message != '') {
 				alert(res1.message)
-			} else {
-				getNodeList().then(res2 => {
-					handleChangeType(res1, res2)
+			} else if (res1.change_list && res1.change_list.length) {
+				var delete_asks = deleteMutualAsks(res1.change_list[0].parent_id, 'write')
+				return new Promise((resolve, reject) => {
+					if (delete_asks.length) {
+						return deleteAsks(delete_asks, false, false).then(() => {
+							return resolve({})
+						})
+					} else {
+						return resolve({})
+					}
+				}).then(() => {
+					return getNodeList()
+				}).then(res2 => {
+					return handleChangeType(res1, res2)
 				})
 			}
 		}
 	})
 }
-
 export {
 	handleRangeType,
 	addWriteZone,

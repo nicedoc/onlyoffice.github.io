@@ -1909,8 +1909,8 @@ import { getFocusAskData } from './model/ques.js'
 					oDocument.GetRangeBySelect(),
 					oDocument.GetRange()
 				)
-				let allText = oDocument.GetRange().Text
-				let selectText = oRange.Text
+				let allText = oDocument.GetRange().GetText()
+				let selectText = oRange.GetText()
 				console.log('-------:', allText.indexOf(selectText))
 				return { type }
 			},
@@ -2083,29 +2083,29 @@ import { getFocusAskData } from './model/ques.js'
 			{ InternalId: curControl.InternalId, tag: curTag },
 		])
 	}
-
-	window.Asc.plugin.event_onFocusContentControl = function (control) {
-		biyueCallCommand(
-			window,
-			function () {
-				return AscCommon.global_keyboardEvent.CtrlKey
-			},
-			false,
-			true
-		).then((ctrlKey) => {
-			if (
-				true === ctrlKey &&
-				prevControl !== undefined &&
-				control !== undefined &&
-				control.InternalId != prevControl.InternalId
-			) {
-				window.currControl = control
-			} else {
-				window.prevControl = undefined
-				window.currControl = undefined
-			}
-		})
-	}
+	// 不注释的话，command可能会同时调用，biyueCallCommand.stack的length > 1，代码无法执行
+	// window.Asc.plugin.event_onFocusContentControl = function (control) {
+	// 	return biyueCallCommand(
+	// 		window,
+	// 		function () {
+	// 			return AscCommon.global_keyboardEvent.CtrlKey
+	// 		},
+	// 		false,
+	// 		true
+	// 	).then((ctrlKey) => {
+	// 		if (
+	// 			true === ctrlKey &&
+	// 			prevControl !== undefined &&
+	// 			control !== undefined &&
+	// 			control.InternalId != prevControl.InternalId
+	// 		) {
+	// 			window.currControl = control
+	// 		} else {
+	// 			window.prevControl = undefined
+	// 			window.currControl = undefined
+	// 		}
+	// 	})
+	// }
 
 	window.Asc.plugin.event_onClick = function (options) {
 		console.log('event click', options)
