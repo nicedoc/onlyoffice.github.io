@@ -1283,7 +1283,9 @@ function handleChangeType(res, res2) {
 					nodeData.level_type = targetLevel
 				}
 				if (targetLevel == 'question') {
-					nodeData.write_list = ask_list
+					if (ask_list) {
+						nodeData.write_list = ask_list
+					}
 					if (!question_map[item.client_id]) {
 						var write_list = nodeData.write_list || []
 						question_map[item.client_id] = {
@@ -1298,7 +1300,9 @@ function handleChangeType(res, res2) {
 							})
 						}
 					} else {
-						updateAskList(item.client_id, ask_list)
+						if (ask_list) {
+							updateAskList(item.client_id, ask_list)
+						}
 						if (level_type == 'setBig' || level_type == 'clearBig') {
 							question_map[item.client_id].text = getQuesText(item.text)
 							question_map[item.client_id].ques_default_name = item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(targetLevel, item.text)
@@ -3972,6 +3976,7 @@ function deleteAsks(askList, recalc = true, notify = true) {
 			if (!quesControl || quesControl.GetClassType() != 'blockLvlSdt') {
 				return
 			}
+			var quesControlId = quesControl.Sdt.GetId()
 			if (aid == 0) {
 				// 删除所有小问，遍历出所有小问，全部删除
 				// 删除所有精准互动
@@ -3979,6 +3984,14 @@ function deleteAsks(askList, recalc = true, notify = true) {
 				for (var j = 0; j < childDrawings.length; ++j) {
 					var tag = Api.ParseJSON(childDrawings[j].GetTitle())
 					if (tag.feature && tag.feature.zone_type == 'question') {
+						if (nodeData.is_big) {
+							var parentControl = childDrawings[j].GetParentContentControl()
+							if (parentControl) {
+								if (parentControl.Sdt.GetId() != quesControlId) {
+									continue
+								}
+							}
+						}
 						if (tag.feature.sub_type == 'ask_accurate') {
 							deleShape(childDrawings[j])
 						}
@@ -3986,19 +3999,33 @@ function deleteAsks(askList, recalc = true, notify = true) {
 				}
 				// 删除除订正框外的所有inlineControl
 				var childControls = quesControl.GetAllContentControls() || []
-				childControls.forEach(e => {
+				for (var e of childControls) {
 					if (e.Sdt) {
 						var tag = Api.ParseJSON(e.GetTag())
+						if (nodeData.is_big) {
+							var parentControl = e.GetParentContentControl()
+							if (parentControl && parentControl.Sdt.GetId() != quesControlId) {
+								continue
+							}	
+						}
 						if (e.GetClassType() == 'inlineLvlSdt' && tag.regionType != 'num') {
-							Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
+							Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())	
 						} else if (e.GetClassType() == 'blockLvlSdt' && tag.regionType == 'write') {
 							Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
 						}
 					}
-				})
+				}
 				// 删除所有write 和 identify
 				childDrawings = quesControl.GetAllDrawingObjects() || []
 				for (var j = 0; j < childDrawings.length; ++j) {
+					if (nodeData.is_big) {
+						var parentControl = childDrawings[j].GetParentContentControl()
+						if (parentControl) {
+							if (parentControl.Sdt.GetId() != quesControlId) {
+								continue
+							}
+						}
+					}
 					var paraDrawing = childDrawings[j].getParaDrawing()
 					if (!paraDrawing) {
 						continue
@@ -4035,6 +4062,14 @@ function deleteAsks(askList, recalc = true, notify = true) {
 					if (tables) {
 						for (var t = 0; t < tables.length; ++t) {
 							var oTable = tables[t]
+							if (nodeData.is_big) {
+								var parentControl = oTable.GetParentContentControl()
+								if (parentControl) {
+									if (parentControl.Sdt.GetId() != quesControlId) {
+										continue
+									}
+								}
+							}
 							var rowcount = oTable.GetRowsCount()
 							var find = false
 							for (var r = 0; r < rowcount; ++r) {

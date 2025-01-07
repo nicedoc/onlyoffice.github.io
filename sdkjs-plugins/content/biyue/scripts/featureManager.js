@@ -1558,17 +1558,24 @@ function setInteraction(type, quesIds, recalc = true) {
 				// todo..
 			}
 		}
-		function handleControlAccurate(oControl, ask_list, write_list, type) {
+		function handleControlAccurate(oControl, ask_list, write_list, type, isbig) {
 			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
 				return
 			}
 			var drawings = oControl.GetAllDrawingObjects()
 			var dlist1 = getExistDrawing(drawings, ['ask_accurate'])
+			var controlId = oControl.Sdt.GetId()
 			if (type == 'none' || type == 'simple') {
 				if (dlist1 && dlist1.length) {
-					dlist1.forEach(e => {
+					for (var e of dlist1) {
+						if (isbig && e.GetParentContentControl) {
+							var parentControl = e.GetParentContentControl()
+							if (parentControl && parentControl.Sdt.GetId() != controlId) {
+								continue
+							}
+						}
 						deleShape(e)
-					})
+					}
 				}
 				return
 			}
@@ -1714,7 +1721,7 @@ function setInteraction(type, quesIds, recalc = true) {
 					}
 				}
 			}
-			handleControlAccurate(oControl, ask_list, write_list, type)
+			handleControlAccurate(oControl, ask_list, write_list, type, nodeData.is_big)
 		}
 
 	}, false, recalc).then(res => {
