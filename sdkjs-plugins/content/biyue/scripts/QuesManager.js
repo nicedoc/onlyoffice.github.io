@@ -455,7 +455,7 @@ function getContextMenuItems(type, selectedRes) {
 				cData = getControlData(tag, selectedRes.parentSdts.length - 2)
 				console.log('cData', cData)
 				if (curControl.classType == 'blockLvlSdt') {
-					if (cData.level_type != 'ask') {
+					if (cData && cData.level_type != 'ask') {
 						valueMap['clearChildren'] = 1
 					}
 					if (!cData || !cData.level_type) {
@@ -463,7 +463,7 @@ function getContextMenuItems(type, selectedRes) {
 						valueMap['struct'] = 1
 					}
 				} else if (curControl.classType == 'inlineLvlSdt' && 
-					tag.regionType == 'choiceOption' && 
+					tag.regionType == 'choiceOption' && cData &&
 					cData.parent_id && 
 					question_map[cData.parent_id] && 
 					(isChoiceMode(question_map[cData.parent_id].ques_mode))) {
