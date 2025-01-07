@@ -811,6 +811,7 @@ function updateQuesMode(ques_mode) {
 	}
 	showCom('.choicetr', isChoiceMode(ques_mode))
 	showCom('#resplitQues', !isTextMode(ques_mode))
+	showCom('#weightTr', !isTextMode(ques_mode))
 	return ques_mode
 }
 

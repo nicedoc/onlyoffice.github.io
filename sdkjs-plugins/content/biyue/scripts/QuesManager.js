@@ -471,6 +471,7 @@ function getContextMenuItems(type, selectedRes) {
 			var isTextQues = false // 是否文本题
 			if (cData && cData.level_type == 'question' && question_map[cData.ques_id] && isTextMode(question_map[cData.ques_id].ques_mode)) {
 				isTextQues = true
+				valueMap['clearChildren'] = 0
 			}
 			if (cData) {
 				if (type == 'Selection') {
