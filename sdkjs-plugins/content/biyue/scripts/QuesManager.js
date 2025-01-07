@@ -831,7 +831,8 @@ function getNodeList() {
 			if (!oCell || oCell.GetClassType() != 'tableCell') {
 				return {}
 			}
-			var pagesCount = oCell.Cell.PagesCount
+			var oTable = oCell.GetParentTable()
+			var pagesCount = oTable.Table.getPageCount()
 			for (var p = 0; p < pagesCount; ++p) {
 				var pagebounds = oCell.Cell.GetPageBounds(p)
 				if (!pagebounds) {
