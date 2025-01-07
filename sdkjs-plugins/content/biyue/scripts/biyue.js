@@ -2642,17 +2642,20 @@ import { getFocusAskData, isChoiceMode, isTextMode } from './model/ques.js'
 	}
 
 	function refreshDialog(dialogParams, msgId, data) {
-		if (dialogParams) {
-			var win = windows[dialogParams.winName]
-			if (win) {
-				win.activate()
-				win.command(msgId, data)
-			} else {
-				const { winName, name, url, width, height, isModal, type, icons } = dialogParams
-				showDialog(winName, name, url, width, height, isModal, type, icons)
-			}
-		}
-	}
+        if (dialogParams) {
+            var win = windows[dialogParams.winName]
+            var win2 = windowList.find(e => {
+                return e.winName == dialogParams.winName
+            })
+            if (win2 && win2.visible && win) {
+                win.activate()
+                win.command(msgId, data)
+            } else {
+                const { winName, name, url, width, height, isModal, type, icons } = dialogParams
+                showDialog(winName, name, url, width, height, isModal, type, icons)
+            }
+        }
+    }
 
 	function closeDialog(winName) {
 		var win = windowList.find(e => {
