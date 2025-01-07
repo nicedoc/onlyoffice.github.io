@@ -455,7 +455,9 @@ function getContextMenuItems(type, selectedRes) {
 				cData = getControlData(tag, selectedRes.parentSdts.length - 2)
 				console.log('cData', cData)
 				if (curControl.classType == 'blockLvlSdt') {
-					valueMap['clearChildren'] = 1
+					if (cData.level_type != 'ask') {
+						valueMap['clearChildren'] = 1
+					}
 					if (!cData || !cData.level_type) {
 						valueMap['question'] = 1
 						valueMap['struct'] = 1
