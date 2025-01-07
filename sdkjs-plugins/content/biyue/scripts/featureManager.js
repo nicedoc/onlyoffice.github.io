@@ -1063,7 +1063,6 @@ function setInteraction(type, quesIds, recalc = true) {
 	return biyueCallCommand(window, function() {
 		var interaction_type_use = Asc.scope.interaction_type_use
 		var simple_interaction = Asc.scope.simple_interaction
-		var interaction_type = interaction_type_use
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls()
 		var question_map = Asc.scope.question_map || {}
@@ -1667,6 +1666,7 @@ function setInteraction(type, quesIds, recalc = true) {
 			if (!question_map[targetQuesId]) {
 				continue
 			}
+			var interaction_type = interaction_type_use
 			if (interaction_type_use != 'none') {
 				if (!question_map[targetQuesId] || question_map[targetQuesId].level_type != 'question') {
 					continue
