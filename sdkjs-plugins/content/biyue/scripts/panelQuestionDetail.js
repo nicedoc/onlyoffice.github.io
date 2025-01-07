@@ -460,6 +460,8 @@ function changeQuestionType(data) {
 				}]).then(()=> {
 					return resolve({})
 				})
+			} else {
+				return resolve({})
 			}
 		}).then(()=> {
 			var interaction = window.BiyueCustomData.question_map[g_ques_id].interaction
