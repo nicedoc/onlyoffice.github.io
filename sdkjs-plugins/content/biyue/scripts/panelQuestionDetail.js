@@ -1006,11 +1006,7 @@ function resplitQues() {
 		ques_id: g_ques_id,
 		ask_id: 0
 	}], false, false).then(() => {
-		return splitControl(g_ques_id).then(res => {
-			if (window.BiyueCustomData.question_map[g_ques_id] && window.BiyueCustomData.question_map[g_ques_id].interaction == 'accurate') {
-				setInteraction(window.BiyueCustomData.question_map[g_ques_id].interaction, [g_ques_id])
-			}
-		})
+		return splitControl(g_ques_id)
 	})
 }
 

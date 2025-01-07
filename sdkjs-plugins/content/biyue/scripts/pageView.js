@@ -134,10 +134,7 @@ function initView() {
 	showCom('#panelFeature', false)
 	showCom('#panelLink', false)
 	showCom('#panelTypeErrorUpload', false)
-	addClickEvent('#tabFeature', () => {
-		$('#panelFeature').show()
-		initFeature()
-	})
+	addClickEvent('#tabFeature', onFeature)
 	addClickEvent('.panelclose', (e) => {
 		var target = e.currentTarget || e.target
 		if (target && target.dataset && target.dataset.panel) {
@@ -163,6 +160,11 @@ function initView() {
 	})
 	addClickEvent('#panelTree #lock', clickTreeLock)
 	addClickEvent('#downloadExamHtml', clickDownloadExamHtml)
+}
+
+function onFeature() {
+	$('#panelFeature').show()
+	initFeature()
 }
 
 function handlePaperInfoResult(success, res) {
@@ -678,5 +680,6 @@ export {
 	clickSplitQues,
 	clickUploadTree,
 	showTypeErrorPanel,
-	changeTabPanel
+	changeTabPanel,
+	onFeature
 }

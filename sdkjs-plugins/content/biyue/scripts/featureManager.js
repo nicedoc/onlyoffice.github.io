@@ -1059,7 +1059,7 @@ function setInteraction(type, quesIds, recalc = true) {
 	Asc.scope.interaction_quesIds = quesIds
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	Asc.scope.node_list = window.BiyueCustomData.node_list
-	Asc.scope.simple_interaction = 2 // window.BiyueCustomData.simple_interaction
+	Asc.scope.simple_interaction = 1 // window.BiyueCustomData.simple_interaction
 	return biyueCallCommand(window, function() {
 		var interaction_type_use = Asc.scope.interaction_type_use
 		var simple_interaction = Asc.scope.simple_interaction
@@ -1488,7 +1488,19 @@ function setInteraction(type, quesIds, recalc = true) {
 				}
 			})
 		}
-
+		function getWriteAskDrawing(ask_id) {
+			var allShapes = oDocument.GetAllShapes() || []
+			for (var j = 0; j < allShapes.length; ++j) {
+				if (!allShapes[j].GetTitle) {
+					continue
+				}
+				var tag = Api.ParseJSON(allShapes[j].GetTitle())
+				if (tag.feature && tag.feature.zone_type == 'question' && tag.feature.sub_type == 'write' && tag.feature.client_id == ask_id) {
+					return allShapes[j]
+				}
+			}
+			return null
+		}
 		function addAskInteraction(oControl, askData, index, write_id) {
 			var oDrawing = getAccurateDrawing(index, write_id)
 			if (askData.sub_type == 'control') {
@@ -1517,11 +1529,7 @@ function setInteraction(type, quesIds, recalc = true) {
 					}
 				}
 			} else if (askData.sub_type == 'write') {
-				var drawings = oControl.GetAllDrawingObjects() || []
-				var oAskDrawing = drawings.find(e => {
-					var drawingTitle = Api.ParseJSON(e.GetTitle())
-					return drawingTitle.feature && drawingTitle.feature.client_id == askData.id
-				})
+				var oAskDrawing = getWriteAskDrawing(askData.id)
 				if (oAskDrawing) {
 					var oShape = Api.LookupObject(oAskDrawing.Drawing.Id)
 					if (oShape && oShape.GetClassType() == 'shape') {
@@ -1551,7 +1559,6 @@ function setInteraction(type, quesIds, recalc = true) {
 				// todo..
 			}
 		}
-
 		function handleControlAccurate(oControl, ask_list, write_list, type) {
 			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
 				return

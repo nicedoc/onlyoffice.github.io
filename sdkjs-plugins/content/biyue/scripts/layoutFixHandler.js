@@ -31,6 +31,7 @@ function layoutDetect(all) {
 				hasTab: false, // 存在tab键
 				hasWhiteBg: false, // 存在背景为白色的段落
 				hasSmallImage: false, // 存在宽高过小的图片
+				hasBookmark: false, // 存在书签
 			}
 			var type_map = {
 				'hasSmallImage': '宽高过小的图片',
@@ -39,7 +40,8 @@ function layoutDetect(all) {
 				'has32': '空格下划线',
 				'has65307': '中文分号',
 				'has12288': '中文空格',
-				'hasWhiteBg': '段落背景为白色'
+				'hasWhiteBg': '段落背景为白色',
+				'hasBookmark': '存在书签'
 			}
 			function isWhite(shd) {
 				return shd && shd.Fill && shd.Fill.r == 255 && shd.Fill.g == 255 && shd.Fill.b == 255 && shd.Fill.Auto == false
@@ -115,6 +117,18 @@ function layoutDetect(all) {
 				}
 				return false
 			}
+			function hasBookmark(oParagraph) {
+				var elementcount = oParagraph.GetElementsCount()
+				if (elementcount > 0) {
+					for (var i = elementcount - 1; i >= 0; --i) {
+						var oElement = oParagraph.Paragraph.Content[i]
+						if (oElement.GetType && oElement.GetType() == 71) { // 书签
+							return true
+						}
+					}
+				}
+				return false
+			}
 			for (var i = 0, imax = paragraphs.length; i < imax; ++i) {
 				var oParagraph = paragraphs[i]
 				bflag = []
@@ -142,6 +156,9 @@ function layoutDetect(all) {
 				if (paraPr && paraPr.ParaPr && isWhite(paraPr.ParaPr.Shd)) {
 					result.hasWhiteBg = true
 					oParagraph.AddComment(type_map['hasWhiteBg'], "biyueFix", `repair${oParagraph.Paragraph.Id}}:hasWhiteBg`)
+				}
+				if (!result.hasBookmark && hasBookmark(oParagraph)) {
+					result.hasBookmark = true
 				}
 			}
 			return result
@@ -184,7 +201,8 @@ function layoutRepair(cmdData) {
 			'has32': '空格下划线',
 			'has65307': '中文分号',
 			'has12288': '中文空格',
-			'hasWhiteBg': '段落背景为白色'
+			'hasWhiteBg': '段落背景为白色',
+			'hasBookmark': '存在书签'
 		}
 		function getTabReplaceTarget(width, target) {
 			var str = ''
@@ -387,6 +405,19 @@ function layoutRepair(cmdData) {
 				}
 			}
 		}
+		// 删除书签
+		function removeBookmark(oParagraph) {
+			var elementcount = oParagraph.GetElementsCount()
+			if (elementcount > 0) {
+				for (var i = elementcount - 1; i >= 0; --i) {
+					var oElement = oParagraph.Paragraph.Content[i]
+					if (oElement.GetType && oElement.GetType() == 71) { // 书签
+						oParagraph.RemoveElement(i)
+						++i
+					}
+				}
+			}
+		}
 		if (cmdData.type == 1 && cmdData.value == 'tab') { // 将括号里的tab替换为空格
 			var bflag = []
 			for (var i = 0, imax = paragrahs.length; i < imax; ++i) {
@@ -427,6 +458,8 @@ function layoutRepair(cmdData) {
 							fixed = true
 						}
 					}
+				} else if (cmdData.type == 2 && cmdData.value == 'bookmark') { // 删除书签
+					removeBookmark(oParagraph)
 				}
 				var controls = oParagraph.GetAllContentControls() || []
 				controls.forEach(oControl => {

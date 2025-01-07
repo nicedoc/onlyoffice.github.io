@@ -66,6 +66,14 @@
 		text1: '段落背景为白色，',
 		text2: '建议替换为透明色，',
 		value: 'whitebg'
+	}, {
+		idname: 'bookmark',
+		delete: true,
+		type: 'warning',
+		keyname: 'hasBookmark',
+		text1: '书签，',
+		text2: '建议删除，',
+		value: 'bookmark'
 	}]
 	window.Asc.plugin.init = function () {
 		console.log('layoutRepair init')

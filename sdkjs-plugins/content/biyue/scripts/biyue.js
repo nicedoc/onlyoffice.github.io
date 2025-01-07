@@ -51,7 +51,7 @@ import {
 import { layoutRepair, removeAllComment, layoutDetect } from './layoutFixHandler.js'
 import { reqSaveInfo } from './api/paper.js'
 
-import { initView, onSaveData, clickSplitQues, clickUploadTree, showTypeErrorPanel, changeTabPanel } from './pageView.js'
+import { initView, onSaveData, clickSplitQues, clickUploadTree, showTypeErrorPanel, changeTabPanel, onFeature } from './pageView.js'
 
 import { setInteraction, updateChoice, deleteAllFeatures } from './featureManager.js'
 import { getInfoForServerSave, showCom } from './model/util.js'
@@ -130,6 +130,16 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
           			biyueCustomData: window.BiyueCustomData,
                 	subject_mark_types: Asc.scope.subject_mark_types,
 					tree_info: Asc.scope.tree_info
+				})
+				break
+			case 'exportMessage':
+				modal.command('initPaper', {
+					paper_info: getPaperInfo(),
+					xtoken: getToken(),
+					questionPositions: Asc.scope.questionPositions || {},
+          			biyueCustomData: window.BiyueCustomData,
+					preQuestionPositions: Asc.scope.preQuestionPositions,
+					preEvaluationPosition: Asc.scope.preEvaluationPosition
 				})
 				break
       		case 'positionSaveSuccess':
@@ -226,9 +236,13 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 				break
 			case 'initDialog':
 				if (message.initmsg) {
-					modal.command(message.initmsg, {
+					var obj = {
 						BiyueCustomData: window.BiyueCustomData
-					})
+					}
+					if (message.initmsg == 'uploadValidationMessage') {
+						obj.validate_info = Asc.scope.upload_validate
+					}
+					modal.command(message.initmsg, obj)
 				}
 				break
 			case 'shortcutMessage':
@@ -326,6 +340,36 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 						node_list: window.BiyueCustomData.node_list
 					})
 				})
+				break
+			case 'uploadValidationMessage':
+				if (message.cmd == 'toBatchType') {
+					onBatchQuesTypeSet()
+				} else if (message.cmd == 'toBatchScore') {
+					onBatchScoreSet()
+				} else if (message.cmd == 'toAllUpdate') {
+					reqUploadTree()
+				} else if (message.cmd == 'reCheck') {
+					importExam()
+				} else if (message.cmd == 'locate') {
+					focusControl(message.data).then(res => {
+						if (window.tab_select != 'tabQues') {
+							changeTabPanel('tabQues', {
+								detail: {
+									client_id: message.data
+								}
+							})
+						} else {
+							var event = new CustomEvent('focusQuestion', {
+								detail: {
+									ques_id: message.data
+								}
+							})
+							document.dispatchEvent(event)
+						}
+					})
+				} else if (message.cmd == 'toFeature') {
+					onFeature()
+				}
 				break
 			default:
 				break
@@ -806,10 +850,10 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 			reqGetQuestionType()
 		})
 		this.attachToolbarMenuClickEvent("shortcutSet", function (data) {
-			window.biyue.showDialog('shortcutSet', '快捷键设置', 'shortcutSet.html', 400, 800, false, 'panelRight')
+			window.biyue.showDialog('shortcutSet', '快捷键设置', 'shortcutSet.html', 400, 800, false, 'panelRight', ['resources/light/keyset.png'])
 		});
 		this.attachToolbarMenuClickEvent("insertSymbol", function (data) {
-			window.biyue.showDialog('addSymbolWindow', '插入符号', 'addSymbol.html', 600, 400, false, 'panelRight')
+			window.biyue.showDialog('addSymbolWindow', '插入符号', 'addSymbol.html', 600, 400, false, 'panelRight', ['resources/light/symbol.png'])
 		});
 		this.attachToolbarMenuClickEvent("batchScore", onBatchScoreSet);
 		this.attachToolbarMenuClickEvent("batchQuesType", onBatchQuesTypeSet);
@@ -887,7 +931,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 					type: "button",
 					text: "批量题型",
 					hint: "批量设置题目题型",
-					icons: "resources/buttons/batch.png", 
+					icons: "resources/buttons/settype.png", 
 					lockInViewMode: true,
 					enableToggle: false,
 					separator: false
@@ -1866,8 +1910,8 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 					oDocument.GetRangeBySelect(),
 					oDocument.GetRange()
 				)
-				let allText = oDocument.GetRange().Text
-				let selectText = oRange.Text
+				let allText = oDocument.GetRange().GetText()
+				let selectText = oRange.GetText()
 				console.log('-------:', allText.indexOf(selectText))
 				return { type }
 			},
@@ -2040,29 +2084,29 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 			{ InternalId: curControl.InternalId, tag: curTag },
 		])
 	}
-
-	window.Asc.plugin.event_onFocusContentControl = function (control) {
-		biyueCallCommand(
-			window,
-			function () {
-				return AscCommon.global_keyboardEvent.CtrlKey
-			},
-			false,
-			true
-		).then((ctrlKey) => {
-			if (
-				true === ctrlKey &&
-				prevControl !== undefined &&
-				control !== undefined &&
-				control.InternalId != prevControl.InternalId
-			) {
-				window.currControl = control
-			} else {
-				window.prevControl = undefined
-				window.currControl = undefined
-			}
-		})
-	}
+	// 不注释的话，command可能会同时调用，biyueCallCommand.stack的length > 1，代码无法执行
+	// window.Asc.plugin.event_onFocusContentControl = function (control) {
+	// 	return biyueCallCommand(
+	// 		window,
+	// 		function () {
+	// 			return AscCommon.global_keyboardEvent.CtrlKey
+	// 		},
+	// 		false,
+	// 		true
+	// 	).then((ctrlKey) => {
+	// 		if (
+	// 			true === ctrlKey &&
+	// 			prevControl !== undefined &&
+	// 			control !== undefined &&
+	// 			control.InternalId != prevControl.InternalId
+	// 		) {
+	// 			window.currControl = control
+	// 		} else {
+	// 			window.prevControl = undefined
+	// 			window.currControl = undefined
+	// 		}
+	// 	})
+	// }
 
 	window.Asc.plugin.event_onClick = function (options) {
 		console.log('event click', options)
@@ -2418,7 +2462,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		})
 	}
 
-	function showDialog(winName, name, url, width, height, isModal = false, type) {
+	function showDialog(winName, name, url, width, height, isModal, type, icons) {
 		let location = window.location
 		let start = location.pathname.lastIndexOf('/') + 1
 		let file = location.pathname.substring(start)
@@ -2435,6 +2479,9 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		}
 		if (type) {
 			variation.type = type
+		}
+		if (icons) {
+			variation.icons = icons
 		}
 		if (!windows) {
 			console.log('windows is null')
@@ -2476,7 +2523,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 	function onBatchScoreSet() {
 		preGetExamTree().then(res => {
 			Asc.scope.tree_info = res
-			showDialog('batchScoresWindow', '批量操作 - 修改分数', 'batchScore.html', 800, 600, false, 'panelRight')
+			showDialog('batchScoresWindow', '批量操作 - 修改分数', 'batchScore.html', 800, 600, false, 'panelRight', ['resources/light/edit.png'])
 		})
 	}
 
@@ -2484,7 +2531,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		preGetExamTree().then(res => {
 			Asc.scope.tree_info = res
 			// showDialog('batchSettingQuestionTypeWindow', '批量操作 - 修改题型', 'batchSettingQuestionType.html', 800, 600, false)
-			showDialog('batchQuestionTypeWindow', '批量操作 - 修改题型', 'batchQuestionType.html', 800, 600, false, 'panelRight')
+			showDialog('batchQuestionTypeWindow', '批量操作 - 修改题型', 'batchQuestionType.html', 800, 600, false, 'panelRight', ['resources/light/settype.png'])
 		})
 	}
 
@@ -2542,6 +2589,31 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		showDialog('messageBoxWindow', params.title || '提示', 'message.html', 200, 100, ismodal)
 	}
 
+	function refreshDialog(dialogParams, msgId, data) {
+		if (dialogParams) {
+			var win = windows[dialogParams.winName]
+			if (win) {
+				win.activate()
+				win.command(msgId, data)
+			} else {
+				const { winName, name, url, width, height, isModal, type, icons } = dialogParams
+				showDialog(winName, name, url, width, height, isModal, type, icons)
+			}
+		}
+	}
+
+	function closeDialog(winName) {
+		var win = windowList.find(e => {
+			return e.name == winName
+		})
+		if (!win || !(win.visible)) {
+			return
+		}
+		if (win.visible) {
+			closeWindow(win.id)
+		}
+	}
+
 	window.biyue = {
 		showDialog: showDialog,
 		StoreCustomData: StoreCustomData,
@@ -2550,6 +2622,8 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		reqUploadTree: reqUploadTree,
 		handleInit: handleInit,
 		onBatchScoreSet: onBatchScoreSet,
-		sendMessageToWindow: sendMessageToWindow
+		sendMessageToWindow: sendMessageToWindow,
+		refreshDialog: refreshDialog,
+		closeDialog: closeDialog
 	}
 })(window, undefined)
