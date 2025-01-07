@@ -41,7 +41,8 @@ import {
 	reqGetQuestionType,
 	focusAsk,
 	focusControl,
-	splitWordAsk
+	splitWordAsk,
+	deleteAsks
 } from './QuesManager.js'
 import {
 	tagImageCommon,
@@ -58,7 +59,7 @@ import { getInfoForServerSave, showCom } from './model/util.js'
 import { refreshTree } from './panelTree.js'
 import { extractChoiceOptions, removeChoiceOptions } from './choiceQuestion.js'
 import { endAddShape } from './classifiedTypes.js'
-import { getFocusAskData } from './model/ques.js'
+import { getFocusAskData, isChoiceMode, isTextMode } from './model/ques.js'
 import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 (function (window, undefined) {
 	var styleEnable = false
@@ -201,34 +202,33 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 					var question_map = window.BiyueCustomData.question_map
 					var new_choice_ids = []
 					var remove_choice_ids = []
-					Object.keys(message.data.question_map).forEach(e => {
-						var newData = message.data.question_map[e]
-						var newChoice = newData.ques_mode == 1 || newData.ques_mode == 5
-						var oldChoice = question_map[e].ques_mode == 1 || question_map[e].ques_mode == 5
-						if (newChoice) {
-							if (!oldChoice) {
-								new_choice_ids.push(e)
+					var delete_asks = []
+					for (var id in message.data.question_map) {
+						if (!question_map[id]) {
+							continue
+						}
+						var newData = message.data.question_map[id]
+						var newMode = newData.ques_mode
+						var oldMode = question_map[id].ques_mode
+						if (isChoiceMode(newMode)) {
+							if (!isChoiceMode(oldMode)) {
+								new_choice_ids.push(id)
 							}
-						} else if (oldChoice) {
-							remove_choice_ids.push(e)
+						} else if (isChoiceMode(oldMode)) {
+							remove_choice_ids.push(id)
 						}
-					})
-          			window.BiyueCustomData.question_map = message.data.question_map
-          			console.log('更新question_map', message.data)
-                    StoreCustomData(() => {
-						// closeWindow(modal.id)
-						if (window.tab_select == 'tabQues') {
-							document.dispatchEvent(new CustomEvent('refreshQues'))
-						}
-                        console.log('store custom data done')
-						if (message.data.needUpdateInteraction) {
-							setInteraction('useself').then(() => {
-								updateQuesChange(message.data.needUpdateChoice, new_choice_ids, remove_choice_ids)
+						if (isTextMode(newMode) && question_map[id].ask_list && question_map[id].ask_list.length) {
+							delete_asks.push({
+								ques_id: id,
+								ask_id: 0
 							})
-						} else {
-							updateQuesChange(message.data.needUpdateChoice, new_choice_ids, remove_choice_ids)
 						}
-                    })
+						question_map[id].question_type = newData.question_type
+						question_map[id].ques_mode = newData.ques_mode
+					}
+					window.BiyueCustomData.question_map = question_map
+          			console.log('更新question_map', question_map)
+					updateQuesChange(message.data.needUpdateChoice, new_choice_ids, remove_choice_ids, delete_asks, message.data.needUpdateInteraction)
         		}
         		break
 			case 'showMessageBox':
@@ -322,8 +322,25 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 				}
 				break
 			case 'updateScore':
-				window.BiyueCustomData.question_map = message.data.question_map
-				console.log('更新question_map', message.data)
+				for (var id in message.data.question_map) {
+					var quesData = window.BiyueCustomData.question_map[id]
+					if (!quesData) {
+						continue
+					}
+					var newData = message.data.question_map[id]
+					if (quesData.ask_list && quesData.ask_list.length) {
+						for (var ask of quesData.ask_list) {
+							if (newData.ask_list && newData.ask_list.length) {
+								var ask1 = newData.ask_list.find(newAsk => ask.id == newAsk.id)
+								if (ask1) {
+									ask.scope = ask1.score
+								}
+							}
+						}
+					}
+					quesData.score = newData.score
+				}
+				console.log('更新question_map', window.BiyueCustomData.question_map)
 				// todo.. 有打分区时，需要更新打分区
 				StoreCustomData(() => {
 					if (window.tab_select == 'tabQues') {
@@ -376,22 +393,58 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		}
 	}
 
-	function updateQuesChange(needUpdateChoice, new_choice_ids, remove_choice_ids) {
-		if (needUpdateChoice) {
-			return deleteChoiceOtherWrite(null, false).then((res) => {
+	function updateQuesChange(needUpdateChoice, new_choice_ids, remove_choice_ids, delete_asks, needUpdateInteraction) {
+		return new Promise((resolve, reject) => {
+			if (delete_asks && delete_asks.length) {
+				return deleteAsks(delete_asks, false, false).then(() => {
+					return resolve()
+				})
+			} else {
+				return resolve()
+			}
+		}).then(() => {
+			if (needUpdateChoice) {
+				return deleteChoiceOtherWrite(null, false)
+			} else {
+				return new Promise((resolve, reject) => {
+					return resolve()
+				})
+			}
+		}).then(() => {
+			if (needUpdateChoice) {
 				return updateChoice(true)
-			}).then(() => {
-				if (new_choice_ids.length) {
-					return extractChoiceOptions(new_choice_ids.concat(remove_choice_ids), true)
-				} else if (remove_choice_ids.length) {
-					return removeChoiceOptions(remove_choice_ids)
-				} else {
-					return new Promise((resolve, reject) => {
-						return resolve()
-					})
-				}
+			} else {
+				return new Promise((resolve, reject) => {
+					return resolve()
+				})
+			}
+		}).then(() => {
+			if (new_choice_ids && new_choice_ids.length) {
+				return extractChoiceOptions(new_choice_ids.concat(remove_choice_ids), true)
+			} else if (remove_choice_ids && remove_choice_ids.length) {
+				return removeChoiceOptions(remove_choice_ids)
+			} else {
+				return new Promise((resolve, reject) => {
+					return resolve()
+				})
+			}
+		}).then(() => {
+			if (needUpdateInteraction) {
+				return setInteraction('useself')
+			} else {
+				return new Promise((resolve, reject) => {
+					return resolve()
+				})
+			}
+		}).then(() => {
+			StoreCustomData(() => {
+				// closeWindow(modal.id)
+				console.log('store custom data done')
+				if (window.tab_select == 'tabQues') {
+					document.dispatchEvent(new CustomEvent('refreshQues'))
+				}	
 			})
-		}
+		})
 	}
 
 	let splitQuestion = function (text_all, text_pos) {

@@ -13,6 +13,7 @@ import { extractChoiceOptions, removeChoiceOptions, getChoiceOptionAndSteam, set
 import { getInteractionTypes } from './model/feature.js'
 import proportionHandler from './handler/proportionHandler.js'
 import uploadValidateHandler from './handler/validateUpload.js'
+import { isChoiceMode, isTextMode } from "./model/ques.js";
 var g_click_value = null
 var upload_control_list = []
 
@@ -454,7 +455,9 @@ function getContextMenuItems(type, selectedRes) {
 				cData = getControlData(tag, selectedRes.parentSdts.length - 2)
 				console.log('cData', cData)
 				if (curControl.classType == 'blockLvlSdt') {
-					valueMap['clearChildren'] = 1
+					if (cData.level_type != 'ask') {
+						valueMap['clearChildren'] = 1
+					}
 					if (!cData || !cData.level_type) {
 						valueMap['question'] = 1
 						valueMap['struct'] = 1
@@ -463,9 +466,14 @@ function getContextMenuItems(type, selectedRes) {
 					tag.regionType == 'choiceOption' && 
 					cData.parent_id && 
 					question_map[cData.parent_id] && 
-					(question_map[cData.parent_id].ques_mode == 1 || question_map[cData.parent_id].ques_mode == 5)) {
+					(isChoiceMode(question_map[cData.parent_id].ques_mode))) {
 					valueMap['choiceOption'] = 1
 				}
+			}
+			var isTextQues = false // 是否文本题
+			if (cData && cData.level_type == 'question' && question_map[cData.ques_id] && isTextMode(question_map[cData.ques_id].ques_mode)) {
+				isTextQues = true
+				valueMap['clearChildren'] = 0
 			}
 			if (cData) {
 				if (type == 'Selection') {
@@ -473,8 +481,12 @@ function getContextMenuItems(type, selectedRes) {
 					valueMap['struct'] = 1
 					if (cData.level_type == 'question' || cData.level_type == 'big') {
 						valueMap['write'] = 1
-						if (question_map[cData.ques_id] && (question_map[cData.ques_id].ques_mode == 1 || question_map[cData.ques_id].ques_mode == 5)) {
-							valueMap['choiceOption'] = 1
+						if (question_map[cData.ques_id]) {
+							if (isChoiceMode(question_map[cData.ques_id].ques_mode)) {
+								valueMap['choiceOption'] = 1	
+							} else if (isTextQues) {
+								valueMap['write'] = 0
+							}
 						}
 						if (selectedRes.cells && selectedRes.cells.length > 1) {
 							console.log('支持合并小问')
@@ -546,7 +558,7 @@ function getContextMenuItems(type, selectedRes) {
 							text: '取消合并'
 						})
 					}
-				} else if (cData.level_type == 'question') {
+				} else if (cData.level_type == 'question' && !isTextQues) {
 					items.push({
 						id: 'write',
 						text: '作答区',
@@ -1475,7 +1487,7 @@ function handleChangeType(res, res2) {
 	if (typequesId) {
 		return reqGetQuestionType([typequesId], 1)
 		.then((res2) => {
-			if (window.BiyueCustomData.question_map[typequesId].ques_mode == 1 || window.BiyueCustomData.question_map[typequesId].ques_mode == 5) {
+			if (isChoiceMode(window.BiyueCustomData.question_map[typequesId].ques_mode)) {
 				return extractChoiceOptions([typequesId], false)
 			} else {
 				return new Promise((resolve, reject) => {
@@ -1720,25 +1732,32 @@ function batchChangeQuesType(type) {
 		var choice_option_remove = []
 		var useGather = window.BiyueCustomData.choice_display && window.BiyueCustomData.choice_display.style != 'brackets_choice_region'
 		var interaction_ids = []
+		var delete_asks = []
 		res.list.forEach(e => {
 			if (question_map[e.id]) {
 				var oldMode = question_map[e.id].ques_mode
 				var newMode = getQuesMode(type)
-				if (question_map[e.id].interaction != 'none' && (oldMode == 6 || newMode == 6)) {
+				if (question_map[e.id].interaction != 'none' && (isTextMode(oldMode) || isTextMode(newMode))) {
 					interaction_ids.push(e.id)
 				}
 				question_map[e.id].question_type = type * 1
 				question_map[e.id].ques_mode = newMode
-				if (newMode == 1 || newMode == 5) {
+				if (isChoiceMode(newMode)) {
 					choice_ids.push(e.id)
-					if (oldMode != 1 && oldMode != 5) {
+					if (!isChoiceMode(oldMode)) {
 						choice_option_add.push(e.id)
 					}
-				} else if (oldMode == 1 || oldMode == 5) {
+				} else if (isChoiceMode(oldMode)) {
 					choice_option_remove.push(e.id)
 				}
 				if (!judgeChoiceAll && useGather) {
-					judgeChoiceAll = (newMode == 1 || newMode == 5 || oldMode == 1 || oldMode == 5)
+					judgeChoiceAll = (isChoiceMode(newMode) || isChoiceMode(oldMode))
+				}
+				if (isTextMode(newMode) && question_map[e.id].ask_list && question_map[e.id].ask_list.length) {
+					delete_asks.push({
+						ques_id: e.id,
+						ask_id: 0
+					})
 				}
 			}
 		})
@@ -1759,8 +1778,19 @@ function batchChangeQuesType(type) {
 			choice_option_add,
 			choice_option_remove,
 			judgeChoiceAll,
-			interaction_ids
+			interaction_ids,
+			delete_asks
 		}
+	}).then(res => {
+		return new Promise((resolve, reject) => {
+			if (res.delete_asks && res.delete_asks.length) {
+				return deleteAsks(res.delete_asks, false, false).then(() => {
+					resolve(res)
+				})
+			} else {
+				resolve(res)
+			}
+		})
 	}).then(res => {
 		return new Promise((resolve, reject) => {
 			if (res && res.choice_ids && res.choice_ids.length) {
@@ -1806,7 +1836,11 @@ function batchChangeQuesType(type) {
 		window.biyue.sendMessageToWindow('batchQuestionTypeWindow', 'quesMapUpdate', {
 			question_map: window.BiyueCustomData.question_map
 		})
-		window.biyue.StoreCustomData()
+		window.biyue.StoreCustomData(() => {
+			if (window.tab_select == 'tabQues') {
+				document.dispatchEvent(new CustomEvent('refreshQues'))
+			}
+		})
 	})
 }
 // 批量设置互动
@@ -2352,6 +2386,25 @@ function confirmLevelSet(levels) {
 	})
 	.then(() => {
 		return reqGetQuestionType()
+	})
+	.then(() => {
+		var deleteList = []
+		for (var key in window.BiyueCustomData.question_map) {
+			var quesData = window.BiyueCustomData.question_map[key]
+			if (quesData.level_type == 'question' && isTextMode(quesData.ques_mode)) {
+				deleteList.push({
+					ques_id: key,
+					ask_id: 0
+				})
+			}
+		}
+		if (deleteList.length) {
+			return deleteAsks(deleteList, false, false)
+		} else {
+			return new Promise((resolve, reject) => {
+				return resolve()
+			})
+		}
 	})
 	.then(() => {
 		return deleteChoiceOtherWrite()
@@ -4743,7 +4796,7 @@ function splitControl(qid) {
 	}
 	var question_map = window.BiyueCustomData.question_map || {}
 	var node_list = window.BiyueCustomData.node_list || []
-	if (!question_map[qid]) {
+	if (!question_map[qid] || isTextMode(question_map[qid].ques_mode)) {
 		return new Promise((resolve, reject) => {
 			return resolve({})
 		})

@@ -4,7 +4,7 @@ import { reqSaveQuestion } from './api/paper.js'
 import { setInteraction } from './featureManager.js'
 import { deleteAsks, focusAsk, updateAllChoice, deleteChoiceOtherWrite, getQuesMode, updateQuesScore, splitControl } from './QuesManager.js'
 import { addClickEvent,  getListByMap, showCom, getFixedValue } from '../scripts/model/util.js'
-import { getDataByParams, getFocusAskData } from '../scripts/model/ques.js'
+import { getDataByParams, getFocusAskData, isChoiceMode, isTextMode } from '../scripts/model/ques.js'
 import { extractChoiceOptions, removeChoiceOptions, setChoiceOptionLayout } from './choiceQuestion.js'
 import { hasInteraction, getInteractionTypes } from '../scripts/model/feature.js'
 import proportionHandler from './handler/proportionHandler.js'
@@ -449,21 +449,38 @@ function changeQuestionType(data) {
 		if (window.BiyueCustomData.question_map && window.BiyueCustomData.question_map[g_ques_id]) {
 			window.BiyueCustomData.question_map[g_ques_id].ques_mode = quesMode
 		}
-		var interaction = window.BiyueCustomData.question_map[g_ques_id].interaction
-		var need_update_interaction = false
-		if (interaction != 'none') {
-			if (oldMode == 6 || quesMode == 6) {
-				need_update_interaction = true
+		var ask_list = window.BiyueCustomData.question_map[g_ques_id].ask_list || []
+		var ask_num = ask_list.length
+		// 现在是文本题，且有小问，需要删除所有小问
+		return new Promise((resolve, reject) => {
+			if (isTextMode(quesMode) && ask_num) {
+				deleteAsks([{
+					ques_id: g_ques_id,
+					ask_id: 0
+				}]).then(()=> {
+					return resolve({})
+				})
 			}
-		}
-		if (need_update_interaction) {
-			setInteraction('useself', [g_ques_id])
-			.then(() => {
-				return updateQuesType(quesMode, oldMode)
-			})
-		} else {
+		}).then(()=> {
+			var interaction = window.BiyueCustomData.question_map[g_ques_id].interaction
+			var need_update_interaction = false
+			if (interaction != 'none') {
+				if (interaction != 'none') {
+					if (isTextMode(quesMode) || isTextMode(oldMode)) {
+						need_update_interaction = true
+					}
+				}
+			}
+			if (need_update_interaction) {
+				return setInteraction('useself', [g_ques_id])
+			} else {
+				return new Promise((resolve, reject) => {
+					resolve({})
+				})
+			}
+		}).then(() => {
 			return updateQuesType(quesMode, oldMode)
-		}
+		})
 	}
 }
 
@@ -792,7 +809,9 @@ function updateQuesMode(ques_mode) {
 	if (select_ques_mode) {
 		select_ques_mode.setSelect(ques_mode + '')
 	}
-	showCom('.choicetr', ques_mode == 1 || ques_mode == 5)
+	showCom('.choicetr', isChoiceMode(ques_mode))
+	showCom('#resplitQues', !isTextMode(ques_mode))
+	showCom('#weightTr', !isTextMode(ques_mode))
 	return ques_mode
 }
 
