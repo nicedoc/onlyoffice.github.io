@@ -1059,7 +1059,7 @@ function setInteraction(type, quesIds, recalc = true) {
 	Asc.scope.interaction_quesIds = quesIds
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	Asc.scope.node_list = window.BiyueCustomData.node_list
-	Asc.scope.simple_interaction = 2 // window.BiyueCustomData.simple_interaction
+	Asc.scope.simple_interaction = 1 // window.BiyueCustomData.simple_interaction
 	return biyueCallCommand(window, function() {
 		var interaction_type_use = Asc.scope.interaction_type_use
 		var simple_interaction = Asc.scope.simple_interaction
