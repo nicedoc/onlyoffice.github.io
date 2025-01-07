@@ -5722,23 +5722,30 @@ function handleUploadPrepare(cmdType) {
 					if (nodeData && nodeData.write_list) {
 						if (question_map[id].ask_list) {
 							question_map[id].ask_list.forEach(ask => {
-								var writeData = nodeData.write_list.find(w => {
-									return w.id == ask.id
-								})
-								if (writeData && writeData.sub_type == 'cell' && writeData.cell_id) {
-									var oCell = Api.LookupObject(writeData.cell_id)
-									if (oCell && oCell.GetClassType && oCell.GetClassType() == 'tableCell') {
-										var oTable = oCell.GetParentTable()
-										if (oTable && oTable.GetPosInParent() == -1) {
+								var wids = [ask.id]
+								if (ask.other_fields) {
+									wids = wids.concat(ask.other_fields)
+								}
+								for (var wid of wids) {
+									var writeData = nodeData.write_list.find(w => {
+										return w.id == wid
+									})
+									if (writeData && writeData.sub_type == 'cell' && writeData.cell_id) {
+										var oCell = Api.LookupObject(writeData.cell_id)
+										if (oCell && oCell.GetClassType && oCell.GetClassType() == 'tableCell') {
+											var oTable = oCell.GetParentTable()
+											if (oTable && oTable.GetPosInParent() == -1) {
+												oCell = getCell(writeData)
+											}
+										} else {
 											oCell = getCell(writeData)
 										}
-									} else {
-										oCell = getCell(writeData)
-									}
-									if (oCell) {
-										oCell.SetBackgroundColor(255, 191, 191, cmdType == 'show' ? false : true)
+										if (oCell) {
+											oCell.SetBackgroundColor(255, 191, 191, cmdType == 'show' ? false : true)
+										}
 									}
 								}
+								
 							})
 						}
 					}
