@@ -8,10 +8,11 @@ function onValidate() {
 	var paper_info = getPaperInfo() || {}
 	if (paper_info && paper_info.workbook && paper_info.workbook.id > 0) {
 		// 练习册课时
-		onCheckPositions()
+		return onCheckPositions()
 	} else {
 		// todo..散页
 	}
+	return true
 }
 
 function notifyError(result) {
@@ -40,7 +41,7 @@ function onCheckPositions() {
 		notifyError({
 			code: UPLOAD_VALIDATE_RESULT.NOT_WORKBOOK_LAYOUT
 		})
-		return
+		return false
 	}
 	var preQuestionPositions = getPositions()
 	if (window.BiyueCustomData.page_type == 0) {
@@ -48,7 +49,7 @@ function onCheckPositions() {
 			notifyError({
 				code: UPLOAD_VALIDATE_RESULT.NOT_QUESTION
 			})
-			return
+			return false
 		}
 		var find = Object.keys(preQuestionPositions).find(e => {
 			return !preQuestionPositions[e].ref_id
@@ -57,7 +58,7 @@ function onCheckPositions() {
 			notifyError({
 				code: UPLOAD_VALIDATE_RESULT.MISS_QUESTION_UUID
 			})
-			return
+			return false
 		}
 		var res_check_postion = checkPositions(preQuestionPositions) || {}
 		var featureResult = checkEvaluationPosition()
@@ -67,7 +68,7 @@ function onCheckPositions() {
 				detail: res_check_postion,
 				feature: featureResult
 			})
-			return
+			return false
 		}
 	}
 	var preEvaluationPosition = getEvaluationPosition(page_size)
@@ -95,7 +96,8 @@ function onCheckPositions() {
 	window.biyue.closeDialog('uploadValidation')
 	Asc.scope.preQuestionPositions = preQuestionPositions
 	Asc.scope.preEvaluationPosition = preEvaluationPosition
-	showExportDialog()
+	// showExportDialog()
+	return true
 }
 
 function formattedPositions(positions, fieldsToCheck) {

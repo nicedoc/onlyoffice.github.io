@@ -5797,9 +5797,14 @@ function importExam() {
 					Asc.scope.questionPositions = res
 					return removeOnlyBigControl()
 				}).then(() => {
-					uploadValidateHandler.onValidate()
-					// window.biyue.showDialog('exportExamWindow', '上传试卷', 'examExport.html', 1000, 800, true)
 					setBtnLoading('importExam', false)
+					if (uploadValidateHandler.onValidate()) {
+						window.biyue.showDialog('exportExamWindow', '上传试卷', 'examExport.html', 1000, 800, true)
+					} else {
+						handleUploadPrepare('show').then(() => {
+							return setInteraction('useself')
+						})
+					}
 				})
 			}).catch((res) => {
 				setBtnLoading('uploadTree', false)
