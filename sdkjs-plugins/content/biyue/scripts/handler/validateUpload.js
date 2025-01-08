@@ -332,7 +332,7 @@ function checkEvaluationPosition() {
 		}
 		if (parse_extra_data.practise_again && 
 			parse_extra_data.practise_again.switch && 
-			!hasEvaluationPosition(ZONE_TYPE_NAME[ZONE_TYPE.STATISTICS])) {
+			!hasEvaluationPosition(ZONE_TYPE_NAME[ZONE_TYPE.AGAIN])) {
 			failList.push('再练区')
 		}
 		if (parse_extra_data.workbook_qr_code_show && !hasEvaluationPosition(ZONE_TYPE_NAME[ZONE_TYPE.QRCODE])) {
