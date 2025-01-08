@@ -2645,7 +2645,7 @@ import { getFocusAskData, isChoiceMode, isTextMode } from './model/ques.js'
         if (dialogParams) {
             var win = windows[dialogParams.winName]
             var win2 = windowList.find(e => {
-                return e.winName == dialogParams.winName
+                return e.name == dialogParams.winName
             })
             if (win2 && win2.visible && win) {
                 win.activate()
