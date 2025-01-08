@@ -192,13 +192,13 @@ function checkPositions(postions) {
 			title_region_err.push(getQuesObject(postions[key]))
 		}
 		if (
-			checkRegionEmpty(postions[key], 'write_ask_region', true) ||
+			checkRegionEmpty(postions[key], 'write_ask_region', false) ||
 			!postions[key]['write_ask_region'] ||
 			postions[key]['write_ask_region'].length === 0
 		) {
 			write_ask_region_err.push(getQuesObject(postions[key]))
 		}
-		if (checkRegionEmpty(postions[key], 'correct_ask_region', true)) {
+		if (checkRegionEmpty(postions[key], 'correct_ask_region', false)) {
 			correct_ask_region_err.push(getQuesObject(postions[key]))
 		}
 		postions[key].score = parseFloat(postions[key].score) || 0
