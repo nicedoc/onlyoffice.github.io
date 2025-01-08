@@ -41,7 +41,8 @@ import {
 	reqGetQuestionType,
 	focusAsk,
 	focusControl,
-	splitWordAsk
+	splitWordAsk,
+	deleteAsks
 } from './QuesManager.js'
 import {
 	tagImageCommon,
@@ -49,16 +50,16 @@ import {
 	locateItem
 } from './linkHandler.js'
 import { layoutRepair, removeAllComment, layoutDetect } from './layoutFixHandler.js'
-import { reqSaveInfo } from './api/paper.js'
+import { questionUpdateContent, reqSaveInfo } from './api/paper.js'
 
-import { initView, onSaveData, clickSplitQues, clickUploadTree, showTypeErrorPanel, changeTabPanel } from './pageView.js'
+import { initView, onSaveData, clickSplitQues, clickUploadTree, showTypeErrorPanel, changeTabPanel, onFeature } from './pageView.js'
 
 import { setInteraction, updateChoice, deleteAllFeatures } from './featureManager.js'
 import { getInfoForServerSave, showCom } from './model/util.js'
 import { refreshTree } from './panelTree.js'
 import { extractChoiceOptions, removeChoiceOptions } from './choiceQuestion.js'
 import { endAddShape } from './classifiedTypes.js'
-import { getFocusAskData } from './model/ques.js'
+import { getFocusAskData, isChoiceMode, isTextMode } from './model/ques.js'
 (function (window, undefined) {
 	var styleEnable = false
 	let activeQuesItem = ''
@@ -131,6 +132,16 @@ import { getFocusAskData } from './model/ques.js'
 					tree_info: Asc.scope.tree_info
 				})
 				break
+			case 'exportMessage':
+				modal.command('initPaper', {
+					paper_info: getPaperInfo(),
+					xtoken: getToken(),
+					questionPositions: Asc.scope.questionPositions || {},
+          			biyueCustomData: window.BiyueCustomData,
+					preQuestionPositions: Asc.scope.preQuestionPositions,
+					preEvaluationPosition: Asc.scope.preEvaluationPosition
+				})
+				break
       		case 'positionSaveSuccess':
 				closeWindow(modal.id)
                 let params = {
@@ -190,34 +201,33 @@ import { getFocusAskData } from './model/ques.js'
 					var question_map = window.BiyueCustomData.question_map
 					var new_choice_ids = []
 					var remove_choice_ids = []
-					Object.keys(message.data.question_map).forEach(e => {
-						var newData = message.data.question_map[e]
-						var newChoice = newData.ques_mode == 1 || newData.ques_mode == 5
-						var oldChoice = question_map[e].ques_mode == 1 || question_map[e].ques_mode == 5
-						if (newChoice) {
-							if (!oldChoice) {
-								new_choice_ids.push(e)
+					var delete_asks = []
+					for (var id in message.data.question_map) {
+						if (!question_map[id]) {
+							continue
+						}
+						var newData = message.data.question_map[id]
+						var newMode = newData.ques_mode
+						var oldMode = question_map[id].ques_mode
+						if (isChoiceMode(newMode)) {
+							if (!isChoiceMode(oldMode)) {
+								new_choice_ids.push(id)
 							}
-						} else if (oldChoice) {
-							remove_choice_ids.push(e)
+						} else if (isChoiceMode(oldMode)) {
+							remove_choice_ids.push(id)
 						}
-					})
-          			window.BiyueCustomData.question_map = message.data.question_map
-          			console.log('更新question_map', message.data)
-                    StoreCustomData(() => {
-						// closeWindow(modal.id)
-						if (window.tab_select == 'tabQues') {
-							document.dispatchEvent(new CustomEvent('refreshQues'))
-						}
-                        console.log('store custom data done')
-						if (message.data.needUpdateInteraction) {
-							setInteraction('useself').then(() => {
-								updateQuesChange(message.data.needUpdateChoice, new_choice_ids, remove_choice_ids)
+						if (isTextMode(newMode) && question_map[id].ask_list && question_map[id].ask_list.length) {
+							delete_asks.push({
+								ques_id: id,
+								ask_id: 0
 							})
-						} else {
-							updateQuesChange(message.data.needUpdateChoice, new_choice_ids, remove_choice_ids)
 						}
-                    })
+						question_map[id].question_type = newData.question_type
+						question_map[id].ques_mode = newData.ques_mode
+					}
+					window.BiyueCustomData.question_map = question_map
+          			console.log('更新question_map', question_map)
+					updateQuesChange(message.data.needUpdateChoice, new_choice_ids, remove_choice_ids, delete_asks, message.data.needUpdateInteraction)
         		}
         		break
 			case 'showMessageBox':
@@ -225,9 +235,13 @@ import { getFocusAskData } from './model/ques.js'
 				break
 			case 'initDialog':
 				if (message.initmsg) {
-					modal.command(message.initmsg, {
+					var obj = {
 						BiyueCustomData: window.BiyueCustomData
-					})
+					}
+					if (message.initmsg == 'uploadValidationMessage') {
+						obj.validate_info = Asc.scope.upload_validate
+					}
+					modal.command(message.initmsg, obj)
 				}
 				break
 			case 'shortcutMessage':
@@ -307,8 +321,25 @@ import { getFocusAskData } from './model/ques.js'
 				}
 				break
 			case 'updateScore':
-				window.BiyueCustomData.question_map = message.data.question_map
-				console.log('更新question_map', message.data)
+				for (var id in message.data.question_map) {
+					var quesData = window.BiyueCustomData.question_map[id]
+					if (!quesData) {
+						continue
+					}
+					var newData = message.data.question_map[id]
+					if (quesData.ask_list && quesData.ask_list.length) {
+						for (var ask of quesData.ask_list) {
+							if (newData.ask_list && newData.ask_list.length) {
+								var ask1 = newData.ask_list.find(newAsk => ask.id == newAsk.id)
+								if (ask1) {
+									ask.scope = ask1.score
+								}
+							}
+						}
+					}
+					quesData.score = newData.score
+				}
+				console.log('更新question_map', window.BiyueCustomData.question_map)
 				// todo.. 有打分区时，需要更新打分区
 				StoreCustomData(() => {
 					if (window.tab_select == 'tabQues') {
@@ -326,27 +357,93 @@ import { getFocusAskData } from './model/ques.js'
 					})
 				})
 				break
+			case 'uploadValidationMessage':
+				if (message.cmd == 'toBatchType') {
+					onBatchQuesTypeSet()
+				} else if (message.cmd == 'toBatchScore') {
+					onBatchScoreSet()
+				} else if (message.cmd == 'toAllUpdate') {
+					reqUploadTree()
+				} else if (message.cmd == 'reCheck') {
+					importExam()
+				} else if (message.cmd == 'locate') {
+					focusControl(message.data).then(res => {
+						if (window.tab_select != 'tabQues') {
+							changeTabPanel('tabQues', {
+								detail: {
+									client_id: message.data
+								}
+							})
+						} else {
+							var event = new CustomEvent('focusQuestion', {
+								detail: {
+									ques_id: message.data
+								}
+							})
+							document.dispatchEvent(event)
+						}
+					})
+				} else if (message.cmd == 'toFeature') {
+					onFeature()
+				}
+				break
 			default:
 				break
 		}
 	}
 
-	function updateQuesChange(needUpdateChoice, new_choice_ids, remove_choice_ids) {
-		if (needUpdateChoice) {
-			return deleteChoiceOtherWrite(null, false).then((res) => {
+	function updateQuesChange(needUpdateChoice, new_choice_ids, remove_choice_ids, delete_asks, needUpdateInteraction) {
+		return new Promise((resolve, reject) => {
+			if (delete_asks && delete_asks.length) {
+				return deleteAsks(delete_asks, false, false).then(() => {
+					return resolve()
+				})
+			} else {
+				return resolve()
+			}
+		}).then(() => {
+			if (needUpdateChoice) {
+				return deleteChoiceOtherWrite(null, false)
+			} else {
+				return new Promise((resolve, reject) => {
+					return resolve()
+				})
+			}
+		}).then(() => {
+			if (needUpdateChoice) {
 				return updateChoice(true)
-			}).then(() => {
-				if (new_choice_ids.length) {
-					return extractChoiceOptions(new_choice_ids.concat(remove_choice_ids), true)
-				} else if (remove_choice_ids.length) {
-					return removeChoiceOptions(remove_choice_ids)
-				} else {
-					return new Promise((resolve, reject) => {
-						return resolve()
-					})
-				}
+			} else {
+				return new Promise((resolve, reject) => {
+					return resolve()
+				})
+			}
+		}).then(() => {
+			if (new_choice_ids && new_choice_ids.length) {
+				return extractChoiceOptions(new_choice_ids.concat(remove_choice_ids), true)
+			} else if (remove_choice_ids && remove_choice_ids.length) {
+				return removeChoiceOptions(remove_choice_ids)
+			} else {
+				return new Promise((resolve, reject) => {
+					return resolve()
+				})
+			}
+		}).then(() => {
+			if (needUpdateInteraction) {
+				return setInteraction('useself')
+			} else {
+				return new Promise((resolve, reject) => {
+					return resolve()
+				})
+			}
+		}).then(() => {
+			StoreCustomData(() => {
+				// closeWindow(modal.id)
+				console.log('store custom data done')
+				if (window.tab_select == 'tabQues') {
+					document.dispatchEvent(new CustomEvent('refreshQues'))
+				}	
 			})
-		}
+		})
 	}
 
 	let splitQuestion = function (text_all, text_pos) {
@@ -1865,8 +1962,8 @@ import { getFocusAskData } from './model/ques.js'
 					oDocument.GetRangeBySelect(),
 					oDocument.GetRange()
 				)
-				let allText = oDocument.GetRange().Text
-				let selectText = oRange.Text
+				let allText = oDocument.GetRange().GetText()
+				let selectText = oRange.GetText()
 				console.log('-------:', allText.indexOf(selectText))
 				return { type }
 			},
@@ -2039,29 +2136,29 @@ import { getFocusAskData } from './model/ques.js'
 			{ InternalId: curControl.InternalId, tag: curTag },
 		])
 	}
-
-	window.Asc.plugin.event_onFocusContentControl = function (control) {
-		biyueCallCommand(
-			window,
-			function () {
-				return AscCommon.global_keyboardEvent.CtrlKey
-			},
-			false,
-			true
-		).then((ctrlKey) => {
-			if (
-				true === ctrlKey &&
-				prevControl !== undefined &&
-				control !== undefined &&
-				control.InternalId != prevControl.InternalId
-			) {
-				window.currControl = control
-			} else {
-				window.prevControl = undefined
-				window.currControl = undefined
-			}
-		})
-	}
+	// 不注释的话，command可能会同时调用，biyueCallCommand.stack的length > 1，代码无法执行
+	// window.Asc.plugin.event_onFocusContentControl = function (control) {
+	// 	return biyueCallCommand(
+	// 		window,
+	// 		function () {
+	// 			return AscCommon.global_keyboardEvent.CtrlKey
+	// 		},
+	// 		false,
+	// 		true
+	// 	).then((ctrlKey) => {
+	// 		if (
+	// 			true === ctrlKey &&
+	// 			prevControl !== undefined &&
+	// 			control !== undefined &&
+	// 			control.InternalId != prevControl.InternalId
+	// 		) {
+	// 			window.currControl = control
+	// 		} else {
+	// 			window.prevControl = undefined
+	// 			window.currControl = undefined
+	// 		}
+	// 	})
+	// }
 
 	window.Asc.plugin.event_onClick = function (options) {
 		console.log('event click', options)
@@ -2544,6 +2641,34 @@ import { getFocusAskData } from './model/ques.js'
 		showDialog('messageBoxWindow', params.title || '提示', 'message.html', 200, 100, ismodal)
 	}
 
+	function refreshDialog(dialogParams, msgId, data) {
+        if (dialogParams) {
+            var win = windows[dialogParams.winName]
+            var win2 = windowList.find(e => {
+                return e.name == dialogParams.winName
+            })
+            if (win2 && win2.visible && win) {
+                win.activate()
+                win.command(msgId, data)
+            } else {
+                const { winName, name, url, width, height, isModal, type, icons } = dialogParams
+                showDialog(winName, name, url, width, height, isModal, type, icons)
+            }
+        }
+    }
+
+	function closeDialog(winName) {
+		var win = windowList.find(e => {
+			return e.name == winName
+		})
+		if (!win || !(win.visible)) {
+			return
+		}
+		if (win.visible) {
+			closeWindow(win.id)
+		}
+	}
+
 	window.biyue = {
 		showDialog: showDialog,
 		StoreCustomData: StoreCustomData,
@@ -2552,6 +2677,8 @@ import { getFocusAskData } from './model/ques.js'
 		reqUploadTree: reqUploadTree,
 		handleInit: handleInit,
 		onBatchScoreSet: onBatchScoreSet,
-		sendMessageToWindow: sendMessageToWindow
+		sendMessageToWindow: sendMessageToWindow,
+		refreshDialog: refreshDialog,
+		closeDialog: closeDialog
 	}
 })(window, undefined)

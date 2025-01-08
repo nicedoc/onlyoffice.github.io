@@ -12,6 +12,8 @@ import { refreshTree } from './panelTree.js'
 import { extractChoiceOptions, removeChoiceOptions, getChoiceOptionAndSteam, setChoiceOptionLayout } from './choiceQuestion.js'
 import { getInteractionTypes } from './model/feature.js'
 import proportionHandler from './handler/proportionHandler.js'
+import uploadValidateHandler from './handler/validateUpload.js'
+import { isChoiceMode, isTextMode } from "./model/ques.js";
 var g_click_value = null
 var upload_control_list = []
 
@@ -453,18 +455,25 @@ function getContextMenuItems(type, selectedRes) {
 				cData = getControlData(tag, selectedRes.parentSdts.length - 2)
 				console.log('cData', cData)
 				if (curControl.classType == 'blockLvlSdt') {
-					valueMap['clearChildren'] = 1
+					if (cData && cData.level_type != 'ask') {
+						valueMap['clearChildren'] = 1
+					}
 					if (!cData || !cData.level_type) {
 						valueMap['question'] = 1
 						valueMap['struct'] = 1
 					}
 				} else if (curControl.classType == 'inlineLvlSdt' && 
-					tag.regionType == 'choiceOption' && 
+					tag.regionType == 'choiceOption' && cData &&
 					cData.parent_id && 
 					question_map[cData.parent_id] && 
-					(question_map[cData.parent_id].ques_mode == 1 || question_map[cData.parent_id].ques_mode == 5)) {
+					(isChoiceMode(question_map[cData.parent_id].ques_mode))) {
 					valueMap['choiceOption'] = 1
 				}
+			}
+			var isTextQues = false // 是否文本题
+			if (cData && cData.level_type == 'question' && question_map[cData.ques_id] && isTextMode(question_map[cData.ques_id].ques_mode)) {
+				isTextQues = true
+				valueMap['clearChildren'] = 0
 			}
 			if (cData) {
 				if (type == 'Selection') {
@@ -472,8 +481,12 @@ function getContextMenuItems(type, selectedRes) {
 					valueMap['struct'] = 1
 					if (cData.level_type == 'question' || cData.level_type == 'big') {
 						valueMap['write'] = 1
-						if (question_map[cData.ques_id] && (question_map[cData.ques_id].ques_mode == 1 || question_map[cData.ques_id].ques_mode == 5)) {
-							valueMap['choiceOption'] = 1
+						if (question_map[cData.ques_id]) {
+							if (isChoiceMode(question_map[cData.ques_id].ques_mode)) {
+								valueMap['choiceOption'] = 1	
+							} else if (isTextQues) {
+								valueMap['write'] = 0
+							}
 						}
 						if (selectedRes.cells && selectedRes.cells.length > 1) {
 							console.log('支持合并小问')
@@ -545,7 +558,7 @@ function getContextMenuItems(type, selectedRes) {
 							text: '取消合并'
 						})
 					}
-				} else if (cData.level_type == 'question') {
+				} else if (cData.level_type == 'question' && !isTextQues) {
 					items.push({
 						id: 'write',
 						text: '作答区',
@@ -757,11 +770,12 @@ function getNodeList() {
 											drawing_id: oChild2.Id,
 											shape_id: oChild2.GraphicObj.Id,
 										}
-										obj.bpage = oChild2.PageNum + 1
-										obj.bx = oChild2.X
-										obj.by = oChild2.Y
-										obj.ex = oChild2.X + oChild2.Width
-										obj.ey = oChild2.Y + oChild2.Height
+										// obj.bpage = oChild2.PageNum + 1
+										// obj.bx = oChild2.X
+										// obj.by = oChild2.Y
+										// obj.ex = oChild2.X + oChild2.Width
+										// obj.ey = oChild2.Y + oChild2.Height
+										obj.t = titleObj.feature.t ? titleObj.feature.t * 1 : 0
 										write_list.push(obj)
 									}
 								}
@@ -777,14 +791,14 @@ function getNodeList() {
 							sub_type: 'control',
 							control_id: oChild.Sdt.GetId(),
 						}
-						var bounds = oChild.Sdt.Bounds
-						if (bounds && bounds[0]) {
-							obj.bpage = bounds[0].Page + 1
-							obj.bx = bounds[0].X
-							obj.by = bounds[0].Y
-							obj.ex = bounds[0].X + bounds[0].W
-							obj.ey = bounds[0].Y + bounds[0].H
-						}
+						// var bounds = oChild.Sdt.Bounds
+						// if (bounds && bounds[0]) {
+						// 	obj.bpage = bounds[0].Page + 1
+						// 	obj.bx = bounds[0].X
+						// 	obj.by = bounds[0].Y
+						// 	obj.ex = bounds[0].X + bounds[0].W
+						// 	obj.ey = bounds[0].Y + bounds[0].H
+						// }
 						write_list.push(obj)
 					}
 				}
@@ -802,14 +816,14 @@ function getNodeList() {
 					sub_type: 'control',
 					control_id: oElement.Sdt.GetId(),
 				}
-				var bounds = oControl.Sdt.Bounds
-				if (bounds && bounds[0]) {
-					obj.bpage = bounds[0].Page + 1
-					obj.bx = bounds[0].X
-					obj.by = bounds[0].Y
-					obj.ex = bounds[0].X + bounds[0].W
-					obj.ey = bounds[0].Y + bounds[0].H
-				}
+				// var bounds = oControl.Sdt.Bounds
+				// if (bounds && bounds[0]) {
+				// 	obj.bpage = bounds[0].Page + 1
+				// 	obj.bx = bounds[0].X
+				// 	obj.by = bounds[0].Y
+				// 	obj.ex = bounds[0].X + bounds[0].W
+				// 	obj.ey = bounds[0].Y + bounds[0].H
+				// }
 				write_list.push(obj)
 			}
 		}
@@ -817,7 +831,8 @@ function getNodeList() {
 			if (!oCell || oCell.GetClassType() != 'tableCell') {
 				return {}
 			}
-			var pagesCount = oCell.Cell.PagesCount
+			var oTable = oCell.GetParentTable()
+			var pagesCount = oTable.Table.getPageCount()
 			for (var p = 0; p < pagesCount; ++p) {
 				var pagebounds = oCell.Cell.GetPageBounds(p)
 				if (!pagebounds) {
@@ -836,6 +851,28 @@ function getNodeList() {
 			}
 			return {}
 		}
+		// 获取所有作答区
+		function getWriteList() {
+			var list = []
+			var shapes = oDocument.GetAllShapes() || []
+			for (var oShape of shapes) {
+				if (oShape.GetTitle) {
+					var titleObj = Api.ParseJSON(oShape.GetTitle())	
+					if (titleObj.feature && titleObj.feature.zone_type == 'question' && titleObj.feature.sub_type == 'write') {
+						list.push({
+							id: titleObj.feature.client_id,
+							parent_id: titleObj.feature.parent_id,
+							sub_type: titleObj.feature.sub_type,
+							t: titleObj.feature.t,
+							drawing_id: oShape.Drawing.Id,
+							shape_id: oShape.Shape.Id
+						})
+					}
+				}
+			}
+			return list
+		}
+		var all_write_list = getWriteList()
 		for (var i = 0, imax = controls.length; i < imax; ++i) {
 			var oControl = controls[i]
 			var tagInfo = Api.ParseJSON(oControl.GetTag())
@@ -872,7 +909,7 @@ function getNodeList() {
 										row_index: i1,
 										cell_index: i2,
 										old_id: oldId
-									}, getCellBounds(oCell))
+									})
 									write_list.push(obj)
 									tableTitle[`${i1}_${i2}`] = 'c_' + oCell.Cell.Id
 								} else {
@@ -895,6 +932,20 @@ function getNodeList() {
 						oElement.SetTableDescription(JSON.stringify(tableTitle))
 					}
 				}
+				if (all_write_list.length) {
+					for (var write of all_write_list) {
+						if (write.parent_id == tagInfo.client_id) {
+							var exist = write_list.find(e => {
+								if (e.shape_id == write.shape_id) {
+									return true
+								}
+							})
+							if (!exist) {
+								write_list.push(write)
+							}
+						}
+					}
+				}
 				var nodeObj = {
 					id: tagInfo.client_id,
 					regionType: tagInfo.regionType,
@@ -910,7 +961,8 @@ function getNodeList() {
 							cell_id: oCell.Cell.Id,
 							row_index: oCell.GetRowIndex(),
 							cell_index: oCell.GetIndex()
-						}, getCellBounds(oCell))
+						})
+						write_list.push(obj)
 						nodeObj.cell_ask = true
 					}
 				}
@@ -918,33 +970,40 @@ function getNodeList() {
 				if (write_list.length > 1 && write_list.find(e => {
 					return e.sub_type == 'write'
 				})) {
-					write_list = write_list.sort((a, b) => {
-						if (a.bpage && b.bpage) {
-							if (a.bpage != b.bpage) {
-								return a.bpage - b.bpage
-							} else {
-								if (a.by == b.by) {
-									return a.bx - b.bx
-								} else {
-									if (a.ey <= b.by) {
-										return -1
-									} else if (b.ey <= a.by) {
-										return 1
-									} else {
-										if (b.by > (a.by + (a.ey - a.by) * 0.5)) {
-											return -1
-										} else if (a.by > (b.by + (b.ey - b.by) * 0.5)) {
-											return 1
-										} else {
-											return a.bx - b.bx
-										}
-									}
-								}
-							}
-						} else {
-							return a.index - b.index
-						}
-					})
+					var sortType = 'time'
+					if (sortType == 'pos') {
+						// write_list = write_list.sort((a, b) => {
+						// 	if (a.bpage && b.bpage) {
+						// 		if (a.bpage != b.bpage) {
+						// 			return a.bpage - b.bpage
+						// 		} else {
+						// 			if (a.by == b.by) {
+						// 				return a.bx - b.bx
+						// 			} else {
+						// 				if (a.ey <= b.by) {
+						// 					return -1
+						// 				} else if (b.ey <= a.by) {
+						// 					return 1
+						// 				} else {
+						// 					if (b.by > (a.by + (a.ey - a.by) * 0.5)) {
+						// 						return -1
+						// 					} else if (a.by > (b.by + (b.ey - b.by) * 0.5)) {
+						// 						return 1
+						// 					} else {
+						// 						return a.bx - b.bx
+						// 					}
+						// 				}
+						// 			}
+						// 		}
+						// 	} else {
+						// 		return a.index - b.index
+						// 	}
+						// })
+					} else if (sortType == 'time') {
+						write_list = write_list.sort((a, b) => {
+							return a.t - b.t
+						})
+					}
 					write_list.forEach(e => {
 						delete e.index
 						delete e.bpage
@@ -952,6 +1011,8 @@ function getNodeList() {
 						delete e.by
 						delete e.ex
 						delete e.ey
+						delete e.index
+						delete e.t
 					})
 				}
 				nodeObj.write_list = write_list
@@ -980,12 +1041,16 @@ function updateScore(qid) {
 function handleChangeType(res, res2) {
 	console.log('handleChangeType', res, res2)
 	if (!res) {
-		return
+		return new Promise((resolve, reject) => {
+			return resolve()
+		})
 	}
 	var change_list = res.change_list || []
 	if (change_list.length == 0) {
 		if (res.typeName != 'clearChildren') {
-			return
+			return new Promise((resolve, reject) => {
+				return resolve()
+			})
 		}
 	}
 	if (res.client_node_id) {
@@ -1218,7 +1283,9 @@ function handleChangeType(res, res2) {
 					nodeData.level_type = targetLevel
 				}
 				if (targetLevel == 'question') {
-					nodeData.write_list = ask_list
+					if (ask_list) {
+						nodeData.write_list = ask_list
+					}
 					if (!question_map[item.client_id]) {
 						var write_list = nodeData.write_list || []
 						question_map[item.client_id] = {
@@ -1233,7 +1300,9 @@ function handleChangeType(res, res2) {
 							})
 						}
 					} else {
-						updateAskList(item.client_id, ask_list)
+						if (ask_list) {
+							updateAskList(item.client_id, ask_list)
+						}
 						if (level_type == 'setBig' || level_type == 'clearBig') {
 							question_map[item.client_id].text = getQuesText(item.text)
 							question_map[item.client_id].ques_default_name = item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(targetLevel, item.text)
@@ -1266,16 +1335,18 @@ function handleChangeType(res, res2) {
 						if (ndata && ndata.write_list) {
 							if (parentNode.merge_id) {
 								parentNode.cell_ask = ndata.cell_ask
+								addIds = [parentNode.merge_id]
 							}
 							var writeIndex = ndata.write_list.findIndex(e => {
 								return e.id == item.client_id
 							})
 							if (writeIndex == -1 && item.type != 'remove') {
-								ndata.write_list.push({
-									id: item.client_id,
-									control_id: item.control_id,
-									regionType: item.regionType
+								var obj = Object.assign({}, item, {
+									id: item.client_id
 								})
+								delete obj.client_id
+								delete obj.parent_id
+								ndata.write_list.push(obj)
 								writeIndex = 0
 							}
 							var real_parent_id = parentNode.merge_id ? parentNode.merge_id : parent_id
@@ -1300,7 +1371,20 @@ function handleChangeType(res, res2) {
 									reSortAsks(real_parent_id)
 									updateScore(real_parent_id)
 								}
-								removeUnvalidAsk(real_parent_id, ndata.write_list)
+								if (parentNode.merge_id) {
+									var wlist = []
+									for (var id3 of question_map[real_parent_id].ids) {
+										var ndata3 = res2.find(e => {
+											return e.id == id3
+										})
+										if (ndata3) {
+											wlist = wlist.concat(ndata3.write_list)
+										}
+									}
+									removeUnvalidAsk(real_parent_id, wlist)
+								} else {
+									removeUnvalidAsk(real_parent_id, ndata.write_list)
+								}
 							}
 						}
 						if (ndata) {
@@ -1408,7 +1492,7 @@ function handleChangeType(res, res2) {
 	if (typequesId) {
 		return reqGetQuestionType([typequesId], 1)
 		.then((res2) => {
-			if (window.BiyueCustomData.question_map[typequesId].ques_mode == 1 || window.BiyueCustomData.question_map[typequesId].ques_mode == 5) {
+			if (isChoiceMode(window.BiyueCustomData.question_map[typequesId].ques_mode)) {
 				return extractChoiceOptions([typequesId], false)
 			} else {
 				return new Promise((resolve, reject) => {
@@ -1501,7 +1585,7 @@ function handleChangeType(res, res2) {
 				})
 			})
 		} else {
-			deleteChoiceOtherWrite(null, true).then(res => {
+			return deleteChoiceOtherWrite(null, true).then(res => {
 				return notifyQuestionChange(update_node_id)
 			}).then(() => {
 				window.biyue.StoreCustomData(() => {
@@ -1653,25 +1737,32 @@ function batchChangeQuesType(type) {
 		var choice_option_remove = []
 		var useGather = window.BiyueCustomData.choice_display && window.BiyueCustomData.choice_display.style != 'brackets_choice_region'
 		var interaction_ids = []
+		var delete_asks = []
 		res.list.forEach(e => {
 			if (question_map[e.id]) {
 				var oldMode = question_map[e.id].ques_mode
 				var newMode = getQuesMode(type)
-				if (question_map[e.id].interaction != 'none' && (oldMode == 6 || newMode == 6)) {
+				if (question_map[e.id].interaction != 'none' && (isTextMode(oldMode) || isTextMode(newMode))) {
 					interaction_ids.push(e.id)
 				}
 				question_map[e.id].question_type = type * 1
 				question_map[e.id].ques_mode = newMode
-				if (newMode == 1 || newMode == 5) {
+				if (isChoiceMode(newMode)) {
 					choice_ids.push(e.id)
-					if (oldMode != 1 && oldMode != 5) {
+					if (!isChoiceMode(oldMode)) {
 						choice_option_add.push(e.id)
 					}
-				} else if (oldMode == 1 || oldMode == 5) {
+				} else if (isChoiceMode(oldMode)) {
 					choice_option_remove.push(e.id)
 				}
 				if (!judgeChoiceAll && useGather) {
-					judgeChoiceAll = (newMode == 1 || newMode == 5 || oldMode == 1 || oldMode == 5)
+					judgeChoiceAll = (isChoiceMode(newMode) || isChoiceMode(oldMode))
+				}
+				if (isTextMode(newMode) && question_map[e.id].ask_list && question_map[e.id].ask_list.length) {
+					delete_asks.push({
+						ques_id: e.id,
+						ask_id: 0
+					})
 				}
 			}
 		})
@@ -1692,8 +1783,19 @@ function batchChangeQuesType(type) {
 			choice_option_add,
 			choice_option_remove,
 			judgeChoiceAll,
-			interaction_ids
+			interaction_ids,
+			delete_asks
 		}
+	}).then(res => {
+		return new Promise((resolve, reject) => {
+			if (res.delete_asks && res.delete_asks.length) {
+				return deleteAsks(res.delete_asks, false, false).then(() => {
+					resolve(res)
+				})
+			} else {
+				resolve(res)
+			}
+		})
 	}).then(res => {
 		return new Promise((resolve, reject) => {
 			if (res && res.choice_ids && res.choice_ids.length) {
@@ -1739,7 +1841,11 @@ function batchChangeQuesType(type) {
 		window.biyue.sendMessageToWindow('batchQuestionTypeWindow', 'quesMapUpdate', {
 			question_map: window.BiyueCustomData.question_map
 		})
-		window.biyue.StoreCustomData()
+		window.biyue.StoreCustomData(() => {
+			if (window.tab_select == 'tabQues') {
+				document.dispatchEvent(new CustomEvent('refreshQues'))
+			}
+		})
 	})
 }
 // 批量设置互动
@@ -2285,6 +2391,25 @@ function confirmLevelSet(levels) {
 	})
 	.then(() => {
 		return reqGetQuestionType()
+	})
+	.then(() => {
+		var deleteList = []
+		for (var key in window.BiyueCustomData.question_map) {
+			var quesData = window.BiyueCustomData.question_map[key]
+			if (quesData.level_type == 'question' && isTextMode(quesData.ques_mode)) {
+				deleteList.push({
+					ques_id: key,
+					ask_id: 0
+				})
+			}
+		}
+		if (deleteList.length) {
+			return deleteAsks(deleteList, false, false)
+		} else {
+			return new Promise((resolve, reject) => {
+				return resolve()
+			})
+		}
 	})
 	.then(() => {
 		return deleteChoiceOtherWrite()
@@ -3002,7 +3127,6 @@ function showAskCells(cmdType) {
 		})
 	}, false, true)
 }
-
 
 // 全量更新
 function reqUploadTree() {
@@ -3815,6 +3939,32 @@ function deleteAsks(askList, recalc = true, notify = true) {
 			}
 			return null
 		}
+		function deleteQuesWrites(qid) {
+			var allDrawings = oDocument.GetAllShapes() || []
+			for (var j = 0; j < allDrawings.length; ++j) {
+				var paraDrawing = allDrawings[j].getParaDrawing()
+				if (!paraDrawing) {
+					continue
+				}
+				var tag = Api.ParseJSON(allDrawings[j].GetTitle())
+				if (tag.feature && tag.feature.zone_type == 'question' && tag.feature.sub_type == 'write' && tag.feature.parent_id == qid) {
+					var run = paraDrawing.GetRun()
+					if (run) {
+						var paragraph = run.GetParagraph()
+						if (paragraph) {
+							var oParagraph = Api.LookupObject(paragraph.Id)
+							var ipos = run.GetPosInParent()
+							if (ipos >= 0) {
+								allDrawings[j].Delete()
+								if (oParagraph) {
+									oParagraph.RemoveElement(ipos)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 		function deleteOneNode(node_id, index, sum, quesId) {
 			var nodeData = node_list.find(e => {
 				return e.id == node_id
@@ -3826,6 +3976,7 @@ function deleteAsks(askList, recalc = true, notify = true) {
 			if (!quesControl || quesControl.GetClassType() != 'blockLvlSdt') {
 				return
 			}
+			var quesControlId = quesControl.Sdt.GetId()
 			if (aid == 0) {
 				// 删除所有小问，遍历出所有小问，全部删除
 				// 删除所有精准互动
@@ -3833,26 +3984,51 @@ function deleteAsks(askList, recalc = true, notify = true) {
 				for (var j = 0; j < childDrawings.length; ++j) {
 					var tag = Api.ParseJSON(childDrawings[j].GetTitle())
 					if (tag.feature && tag.feature.zone_type == 'question') {
+						if (nodeData.is_big) {
+							var parentControl = childDrawings[j].GetParentContentControl()
+							if (parentControl) {
+								if (parentControl.Sdt.GetId() != quesControlId) {
+									continue
+								}
+							}
+						}
 						if (tag.feature.sub_type == 'ask_accurate') {
 							deleShape(childDrawings[j])
 						}
 					}
 				}
-				// 删除除订正框外的所有inlineControl
+				// 删除除订正框和选择题选项外的所有inlineControl
 				var childControls = quesControl.GetAllContentControls() || []
-				childControls.forEach(e => {
+				for (var e of childControls) {
 					if (e.Sdt) {
 						var tag = Api.ParseJSON(e.GetTag())
+						if (tag.regionType == 'choiceOption') {
+							continue
+						}
+						if (nodeData.is_big) {
+							var parentControl = e.GetParentContentControl()
+							if (parentControl && parentControl.Sdt.GetId() != quesControlId) {
+								continue
+							}	
+						}
 						if (e.GetClassType() == 'inlineLvlSdt' && tag.regionType != 'num') {
-							Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
+							Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())	
 						} else if (e.GetClassType() == 'blockLvlSdt' && tag.regionType == 'write') {
 							Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
 						}
 					}
-				})
+				}
 				// 删除所有write 和 identify
 				childDrawings = quesControl.GetAllDrawingObjects() || []
 				for (var j = 0; j < childDrawings.length; ++j) {
+					if (nodeData.is_big) {
+						var parentControl = childDrawings[j].GetParentContentControl()
+						if (parentControl) {
+							if (parentControl.Sdt.GetId() != quesControlId) {
+								continue
+							}
+						}
+					}
 					var paraDrawing = childDrawings[j].getParaDrawing()
 					if (!paraDrawing) {
 						continue
@@ -3879,6 +4055,8 @@ function deleteAsks(askList, recalc = true, notify = true) {
 						}
 					}
 				}
+				// 删除全文中属于我的write，这些write未必相对于我浮动
+				deleteQuesWrites(node_id)
 				// 删除所有单元格小问
 				var pageCount = quesControl.Sdt.getPageCount()
 				for (var p = 0; p < pageCount; ++p) {
@@ -3887,6 +4065,14 @@ function deleteAsks(askList, recalc = true, notify = true) {
 					if (tables) {
 						for (var t = 0; t < tables.length; ++t) {
 							var oTable = tables[t]
+							if (nodeData.is_big) {
+								var parentControl = oTable.GetParentContentControl()
+								if (parentControl) {
+									if (parentControl.Sdt.GetId() != quesControlId) {
+										continue
+									}
+								}
+							}
 							var rowcount = oTable.GetRowsCount()
 							var find = false
 							for (var r = 0; r < rowcount; ++r) {
@@ -4643,12 +4829,16 @@ function updateQuesScore(ids) {
 // 针对单道题，进行重新切题
 function splitControl(qid) {
 	if (!qid) {
-		return
+		return new Promise((resolve, reject) => {
+			return resolve({})
+		})
 	}
 	var question_map = window.BiyueCustomData.question_map || {}
 	var node_list = window.BiyueCustomData.node_list || []
-	if (!question_map[qid]) {
-		return
+	if (!question_map[qid] || isTextMode(question_map[qid].ques_mode)) {
+		return new Promise((resolve, reject) => {
+			return resolve({})
+		})
 	}
 	Asc.scope.node_list = node_list
 	Asc.scope.question_map = question_map
@@ -4934,7 +5124,7 @@ function splitControl(qid) {
 				if (oCell) {
 					var cellContent = oCell.GetContent()
 					if (cellContent.GetElementsCount() == 1) {
-						var text = control.GetRange().Text
+						var text = control.GetRange().GetText()
 						if (text && text.replace(/[\s\r\n]/g, '').length === 0) {
 							var oTable = oCell.GetParentTable()
 							result.change_list.push({
@@ -4978,21 +5168,27 @@ function splitControl(qid) {
 		if (res1) {
 			if (res1.message && res1.message != '') {
 				alert(res1.message)
-			} else {
-				if (!res1.change_list || res1.change_list.length == 0) {
-					if (res1.ques_id) {
-						return notifyQuestionChange(res1.ques_id)
-					} else {
-						return new Promise((resolve, reject) => {
-							resolve()
-						})
-					}
+				return new Promise((resolve, reject) => {
+					return resolve({})
+				})
+			}
+			if (!res1.change_list || res1.change_list.length == 0) {
+				if (res1.ques_id) {
+					return notifyQuestionChange(res1.ques_id)
 				} else {
-					return getNodeList().then(res2 => {
-						return handleChangeType(res1, res2)
+					return new Promise((resolve, reject) => {
+						resolve()
 					})
 				}
+			} else {
+				return getNodeList().then(res2 => {
+					return handleChangeType(res1, res2)
+				})
 			}
+		} else {
+			return new Promise((resolve, reject) => {
+				return resolve({})
+			})
 		}
 	})
 }
@@ -5529,23 +5725,30 @@ function handleUploadPrepare(cmdType) {
 					if (nodeData && nodeData.write_list) {
 						if (question_map[id].ask_list) {
 							question_map[id].ask_list.forEach(ask => {
-								var writeData = nodeData.write_list.find(w => {
-									return w.id == ask.id
-								})
-								if (writeData && writeData.sub_type == 'cell' && writeData.cell_id) {
-									var oCell = Api.LookupObject(writeData.cell_id)
-									if (oCell && oCell.GetClassType && oCell.GetClassType() == 'tableCell') {
-										var oTable = oCell.GetParentTable()
-										if (oTable && oTable.GetPosInParent() == -1) {
+								var wids = [ask.id]
+								if (ask.other_fields) {
+									wids = wids.concat(ask.other_fields)
+								}
+								for (var wid of wids) {
+									var writeData = nodeData.write_list.find(w => {
+										return w.id == wid
+									})
+									if (writeData && writeData.sub_type == 'cell' && writeData.cell_id) {
+										var oCell = Api.LookupObject(writeData.cell_id)
+										if (oCell && oCell.GetClassType && oCell.GetClassType() == 'tableCell') {
+											var oTable = oCell.GetParentTable()
+											if (oTable && oTable.GetPosInParent() == -1) {
+												oCell = getCell(writeData)
+											}
+										} else {
 											oCell = getCell(writeData)
 										}
-									} else {
-										oCell = getCell(writeData)
-									}
-									if (oCell) {
-										oCell.SetBackgroundColor(255, 191, 191, cmdType == 'show' ? false : true)
+										if (oCell) {
+											oCell.SetBackgroundColor(255, 191, 191, cmdType == 'show' ? false : true)
+										}
 									}
 								}
+								
 							})
 						}
 					}
@@ -5594,8 +5797,14 @@ function importExam() {
 					Asc.scope.questionPositions = res
 					return removeOnlyBigControl()
 				}).then(() => {
-					window.biyue.showDialog('exportExamWindow', '上传试卷', 'examExport.html', 1000, 800, true)
 					setBtnLoading('importExam', false)
+					if (uploadValidateHandler.onValidate()) {
+						window.biyue.showDialog('exportExamWindow', '上传试卷', 'examExport.html', 1000, 800, true)
+					} else {
+						handleUploadPrepare('show').then(() => {
+							return setInteraction('useself')
+						})
+					}
 				})
 			}).catch((res) => {
 				setBtnLoading('uploadTree', false)

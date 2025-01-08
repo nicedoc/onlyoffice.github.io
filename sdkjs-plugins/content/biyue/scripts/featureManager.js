@@ -1059,11 +1059,10 @@ function setInteraction(type, quesIds, recalc = true) {
 	Asc.scope.interaction_quesIds = quesIds
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	Asc.scope.node_list = window.BiyueCustomData.node_list
-	Asc.scope.simple_interaction = 2 // window.BiyueCustomData.simple_interaction
+	Asc.scope.simple_interaction = 1 // window.BiyueCustomData.simple_interaction
 	return biyueCallCommand(window, function() {
 		var interaction_type_use = Asc.scope.interaction_type_use
 		var simple_interaction = Asc.scope.simple_interaction
-		var interaction_type = interaction_type_use
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls()
 		var question_map = Asc.scope.question_map || {}
@@ -1488,7 +1487,19 @@ function setInteraction(type, quesIds, recalc = true) {
 				}
 			})
 		}
-
+		function getWriteAskDrawing(ask_id) {
+			var allShapes = oDocument.GetAllShapes() || []
+			for (var j = 0; j < allShapes.length; ++j) {
+				if (!allShapes[j].GetTitle) {
+					continue
+				}
+				var tag = Api.ParseJSON(allShapes[j].GetTitle())
+				if (tag.feature && tag.feature.zone_type == 'question' && tag.feature.sub_type == 'write' && tag.feature.client_id == ask_id) {
+					return allShapes[j]
+				}
+			}
+			return null
+		}
 		function addAskInteraction(oControl, askData, index, write_id) {
 			var oDrawing = getAccurateDrawing(index, write_id)
 			if (askData.sub_type == 'control') {
@@ -1517,11 +1528,7 @@ function setInteraction(type, quesIds, recalc = true) {
 					}
 				}
 			} else if (askData.sub_type == 'write') {
-				var drawings = oControl.GetAllDrawingObjects() || []
-				var oAskDrawing = drawings.find(e => {
-					var drawingTitle = Api.ParseJSON(e.GetTitle())
-					return drawingTitle.feature && drawingTitle.feature.client_id == askData.id
-				})
+				var oAskDrawing = getWriteAskDrawing(askData.id)
 				if (oAskDrawing) {
 					var oShape = Api.LookupObject(oAskDrawing.Drawing.Id)
 					if (oShape && oShape.GetClassType() == 'shape') {
@@ -1551,18 +1558,24 @@ function setInteraction(type, quesIds, recalc = true) {
 				// todo..
 			}
 		}
-
-		function handleControlAccurate(oControl, ask_list, write_list, type) {
+		function handleControlAccurate(oControl, ask_list, write_list, type, isbig) {
 			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
 				return
 			}
 			var drawings = oControl.GetAllDrawingObjects()
 			var dlist1 = getExistDrawing(drawings, ['ask_accurate'])
+			var controlId = oControl.Sdt.GetId()
 			if (type == 'none' || type == 'simple') {
 				if (dlist1 && dlist1.length) {
-					dlist1.forEach(e => {
+					for (var e of dlist1) {
+						if (isbig && e.GetParentContentControl) {
+							var parentControl = e.GetParentContentControl()
+							if (parentControl && parentControl.Sdt.GetId() != controlId) {
+								continue
+							}
+						}
 						deleShape(e)
-					})
+					}
 				}
 				return
 			}
@@ -1660,6 +1673,7 @@ function setInteraction(type, quesIds, recalc = true) {
 			if (!question_map[targetQuesId]) {
 				continue
 			}
+			var interaction_type = interaction_type_use
 			if (interaction_type_use != 'none') {
 				if (!question_map[targetQuesId] || question_map[targetQuesId].level_type != 'question') {
 					continue
@@ -1707,7 +1721,7 @@ function setInteraction(type, quesIds, recalc = true) {
 					}
 				}
 			}
-			handleControlAccurate(oControl, ask_list, write_list, type)
+			handleControlAccurate(oControl, ask_list, write_list, type, nodeData.is_big)
 		}
 
 	}, false, recalc).then(res => {
