@@ -4237,7 +4237,9 @@ function deleteAsks(askList, recalc = true, notify = true) {
 function focusControl(id) {
 	var quesData = window.BiyueCustomData.question_map[id]
 	if (!quesData) {
-		return
+		return new Promise((resolve, reject) => {
+			resolve()
+		})
 	}
 	Asc.scope.focus_ids = quesData.level_type == 'question' && quesData.is_merge ? quesData.ids : [id]
 	return biyueCallCommand(window, function() {

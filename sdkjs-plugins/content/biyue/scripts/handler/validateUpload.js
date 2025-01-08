@@ -240,17 +240,11 @@ function checkPositions(postions) {
 						postions[key].score
 					) {
 						//  小问分数和题目分数不一致
-						ask_score_err.push({
-							ques_name: postions[key].ques_name,
-							text: postions[key].text,
-						})
+						ask_score_err.push(getQuesObject(postions[key]))
 					}
 					if (has_ask_score_empty_err) {
 						// 题目有分数的情况下，有小问的分数为空
-						ask_score_empty_err.push({
-							ques_name: postions[key].ques_name,
-							text: postions[key].text,
-						})
+						ask_score_empty_err.push(getQuesObject(postions[key]))
 					}
 					postions[key].question_ask = question_ask
 				}
