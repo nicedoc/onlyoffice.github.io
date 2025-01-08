@@ -61,12 +61,14 @@ function tagImageCommon(params) {
 		}
 	})
 }
-
+// 点击就近关联
 function imageAutoLink(ques_id, calc) {
 	Asc.scope.node_list = window.BiyueCustomData.node_list || []
 	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
 	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
 	Asc.scope.ques_id = ques_id || 0
+	Asc.scope.link_type = window.BiyueCustomData.link_type
+	Asc.scope.link_coverage_percent = window.BiyueCustomData.link_coverage_percent || 80
 	return biyueCallCommand(window, function() {
 		var oDocument = Api.GetDocument()
 		var allDrawings = oDocument.GetAllDrawingObjects() || []
@@ -75,9 +77,72 @@ function imageAutoLink(ques_id, calc) {
 		var question_map = Asc.scope.question_map
 		var client_node_id = Asc.scope.client_node_id
 		var ques_id = Asc.scope.ques_id
+		var link_type = Asc.scope.link_type
+		var link_coverage_percent = Asc.scope.link_coverage_percent / 100
 		var rev = false
-		// 判断是否在control中
-		function getBelongControl(pageIndex, x1, y1, x2, y2) {
+		// 获取重叠面积
+		function getOverlapArea(quesFields, imageFields) {
+			var overlapArea = 0
+			for (var field of quesFields) {
+				for (var image of imageFields) {
+					if (image.page != field.page) {
+						continue
+					}
+					let v = Math.max(0, Math.min(image.x + image.w, field.x + field.w) - Math.max(image.x, field.x)) *
+							Math.max(0, Math.min(image.y + image.h, field.y + field.h) - Math.max(image.y, field.y))
+					overlapArea += v
+				}
+			}
+			return overlapArea
+		}
+		function getImageArea(imageFields) {
+			var area = 0
+			for (var image of imageFields) {
+				area += image.w * image.h
+			}
+			return area
+		}
+		// 是否符合全包
+		function allInFields(quesFields, fields) {
+			var hasPartOverlap = false
+			for (var field of fields) {
+				// 每个区域都处于题目范围中
+				var flag = 0
+				for (var quesField of quesFields) {
+					if (quesField.page != field.page) {
+						continue
+					}
+					// y值在范围内
+					if (field.y >= quesField.y - 1 && 
+						field.y + field.h <= quesField.y + quesField.h + 1
+					) {
+						if (field.x >= quesField.x - 1 && 
+							field.x + field.w <= quesField.x + quesField.w + 1
+						) { // 全在范围内
+							flag = 1
+							break
+						} else if (!(field.x + field.w < quesField.x || quesField.x + quesField.w < field.x)) { // 有x值交集
+							flag = 2
+							break
+						}
+					}
+				}
+				if (!flag) {
+					return 0
+				} else if (flag == 2) {
+					hasPartOverlap = true
+				}
+			}
+			return hasPartOverlap ? 2 : 1
+		}
+		// 获取经过的题目控件
+		function getBelongQuesList(fields) {
+			if (!fields || fields.length == 0) {
+				return []
+			}
+			var list = []
+			var partList = []
+			var imageArea = getImageArea(fields)
 			for (var i = 0; i < controls.length; ++i) {
 				var oControl = controls[i]
 				if (oControl.GetClassType() != 'blockLvlSdt') {
@@ -97,6 +162,7 @@ function imageAutoLink(ques_id, calc) {
 				
 				var oControlContent = oControl.GetContent()
 				var Pages = oControlContent.Document.Pages
+				var quesFields = []
 				if (Pages) {
 					for (var j = 0; j < Pages.length; ++j) {
 						var page = Pages[j]
@@ -105,23 +171,54 @@ function imageAutoLink(ques_id, calc) {
 							let h = page.Bounds.Bottom - page.Bounds.Top
 							if (w > 0 && h > 0) {
 								var pindex = oControl.Sdt.GetAbsolutePage(j)
-								if (pindex == pageIndex) {
-									if (page.Bounds.Left <= (x1 + 1) && 
-										page.Bounds.Top <= (y1 + 1) &&
-										(page.Bounds.Left + w) >= (x2 - 1) &&
-										(page.Bounds.Top + h) >= (y2 - 1)) {
-											return {
-												ques_id: tag.mid || tag.client_id,
-												oControl: oControl
-											}
-									}
-								}
+								quesFields.push({
+									page: pindex,
+									x: page.Bounds.Left,
+									y: page.Bounds.Top,
+									w: w,
+									h: h
+								})
 							}
 						}
 					}
 				}
+				if (link_type == 'all') { // 全包判断
+					var allInFlag = allInFields(quesFields, fields)
+					if (allInFlag == 1) {
+						list.push(tag.mid || tag.client_id)
+					} else if (allInFlag == 2) {
+						partList.push(tag.mid || tag.client_id)
+					}
+				} else if (link_type == 'area') { // 面积比例判断
+					var overlapArea = getOverlapArea(quesFields, fields)
+					if (overlapArea > 0 && overlapArea / imageArea >= link_coverage_percent) {
+						list.push(tag.mid || tag.client_id)
+					}
+				}
+			}
+			if (list.length) {
+				return list
+			} else if (partList.length == 1) {
+				return partList
 			}
 			return null
+		}
+		function getNewQuesUse(quesuse, quesList) {
+			if (quesuse) {
+				if (typeof quesuse == 'number') {
+					quesuse = quesuse + ''
+				}
+				if (typeof quesuse == 'string') {
+					var uselist = quesuse.split('_')
+					for (var id of quesList) {
+						if (!uselist.find(e => { return e == id })) {
+							uselist.push(id)
+						}
+					}
+					return uselist.join('_')
+				}
+			}
+			return quesList.join('_')
 		}
 		// 图片关联
 		for (var i = 0; i < allDrawings.length; ++i) {
@@ -137,15 +234,14 @@ function imageAutoLink(ques_id, calc) {
 			if (title.feature && title.feature.zone_type) {
 				continue
 			}
-			var belongControl = getBelongControl(Drawing.PageNum, 
-				Drawing.X, 
-				Drawing.Y, 
-				Drawing.X + Drawing.Width,
-				Drawing.Y + Drawing.Height)
-			if (!belongControl) {
-				continue
-			}
-			if (ques_id && belongControl.ques_id != ques_id) {
+			var quesList = getBelongQuesList([{
+				page: Drawing.PageNum,
+				x: Drawing.X,
+				y: Drawing.Y,
+				w: Drawing.Width,
+				h: Drawing.Height
+			}])
+			if (!quesList || quesList.length == 0) {
 				continue
 			}
 			if (title.feature) {
@@ -154,25 +250,12 @@ function imageAutoLink(ques_id, calc) {
 					title.feature.client_id = client_node_id
 				}
 				var quesuse = title.feature.ques_use
-				if (quesuse) {
-					if (typeof quesuse == 'number') {
-						quesuse = quesuse + ''
-					}
-					if (typeof quesuse == 'string') {
-						var uselist = quesuse.split('_')
-						if (!(uselist.find(e => { return e == belongControl.ques_id}))) {
-							uselist.push(belongControl.ques_id)
-							title.feature.ques_use = uselist.join('_')
-						}
-					}
-				} else {
-					title.feature.ques_use = belongControl.ques_id + ''
-				}
+				title.feature.ques_use = getNewQuesUse(quesuse, quesList)
 			} else {
 				client_node_id += 1
 				title = {
 					feature: {
-						ques_use: belongControl.ques_id + '',
+						ques_use: quesList.join('_'),
 						client_id: client_node_id
 					}
 				}
@@ -190,39 +273,29 @@ function imageAutoLink(ques_id, calc) {
 			}
 			var title = Api.ParseJSON(strtitle)
 			var pageCount = oTable.Table.GetPagesCount()
-			var belong_id = 0
+			var tableFields = []
 			for (var p = 0; p < pageCount; ++p) {
 				var pageBounds = oTable.Table.GetPageBounds(p)
 				var pagenum = oTable.Table.GetAbsolutePage(p)
-				var belongControl = getBelongControl(pagenum, 
-					pageBounds.Left, 
-					pageBounds.Top, 
-					pageBounds.Right,
-					pageBounds.Bottom)
-				if (belongControl) {
-					if (belong_id && belong_id != belongControl.ques_id) {
-						belong_id = 0
-						break
-					}
-					belong_id = belongControl.ques_id
-				}
+				tableFields.push({
+					page: pagenum,
+					x: pageBounds.Left,
+					y: pageBounds.Top,
+					w: pageBounds.Right - pageBounds.Left,
+					h: pageBounds.Bottom - pageBounds.Top
+				})
 			}
-			if (ques_id && belong_id != ques_id) {
+			var quesList = getBelongQuesList(tableFields)
+			if (!quesList || quesList.length == 0) {
 				continue
 			}
-			if (belong_id) {
-				if (!title.client_id) {
-					client_node_id += 1
-					title.client_id = client_node_id
-				}
-				var uselist = title.ques_use ? title.ques_use.split('_') : []
-				if (!(uselist.find(e => { return e == belongControl.ques_id}))) {
-					uselist.push(belongControl.ques_id)
-				}
-				title.ques_use = uselist.join('_')
-				oTable.SetTableTitle(JSON.stringify(title))
-				rev = true
+			if (!title.client_id) {
+				client_node_id += 1
+				title.client_id = client_node_id
 			}
+			title.ques_use = getNewQuesUse(title.ques_use, quesList)
+			oTable.SetTableTitle(JSON.stringify(title))
+			rev = true
 		}
 		return {
 			client_node_id,

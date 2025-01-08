@@ -23,8 +23,11 @@ import { reqSaveInfo, onLatexToImg, logOnlyOffice} from './api/paper.js'
 import { biyueCallCommand } from './command.js'
 import { generateTree, updateTreeSelect, clickTreeLock, initTreeListener } from './panelTree.js'
 import ComponentSelect from '../components/Select.js'
+import NumberInput from '../components/NumberInput.js'
 var timeout_paste_hint = null
 var select_image_link = null
+var select_link_type = null
+var input_coverage_percent = null
 let check_text_ques = true
 let check_level = true
 let inner_pop_list = ['link_container', 'func_key_container', 'tree_container']
@@ -108,9 +111,33 @@ function initView() {
 		callback_item: (data) => {
 			changeImageLink(data)
 		},
-		width: '60%',
+		width: '50%',
 		pop_width: '100%'
 	})
+	select_link_type = new ComponentSelect({
+		id: 'linkTypeSelect',
+		options: [
+			{ value: 'all', label: '全包关联' },
+			{ value: 'area', label: '面积关联' }
+		],
+		value_select: 'all',
+		callback_item: (data) => {
+			changeLinkType(data)
+		},
+		width: '40%',
+		pop_width: '100%'
+	})
+	input_coverage_percent = new NumberInput('CoveragePercentInput', {
+		min: 60,
+		max: 100,
+		change: (id, data) => {
+			changeCoveragePrecent(data)
+		},
+		width: '40%',
+	})
+	if (input_coverage_percent) {
+		input_coverage_percent.setValue(80)
+	}
 	enableBtnImageLink(true)
 	showCom('#imageLinkTip')
 	addClickEvent('#btnImageLink', onImageLink)
@@ -393,9 +420,30 @@ function onPasteInputClear() {
 	}
 	com.val('')
 }
-
+function showPanelLink() {
+	showCom('#panelLink', true)
+	var link_type = window.BiyueCustomData.link_type || 'all'
+	if (select_link_type) {
+		select_link_type.setSelect(link_type)
+	}
+	showCom('#CoveragePercentInput', link_type == 'area')
+	if (input_coverage_percent && link_type == 'area') {
+		var percent = window.BiyueCustomData.link_coverage_percent || 80
+		input_coverage_percent.setValue(percent + '')
+	}
+}
 function changeImageLink(data) {
 	enableBtnImageLink(data.value * 1)
+	showCom('#linkwrapper', data.value * 1)
+}
+
+function changeLinkType(data) {
+	window.BiyueCustomData.link_type = data.value
+	showCom('#CoveragePercentInput', data.value == 'area')
+}
+
+function changeCoveragePrecent(data) {
+	window.BiyueCustomData.link_coverage_percent = data
 }
 
 function enableBtnImageLink(v) {
@@ -681,5 +729,6 @@ export {
 	clickUploadTree,
 	showTypeErrorPanel,
 	changeTabPanel,
-	onFeature
+	onFeature,
+	showPanelLink
 }

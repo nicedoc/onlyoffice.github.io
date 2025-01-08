@@ -52,7 +52,7 @@ import {
 import { layoutRepair, removeAllComment, layoutDetect } from './layoutFixHandler.js'
 import { reqSaveInfo } from './api/paper.js'
 
-import { initView, onSaveData, clickSplitQues, clickUploadTree, showTypeErrorPanel, changeTabPanel, onFeature } from './pageView.js'
+import { initView, onSaveData, clickSplitQues, clickUploadTree, showTypeErrorPanel, changeTabPanel, onFeature, showPanelLink } from './pageView.js'
 
 import { setInteraction, updateChoice, deleteAllFeatures } from './featureManager.js'
 import { getInfoForServerSave, showCom } from './model/util.js'
@@ -911,7 +911,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		this.attachToolbarMenuClickEvent("batchScore", onBatchScoreSet);
 		this.attachToolbarMenuClickEvent("batchQuesType", onBatchQuesTypeSet);
 		this.attachToolbarMenuClickEvent("imageLink", function (data) {
-			showCom('#panelLink', true)
+			showPanelLink()
 		});
 		this.attachToolbarMenuClickEvent("allUpload", clickUploadTree);
 		this.attachToolbarMenuClickEvent("uploadTypeError", function () {
