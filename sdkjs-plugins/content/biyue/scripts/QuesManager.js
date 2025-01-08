@@ -3997,11 +3997,14 @@ function deleteAsks(askList, recalc = true, notify = true) {
 						}
 					}
 				}
-				// 删除除订正框外的所有inlineControl
+				// 删除除订正框和选择题选项外的所有inlineControl
 				var childControls = quesControl.GetAllContentControls() || []
 				for (var e of childControls) {
 					if (e.Sdt) {
 						var tag = Api.ParseJSON(e.GetTag())
+						if (tag.regionType == 'choiceOption') {
+							continue
+						}
 						if (nodeData.is_big) {
 							var parentControl = e.GetParentContentControl()
 							if (parentControl && parentControl.Sdt.GetId() != quesControlId) {
