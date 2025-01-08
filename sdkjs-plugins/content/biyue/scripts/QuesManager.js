@@ -455,7 +455,7 @@ function getContextMenuItems(type, selectedRes) {
 				cData = getControlData(tag, selectedRes.parentSdts.length - 2)
 				console.log('cData', cData)
 				if (curControl.classType == 'blockLvlSdt') {
-					if (cData.level_type != 'ask') {
+					if (cData && cData.level_type != 'ask') {
 						valueMap['clearChildren'] = 1
 					}
 					if (!cData || !cData.level_type) {
@@ -463,7 +463,7 @@ function getContextMenuItems(type, selectedRes) {
 						valueMap['struct'] = 1
 					}
 				} else if (curControl.classType == 'inlineLvlSdt' && 
-					tag.regionType == 'choiceOption' && 
+					tag.regionType == 'choiceOption' && cData &&
 					cData.parent_id && 
 					question_map[cData.parent_id] && 
 					(isChoiceMode(question_map[cData.parent_id].ques_mode))) {
@@ -831,7 +831,8 @@ function getNodeList() {
 			if (!oCell || oCell.GetClassType() != 'tableCell') {
 				return {}
 			}
-			var pagesCount = oCell.Cell.PagesCount
+			var oTable = oCell.GetParentTable()
+			var pagesCount = oTable.Table.getPageCount()
 			for (var p = 0; p < pagesCount; ++p) {
 				var pagebounds = oCell.Cell.GetPageBounds(p)
 				if (!pagebounds) {
@@ -1282,7 +1283,9 @@ function handleChangeType(res, res2) {
 					nodeData.level_type = targetLevel
 				}
 				if (targetLevel == 'question') {
-					nodeData.write_list = ask_list
+					if (ask_list) {
+						nodeData.write_list = ask_list
+					}
 					if (!question_map[item.client_id]) {
 						var write_list = nodeData.write_list || []
 						question_map[item.client_id] = {
@@ -1297,7 +1300,9 @@ function handleChangeType(res, res2) {
 							})
 						}
 					} else {
-						updateAskList(item.client_id, ask_list)
+						if (ask_list) {
+							updateAskList(item.client_id, ask_list)
+						}
 						if (level_type == 'setBig' || level_type == 'clearBig') {
 							question_map[item.client_id].text = getQuesText(item.text)
 							question_map[item.client_id].ques_default_name = item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(targetLevel, item.text)
@@ -3971,6 +3976,7 @@ function deleteAsks(askList, recalc = true, notify = true) {
 			if (!quesControl || quesControl.GetClassType() != 'blockLvlSdt') {
 				return
 			}
+			var quesControlId = quesControl.Sdt.GetId()
 			if (aid == 0) {
 				// 删除所有小问，遍历出所有小问，全部删除
 				// 删除所有精准互动
@@ -3978,26 +3984,51 @@ function deleteAsks(askList, recalc = true, notify = true) {
 				for (var j = 0; j < childDrawings.length; ++j) {
 					var tag = Api.ParseJSON(childDrawings[j].GetTitle())
 					if (tag.feature && tag.feature.zone_type == 'question') {
+						if (nodeData.is_big) {
+							var parentControl = childDrawings[j].GetParentContentControl()
+							if (parentControl) {
+								if (parentControl.Sdt.GetId() != quesControlId) {
+									continue
+								}
+							}
+						}
 						if (tag.feature.sub_type == 'ask_accurate') {
 							deleShape(childDrawings[j])
 						}
 					}
 				}
-				// 删除除订正框外的所有inlineControl
+				// 删除除订正框和选择题选项外的所有inlineControl
 				var childControls = quesControl.GetAllContentControls() || []
-				childControls.forEach(e => {
+				for (var e of childControls) {
 					if (e.Sdt) {
 						var tag = Api.ParseJSON(e.GetTag())
+						if (tag.regionType == 'choiceOption') {
+							continue
+						}
+						if (nodeData.is_big) {
+							var parentControl = e.GetParentContentControl()
+							if (parentControl && parentControl.Sdt.GetId() != quesControlId) {
+								continue
+							}	
+						}
 						if (e.GetClassType() == 'inlineLvlSdt' && tag.regionType != 'num') {
-							Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
+							Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())	
 						} else if (e.GetClassType() == 'blockLvlSdt' && tag.regionType == 'write') {
 							Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
 						}
 					}
-				})
+				}
 				// 删除所有write 和 identify
 				childDrawings = quesControl.GetAllDrawingObjects() || []
 				for (var j = 0; j < childDrawings.length; ++j) {
+					if (nodeData.is_big) {
+						var parentControl = childDrawings[j].GetParentContentControl()
+						if (parentControl) {
+							if (parentControl.Sdt.GetId() != quesControlId) {
+								continue
+							}
+						}
+					}
 					var paraDrawing = childDrawings[j].getParaDrawing()
 					if (!paraDrawing) {
 						continue
@@ -4034,6 +4065,14 @@ function deleteAsks(askList, recalc = true, notify = true) {
 					if (tables) {
 						for (var t = 0; t < tables.length; ++t) {
 							var oTable = tables[t]
+							if (nodeData.is_big) {
+								var parentControl = oTable.GetParentContentControl()
+								if (parentControl) {
+									if (parentControl.Sdt.GetId() != quesControlId) {
+										continue
+									}
+								}
+							}
 							var rowcount = oTable.GetRowsCount()
 							var find = false
 							for (var r = 0; r < rowcount; ++r) {
@@ -5686,23 +5725,30 @@ function handleUploadPrepare(cmdType) {
 					if (nodeData && nodeData.write_list) {
 						if (question_map[id].ask_list) {
 							question_map[id].ask_list.forEach(ask => {
-								var writeData = nodeData.write_list.find(w => {
-									return w.id == ask.id
-								})
-								if (writeData && writeData.sub_type == 'cell' && writeData.cell_id) {
-									var oCell = Api.LookupObject(writeData.cell_id)
-									if (oCell && oCell.GetClassType && oCell.GetClassType() == 'tableCell') {
-										var oTable = oCell.GetParentTable()
-										if (oTable && oTable.GetPosInParent() == -1) {
+								var wids = [ask.id]
+								if (ask.other_fields) {
+									wids = wids.concat(ask.other_fields)
+								}
+								for (var wid of wids) {
+									var writeData = nodeData.write_list.find(w => {
+										return w.id == wid
+									})
+									if (writeData && writeData.sub_type == 'cell' && writeData.cell_id) {
+										var oCell = Api.LookupObject(writeData.cell_id)
+										if (oCell && oCell.GetClassType && oCell.GetClassType() == 'tableCell') {
+											var oTable = oCell.GetParentTable()
+											if (oTable && oTable.GetPosInParent() == -1) {
+												oCell = getCell(writeData)
+											}
+										} else {
 											oCell = getCell(writeData)
 										}
-									} else {
-										oCell = getCell(writeData)
-									}
-									if (oCell) {
-										oCell.SetBackgroundColor(255, 191, 191, cmdType == 'show' ? false : true)
+										if (oCell) {
+											oCell.SetBackgroundColor(255, 191, 191, cmdType == 'show' ? false : true)
+										}
 									}
 								}
+								
 							})
 						}
 					}
@@ -5751,9 +5797,14 @@ function importExam() {
 					Asc.scope.questionPositions = res
 					return removeOnlyBigControl()
 				}).then(() => {
-					uploadValidateHandler.onValidate()
-					// window.biyue.showDialog('exportExamWindow', '上传试卷', 'examExport.html', 1000, 800, true)
 					setBtnLoading('importExam', false)
+					if (uploadValidateHandler.onValidate()) {
+						window.biyue.showDialog('exportExamWindow', '上传试卷', 'examExport.html', 1000, 800, true)
+					} else {
+						handleUploadPrepare('show').then(() => {
+							return setInteraction('useself')
+						})
+					}
 				})
 			}).catch((res) => {
 				setBtnLoading('uploadTree', false)

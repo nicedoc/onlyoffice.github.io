@@ -1063,7 +1063,6 @@ function setInteraction(type, quesIds, recalc = true) {
 	return biyueCallCommand(window, function() {
 		var interaction_type_use = Asc.scope.interaction_type_use
 		var simple_interaction = Asc.scope.simple_interaction
-		var interaction_type = interaction_type_use
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls()
 		var question_map = Asc.scope.question_map || {}
@@ -1559,17 +1558,24 @@ function setInteraction(type, quesIds, recalc = true) {
 				// todo..
 			}
 		}
-		function handleControlAccurate(oControl, ask_list, write_list, type) {
+		function handleControlAccurate(oControl, ask_list, write_list, type, isbig) {
 			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
 				return
 			}
 			var drawings = oControl.GetAllDrawingObjects()
 			var dlist1 = getExistDrawing(drawings, ['ask_accurate'])
+			var controlId = oControl.Sdt.GetId()
 			if (type == 'none' || type == 'simple') {
 				if (dlist1 && dlist1.length) {
-					dlist1.forEach(e => {
+					for (var e of dlist1) {
+						if (isbig && e.GetParentContentControl) {
+							var parentControl = e.GetParentContentControl()
+							if (parentControl && parentControl.Sdt.GetId() != controlId) {
+								continue
+							}
+						}
 						deleShape(e)
-					})
+					}
 				}
 				return
 			}
@@ -1667,6 +1673,7 @@ function setInteraction(type, quesIds, recalc = true) {
 			if (!question_map[targetQuesId]) {
 				continue
 			}
+			var interaction_type = interaction_type_use
 			if (interaction_type_use != 'none') {
 				if (!question_map[targetQuesId] || question_map[targetQuesId].level_type != 'question') {
 					continue
@@ -1714,7 +1721,7 @@ function setInteraction(type, quesIds, recalc = true) {
 					}
 				}
 			}
-			handleControlAccurate(oControl, ask_list, write_list, type)
+			handleControlAccurate(oControl, ask_list, write_list, type, nodeData.is_big)
 		}
 
 	}, false, recalc).then(res => {
