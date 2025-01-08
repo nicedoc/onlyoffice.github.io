@@ -2549,7 +2549,7 @@ import { getFocusAskData, isChoiceMode, isTextMode } from './model/ques.js'
 		windows[winName].activate()
 
 		var win = windowList.find(e => {
-			return e.winName == winName
+			return e.name == winName
 		})
 		if (win) {
 			win.visible = true
