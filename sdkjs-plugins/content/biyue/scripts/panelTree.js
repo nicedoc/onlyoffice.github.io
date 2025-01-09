@@ -417,7 +417,9 @@ function updateBig(id) {
 					return e.id == g_tree_info.list[j].parent_id
 				})
 				if (parentData && parentData.level_type == 'question') {
-					item.hide()
+					if (index == parentData.parent_index) {
+						item.hide()
+					}
 				}
 			}
 		}
