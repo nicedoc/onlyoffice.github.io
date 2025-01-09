@@ -720,7 +720,7 @@ function handleRangeType(options) {
 						if (parentControl.Sdt.Id == oControl.Sdt.Id) {
 							var childTag = Api.ParseJSON(childControls[i].GetTag())
 							if (childControls[i].GetClassType() == 'inlineLvlSdt') {
-								if (excepetNum && childTag.regionType == 'num') {
+								if (excepetNum && (childTag.regionType == 'num' || childTag.regionType == 'choiceOption')) {
 									continue
 								}
 								doRemoveControl(childControls[i], childTag)
