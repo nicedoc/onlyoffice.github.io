@@ -332,7 +332,7 @@ import { getFocusAskData, isChoiceMode, isTextMode } from './model/ques.js'
 							if (newData.ask_list && newData.ask_list.length) {
 								var ask1 = newData.ask_list.find(newAsk => ask.id == newAsk.id)
 								if (ask1) {
-									ask.scope = ask1.score
+									ask.score = ask1.score
 								}
 							}
 						}
