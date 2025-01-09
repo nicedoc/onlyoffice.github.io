@@ -3478,6 +3478,20 @@ function cleanHtml(html) {
     }
   });
 
+  tempDiv.querySelectorAll('table').forEach(table => {
+    // 检查是否具有 width 属性
+    if (table.hasAttribute('width')) {
+      const widthValue = table.getAttribute('width');
+      // 检查 width 值是否包含百分比符号 '%'
+      if (widthValue.includes('%')) {
+        // 提取百分比数值
+        const percentValue = widthValue.trim();
+        // 将百分比数值应用到 style 属性
+        table.style.cssText = `width: ${percentValue} !important;display: inline-table !important;`
+      }
+    }
+  });
+
   // 移除无内容的特定标签
   Object.keys(removeEmpty).forEach(tag => {
     tempDiv.querySelectorAll(tag).forEach(el => {
