@@ -2845,7 +2845,7 @@ function addOnlyBigControl(recalc = true) {
 					if (element.Id) {
 						var oElement = Api.LookupObject(element.Id)
 						if (oElement) {
-							if (oElement.GetClassType() == 'paragraph') {
+							if (oElement.GetClassType() == 'paragraph' || oElement.GetClassType() == 'table') {
 								if (!oRange) {
 									oRange = oElement.GetRange()
 								} else {

@@ -333,7 +333,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 							if (newData.ask_list && newData.ask_list.length) {
 								var ask1 = newData.ask_list.find(newAsk => ask.id == newAsk.id)
 								if (ask1) {
-									ask.scope = ask1.score
+									ask.score = ask1.score
 								}
 							}
 						}
@@ -2550,7 +2550,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		windows[winName].activate()
 
 		var win = windowList.find(e => {
-			return e.winName == winName
+			return e.name == winName
 		})
 		if (win) {
 			win.visible = true
