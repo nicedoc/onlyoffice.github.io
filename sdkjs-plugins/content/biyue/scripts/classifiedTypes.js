@@ -1805,6 +1805,7 @@ function deleteMutualAsks(ques_id, addWriteType) {
 // 添加作答区
 function addWriteZone() {
 	Asc.scope.question_map = window.BiyueCustomData.question_map
+	window.write_zone_add = true
 	return biyueCallCommand(window, function() {
 		var question_map = Asc.scope.question_map || {}
 		var oDocument = Api.GetDocument()
@@ -1860,7 +1861,37 @@ function addWriteZone() {
 			ques_id: quesTag.client_id
 		}
 	}, false, false).then(res => {
-		Asc.scope.add_write_zone_data = res
+		if (res && res.ques_id) {
+			window.write_zone_add = true
+			Asc.scope.add_write_zone_data = res
+		} else {
+			window.write_zone_add = false
+			Asc.scope.add_write_zone_data = null
+			if (res.message) {
+				alert(res.message)
+			}
+		}
+	})
+}
+
+function continueAddShape() {
+	return biyueCallCommand(window, function() {
+		Api.StartAddShape('rect', true)
+		var oDocument = Api.GetDocument()
+		var oShapes = oDocument.GetAllShapes() || []
+		var shapeIds = oShapes.map(e => {
+			return e.Drawing.Id
+		})
+		return {
+			shapeIds: shapeIds
+		}
+	}, false, false).then(res => {
+		if ( res && res.shapeIds && 
+			window.write_zone_add &&
+			Asc.scope.add_write_zone_data && 
+			Asc.scope.add_write_zone_data.ques_id) {
+			Asc.scope.add_write_zone_data.shapeIds = res.shapeIds
+		}
 	})
 }
 
@@ -1920,7 +1951,7 @@ function endAddShape() {
 		}
 		return result
 	}, false, false).then(res1 => {
-		delete Asc.scope.add_write_zone_data
+		// delete Asc.scope.add_write_zone_data
 		if (res1) {
 			if (res1.message && res1.message != '') {
 				alert(res1.message)
@@ -1938,6 +1969,14 @@ function endAddShape() {
 					return getNodeList()
 				}).then(res2 => {
 					return handleChangeType(res1, res2)
+				}).then(() => {
+					if (window.write_zone_add) {
+						return continueAddShape()
+					} else {
+						return new Promise((resolve, reject) => {
+							return resolve()
+						})
+					}
 				})
 			}
 		}

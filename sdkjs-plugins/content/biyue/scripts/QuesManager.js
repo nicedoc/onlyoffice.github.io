@@ -84,8 +84,11 @@ function handleDocClick(options) {
 // 右建显示菜单
 function handleContextMenuShow(options) {
 	console.log('handleContextMenuShow', options)
+	Asc.scope.add_write_zone_data = null
+	window.write_zone_add = false
 	Asc.scope.menu_options = options
 	return biyueCallCommand(window, function() {
+		Api.isStartAddShape = false
 		var options = Asc.scope.menu_options
 		var bTable = false
 		var oDocument = Api.GetDocument()
