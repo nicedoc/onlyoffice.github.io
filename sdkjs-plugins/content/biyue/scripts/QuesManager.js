@@ -2073,7 +2073,7 @@ function initControls() {
 			}
 			// 图片不铺码
 			if (titleObj.feature && titleObj.feature.partical_no_dot) {
-				oDrawing.SetShadow(null, 0, 100, null, 0, '#0fc1fd')
+				oDrawing.SetShadow('ctr', 0, 100, null, 0, '#007bff')
 			}
 		})
 		var cellAskMap = {}
@@ -4429,7 +4429,7 @@ function handleImageIgnore(cmdType) {
 				}
 				oDrawing.SetTitle(JSON.stringify(tag))
 				if (cmdType == 'add') {
-					oDrawing.SetShadow(null, 0, 100, null, 0, '#0fc1fd')
+					oDrawing.SetShadow('ctr', 0, 100, null, 0, '#007bff')
 				} else {
 					oDrawing.ClearShadow()
 				}
@@ -5678,7 +5678,7 @@ function handleUploadPrepare(cmdType) {
 			// 图片不铺码的标识
 			if (title.includes('partical_no_dot')) {
 				if (cmdType == 'show') {
-					oDrawing.SetShadow(null, 0, 100, null, 0, '#0fc1fd')
+					oDrawing.SetShadow('ctr', 0, 100, null, 0, '#007bff')
 				} else {
 					oDrawing.ClearShadow()
 				}

@@ -644,7 +644,7 @@ function ShowLinkedWhenclickImage(options, control_id) {
 				if (dtag.feature && dtag.feature.ques_use) {
 					var ids2 = dtag.feature.ques_use.split('_')
 					if (ids2.includes(selectId + '')) {
-						oDrawing.SetShadow(null, 0, 110, null, 0, '#ffa0a0')
+						oDrawing.SetShadow('tl', 40, 100, null, 1, '#f2ba02')
 						flag = 1
 					}
 				}
