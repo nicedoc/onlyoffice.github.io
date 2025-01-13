@@ -67,7 +67,7 @@ function imageAutoLink(ques_id, calc) {
 	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
 	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
 	Asc.scope.ques_id = ques_id || 0
-	Asc.scope.link_type = window.BiyueCustomData.link_type
+	Asc.scope.link_type = window.BiyueCustomData.link_type || 'all'
 	Asc.scope.link_coverage_percent = window.BiyueCustomData.link_coverage_percent || 80
 	return biyueCallCommand(window, function() {
 		var oDocument = Api.GetDocument()
@@ -143,6 +143,9 @@ function imageAutoLink(ques_id, calc) {
 			var list = []
 			var partList = []
 			var imageArea = getImageArea(fields)
+			if (imageArea == 0) {
+				return []
+			}
 			for (var i = 0; i < controls.length; ++i) {
 				var oControl = controls[i]
 				if (oControl.GetClassType() != 'blockLvlSdt') {
