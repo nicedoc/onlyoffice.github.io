@@ -145,10 +145,15 @@ function layoutDetect(all) {
 						}
 					}
 				})
+				var pcount = oParagraph.GetElementsCount()
 				for (var j = 0; j < oParagraph.GetElementsCount(); ++j) {
+					if (oParagraph.GetElementsCount() > pcount * 4) {
+						console.log('== 超出了4倍, 死循环了')
+						break
+					}
 					var addrev = handleRun(oParagraph.GetElement(j), oParagraph.Paragraph.Id)
 					if (addrev) {
-						j += 3
+						j += 4
 					}
 				}
 				// 判断是否为白色背景
