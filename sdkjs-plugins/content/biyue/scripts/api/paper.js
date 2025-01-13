@@ -19,7 +19,7 @@ function getQuesType(paper_uuid, content_list) {
 	})
 }
 
-function reqComplete(tree, version) {
+function reqComplete(tree, version, common) {
 	return request({
 		url: '/oodoc/complete',
 		method: 'POST',
@@ -29,7 +29,8 @@ function reqComplete(tree, version) {
 		},
 		data: {
 			tree,
-			version
+			version,
+			common
 		},
 	})
 }

@@ -3150,16 +3150,16 @@ function reqUploadTree() {
 	}).then((res) => {
 		Asc.scope.choice_html_map = res
 		return getControlListForUpload()
-	}).then(control_list => {
-		if (control_list && control_list.length) {
-			generateTreeForUpload(control_list).then(() => {
+	}).then(res => {
+		const { target_list, common_use } = res
+		if (target_list && target_list.length) {
+			generateTreeForUpload(target_list, common_use).then(() => {
 				handleCompleteResult('全量更新成功')
 			  }).catch((res) => {
 				handleCompleteResult(res && res.message && res.message != '' ? res.message : '全量更新失败')
 			  })
 		  } else {
 			handleCompleteResult('未找到可更新的题目，请检查题目列表')
-
 		  }
 	})
 }
@@ -3174,6 +3174,25 @@ function getControlListForUpload() {
 		var question_map = Asc.scope.question_map
 		var tree_info = Asc.scope.tree_info || {}
 		var handledcontrol = {}
+		function getHtml(oRange, sel) {
+			if (!oRange) {
+				return
+			}
+			if (sel) {
+				oRange.Select()
+			}
+			let text_data = {
+				data: "",
+				// 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
+				pushData: function (format, value) {
+					this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : "";
+				}
+			};
+			Api.asc_CheckCopy(text_data, 2);
+			var rev = text_data.data
+			// Api.asc_RemoveSelection();
+			return rev
+		}
 		for (var i = 0, imax = controls.length; i < imax; ++i) {
 			var oControl = controls[i]
 			if (handledcontrol[oControl.Sdt.GetId()]) {
@@ -3234,16 +3253,7 @@ function getControlListForUpload() {
 				handledcontrol[oControl.Sdt.GetId()] = 1
 				oRange = useControl.GetRange()
 			}
-			oRange.Select()
-			let text_data = {
-				data:     "",
-				// 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
-				pushData: function (format, value) {
-				this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : "";
-				}
-			};
-			Api.asc_CheckCopy(text_data, 2);
-			var content_html = text_data.data
+			var content_html = getHtml(oRange, true)
 			target_list.push({
 				id: clientid + '',
 				parent_id: parent_id ? parent_id + '' : '',
@@ -3260,7 +3270,55 @@ function getControlListForUpload() {
 			})
 		}
 		console.log('target_list', target_list)
-		return target_list
+		var common_use = [] // 关联图片表格
+		var oDrawings = oDocument.GetAllDrawingObjects() || []
+		var oTables = oDocument.GetAllTables() || []
+		function addUse(client_id, ques_use, html, type) {
+			var queslist = ques_use.split('_')
+			queslist = queslist.map(e => {
+				return {
+					id: e,
+					uuid: question_map[clientid].uuid || '',
+				}
+			})
+			common_use.push({
+				type: type,
+				commonId: client_id,
+				ques_use: queslist,
+				content_html: html
+			})
+		}		
+		for (var oDrawing of oDrawings) {
+			let title = oDrawing.GetTitle()
+			var titleObj = Api.ParseJSON(title)
+			if (!titleObj || !titleObj.feature || !titleObj.feature.ques_use) {
+				continue
+			}
+			var paraDrawing = oDrawing.getParaDrawing()
+			if (!paraDrawing) {
+				continue
+			}
+			oDrawing.Select()
+			var parentRun = paraDrawing.GetRun()
+			if (parentRun) {
+				var oRun = Api.LookupObject(parentRun.Id)
+				var contentpos = oDocument.Document.GetContentPosition()
+				var oRange = oRun.GetRange(contentpos, contentpos)
+				addUse(titleObj.feature.client_id, titleObj.feature.ques_use,getHtml(oRange, true), 'image')
+			}
+		}
+		for (var oTable of oTables) {
+			let title = Api.ParseJSON(oTable.GetTableTitle())
+			if (!title || !title.ques_use) {
+				continue
+			}
+			var oRange = oTable.GetRange()
+			addUse(title.client_id, title.ques_use, getHtml(oRange, true), 'table')
+		}
+		return {
+			target_list,
+			common_use
+		} 
 	  }, false, false)
 }
 
@@ -3439,7 +3497,7 @@ function handleXmlError() {
 }
 
 // 后端已支持结构和题目可同级出现在结构下，取代旧代码
-function generateTreeForUpload(control_list) {
+function generateTreeForUpload(control_list, common_use) {
 	return new Promise((resolve, reject) => {
 		if (!control_list) {
 			reject(null)
@@ -3465,6 +3523,9 @@ function generateTreeForUpload(control_list) {
 			}
 			map[e.id] = { ...e, children: [] };
 		});
+		common_use.forEach(e => {
+			e.content_html = cleanHtml(e.content_html || '')
+		})
 		control_list.forEach(item => {
 			if (item.parent_id && item.parent_id != item.id) {
 				if (map[item.parent_id] && map[item.parent_id].children) {
@@ -3489,7 +3550,7 @@ function generateTreeForUpload(control_list) {
 		}
 		console.log('               uploadTree', uploadTree)
 		var version = getTimeString()
-		reqComplete(uploadTree, version).then(res => {
+		reqComplete(uploadTree, version, common_use).then(res => {
 			console.log('reqComplete', res)
 			console.log('[reqUploadTree end]', Date.now())
 			if (res.data.questions) {
