@@ -3523,9 +3523,11 @@ function generateTreeForUpload(control_list, common_use) {
 			}
 			map[e.id] = { ...e, children: [] };
 		});
-		common_use.forEach(e => {
-			e.content_html = cleanHtml(e.content_html || '')
-		})
+		if (common_use) {
+			common_use.forEach(e => {
+				e.content_html = cleanHtml(e.content_html || '')
+			})
+		}
 		control_list.forEach(item => {
 			if (item.parent_id && item.parent_id != item.id) {
 				if (map[item.parent_id] && map[item.parent_id].children) {
@@ -5648,9 +5650,10 @@ function importExam() {
 	}).then((res) => {
 		Asc.scope.choice_html_map = res
 		return getControlListForUpload()
-	}).then(control_list => {
-		if (control_list && control_list.length) {
-			generateTreeForUpload(control_list).then(() => {
+	}).then(res => {
+		const { target_list, common_use } = res
+		if (target_list && target_list.length) {
+			generateTreeForUpload(target_list, common_use).then(() => {
 				setBtnLoading('uploadTree', false)
 				setInteraction('useself').then(() => {
 					return getAllPositions2()
