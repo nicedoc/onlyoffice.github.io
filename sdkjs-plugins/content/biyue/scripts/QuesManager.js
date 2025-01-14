@@ -84,8 +84,11 @@ function handleDocClick(options) {
 // 右建显示菜单
 function handleContextMenuShow(options) {
 	console.log('handleContextMenuShow', options)
+	Asc.scope.add_write_zone_data = null
+	window.write_zone_add = false
 	Asc.scope.menu_options = options
 	return biyueCallCommand(window, function() {
+		Api.isStartAddShape = false
 		var options = Asc.scope.menu_options
 		var bTable = false
 		var oDocument = Api.GetDocument()
@@ -2070,7 +2073,7 @@ function initControls() {
 			}
 			// 图片不铺码
 			if (titleObj.feature && titleObj.feature.partical_no_dot) {
-				oDrawing.SetShadow(null, 0, 100, null, 0, '#0fc1fd')
+				oDrawing.SetShadow('ctr', 0, 100, null, 0, '#007bff')
 			}
 		})
 		var cellAskMap = {}
@@ -3478,6 +3481,20 @@ function cleanHtml(html) {
     }
   });
 
+  tempDiv.querySelectorAll('table').forEach(table => {
+    // 检查是否具有 width 属性
+    if (table.hasAttribute('width')) {
+      const widthValue = table.getAttribute('width');
+      // 检查 width 值是否包含百分比符号 '%'
+      if (widthValue.includes('%')) {
+        // 提取百分比数值
+        const percentValue = widthValue.trim();
+        // 将百分比数值应用到 style 属性
+        table.style.cssText = `width: ${percentValue} !important;display: inline-table !important;`
+      }
+    }
+  });
+
   // 移除无内容的特定标签
   Object.keys(removeEmpty).forEach(tag => {
     tempDiv.querySelectorAll(tag).forEach(el => {
@@ -4412,7 +4429,7 @@ function handleImageIgnore(cmdType) {
 				}
 				oDrawing.SetTitle(JSON.stringify(tag))
 				if (cmdType == 'add') {
-					oDrawing.SetShadow(null, 0, 100, null, 0, '#0fc1fd')
+					oDrawing.SetShadow('ctr', 0, 100, null, 0, '#007bff')
 				} else {
 					oDrawing.ClearShadow()
 				}
@@ -5661,7 +5678,7 @@ function handleUploadPrepare(cmdType) {
 			// 图片不铺码的标识
 			if (title.includes('partical_no_dot')) {
 				if (cmdType == 'show') {
-					oDrawing.SetShadow(null, 0, 100, null, 0, '#0fc1fd')
+					oDrawing.SetShadow('ctr', 0, 100, null, 0, '#007bff')
 				} else {
 					oDrawing.ClearShadow()
 				}
@@ -5772,7 +5789,13 @@ function importExam() {
 			return getAllPositions2()
 		}).then(res => {
 			Asc.scope.questionPositions = res
-			window.biyue.showDialog('exportExamWindow', '上传试卷', 'examExport.html', 1000, 800, true)
+			if (uploadValidateHandler.onValidate()) {
+				window.biyue.showDialog('exportExamWindow', '上传试卷', 'examExport.html', 1000, 800, true)
+			} else {
+				handleUploadPrepare('show').then(() => {
+					return setInteraction('useself')
+				})
+			}
 			setBtnLoading('importExam', false)
 		})
 	}

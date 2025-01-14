@@ -84,6 +84,11 @@ class NumberInput {
 				targetv = this.options.min
 			}
 		}
+		if (this.options.max != undefined) {
+			if (targetv > this.options.max) {
+				targetv = this.options.max
+			}
+		}
 		inputEl.val(targetv)
 		this.valueChange(inputEl.val())
 	}
