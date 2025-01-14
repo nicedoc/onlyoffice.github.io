@@ -346,7 +346,7 @@ let newSplit = function (text) {
 
     let minimize_pPr = function (node) {
         if (node.pPr) {
-            if (node.pPr.numPr && k.numbering.num[node.pPr.numPr.numId] !== undefined) {
+            if (node.pPr.numPr && k.numbering && k.numbering.num[node.pPr.numPr.numId] !== undefined) {
                 node.pPr = { numPr: node.pPr.numPr, type: "paraPr"};
                 return;
             }

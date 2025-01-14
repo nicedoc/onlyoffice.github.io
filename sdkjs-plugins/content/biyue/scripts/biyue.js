@@ -4,7 +4,7 @@ import {
     addImage, addMarkField, handleContentControlChange
 } from './business.js'
 import { toXml } from "./convert.js";
-import { biyueCallCommand, dispatchCommandResult } from "./command.js";
+import { biyueCallCommand } from "./command.js";
 import { getVersion } from "./ver.js"
 import { ReplaceRubyField } from "./phonetic.js";
 
@@ -260,7 +260,7 @@ import { ReplaceRubyField } from "./phonetic.js";
                 console.log(styledString, ...styles);
             };
 
-            //debugger;
+            // debugger;
 
             var oDocument = Api.GetDocument();
             var controls = oDocument.GetAllContentControls();
@@ -522,7 +522,6 @@ import { ReplaceRubyField } from "./phonetic.js";
 
     window.Asc.plugin.onCommandCallback = function (result) {
         //console.log("onCommandCallback", result);
-        dispatchCommandResult(window, result);
     };
 
     let createContentControl = function (ranges) {
