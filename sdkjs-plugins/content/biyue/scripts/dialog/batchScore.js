@@ -322,7 +322,7 @@ var _ = window._;
 		})
 	  }
   
-	  $('#score_sum').html(score_sum)
+	  $('#score_sum').html(score_sum.toFixed(1))
 	}
   
 	function onSwitchStruct() {

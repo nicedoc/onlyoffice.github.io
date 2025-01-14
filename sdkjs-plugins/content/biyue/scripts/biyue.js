@@ -50,9 +50,9 @@ import {
 	locateItem
 } from './linkHandler.js'
 import { layoutRepair, removeAllComment, layoutDetect } from './layoutFixHandler.js'
-import { questionUpdateContent, reqSaveInfo } from './api/paper.js'
+import { reqSaveInfo } from './api/paper.js'
 
-import { initView, onSaveData, clickSplitQues, clickUploadTree, showTypeErrorPanel, changeTabPanel, onFeature } from './pageView.js'
+import { initView, onSaveData, clickSplitQues, clickUploadTree, showTypeErrorPanel, changeTabPanel, onFeature, showPanelLink } from './pageView.js'
 
 import { setInteraction, updateChoice, deleteAllFeatures } from './featureManager.js'
 import { getInfoForServerSave, showCom } from './model/util.js'
@@ -60,6 +60,7 @@ import { refreshTree } from './panelTree.js'
 import { extractChoiceOptions, removeChoiceOptions } from './choiceQuestion.js'
 import { endAddShape } from './classifiedTypes.js'
 import { getFocusAskData, isChoiceMode, isTextMode } from './model/ques.js'
+import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 (function (window, undefined) {
 	var styleEnable = false
 	let activeQuesItem = ''
@@ -910,7 +911,7 @@ import { getFocusAskData, isChoiceMode, isTextMode } from './model/ques.js'
 		this.attachToolbarMenuClickEvent("batchScore", onBatchScoreSet);
 		this.attachToolbarMenuClickEvent("batchQuesType", onBatchQuesTypeSet);
 		this.attachToolbarMenuClickEvent("imageLink", function (data) {
-			showCom('#panelLink', true)
+			showPanelLink()
 		});
 		this.attachToolbarMenuClickEvent("allUpload", clickUploadTree);
 		this.attachToolbarMenuClickEvent("uploadTypeError", function () {
@@ -1382,7 +1383,7 @@ import { getFocusAskData, isChoiceMode, isTextMode } from './model/ques.js'
 	}
 
 	$(document).ready(function () {
-		document.getElementById("versionTag").innerHTML = getVersion();
+		document.getElementById("versionTag").innerHTML = (VUE_APP_VER_PREFIX ? VUE_APP_VER_PREFIX + '_' : '') + getVersion();
 
 		// 获取文档描述信息
 		let btnGetDocInfo = document.getElementById('getDocInfo')
