@@ -5625,7 +5625,13 @@ function importExam() {
 			return getAllPositions2()
 		}).then(res => {
 			Asc.scope.questionPositions = res
-			window.biyue.showDialog('exportExamWindow', '上传试卷', 'examExport.html', 1000, 800, true)
+			if (uploadValidateHandler.onValidate()) {
+				window.biyue.showDialog('exportExamWindow', '上传试卷', 'examExport.html', 1000, 800, true)
+			} else {
+				handleUploadPrepare('show').then(() => {
+					return setInteraction('useself')
+				})
+			}
 			setBtnLoading('importExam', false)
 		})
 	}

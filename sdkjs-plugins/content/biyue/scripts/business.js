@@ -3573,6 +3573,8 @@ function getAllPositions2() {
 														if (p % 2 == 0) {
 															valid = true
 														}
+													} else {
+														valid = true
 													}
 												}
 											} else {
