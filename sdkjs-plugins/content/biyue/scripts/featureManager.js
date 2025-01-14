@@ -325,15 +325,13 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 			var LvlText = oNumberingLvl.LvlText || []
 			if (LvlText && LvlText.length) {
 				if (LvlText[0].Value!='\ue749') {
-					var targetInd = oParagraph.GetParentTableCell() ? 280 : 0
-					oParagraph.SetIndFirstLine(targetInd)
+					oParagraph.SetIndFirstLine(0)
 					return
 				}
 			}
 			var key = `${oNum.Id}_${level}`
 			if (handledNumbering[key]) {
-				var targetInd = oParagraph.GetParentTableCell() ? 280 : 0
-				oParagraph.SetIndFirstLine(targetInd)
+				oParagraph.SetIndFirstLine(0)
 				return
 			}
 			handledNumbering[key] = 1
@@ -1059,7 +1057,7 @@ function setInteraction(type, quesIds, recalc = true) {
 	Asc.scope.interaction_quesIds = quesIds
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	Asc.scope.node_list = window.BiyueCustomData.node_list
-	Asc.scope.simple_interaction = 1 // window.BiyueCustomData.simple_interaction
+	Asc.scope.simple_interaction = window.BiyueCustomData.simple_interaction
 	return biyueCallCommand(window, function() {
 		var interaction_type_use = Asc.scope.interaction_type_use
 		var simple_interaction = Asc.scope.simple_interaction
@@ -1079,10 +1077,11 @@ function setInteraction(type, quesIds, recalc = true) {
 		
 		function updateParagraphInd(oParagraph, vshow) {
 			var targetInd = 0
-			if (oParagraph.GetParentTableCell()) {
-				targetInd = vshow ? 0 : vInd
-			} else {
-				targetInd = vshow ? (0 - vInd) : 0
+			if (vshow) {
+				var parentCell = oParagraph.GetParentTableCell()
+				if (!parentCell) {
+					targetInd = 0 - vInd
+				}
 			}
 			oParagraph.SetIndFirstLine(targetInd)
 		}
@@ -1175,6 +1174,7 @@ function setInteraction(type, quesIds, recalc = true) {
 				})
 			}
 			if (!vshow) {
+				oParagraph.SetIndFirstLine(0)
 				return
 			}
 			var oFill = Api.CreateNoFill()
@@ -1184,6 +1184,10 @@ function setInteraction(type, quesIds, recalc = true) {
 			)
 			var width = 5
 			var height = 5
+			var oFirstBounds = oParagraph.Paragraph.GetMulLineBounds(0, 1)
+			if (oFirstBounds && oFirstBounds.Bottom) {
+				height = oFirstBounds.Bottom - oFirstBounds.Top
+			}
 			var oDrawing = Api.CreateShape(
 				'rect',
 				width * 36e3,
@@ -1210,7 +1214,6 @@ function setInteraction(type, quesIds, recalc = true) {
 				}
 				oDrawing.SetTitle(JSON.stringify(titleobj))
 			}
-			
 			var horOffset = 0
 			var hasLevel = false
 			var oNumberingLevel = oParagraph.GetNumbering()
@@ -1228,16 +1231,51 @@ function setInteraction(type, quesIds, recalc = true) {
 				}
 			}
 			var style = 'inFront'
-			if (!hasLevel) {
-				var parentCell = oParagraph.GetParentTableCell()
-				if (parentCell && parentCell.GetIndex() > 0) {
+			var parentCell = oParagraph.GetParentTableCell()
+			if (parentCell && parentCell.GetIndex() > 0) {
+				if (hasLevel) {
+					oParagraph.SetIndFirstLine(5 / (25.4 / 72 / 20))
+				} else {
 					style = 'tight'
 				}
+			} else {
+				oParagraph.SetIndFirstLine(0)
 			}
 			oDrawing.SetWrappingStyle(style)
 			horOffset -= 5
 			oDrawing.SetHorPosition('character', horOffset * 36e3)
-			oDrawing.SetVerPosition('line', 0.5 * 36e3)
+			var oLineBounds = oParagraph.Paragraph.GetLineBounds(0)
+			
+			var lineTop = oLineBounds.Top
+			var oFirstTop = oFirstBounds.Top
+			var pageBounds = oParagraph.Paragraph.GetPageBounds(0)
+			var oPageTop = pageBounds.Top
+			var top = lineTop || oPageTop
+			var oParaPr = oParagraph.GetParaPr()
+			var verValue = 0
+			if (oParaPr && oParaPr.ParaPr && oParaPr.ParaPr.GetTextAlignment) {
+				var alignment = oParaPr.ParaPr.GetTextAlignment()
+				if (alignment != 4) {
+					if (top && oFirstTop) {
+						// console.log('===== 此时获取oPageTop:', oPageTop, 'lineTop', lineTop, 'oFirstTop', oFirstTop)
+						// console.log('+++++ 设置的Y偏移为', oFirstTop - top)
+						// console.log('GetLineBounds(0)', oLineBounds)
+						// console.log('GetMulLineBounds(0, 1)', oFirstBounds)
+						// console.log('GetPageBounds(0)', pageBounds)
+						// console.log('alignment', alignment)
+						if (alignment == 3) {
+							var bottom = oLineBounds.Bottom ? oLineBounds.Bottom : oFirstBounds.Bottom
+							verValue = (bottom - top - 5 + 2) / 2
+						} else {
+							verValue = oFirstTop - top
+						}
+						// console.log('======== verValue', verValue)
+					} else {
+						console.log('===== 此时尚未获取top', oPageTop, lineTop, oFirstTop)
+					}
+				}
+			}
+			oDrawing.SetVerPosition('line', verValue * 36e3)
 			var oRun = Api.CreateRun()
 			oRun.AddDrawing(oDrawing)
 			oParagraph.AddElement(oRun, 0)
@@ -1248,9 +1286,7 @@ function setInteraction(type, quesIds, recalc = true) {
 			}
 			if (simple_interaction == 2) {
 				showSimpleShape(oParagraph, vshow)
-				if (vshow) {
-					return
-				}
+				return
 			} else {
 				showSimpleShape(oParagraph, false)
 			}

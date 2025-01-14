@@ -113,7 +113,8 @@ function getList() {
 				label: '再练',
 				ox: extra_info.practise_again.x,
 				oy: extra_info.practise_again.y,
-				value_select: 'open'
+				value_select: 'open',
+				separator: true
 			})
 		}
 		if (extra_info.custom_evaluate) {
@@ -137,14 +138,16 @@ function getList() {
 				zone_type: ZONE_TYPE.PASS,
 				id: ZONE_TYPE_NAME[ZONE_TYPE.PASS],
 				label: '通过',
-				value_select: 'open'
+				value_select: 'open',
+				separator: true
 			})
 		} else if (extra_info.hiddenComplete && extra_info.hiddenComplete.checked === false) {
 			list.push({
 				zone_type: ZONE_TYPE.END,
 				id: ZONE_TYPE_NAME[ZONE_TYPE.END],
 				label: '完成',
-				value_select: 'open'
+				value_select: 'open',
+				separator: true
 			})
 		}
 		list.push({
@@ -157,7 +160,8 @@ function getList() {
 			zone_type: ZONE_TYPE.IGNORE,
 			id: ZONE_TYPE_NAME[ZONE_TYPE.IGNORE],
 			label: '日期/评语',
-			value_select: 'open'
+			value_select: 'open',
+			separator: true
 		})
 	} 
 	if (page_type == 0) {
@@ -197,14 +201,48 @@ function initFeature() {
 	content += `<tr><td colspan="2"><label class="header">全部</label></td></tr><tr><td class="padding-small" width="100%" colspan="2"><div id='all'></div></td></tr>`
 	content += '<tr><td class="padding-small" colspan="2"><div class="separator horizontal"></div></td></tr>'
 	var list = list_feature || getList()
+	var flag = 0
 	list.forEach((e, index) => {
 		if (!e.hidden) {
-			var str = `<tr><td colspan="2"><label class="header">${e.label}</label></td></tr><tr><td class="padding-small" width="100%" colspan="2"><div id=${e.id}></div></td></tr>`
-			if (e.id != 'header' && e.id != 'statistics') {
-				str += `<tr id="${e.id}Pos"><td class="padding-small" width="50%"><label class="input-label">X坐标</label><div id="${e.id}X"></div></td><td class="padding-small" width="50%"><label class="input-label">Y坐标</label><div id="${e.id}Y"></div></td></tr>`
+			var str = ''
+			if (flag == 0) {
+				str += '<tr>'
+			}
+			str += `<td class="padding-small" width="50%">
+						<label class="input-label">${e.label}</label>
+						<div id=${e.id}></div>
+					</td>`
+			flag++
+			if (e.id == 'interaction') {
+				str += `<td class="padding-small" width="50%" id="tdSimple">
+							<label class="input-label">简单使用方式</label>
+							<div id="simpleMode"></div>
+						</td>`
+				flag++
 			}
 			content += str
-			if (index != list.length - 1) {
+			// if (e.id != 'header' && e.id != 'statistics') {
+			// 	str += `<tr id="${e.id}Pos">
+			// 				<td class="padding-small" width="50%">
+			// 					<label class="input-label">X坐标</label>
+			// 					<div id="${e.id}X"></div>
+			// 				</td>
+			// 				<td class="padding-small" width="50%">
+			// 					<label class="input-label">Y坐标</label>
+			// 					<div id="${e.id}Y"></div>
+			// 				</td>
+			// 			</tr>`
+			// }
+			if (e.separator) {
+				content += '</tr>'
+				flag = 0
+			} else {
+				if (flag % 2 == 0) {
+					content += '</tr>'
+					flag = 0
+				}
+			}
+			if (index != list.length - 1 && e.separator) {
 				content +=
 					'<tr><td class="padding-small" colspan="2"><div class="separator horizontal"></div></td></tr>'
 			}
@@ -240,6 +278,23 @@ function initFeature() {
 					changeItem(e.zone_type, data, e.id)
 				},
 			})
+			if (e.id == 'interaction') {
+				var vInteraction = e.value_select || optionsTypes[0].value
+				e.comSelect2 = new ComponentSelect({
+					id: 'simpleMode',
+					options: [
+						{ value: '1', label: '题号' },
+						{ value: '2', label: '浮动图片' }
+					],
+					value_select: (window.BiyueCustomData.simple_interaction || 1) + '',
+					callback_item: (data) => {
+						changeSimpleInteraction(data.value)
+					},
+					width: '100%',
+					pop_width: '100%',
+					enabled: vInteraction != 'none'
+				})
+			}
 			e.inputX = new NumberInput(`${e.id}X`, {
 				change: (id, data) => {
 					changePos(e.zone_type, 'x', data)
@@ -285,6 +340,7 @@ function initFeature() {
 		}
 	}
 	showCom('#choiceGather', choice_display && choice_display.style != 'brackets_choice_region')
+
 	initPositions2()
 }
 
@@ -354,6 +410,7 @@ function changeItem(type, data, id) {
 		} else {
 			setInteraction(data.value)
 		}
+		enableSimpleMode(data.value != 'none')
 		updateAllInteraction(data.value)
 	} else {
 		if (id == ZONE_TYPE_NAME[ZONE_TYPE.STATISTICS]) {
@@ -375,7 +432,35 @@ function changeItem(type, data, id) {
 			}))
 		}
 	}
+}
 
+function enableSimpleMode(v) {
+	if (!list_feature) {
+		return
+	}
+	var item = list_feature.find(e => {
+		return e.id == 'interaction'
+	})
+	if (item && item.comSelect2) {
+		item.comSelect2.setEnable(v)
+	}
+}
+
+function changeSimpleInteraction(data) {
+	var oldValue = window.BiyueCustomData.simple_interaction
+	if (oldValue == 1) {
+		setInteraction('none').then(() => {
+			window.BiyueCustomData.simple_interaction = data
+			return setInteraction('useself')
+		}).then(() => {
+			window.biyue.StoreCustomData()
+		})
+	} else {
+		window.BiyueCustomData.simple_interaction = data
+		setInteraction('useself').then(() => {
+			window.biyue.StoreCustomData()
+		})
+	}
 }
 // 重新切题后同步互动情况
 function syncInteractionWhenReSplit() {
