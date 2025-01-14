@@ -791,15 +791,19 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 								var lastRange = newRanges[newRanges.length - 1]
 								var canMerge = false
 								if (ranges[i].Element == lastRange.Element && ranges[i].Start == lastRange.End) {
-									var idx = ranges[i].Text.indexOf('\r')
-									if (idx == 0 && ranges[i].Text[idx + 1] == lastRange.Text[lastRange.Text.length - 1]) {
-										var Start = lastRange.Start
-										var End = ranges[i].End
-										var nrange = lastRange.ExpandTo(ranges[i])
-										nrange.Start = Start
-										nrange.End = End
-										newRanges[newRanges.length - 1] = nrange
-										canMerge = true
+									var rText = ranges[i].GetText ? ranges[i].GetText() : ''
+									if (rText) {
+										var idx = rText.indexOf('\r')
+										var lastText = lastRange.GetText ? lastRange.GetText() : ''
+										if (idx == 0 && rText[idx + 1] == lastText[lastText.length - 1]) {
+											var Start = lastRange.Start
+											var End = ranges[i].End
+											var nrange = lastRange.ExpandTo(ranges[i])
+											nrange.Start = Start
+											nrange.End = End
+											newRanges[newRanges.length - 1] = nrange
+											canMerge = true
+										}
 									}
 								}
 								if (!canMerge) {
