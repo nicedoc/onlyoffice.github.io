@@ -917,6 +917,8 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		this.attachToolbarMenuClickEvent("uploadTypeError", function () {
 			showTypeErrorPanel()
 		})
+		this.attachToolbarMenuClickEvent("uploadPaper", importExam);
+		this.attachToolbarMenuClickEvent("save", onSaveData);
 		function getToolbarItems() {
 		let items = {
 			guid: window.Asc.plugin.info.guid,
@@ -1007,6 +1009,24 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 					enableToggle: false,
 					separator: false
 				}, {
+					id: "uploadPaper",
+					type: "button",
+					text: "上传卷面",
+					hint: "上传卷面",
+					icons: "resources/buttons/upload2.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: true
+				}, {
+					id: "save",
+					type: "button",
+					text: "手动保存",
+					hint: "手动保存",
+					icons: "resources/buttons/save.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: false
+				}, {
 					id: "uploadTypeError",
 					type: "button",
 					text: "题型错误上报",
@@ -1014,7 +1034,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 					icons: "resources/buttons/error.png", 
 					lockInViewMode: true,
 					enableToggle: false,
-					separator: true
+					separator: false
 				}
 			]
 			}]
