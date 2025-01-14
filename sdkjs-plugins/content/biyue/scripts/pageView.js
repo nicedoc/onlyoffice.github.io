@@ -460,6 +460,9 @@ function enableBtnImageLink(v) {
 }
 // 图片就近关联
 function onImageLink() {
+	if ($('#btnImageLink').hasClass('btn-unable')) {
+		return
+	}
 	imageAutoLink(null, true).then(res => {
 		if (res) {
 			updateHintById('imageLinkTip', '就近关联完成', CLR_SUCCESS)
