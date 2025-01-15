@@ -295,6 +295,10 @@ function imageAutoLink(ques_id, calc) {
 			}
 			var quesList = getBelongQuesList(tableFields)
 			if (!quesList || quesList.length == 0) {
+				if (title.ques_use) {
+					title.ques_use = ''
+					oTable.SetTableTitle(JSON.stringify(title))
+				}
 				continue
 			}
 			if (!title.client_id) {
