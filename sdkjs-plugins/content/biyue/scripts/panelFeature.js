@@ -360,7 +360,7 @@ function changeAll(data) {
 	if (data.value == 'close') {
 		deleteAllFeatures(['pagination'])
 	} else {
-		drawExtroInfo([].concat(list_feature), false)
+		drawExtroInfo([].concat(list_feature), imageDimensionsCache, false)
 		.then(() => {
 			return drawPageHeaderFooter(true)
 		})
@@ -427,9 +427,13 @@ function changeItem(type, data, id) {
 				setLoading(false)
 			})
 		} else {
-			handleFeature(Object.assign({}, fdata, {
+			var newObj = Object.assign({}, fdata, {
 				cmd: data.value,
-			}))
+			})
+			delete newObj.comSelect
+			delete newObj.inputX
+			delete newObj.inputY
+			handleFeature(newObj)
 		}
 	}
 }

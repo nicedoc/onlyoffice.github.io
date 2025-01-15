@@ -29,8 +29,10 @@ var c_oAscRelativeFromV = {
 	TopMargin: 7
 }
 
-function handleFeature(options) {
-	if (!options) { return }
+function handleFeature(options, recalc = true) {
+	if (!options) { 
+		return
+	}
 	options.size = Object.assign({}, ZONE_SIZE[options.zone_type], (options.size || {}))
 	if (options.v == undefined) {
 		options.v = 1
@@ -43,14 +45,17 @@ function handleFeature(options) {
 		console.log('loading...')
 		return
 	}
-	drawList([options]).then(() => {
+	return drawList([options], recalc).then(() => {
 		setLoading(false)
-		handleNext()
 	})
 }
 
 function drawExtroInfo(list, imageDimensionsCache, calc) {
-	if (!list) { return }
+	if (!list) { 
+		return new Promise((resolve, reject) => {
+			return resolve()
+		})
+	}
 	list.forEach(e => {
 		e.page_num = e.p || 0
 		if (e.v == undefined) {
@@ -78,7 +83,7 @@ function addCommand(options) {
 	}
 	list_wait_command[index] = options
 }
-
+// handleNext 原本是希望能处理等待执行的命令，目前弃用
 function handleNext() {
 	setLoading(false)
 	if (list_wait_command && list_wait_command.length) {
@@ -1045,7 +1050,7 @@ function drawList(list, recalc = true) {
 		}
 		console.log('=====================drawList end ')
 		return res
-	}, false, false)
+	}, false, recalc)
 }
 
 function setLoading(v) {
