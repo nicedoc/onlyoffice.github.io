@@ -201,26 +201,27 @@ function imageAutoLink(ques_id, calc) {
 			}
 			if (list.length) {
 				return list
-			} else if (partList.length == 1) {
-				return partList
 			}
+			// else if (partList.length == 1) {
+			// 	return partList
+			// }
 			return null
 		}
 		function getNewQuesUse(quesuse, quesList) {
-			if (quesuse) {
-				if (typeof quesuse == 'number') {
-					quesuse = quesuse + ''
-				}
-				if (typeof quesuse == 'string') {
-					var uselist = quesuse.split('_')
-					for (var id of quesList) {
-						if (!uselist.find(e => { return e == id })) {
-							uselist.push(id)
-						}
-					}
-					return uselist.join('_')
-				}
-			}
+			// if (quesuse) {
+			// 	if (typeof quesuse == 'number') {
+			// 		quesuse = quesuse + ''
+			// 	}
+			// 	if (typeof quesuse == 'string') {
+			// 		var uselist = quesuse.split('_')
+			// 		for (var id of quesList) {
+			// 			if (!uselist.find(e => { return e == id })) {
+			// 				uselist.push(id)
+			// 			}
+			// 		}
+			// 		return uselist.join('_')
+			// 	}
+			// }
 			return quesList.join('_')
 		}
 		// 图片关联
@@ -245,6 +246,10 @@ function imageAutoLink(ques_id, calc) {
 				h: Drawing.Height
 			}])
 			if (!quesList || quesList.length == 0) {
+				if (title.feature && title.feature.ques_use) {
+					title.feature.ques_use = ''
+					oDrawing.SetTitle(JSON.stringify(title))
+				}
 				continue
 			}
 			if (title.feature) {

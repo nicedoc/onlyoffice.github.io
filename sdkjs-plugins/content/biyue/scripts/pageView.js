@@ -463,6 +463,14 @@ function onImageLink() {
 	if ($('#btnImageLink').hasClass('btn-unable')) {
 		return
 	}
+	window.biyue.showMessageBox({
+		content: '图片关联将会清除旧有数据，确定继续操作吗？',
+		extra_data: {
+			func: 'onImageAutoLink'
+		}
+	})
+}
+function onImageAutoLink() {
 	imageAutoLink(null, true).then(res => {
 		if (res) {
 			updateHintById('imageLinkTip', '就近关联完成', CLR_SUCCESS)
@@ -733,5 +741,6 @@ export {
 	showTypeErrorPanel,
 	changeTabPanel,
 	onFeature,
-	showPanelLink
+	showPanelLink,
+	onImageAutoLink
 }

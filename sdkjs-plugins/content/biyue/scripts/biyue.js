@@ -52,7 +52,7 @@ import {
 import { layoutRepair, removeAllComment, layoutDetect } from './layoutFixHandler.js'
 import { reqSaveInfo } from './api/paper.js'
 
-import { initView, onSaveData, clickSplitQues, clickUploadTree, showTypeErrorPanel, changeTabPanel, onFeature, showPanelLink } from './pageView.js'
+import { initView, onSaveData, clickSplitQues, clickUploadTree, showTypeErrorPanel, changeTabPanel, onFeature, showPanelLink, onImageAutoLink } from './pageView.js'
 
 import { setInteraction, updateChoice, deleteAllFeatures } from './featureManager.js'
 import { getInfoForServerSave, showCom } from './model/util.js'
@@ -2684,6 +2684,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		onBatchScoreSet: onBatchScoreSet,
 		sendMessageToWindow: sendMessageToWindow,
 		refreshDialog: refreshDialog,
-		closeDialog: closeDialog
+		closeDialog: closeDialog,
+		onImageAutoLink: onImageAutoLink
 	}
 })(window, undefined)
