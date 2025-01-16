@@ -1,5 +1,5 @@
 // 划分类型，处理结构，题目，小问的增删维护
-import { biyueCallCommand, dispatchCommandResult } from "./command.js";
+import { biyueCallCommand } from "./command.js";
 import { deleteAsks, getNodeList, handleChangeType } from './QuesManager.js'
 function handleRangeType(options) {
 	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id

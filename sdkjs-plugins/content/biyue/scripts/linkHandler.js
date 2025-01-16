@@ -1,5 +1,5 @@
 // 这个文件主要处理图片或表格关联相关操作
-import { biyueCallCommand, dispatchCommandResult } from "./command.js";
+import { biyueCallCommand } from "./command.js";
 import { preGetExamTree } from "./QuesManager.js";
 
 function tagImageCommon(params) {

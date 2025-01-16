@@ -21,7 +21,7 @@ import { ReplaceRubyField } from "./phonetic.js";
 import {
 	initExtroInfo,
 } from './panelFeature.js'
-import { biyueCallCommand, dispatchCommandResult } from './command.js'
+import { biyueCallCommand } from './command.js'
 import {
 	reqUploadTree,
 	splitEnd,
@@ -710,7 +710,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
                 console.log(styledString, ...styles);
             };
 
-            //debugger;
+            // debugger;
 
             var oDocument = Api.GetDocument();
             var controls = oDocument.GetAllContentControls();
@@ -1098,31 +1098,26 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
         document.getElementById("h-value").innerHTML = mmToPx(rect.Y1 - rect.Y0);
     };
 
-	let setCurrentContentControlLock = function (lock) {
-		// 直接设置Lock以后，lock都不能操作了，锁定了不能通过插件操作？
+    let setCurrentContentControlLock = function (lock) {
+        // 直接设置Lock以后，lock都不能操作了，锁定了不能通过插件操作？
 
-		Asc.scope.lock = lock
-		window.Asc.plugin.callCommand(
+        Asc.scope.lock = lock;
+        window.Asc.plugin.callCommand(
 			function () {
-				// 获取当前控件id
-				const sContentControlId = Api.asc_GetCurrentContentControl()
-				if (sContentControlId) {
-					const prop = { Lock: Asc.scope.lock }
-					Api.asc_SetContentControlProperties(prop, sContentControlId, false)
-				}
-			},
-			false,
-			false,
-			undefined
-		)
-	}
+            // 获取当前控件id
+            const sContentControlId = Api.asc_GetCurrentContentControl();
+            if (sContentControlId) {
+                const prop = { Lock: Asc.scope.lock };
+                Api.asc_SetContentControlProperties(prop, sContentControlId, false);
+            }
+        }, false, false, undefined);
+    };
 
-	window.Asc.plugin.onCommandCallback = function (result) {
-		//console.log("onCommandCallback", result);
-		dispatchCommandResult(window, result)
-	}
+    window.Asc.plugin.onCommandCallback = function (result) {
+        //console.log("onCommandCallback", result);
+    };
 
-	let createContentControl = function (ranges) {
+    let createContentControl = function (ranges) {
         Asc.scope.ranges = ranges;
 
         return biyueCallCommand(window, function () {
