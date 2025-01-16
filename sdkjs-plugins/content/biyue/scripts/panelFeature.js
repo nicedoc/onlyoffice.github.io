@@ -513,28 +513,33 @@ function setXY(index, p, x, y, size) {
 function getPageData() {
 	Asc.scope.workbook = window.BiyueCustomData.workbook_info
 	return biyueCallCommand(window, function () {
-		var workbook = Asc.scope.workbook || {}
-		var oDocument = Api.GetDocument()
-		var sections = oDocument.GetSections()
-		function MM2Twips(mm) {
-			return mm / (25.4 / 72 / 20)
-		}
-		function get2(v) {
-			return MM2Twips(v * (workbook.page_size.width / 816)) 
-		}
-		if (sections && sections.length > 0) {
-			var oSection = sections[0]
-			var pageNum = oDocument.Document.Pages.length
-			var hasHeader = !!oSection.GetHeader('title', false)
-			return {
-				Num: oSection.Section.Columns.Num,
-				PageSize: oSection.Section.PageSize,
-				PageMargins: oSection.Section.PageMargins,
-				pageNum: pageNum,
-				hasHeader: hasHeader,
+		try {
+			console.log('[getPageData] begin')
+			var workbook = Asc.scope.workbook || {}
+			var oDocument = Api.GetDocument()
+			var sections = oDocument.GetSections()
+			function MM2Twips(mm) {
+				return mm / (25.4 / 72 / 20)
 			}
+			function get2(v) {
+				return MM2Twips(v * (workbook.page_size.width / 816)) 
+			}
+			if (sections && sections.length > 0) {
+				var oSection = sections[0]
+				var pageNum = oDocument.Document.Pages.length
+				var hasHeader = !!oSection.GetHeader('title', false)
+				return {
+					Num: oSection.Section.Columns.Num,
+					PageSize: oSection.Section.PageSize,
+					PageMargins: oSection.Section.PageMargins,
+					pageNum: pageNum,
+					hasHeader: hasHeader,
+				}
+			}
+			return null
+		} catch (error) {
+			console.error('[getPageData]', error)
 		}
-		return null
 	},false,false)
 }
 
@@ -695,12 +700,17 @@ function initPositions2() {
 
 function MoveCursor() {
 	return biyueCallCommand(window, function() {
-		var oDocument = Api.GetDocument()
-		var controls = oDocument.GetAllContentControls()
-		if (controls && controls.length) {
-			oDocument.Document.MoveCursorToContentControl(controls[0].Sdt.GetId(), true)
-		} else {
-			oDocument.Document.MoveCursorToPageEnd()
+		try {
+			console.log('[MoveCursor] begin')
+			var oDocument = Api.GetDocument()
+			var controls = oDocument.GetAllContentControls()
+			if (controls && controls.length) {
+				oDocument.Document.MoveCursorToContentControl(controls[0].Sdt.GetId(), true)
+			} else {
+				oDocument.Document.MoveCursorToPageEnd()
+			}
+		} catch (error) {
+			console.error('[MoveCursor]', error)
 		}
 	}, false, false)
 }
