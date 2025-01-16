@@ -22,6 +22,7 @@ import {
 	let img_file_list = []
 	let page_size = ''
 	let numericFields = ['x', 'y', 'w', 'h', 'page']
+	let g_times = null
 	window.Asc.plugin.init = function () {
 		console.log('examExport init')
 		window.Asc.plugin.sendToPlugin('onWindowMessage', { type: 'exportMessage' })
@@ -221,12 +222,14 @@ import {
 
 	// 上传试卷预览图
 	async function uploadPreview() {
-		console.log('uploadPreview')
+		g_times = []
+		printTime('[点击开始上传]')
 		const file_list = img_file_list || []
 		if (!file_list) {
 			return
 		}
 		var pid = 1
+		printTime('[开始上传预览图]')
 		for (var file of file_list) {
 			console.log('file', file)
 			const data = new FormData()
@@ -239,13 +242,14 @@ import {
 			await paperUploadPreview(data)
 				.then((res) => {
 					console.log(res)
+					printTime(`上传预览图${pid}成功`)
 					pid++
 				})
 				.catch((error) => {
 					console.log(error)
 				})
 		}
-		console.log('所有底图上传成功')
+		printTime('所有底图上传成功')
 		onUpdatePostions()
 	}
 // 更新试卷切题信息
@@ -263,7 +267,7 @@ function onUpdatePostions() {
 		evaluationPosition,
 		''
 	).then((res) => {
-			console.log('保存位置成功')
+			printTime('保存位置成功')
 			// 将窗口的信息传递出去
 			window.Asc.plugin.sendToPlugin('onWindowMessage', {
 				type: 'positionSaveSuccess',
@@ -288,6 +292,7 @@ function onUpdatePostions() {
 		initImg()
 	}
 	function initImg() {
+		printTime('[开始下载预览图]')
 		$('#workbookImgLoading').show()
 		window.Asc.plugin.executeMethod('GetFileToDownload', ['PNG'], (res) => {
 			console.log(res)
@@ -310,6 +315,7 @@ function onUpdatePostions() {
 					return JSZip.loadAsync(arrayBuffer) // 使用 JSZip 加载 ArrayBuffer
 				})
 				.then(async (zip) => {
+					printTime('[预览图下载完成]')
 					try {
 						let files = Object.entries(zip.files)
 						// 保证图片的顺序
@@ -366,7 +372,20 @@ function onUpdatePostions() {
 				})
 		})
 	}
+	function printTime(text) {
+		if (!g_times) {
+			g_times = []
+		}
+		g_times.push(Date.now())
+		if (g_times.length > 1) {
+			console.log(g_times[g_times.length - 1], text, (g_times[g_times.length - 1] - g_times[g_times.length - 2]) + 'ms')
+		} else {
+			console.log(g_times[g_times.length - 1], text)
+		}
+	}
 	window.Asc.plugin.attachEvent('initPaper', function (message) {
+		g_times = null
+		printTime('[上传卷面] 初始化')
 		console.log('examExport 接收的消息', message)
 		setXToken(message.xtoken)
 		paper_info = message.paper_info
