@@ -2338,7 +2338,7 @@ function confirmLevelSet(levels) {
 					var proportion = getProportion(oControl)
 					var text = oControl.GetRange().GetText()
 					var numberingInfo = GetNumberingValue(oControl)
-					var lvl = numberingInfo && numberingInfo.lvl ? numberingInfo.lvl : tagInfo.lvl
+					var lvl = numberingInfo && numberingInfo.lvl != undefined && numberingInfo.lvl >= 0 ? numberingInfo.lvl : tagInfo.lvl
 					if (lvl != tagInfo.lvl) {
 						tagInfo.lvl = lvl
 					}
