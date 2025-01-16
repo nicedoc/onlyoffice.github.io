@@ -4,8 +4,7 @@ function layoutDetect(all) {
 	return removeAllComment()
 	.then(() => {
 		return biyueCallCommand(window, function() {
-			try {
-				console.log('[layoutDetect] begin')
+				// console.log('[layoutDetect] begin')
 				var oDocument = Api.GetDocument()
 				var oRange = null
 				if (Asc.scope.layout_all_range) {
@@ -170,10 +169,7 @@ function layoutDetect(all) {
 					}
 				}
 				return result
-			} catch (error) {
-				console.error('[layoutDetect]', error)
-			}
-		}, false, false)
+		}, false, false, {name: 'layoutDetect'})
 	}).then(res => {
 		Asc.scope.layout_detect_result = res
 		window.biyue.showDialog('layoutRepairWindow', '字符检测', 'layoutRepair.html', 250, 400, false)
@@ -184,8 +180,7 @@ function layoutDetect(all) {
 function layoutRepair(cmdData) {
 	Asc.scope.cmdData = cmdData
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[layoutRepair begin]')
+			// console.log('[layoutRepair begin]')
 			var cmdData = Asc.scope.cmdData
 			var oDocument = Api.GetDocument()
 			var oRange = null
@@ -497,16 +492,12 @@ function layoutRepair(cmdData) {
 					}
 				}
 			}
-		} catch (error) {
-			console.error('[layoutRepair]', error)
-		}
-	}, false, true)
+	}, false, true, {name: 'layoutRepair'})
 }
 
 function removeAllComment() {
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[removeAllComment begin]')
+			// console.log('[removeAllComment begin]')
 			var oDocument = Api.GetDocument()
 			var allComments = oDocument.GetAllComments() || []
 			allComments.forEach(oComment => {
@@ -514,10 +505,7 @@ function removeAllComment() {
 					oComment.Delete()
 				}
 			})
-		} catch (error) {
-			console.error('[removeAllComment]', error)
-		}
-	}, false, false)
+	}, false, false, {name: 'removeAllComment'})
 }
 
 export {

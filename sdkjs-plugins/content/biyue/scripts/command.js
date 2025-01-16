@@ -2,6 +2,7 @@
  * Generates a random UUID.
  * @returns {string} A random UUID.
  */
+import { handleCommandError } from "./model/util.js";
 function uuid() {
     var s = [];
     var hexDigits = "0123456789abcdef";
@@ -27,13 +28,13 @@ function commandLog(args) {
  * @param {boolean} isCalc - Indicates whether the command is a calculation command.
  * @returns {Promise} A promise that resolves with the result of the command execution.
  */
-async function biyueCallCommand(window, func, isClose, isCalc) {
+async function biyueCallCommand(window, func, isClose, isCalc, params) {
     return new Promise((resolve, reject) => {        
         var token = uuid();       
-        commandLog("pluginFrame send command, token=" + token);        
+        //commandLog("pluginFrame send command, token=" + token);        
         window.Asc.plugin.callReliableCommand(token, func, isClose, isCalc, function(token, error, retData)
         {
-            commandLog("callback" + token);
+            //commandLog("callback" + token);
             if (!error)
             {
                 resolve(retData)
@@ -41,6 +42,7 @@ async function biyueCallCommand(window, func, isClose, isCalc) {
             else
             {
                 reject(error);
+				handleCommandError(window, params, error)
             }
         });
     });

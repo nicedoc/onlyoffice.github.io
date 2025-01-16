@@ -43,7 +43,7 @@ function handleDocClick(options) {
 						var oControl = Api.LookupObject(Asc.scope.controlId)
 						var parentControl = oControl.GetParentContentControl()
 						return parentControl ? parentControl.GetTag() : ''
-					}, false, false).then(res => {
+					}, false, false, {name: 'handleDocClick'}).then(res => {
 						var parentTag = getJsonData(res)
 						if (parentTag.client_id || window.tab_select == 'tabQues') {
 							var event = new CustomEvent('clickSingleQues', {
@@ -88,8 +88,7 @@ function handleContextMenuShow(options) {
 	window.write_zone_add = false
 	Asc.scope.menu_options = options
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[handleContextMenuShow begin]')
+			// console.log('[handleContextMenuShow begin]')
 			Api.isStartAddShape = false
 			var options = Asc.scope.menu_options
 			var bTable = false
@@ -205,10 +204,7 @@ function handleContextMenuShow(options) {
 				}				
 			}
 			return result
-		} catch (error) {
-			console.error('[handleContextMenuShow]', error)
-		}
-	}, false, false).then(res => {
+	}, false, false, {name: 'handleContextMenuShow'}).then(res => {
 		window.Asc.plugin.executeMethod('AddContextMenuItem', [getContextMenuItems(options.type, res)])
 	})
 }
@@ -724,8 +720,7 @@ function onContextMenuClick(id) {
 
 function getNodeList() {
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[getNodeList] begin')
+			// console.log('[getNodeList] begin')
 			var oDocument = Api.GetDocument()
 			var node_list = []
 			var controls = oDocument.GetAllContentControls() || []
@@ -1029,10 +1024,7 @@ function getNodeList() {
 				}
 			}
 			return node_list
-		} catch (error) {
-			console.error('[getNodeList]', error)
-		}
-	}, false, true)
+	}, false, true, {name: 'getNodeList'})
 }
 
 function updateScore(qid) {
@@ -1644,8 +1636,7 @@ function updateAllChoice() {
 function getBatchList() {
 	Asc.scope.node_list = window.BiyueCustomData.node_list
 	return biyueCallCommand(window, function () {
-		try {
-			console.log('[getBatchList] begin')
+			// console.log('[getBatchList] begin')
 			var oDocument = Api.GetDocument()
 			var control_list = oDocument.GetAllContentControls()
 			var ques_id_list = []
@@ -1736,10 +1727,7 @@ function getBatchList() {
 				list: ques_id_list,
 				type: type
 			}
-		} catch (error) {
-			console.error('[getBatchList]', error)
-		}
-	}, false, false)
+	}, false, false, {name: 'getBatchList'})
 }
 // 批量修改题型
 function batchChangeQuesType(type) {
@@ -1933,8 +1921,7 @@ function initControls() {
 	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
 	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[initControls] begin')
+			// console.log('[initControls] begin')
 			var question_map = Asc.scope.question_map || {}
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls()
@@ -2127,10 +2114,7 @@ function initControls() {
 				client_node_id,
 				cellAskMap
 			}
-		} catch (error) {
-			console.error('[initControls]', error)
-		}
-	}, false, false).then(res => {
+	}, false, false, {name: 'initControls'}).then(res => {
 		console.log('initControls   nodeList', res)
 		return new Promise((resolve, reject) => {
 			// todo.. 这里暂不考虑上次的数据未保存或保存失败的情况，只假设此时的control数据和nodelist里的是一致的，只是乱码而已，其他的后续再处理
@@ -2229,8 +2213,7 @@ function confirmLevelSet(levels) {
 	Asc.scope.levels = levels
 	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[confirmLevelSet] begin')
+			// console.log('[confirmLevelSet] begin')
 			var levelmap = Asc.scope.levels
 			var client_node_id = Asc.scope.client_node_id
 			var nodeList = []
@@ -2401,10 +2384,7 @@ function confirmLevelSet(levels) {
 				nodeList: nodeList,
 				questionMap: questionMap
 			}
-		} catch (error) {
-			console.error('[confirmLevelSet]', error)
-		}
-	}, false, false).then(res => {
+	}, false, false, {name: 'confirmLevelSet'}).then(res => {
 		console.log('===== confirmLevelSet res', res)
 		Asc.scope.control_hightlight = true
 		if (res) {
@@ -2544,8 +2524,7 @@ function getQuestionHtml(ids, getLatestParent) {
 	Asc.scope.html_ids = ids
 	Asc.scope.getLatestParent = getLatestParent
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[getQuestionHtml] begin')
+			// console.log('[getQuestionHtml] begin')
 			var question_map = Asc.scope.question_map || {}
 			var target_list = []
 			var oDocument = Api.GetDocument()
@@ -2762,10 +2741,7 @@ function getQuestionHtml(ids, getLatestParent) {
 				addHtml(quesId, quesId, quesData, oControl, lvl1)
 			}
 			return target_list
-		} catch (error) {
-			console.error('[getQuestionHtml]', error)
-		}
-	}, false, false)
+	}, false, false, {name: 'getQuestionHtml'})
 }
 
 // 获取题型
@@ -2803,8 +2779,7 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 	Asc.scope.ids = ids ? ids : Object.keys(Asc.scope.question_map)
 	Asc.scope.choice_blank = window.BiyueCustomData.choice_blank
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[deleteChoiceOtherWrite] begin')
+			// console.log('[deleteChoiceOtherWrite] begin')
 			var question_map = Asc.scope.question_map
 			var node_list = Asc.scope.node_list
 			var choice_blank = Asc.scope.choice_blank
@@ -3022,10 +2997,7 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 				question_map,
 				updateInteraction
 			}
-		} catch (error) {
-			console.error('[deleteChoiceOtherWrite]', error)
-		}
-	}, false, recalc).then(res => {
+	}, false, recalc, {name: 'deleteChoiceOtherWrite'}).then(res => {
 		return new Promise((resolve, reject) => {
 			if (res) {
 				window.BiyueCustomData.node_list = res.node_list
@@ -3040,8 +3012,7 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 function handleAllWrite(cmdType) {
 	Asc.scope.cmdType = cmdType
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[handleAllWrite] begin')
+			// console.log('[handleAllWrite] begin')
 			var oDocument = Api.GetDocument()
 			var drawings = oDocument.GetAllDrawingObjects()
 			var cmdType = Asc.scope.cmdType
@@ -3075,10 +3046,7 @@ function handleAllWrite(cmdType) {
 				list: list,
 				cmdType: cmdType
 			}
-		} catch (error) {
-			console.error('[handleAllWrite]', error)
-		}
-	}, false, true).then(res => {
+	}, false, true, {name: 'handleAllWrite'}).then(res => {
 		console.log('handleAllWrite', res)
 		if (res) {
 			if (res.cmdType == 'del' && res.list) {
@@ -3118,8 +3086,7 @@ function showAskCells(cmdType) {
 	Asc.scope.node_list = window.BiyueCustomData.node_list
 	Asc.scope.cmdType = cmdType
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[showAskCells] begin')
+			// console.log('[showAskCells] begin')
 			var question_map = Asc.scope.question_map || {}
 			var node_list = Asc.scope.node_list || []
 			var cmdType = Asc.scope.cmdType
@@ -3175,10 +3142,7 @@ function showAskCells(cmdType) {
 					}
 				}
 			})
-		} catch (error) {
-			console.error('[showAskCells]', error)
-		}
-	}, false, true)
+	}, false, true, {name: 'showAskCells'})
 }
 
 // 全量更新
@@ -3218,8 +3182,7 @@ function getControlListForUpload() {
 	Asc.scope.node_list = window.BiyueCustomData.node_list
     Asc.scope.question_map = window.BiyueCustomData.question_map
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[getControlListForUpload] begin')
+			// console.log('[getControlListForUpload] begin')
 			var target_list = []
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls()
@@ -3371,10 +3334,7 @@ function getControlListForUpload() {
 				target_list,
 				common_use
 			}
-		} catch (error) {
-			console.error('[getControlListForUpload]', error)
-		}
-	  }, false, false)
+	  }, false, false, {name: 'getControlListForUpload'})
 }
 
 // 清洗输出的html
@@ -3711,8 +3671,7 @@ function deleteAsks(askList, recalc = true, notify = true) {
 	Asc.scope.node_list = window.BiyueCustomData.node_list
 	Asc.scope.delete_ask_list = askList
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[deleteAsks] begin')
+			// console.log('[deleteAsks] begin')
 			var node_list = Asc.scope.node_list
 			var question_map = Asc.scope.question_map
 			var delete_ask_list = Asc.scope.delete_ask_list
@@ -4120,10 +4079,7 @@ function deleteAsks(askList, recalc = true, notify = true) {
 				node_list: node_list,
 				ques_id: delete_ask_list[delete_ask_list.length - 1].ques_id
 			}
-		} catch (error) {
-			console.error('[deleteAsks]', error)
-		}
-	}, false, recalc).then(res => {
+	}, false, recalc, {name: 'deleteAsks'}).then(res => {
 		if (res) {
 			window.BiyueCustomData.question_map = res.question_map
 			window.BiyueCustomData.node_list = res.node_list
@@ -4158,8 +4114,7 @@ function focusControl(id) {
 	}
 	Asc.scope.focus_ids = quesData.level_type == 'question' && quesData.is_merge ? quesData.ids : [id]
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[focusControl] begin')
+			// console.log('[focusControl] begin')
 			var focusIds = Asc.scope.focus_ids
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls()
@@ -4187,10 +4142,7 @@ function focusControl(id) {
 				}
 			}
 			return null
-		} catch (error) {
-			console.error('[focusControl]', error)
-		}
-	}, false, false).then((res) => {
+	}, false, false, {name: 'focusControl'}).then((res) => {
 		g_click_value = res
 		return new Promise((resolve, reject) => {
 			resolve()
@@ -4206,8 +4158,7 @@ function focusAsk(writeData) {
 	}
 	Asc.scope.write_data = writeData
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[focusAsk] begin')
+			// console.log('[focusAsk] begin')
 			var writeList = Asc.scope.write_data || []
 			var write_data = writeList[0]
 			var oDocument = Api.GetDocument()
@@ -4304,17 +4255,13 @@ function focusAsk(writeData) {
 					oDrawing.Select()
 				}
 			}	
-		} catch (error) {
-			console.error('[focusAsk]', error)
-		}
-	}, false, false)
+	}, false, false, {name: 'focusAsk'})
 }
 
 function handleImageIgnore(cmdType) {
 	Asc.scope.cmdType = cmdType
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[handleImageIgnore] begin')
+			// console.log('[handleImageIgnore] begin')
 			var cmdType = Asc.scope.cmdType
 			var oDocument = Api.GetDocument()
 			var drawings = oDocument.GetAllDrawingObjects() || []
@@ -4347,17 +4294,13 @@ function handleImageIgnore(cmdType) {
 				}
 			})
 			// oDocument.Document.LoadDocumentState(oState)
-		} catch (error) {
-			console.error('[handleImageIgnore]', error)
-		}
-	}, false, false)
+	}, false, false, {name: 'handleImageIgnore'})
 }
 // todo。。分栏需要考虑的因素很多，需要之后再考虑
 function setSectionColumn(column) {
 	Asc.scope.column = column
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[setSectionColumn] begion')
+			// console.log('[setSectionColumn] begion')
 			var column = Asc.scope.column
 			var oDocument = Api.GetDocument()
 			Api.pluginMethod_MoveCursorToStart()
@@ -4380,10 +4323,7 @@ function setSectionColumn(column) {
 				oSection.Section.Set_Columns_Space((25.4 / 72 / 20) * 640)
 				oSection.Section.Set_Columns_Sep(true)
 			}	
-		} catch (error) {
-			console.error('[setSectionColumn]', error)
-		}
-	}, false, true)
+	}, false, true, {name: 'setSectionColumn'})
 }
 
 function batchChangeScore() {
@@ -4408,8 +4348,7 @@ function updateQuesScore(ids) {
 	}
 	Asc.scope.ids = ids
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[updateQuesScore] begion')
+			// console.log('[updateQuesScore] begion')
 			var node_list = Asc.scope.node_list
 			var question_map = Asc.scope.question_map
 			var ids = Asc.scope.ids
@@ -4764,10 +4703,7 @@ function updateQuesScore(ids) {
 					}
 				}
 			}
-		} catch (error) {
-			console.error('[updateQuesScore]', error)
-		}
-	}, false, true)
+	}, false, true, {name: 'updateQuesScore'})
 }
 // 针对单道题，进行重新切题
 function splitControl(qid) {
@@ -4788,8 +4724,7 @@ function splitControl(qid) {
 	Asc.scope.qid = qid
 	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[splitControl] begin')
+			// console.log('[splitControl] begin')
 			var node_list = Asc.scope.node_list
 			var qid = Asc.scope.qid
 			var client_node_id = Asc.scope.client_node_id
@@ -5111,10 +5046,7 @@ function splitControl(qid) {
 			result.client_node_id = client_node_id
 			result.ques_id = qid
 			return result
-		} catch (error) {
-			console.error('[splitControl]', error)
-		}
-	}, false, true).then(res1 => {
+	}, false, true, {name: 'splitControl'} ).then(res1 => {
 		if (res1) {
 			if (res1.message && res1.message != '') {
 				alert(res1.message)
@@ -5148,8 +5080,7 @@ function clearRepeatControl(reclac = false) {
 	Asc.scope.node_list = window.BiyueCustomData.node_list || []
 	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[clearRepeatControl begin]')
+			// console.log('[clearRepeatControl begin]')
 			var client_node_id = Asc.scope.client_node_id || 0
 			var node_list = Asc.scope.node_list
 			var question_map = Asc.scope.question_map
@@ -5236,10 +5167,7 @@ function clearRepeatControl(reclac = false) {
 				node_list: node_list,
 				question_map: question_map
 			}
-		} catch (error) {
-			console.error('[clearRepeatControl]', error)
-		}
-	}, false, reclac).then(res => {
+	}, false, reclac, {name: 'clearRepeatControl'}).then(res => {
 		return new Promise((resolve, reject) => {
 			if (res) {
 				window.BiyueCustomData.client_node_id = res.client_node_id
@@ -5255,8 +5183,7 @@ function tidyTree() {
 	Asc.scope.node_list = window.BiyueCustomData.node_list || []
 	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[tidyTree begin]')
+			// console.log('[tidyTree begin]')
 			var node_list = Asc.scope.node_list
 			var question_map = Asc.scope.question_map
 			var oDocument = Api.GetDocument()
@@ -5516,10 +5443,7 @@ function tidyTree() {
 			return {
 				node_list: node_list
 			}
-		} catch (error) {
-			console.error('[tidyTree]', error)
-		}
-	}, false, false)
+	}, false, false, {name: 'tidyTree'})
 }
 
 function tidyNodes() {
@@ -5599,8 +5523,7 @@ function handleUploadPrepare(cmdType) {
 	Asc.scope.node_list = window.BiyueCustomData.node_list || []
 	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[handleUploadPrepare begin]')
+			// console.log('[handleUploadPrepare begin]')
 			var cmdType = Asc.scope.cmdType
 			var oDocument = Api.GetDocument()
 			var drawings = oDocument.GetAllDrawingObjects() || []
@@ -5718,10 +5641,7 @@ function handleUploadPrepare(cmdType) {
 				}
 			})
 			oDocument.Document.LoadDocumentState(oState)
-		} catch (error) {
-			console.error('[handleUploadPrepare]', error)			
-		}
-	}, false, true)
+	}, false, true, {name: 'handleUploadPrepare'})
 }
 
 function importExam() {
@@ -5972,8 +5892,7 @@ function insertSymbol(unicode) {
 		isCalc = true
 	}
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[insertSymbol] begin')
+			// console.log('[insertSymbol] begin')
 			var unicode = Asc.scope.symbol
 			var client_node_id = Asc.scope.client_node_id
 			var question_map = Asc.scope.question_map
@@ -6078,10 +5997,7 @@ function insertSymbol(unicode) {
 				}
 			}
 			return result
-		} catch (error) {
-			console.error('[insertSymbol]', error)
-		}
-	}, false, isCalc).then(res1 => {
+	}, false, isCalc, {name: 'insertSymbol'}).then(res1 => {
 		if (res1 && res1.change_list.length) {
 			return getNodeList().then(res2 => {
 				return handleChangeType(res1, res2)
@@ -6098,8 +6014,7 @@ function preGetExamTree() {
 	Asc.scope.node_list = window.BiyueCustomData.node_list
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[preGetExamTree begin]')
+			// console.log('[preGetExamTree begin]')
 			var node_list = Asc.scope.node_list || []
 			var question_map = Asc.scope.question_map || {}
 			var oDocument = Api.GetDocument()
@@ -6334,10 +6249,7 @@ function preGetExamTree() {
 				}
 			}
 			return list
-		} catch (error) {
-			console.error('[preGetExamTree]', error)
-		}
-	}, false, false).then((list => {
+	}, false, false, {name: 'preGetExamTree'}).then((list => {
 		// 传入OO处理的js代码的列表结构不支持层级过深，嵌套达到5级，就会导致树形结构出错，command无法返回结果
 		return new Promise((resolve, reject) => {
 			if (!list) {
@@ -6378,8 +6290,7 @@ function setNumberingLevel(ids, lvl) {
 	Asc.scope.ids = ids
 	Asc.scope.lvl = lvl
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[setNumberingLevel] begin')
+			// console.log('[setNumberingLevel] begin')
 			var ids = Asc.scope.ids || []
 			var lvl = Asc.scope.lvl
 			var oDocument = Api.GetDocument()
@@ -6445,10 +6356,7 @@ function setNumberingLevel(ids, lvl) {
 				})
 			}
 			return list
-		} catch (error) {
-			console.error('[setNumberingLevel]', error)
-		}
-	}, false, false).then(list => {
+	}, false, false, {name: 'setNumberingLevel'}).then(list => {
 		return new Promise((resolve, reject) => {
 			try {
 				if (list) {
@@ -6471,8 +6379,7 @@ function setNumberingLevel(ids, lvl) {
 // 将单个字设置为小问
 function splitWordAsk() {
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[splitWordAsk begin]')
+			// console.log('[splitWordAsk begin]')
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls() || []
 			const WORDS = [0xe753, 0xe754, 0xe755, 0xe756, 0xe757, 0xe758]
@@ -6519,10 +6426,7 @@ function splitWordAsk() {
 					}
 				}
 			}
-		} catch (error) {
-			console.log('[splitWordAsk]', error)
-		}
-	}, false, false)
+	}, false, false, {name: 'splitWordAsk'})
 }
 
 export {

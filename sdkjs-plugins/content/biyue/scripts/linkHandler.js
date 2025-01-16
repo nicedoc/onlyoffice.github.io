@@ -6,8 +6,7 @@ function tagImageCommon(params) {
 	Asc.scope.tag_params = params
 	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[tagImageCommon] begin')
+			// console.log('[tagImageCommon] begin')
 			var tag_params = Asc.scope.tag_params
 			var client_node_id = Asc.scope.client_node_id
 			var oDocument = Api.GetDocument()
@@ -52,10 +51,7 @@ function tagImageCommon(params) {
 				drawing_id: tag_params.target_id,
 				ques_use: tag_params.ques_use
 			}
-		} catch (error) {
-			console.error('[tagImageCommon]', error)
-		}
-	}, false, false).then(res => {
+	}, false, false, {name: 'tagImageCommon'}).then(res => {
 		if (res) {
 			window.BiyueCustomData.client_node_id = res.client_node_id
 			if (!window.BiyueCustomData.image_use) {
@@ -79,8 +75,7 @@ function imageAutoLink(ques_id, calc) {
 	Asc.scope.link_type = window.BiyueCustomData.link_type || 'all'
 	Asc.scope.link_coverage_percent = window.BiyueCustomData.link_coverage_percent || 80
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[imageAutoLink] begin')
+			// console.log('[imageAutoLink] begin')
 			var oDocument = Api.GetDocument()
 			var allDrawings = oDocument.GetAllDrawingObjects() || []
 			var tables = oDocument.GetAllTables() || []
@@ -315,10 +310,7 @@ function imageAutoLink(ques_id, calc) {
 				client_node_id,
 				rev
 			}
-		} catch (error) {
-			console.error('[imageAutoLink]', error)
-		}
-	}, false, calc).then(res => {
+	}, false, calc, {name: 'imageAutoLink'}).then(res => {
 		if (res) {
 			window.BiyueCustomData.client_node_id = res.client_node_id
 		}
@@ -327,8 +319,7 @@ function imageAutoLink(ques_id, calc) {
 }
 function onAllCheck() {
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[onAllCheck] begin')
+			// console.log('[onAllCheck] begin')
 			var oDocument = Api.GetDocument()
 			var allDrawings = oDocument.GetAllDrawingObjects() || []
 			var tables = oDocument.GetAllTables() || []
@@ -425,10 +416,7 @@ function onAllCheck() {
 				}
 			})
 			return allList
-		} catch (error) {
-			console.error('[onAllCheck]', error)
-		}
-	}, false, false).then(res => {
+	}, false, false, {name: 'onAllCheck'}).then(res => {
 		Asc.scope.linked_list = res
 		return preGetExamTree()
 	}).then(res => {
@@ -439,8 +427,7 @@ function onAllCheck() {
 // 获取已关联列表
 function onLinkedCheck() {
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[onLinkedCheck] begin')
+			// console.log('[onLinkedCheck] begin')
 			var oDocument = Api.GetDocument()
 			var allDrawings = oDocument.GetAllDrawingObjects() || []
 			var tables = oDocument.GetAllTables() || []
@@ -514,10 +501,7 @@ function onLinkedCheck() {
 				})
 			}
 			return linkedList
-		} catch (error) {
-			console.error('[onLinkedCheck]', error)
-		}
-	}, false, false).then(res => {
+	}, false, false, {name: 'onLinkedCheck'}).then(res => {
 		Asc.scope.linked_list = res
 		return preGetExamTree()
 	}).then(res => {
@@ -530,8 +514,7 @@ function updateLinkedInfo(info) {
 	Asc.scope.link_info = info
 	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[updateLinkedInfo] begin')
+			// console.log('[updateLinkedInfo] begin')
 			var link_info = Asc.scope.link_info
 			var client_node_id = Asc.scope.client_node_id
 			var oDocument = Api.GetDocument()
@@ -582,10 +565,7 @@ function updateLinkedInfo(info) {
 			return {
 				client_node_id: client_node_id
 			}
-		} catch (error) {
-			console.error('[updateLinkedInfo]', error)
-		}
-	}, false, false).then(res => {
+	}, false, false, {name: 'updateLinkedInfo'}).then(res => {
 		if (res) {
 			window.BiyueCustomData.client_node_id = res.client_node_id
 		}
@@ -600,8 +580,7 @@ function ShowLinkedWhenclickImage(options, control_id) {
 	Asc.scope.click_options = options
 	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[ShowLinkedWhenclickImage] begin')
+			// console.log('[ShowLinkedWhenclickImage] begin')
 			var oDocument = Api.GetDocument()
 			var selectedDrawings = oDocument.GetSelectedDrawings() || []
 			var allDrawings = oDocument.GetAllDrawingObjects() || []
@@ -695,17 +674,13 @@ function ShowLinkedWhenclickImage(options, control_id) {
 				}
 			})
 			oDocument.Document.LoadDocumentState(oState)
-		} catch (error) {
-			console.error('[ShowLinkedWhenclickImage]', error)
-		}
-	}, false, false)
+	}, false, false, {name: 'ShowLinkedWhenclickImage'})
 }
 
 function locateItem(data) {
 	Asc.scope.locate_data = data
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[locateItem] begin')
+			// console.log('[locateItem] begin')
 			var locate_data = Asc.scope.locate_data
 			var oDocument = Api.GetDocument()
 			var allDrawings = oDocument.GetAllDrawingObjects() || []
@@ -720,10 +695,7 @@ function locateItem(data) {
 					oTable.Select()
 				}
 			}
-		} catch (error) {
-			console.error('[locateItem]', error)
-		}
-	}, false, false)
+	}, false, false, {name: 'locateItem'})
 }
 
 export {

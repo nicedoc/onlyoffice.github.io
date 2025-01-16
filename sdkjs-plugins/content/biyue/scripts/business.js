@@ -81,8 +81,7 @@ function updatePageSizeMargins() {
 	Asc.scope.workbook = window.BiyueCustomData.workbook_info
 	Asc.scope.control_hightlight = true
 	return biyueCallCommand( window, function () {
-		try {
-			console.log('[updatePageSizeMargins] begin')
+			// console.log('[updatePageSizeMargins] begin')
 			var workbook = Asc.scope.workbook || {}
 			var oDocument = Api.GetDocument()
 			var sections = oDocument.GetSections()
@@ -138,10 +137,7 @@ function updatePageSizeMargins() {
 			Api.asc_SetGlobalContentControlShowHighlight(true, 255, 191, 191)
 			Api.asc_SetTab('tab_biyue')
 			return null
-		} catch (error) {
-			console.error('[updatePageSizeMargins]', error)
-		}
-	}, false, true)
+	}, false, true, {name: 'updatePageSizeMargins'})
 }
 
 function getPaperInfo() {
@@ -246,8 +242,7 @@ function onQuesTreeClick(e) {
 	updateQuesStyle(newlist)
 	Asc.scope.click_ids = newlist
 	return biyueCallCommand( window, function () {
-		try {
-			console.log('[onQuesTreeClick] begin')
+			// console.log('[onQuesTreeClick] begin')
 			var ids = Asc.scope.click_ids
 			var oDocument = Api.GetDocument()
 			oDocument.RemoveSelection()
@@ -267,10 +262,7 @@ function onQuesTreeClick(e) {
 				}
 			})
 			firstRange.Select()
-		} catch (error) {
-			console.error('[onQuesTreeClick]', error)
-		}
-	}, false, false)
+	}, false, false, {name: 'onQuesTreeClick'})
 }
 // 更新题目选中样式
 function updateQuesStyle(idList) {
@@ -289,8 +281,7 @@ function updateQuesStyle(idList) {
 function updateControls() {
 	Asc.scope.paper_info = paper_info
 	return biyueCallCommand( window, function () {
-		try {
-			console.log('[updateControls] begin')
+			// console.log('[updateControls] begin')
 			let paperinfo = Asc.scope.paper_info
 			var oDocument = Api.GetDocument()
 			let controls = oDocument.GetAllContentControls() || []
@@ -395,18 +386,14 @@ function updateControls() {
 			})
 			console.log(' updatecontrol           control_list', control_list)
 			return control_list
-		} catch (error) {
-			console.error('[updateControls]', error)
-		}
-	}, false, false)
+	}, false, false, {name: 'updateControls'})
 }
 
 // 更新customData的control_list
 function updateCustomControls() {
 	Asc.scope.paper_info = paper_info
 	return biyueCallCommand( window, function () {
-		try {
-			console.log('[updateCustomControls] begin')
+			// console.log('[updateCustomControls] begin')
 			let paperinfo = Asc.scope.paper_info
 			var oDocument = Api.GetDocument()
 			let controls = oDocument.GetAllContentControls() || []
@@ -511,10 +498,7 @@ function updateCustomControls() {
 			})
 			console.log(' updatecontrol           control_list', control_list)
 			return control_list
-		} catch (error) {
-			console.error('[updateCustomControls]', error)
-		}
-	}, false, false).then((res) => {
+	}, false, false, {name: 'updateCustomControls'}).then((res) => {
 		window.BiyueCustomData.control_list = res
 		return new Promise((resolve) => {
 			resolve()
@@ -725,8 +709,7 @@ function addScoreField(score, mode, layout, posall) {
 		posall: posall,
 	}
 	return biyueCallCommand( window, function () {
-		try {
-			console.log('[addScoreField] begin')
+			// console.log('[addScoreField] begin')
 			var control_list = Asc.scope.control_list
 			var controls = Api.GetDocument().GetAllContentControls()
 			var params = Asc.scope.params
@@ -959,10 +942,7 @@ function addScoreField(score, mode, layout, posall) {
 				}
 			}
 			return res
-		} catch (error) {
-			console.error('[addScoreField]', error)
-		}
-	}, false, true).then((res) => {
+	}, false, true, {name: 'addScoreField'}).then((res) => {
 		return new Promise((resolve, reject) => {
 			if (res && res.add) {
 				for (var i = 0; i < window.BiyueCustomData.control_list.length; ++i) {
@@ -1004,8 +984,7 @@ function drawPosition2(data) {
 		Asc.scope.control_id = null
 	}
 	return biyueCallCommand( window, function () {
-		try {
-			console.log('[drawPosition] begin')
+			// console.log('[drawPosition] begin')
 			var posdata = Asc.scope.pos
 			var MM2EMU = Asc.scope.MM2EMU
 			var control_id = Asc.scope.control_id
@@ -1092,10 +1071,7 @@ function drawPosition2(data) {
 					}
 				}
 			}
-		} catch (error) {
-			console.error('[drawPosition]', error)
-		}
-	}, false, true).then((res) => {
+	}, false, true, {name: 'drawPosition'}).then((res) => {
 		if (res && res.add) {
 			window.BiyueCustomData.control_list.push(res.control)
 		}
@@ -1111,8 +1087,7 @@ function drawPositions(list) {
 	Asc.scope.MM2EMU = MM2EMU
 	Asc.scope.map_base64 = map_base64
 	return biyueCallCommand( window, function () {
-		try {
-			console.log('[drawPositions] begin')
+			// console.log('[drawPositions] begin')
 			var positions_list = Asc.scope.positions_list || []
 			var pos_list = Asc.scope.pos_list || []
 			var MM2EMU = Asc.scope.MM2EMU
@@ -1215,10 +1190,7 @@ function drawPositions(list) {
 				}
 			})
 			return pos_list
-		} catch (error) {
-			console.error('[drawPositions]', error)
-		}
-	}, false, true).then((res) => {
+	}, false, true, {name: 'drawPositions'}).then((res) => {
 		console.log('drawPositions result:', res)
 		window.BiyueCustomData.pos_list = res
 		return new Promise((resolve) => resolve(res))
@@ -1242,8 +1214,7 @@ function drawPosition(data) {
 		Asc.scope.drawing_id = null
 	}
 	return biyueCallCommand( window, function () {
-		try {
-			console.log('[drawPosition] begin')
+			// console.log('[drawPosition] begin')
 			var posdata = Asc.scope.pos
 			console.log('posdata', posdata)
 			var MM2EMU = Asc.scope.MM2EMU
@@ -1308,10 +1279,7 @@ function drawPosition(data) {
 					v: posdata.v,
 				}
 			}
-		} catch (error) {
-			console.error('[drawPosition]', error)
-		}
-	}, false, true).then((res) => {
+	}, false, true, {name: 'drawPosition'}).then((res) => {
 		console.log(res)
 		if (res && res.add) {
 			if (!window.BiyueCustomData.pos_list) {
@@ -1406,8 +1374,7 @@ function handleScoreField4(options) {
 	Asc.scope.list = list
 	Asc.scope.map_base64 = map_base64
 	return biyueCallCommand( window, function () {
-		try {
-			console.log('[handleScoreField4] begin')
+			// console.log('[handleScoreField4] begin')
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls()
 			var control_list = Asc.scope.control_list
@@ -1614,10 +1581,7 @@ function handleScoreField4(options) {
 				}
 			}
 			return resList
-		} catch (error) {
-			console.error('[handleScoreField4]', error)
-		}
-	}, false, true).then((res) => {
+	}, false, true, {name: 'handleScoreField4'}).then((res) => {
 		console.log('callback for handleScoreField', res)
 		return new Promise((resolve) => {
 			if (res) {
@@ -1691,8 +1655,7 @@ function handleScoreField(options) {
 	Asc.scope.control_list = control_list
 	Asc.scope.list = list
 	return biyueCallCommand( window, function () {
-		try {
-			console.log('[handleScoreField] begin')
+			// console.log('[handleScoreField] begin')
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls()
 			var control_list = Asc.scope.control_list
@@ -2001,10 +1964,7 @@ function handleScoreField(options) {
 				}
 			}
 			return resList
-		} catch (error) {
-			console.error('[handleScoreField]', error)
-		}
-	}, false, true).then((res) => {
+	}, false, true, {name: 'handleScoreField'}).then((res) => {
 		return new Promise((resolve) => {
 			if (res) {
 				res.forEach((e) => {
@@ -2076,8 +2036,7 @@ function handleScoreField2(options) {
 	Asc.scope.control_list = control_list
 	Asc.scope.list = list
 	return biyueCallCommand( window, function () {
-		try {
-			console.log('[handleScoreField] begin')
+			// console.log('[handleScoreField] begin')
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls()
 			var control_list = Asc.scope.control_list
@@ -2448,10 +2407,7 @@ function handleScoreField2(options) {
 				}
 			}
 			return resList
-		} catch (error) {
-			console.error('[handleScoreField]', error)
-		}
-	}, false, true).then((res) => {
+	}, false, true, {name: 'handleScoreField'}).then((res) => {
 		console.log('callback for handleScoreField', res)
 		return new Promise((resolve) => {
 			if (res) {
@@ -2481,8 +2437,7 @@ function handleScoreField2(options) {
 function toggleWeight() {
 	Asc.scope.control_list = window.BiyueCustomData.control_list
 	return biyueCallCommand( window, function () {
-		try {
-			console.log('[toggleWeight] begin')
+			// console.log('[toggleWeight] begin')
 			var control_list = Asc.scope.control_list
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls()
@@ -2611,10 +2566,7 @@ function toggleWeight() {
 			}
 
 			return control_list
-		} catch (error) {
-			console.error('[toggleWeight]', error)
-		}
-	}, false, true).then((res) => {
+	}, false, true, {name: 'toggleWeight'}).then((res) => {
 		return new Promise((resolve) => {
 			window.BiyueCustomData.control_list = res
 			return resolve(res)	
@@ -2625,8 +2577,7 @@ function toggleWeight() {
 function setSectionColumn(num) {
 	Asc.scope.column_num = num
 	return biyueCallCommand( window, function () {
-		try {
-			console.log('[setSectionColumn] begin')
+			// console.log('[setSectionColumn] begin')
 			var column_num = Asc.scope.column_num
 			var oDocument = Api.GetDocument()
 			var Document = oDocument.Document
@@ -2675,17 +2626,13 @@ function setSectionColumn(num) {
 					}
 				}
 			}
-		} catch (error) {
-			console.error('[setSectionColumn]', error)
-		}
-	}, false, true)
+	}, false, true, {name: 'setSectionColumn'})
 }
 // 提取单独的大题的control
 function addOnlyBigControl(recalc = true) {
 	Asc.scope.node_list = window.BiyueCustomData.node_list || []
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[addOnlyBigControl] begin')
+			// console.log('[addOnlyBigControl] begin')
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls() || []
 			controls.forEach(oControl => {
@@ -2723,15 +2670,11 @@ function addOnlyBigControl(recalc = true) {
 					}
 				}
 			})
-		} catch (error) {
-			console.error('[addOnlyBigControl]', error)
-		}
-	}, false, recalc)
+	}, false, recalc, {name: 'addOnlyBigControl'})
 }
 function removeOnlyBigControl() {
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[removeOnlyBigControl] begin')
+			// console.log('[removeOnlyBigControl] begin')
 			var oDocument = Api.GetDocument()
 			var oControls = oDocument.GetAllContentControls()
 			if (oControls) {
@@ -2742,10 +2685,7 @@ function removeOnlyBigControl() {
 					}
 				})
 			}
-		} catch (error) {
-			console.error(['removeOnlyBigControl'], error)
-		}
-	}, false, true)
+	}, false, true, {name: 'removeOnlyBigControl'})
 }
 function getAllPositions() {
 	return addOnlyBigControl()
@@ -2760,8 +2700,7 @@ function getAllPositions2() {
 	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
 	Asc.scope.node_list = window.BiyueCustomData.node_list || []
 	return biyueCallCommand( window, function () {
-		try {
-			console.log('[getAllPositions2] begin')
+			// console.log('[getAllPositions2] begin')
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls()
 			var drawings = oDocument.GetAllDrawingObjects()
@@ -3532,10 +3471,7 @@ function getAllPositions2() {
 				paper_info,
 				partical_no_dot_list,
 			}
-		} catch (error) {
-			console.error('[getAllPositions2]', error)
-		}
-	}, false, false)
+	}, false, false, {name: 'getAllPositions2'})
 }
 
 export {

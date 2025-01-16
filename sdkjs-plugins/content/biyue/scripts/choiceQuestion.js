@@ -6,8 +6,7 @@ function getChoiceQuesData() {
 	Asc.scope.node_list = window.BiyueCustomData.node_list
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[getChoiceQuesData] begin')
+			// console.log('[getChoiceQuesData] begin')
 			var question_map = Asc.scope.question_map || {}
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls() || []
@@ -274,10 +273,7 @@ function getChoiceQuesData() {
 				}
 			})
 			return choiceMap
-		} catch (error) {
-			console.error('[getChoiceQuesData]', error)
-		}
-	}, false, false)
+	}, false, false, {name: 'getChoiceQuesData'})
 	// .then(res => {
 	// 		$('#choiceOptions').empty()
 	// 		console.log('================ dddddd', res)
@@ -298,8 +294,7 @@ function getChoiceOptionAndSteam(ids) {
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	Asc.scope.ids = ids
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[getChoiceOptionAndSteam] begin')
+			// console.log('[getChoiceOptionAndSteam] begin')
 			var question_map = Asc.scope.question_map || {}
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls() || []
@@ -587,10 +582,7 @@ function getChoiceOptionAndSteam(ids) {
 				}
 			})
 			return choiceMap
-		} catch (error) {
-			console.error('[getChoiceOptionAndSteam]', error)
-		}
-	}, false, false)
+	}, false, false, {name: 'getChoiceOptionAndSteam'})
 }
 
 function removeChoiceOptions(ids) {
@@ -598,8 +590,7 @@ function removeChoiceOptions(ids) {
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	Asc.scope.ids = ids
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[removeChoiceOptions] begin')
+			// console.log('[removeChoiceOptions] begin')
 			var question_map = Asc.scope.question_map || {}
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls() || []
@@ -649,10 +640,7 @@ function removeChoiceOptions(ids) {
 				newlist.push(oControl.Sdt.GetId())
 			}
 			return newlist
-		} catch (error) {
-			console.error('[removeChoiceOptions]', error)
-		}
-	}, false, false)
+	}, false, false, {name: 'removeChoiceOptions'})
 }
 // 提取选择题选项
 function extractChoiceOptions(ids, calc) {
@@ -660,8 +648,7 @@ function extractChoiceOptions(ids, calc) {
 	.then((res) => {
 		Asc.scope.ids = res
 		return biyueCallCommand(window, function() {
-			try {
-				console.log('[extractChoiceOptions] begin')
+				// console.log('[extractChoiceOptions] begin')
 				function getPosPath(pos) {
 					var path = ''
 					if (pos) {
@@ -851,10 +838,7 @@ function extractChoiceOptions(ids, calc) {
 						Api.asc_RemoveSelection();
 					})
 				}
-			} catch (error) {
-				console.error('[extractChoiceOptions]', error)
-			}
-		}, false, calc)
+		}, false, calc, {name: 'extractChoiceOptions'})
 	})
 }
 
@@ -927,8 +911,7 @@ function setChoiceOptionLayout(options) {
 	Asc.scope.choice_align_options = options
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[setChoiceOptionLayout] begin')
+			// console.log('[setChoiceOptionLayout] begin')
 			var options = Asc.scope.choice_align_options
 			var question_map = Asc.scope.question_map || {}
 			var oDocument = Api.GetDocument()
@@ -1365,10 +1348,7 @@ function setChoiceOptionLayout(options) {
 					console.log('未找到选项所在段落')
 				}
 			}
-		} catch (error) {
-			console.error('[setChoiceOptionLayout]', error)
-		}
-	}, false, true)
+	}, false, true, {name: 'setChoiceOptionLayout'})
 }
 
 export { 

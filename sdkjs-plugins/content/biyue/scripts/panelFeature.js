@@ -513,8 +513,7 @@ function setXY(index, p, x, y, size) {
 function getPageData() {
 	Asc.scope.workbook = window.BiyueCustomData.workbook_info
 	return biyueCallCommand(window, function () {
-		try {
-			console.log('[getPageData] begin')
+			// console.log('[getPageData] begin')
 			var workbook = Asc.scope.workbook || {}
 			var oDocument = Api.GetDocument()
 			var sections = oDocument.GetSections()
@@ -537,10 +536,7 @@ function getPageData() {
 				}
 			}
 			return null
-		} catch (error) {
-			console.error('[getPageData]', error)
-		}
-	},false,false)
+	},false,false, {name: 'getPageData'})
 }
 
 function updateFeatureList(res) {
@@ -700,8 +696,7 @@ function initPositions2() {
 
 function MoveCursor() {
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[MoveCursor] begin')
+			// console.log('[MoveCursor] begin')
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls()
 			if (controls && controls.length) {
@@ -709,10 +704,7 @@ function MoveCursor() {
 			} else {
 				oDocument.Document.MoveCursorToPageEnd()
 			}
-		} catch (error) {
-			console.error('[MoveCursor]', error)
-		}
-	}, false, false)
+	}, false, false, {name: 'MoveCursor'})
 }
 
 function updateAllInteraction(vinteraction, isForce = true) {

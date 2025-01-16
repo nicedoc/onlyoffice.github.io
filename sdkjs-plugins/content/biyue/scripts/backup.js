@@ -9,8 +9,7 @@ function updateRangeControlType(typeName) {
 	Asc.scope.node_list = window.BiyueCustomData.node_list
 	console.log('updateRangeControlType begin:', typeName)
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[updateRangeControlType] begin')
+			// console.log('[updateRangeControlType] begin')
 			var typeName = Asc.scope.typename
 			var oDocument = Api.GetDocument()
 			var oRange = oDocument.GetRangeBySelect()
@@ -1363,10 +1362,7 @@ function updateRangeControlType(typeName) {
 				}
 			}
 			return result
-		} catch (error) {
-			console.error('[updateRangeControlType] error', error)
-		}
-	}, false, true).then(res1 => {
+	}, false, true, {name: 'updateRangeControlType'}).then(res1 => {
 		console.log('handleChangeType result', res1)
 		if (res1) {
 			if (res1.message && res1.message != '') {
@@ -1391,8 +1387,7 @@ function handleWrite(cmdType) {
 	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
 	Asc.scope.write_cmd = cmdType
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[handleWrite] begin')
+			// console.log('[handleWrite] begin')
 			var client_node_id = Asc.scope.client_node_id
 			var write_cmd = Asc.scope.write_cmd
 			var oDocument = Api.GetDocument()
@@ -1524,10 +1519,7 @@ function handleWrite(cmdType) {
 				}
 			}
 			return null
-		} catch (error) {
-			console.error('[handleWrite] error', error)
-		}		
-	}, false, true).then(res => {
+	}, false, true, {name: 'handleWrite'}).then(res => {
 		return handleWriteResult(res)
 	})
 }
@@ -1537,8 +1529,7 @@ function handleIdentifyBox(cmdType) {
 	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
 	Asc.scope.write_cmd = cmdType
 	return biyueCallCommand(window, function () {
-		try {
-			console.log('[handleIdentifyBox] begin')
+			// console.log('[handleIdentifyBox] begin')
 			var oDocument = Api.GetDocument()
 			var curPosInfo = oDocument.Document.GetContentPosition()
 			var cmdType = Asc.scope.write_cmd
@@ -1658,12 +1649,8 @@ function handleIdentifyBox(cmdType) {
 			}
 			res.client_node_id = client_node_id
 			res.sub_type = 'identify'
-			return res
-		} catch (error) {
-			console.error('[handleIdentifyBox]', error)
-		}
-			
-	}, false, true).then((res) => {
+			return res	
+	}, false, true, {name: 'handleIdentifyBox'}).then((res) => {
 		console.log('handleIdentifyBox result', res)
 		return handleWriteResult(res)
 	})
