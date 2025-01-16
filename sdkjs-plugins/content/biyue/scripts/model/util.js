@@ -124,7 +124,6 @@ function getFixedValue(v, fractionDigits = 1) {
 	v = v.toFixed(fractionDigits) * 1
 	return v + ''
 }
-export { showCom, updateText, addClickEvent, closeOtherSelect, getListByMap, getInfoForServerSave, setBtnLoading, isLoading, getYYMMDDHHMMSS, addTypeEvent, getFixedValue }
 
 function handleCommandError(window, params, error) {
 	if (params) {

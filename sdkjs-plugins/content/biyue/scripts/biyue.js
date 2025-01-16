@@ -1515,20 +1515,17 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 				biyueCallCommand(
 					window,
 					function () {
-						try {
-							console.log('[clearAllControls] begin')	
+							// console.log('[clearAllControls] begin')	
 							var controls = Asc.scope.controls
 							for (var i = 0; i < controls.length; i++) {
 								// set selection
 								var e = controls[i]
 								Api.asc_RemoveContentControlWrapper(e.InternalId)
 							}
-						} catch (error) {
-							console.error(['clearAllControls'], error)
-						}
 					},
 					false,
-					false
+					false,
+					{name: 'clearAllControls'}
 				).then(() => {
 					console.log('删除所有控件完成')
 					// window.BiyueCustomData.client_node_id = 0
@@ -1540,8 +1537,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 	}
 	function onClearAllControls(recalc = false) {
 		return biyueCallCommand(window, function () {
-			try {
-				console.log('[onClearAllControls] begin')
+				// console.log('[onClearAllControls] begin')
 				var oDocument = Api.GetDocument()
 				var controls = oDocument.GetAllContentControls() || []
 				// 先删除所有题目的互动
@@ -1653,10 +1649,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 				}) || ''
 				var text_json = oDocument.ToJSON(false, false, false, false, true, true)
 				return { text_all, text_json }
-			} catch (error) {
-				console.error('[onClearAllControls]', error)
-			}
-		}, false, recalc)
+		}, false, recalc, {name: 'onClearAllControls'})
 	}
 	// 显示分数框
 	function showScoreContent() {

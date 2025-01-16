@@ -84,13 +84,12 @@ function initView() {
 	showCom('#extro_buttons', false)
 	showCom('#tool_buttons', false)
 	addClickEvent('#printStack', () => {
-		if (window.commandStack) {
-			var len = window.commandStack.length
-			updateText('#printStack', '输出当前stack length：' + len)
-			console.log('commandStack len:', len)
+		if (window.error_list) {
+			var len = window.error_list.length
+			updateText('#printStack', 'error数量：' + len)
 			if (len == 0) {
 				setTimeout(() => {
-					updateText('#printStack', '输出当前stack length')
+					updateText('#printStack', '查看error数量')
 				}, 1000);
 			} else {
 				$('#printStack').css('color', "#ff0000")
@@ -335,8 +334,7 @@ function onPaste() {
 function insertContent(str) {
 	Asc.scope.insert_str = str
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[insertContent] begin')
+			// console.log('[insertContent] begin')
 			var content = Asc.scope.insert_str		
 			const srcMatch = content.match(/src="([^"]*)"/);
 			var src = srcMatch ? srcMatch[1] : null;
@@ -367,10 +365,7 @@ function insertContent(str) {
 					}
 				}
 			}
-		} catch (error) {
-			console.error('[insertContent]', error)
-		}
-	}, false, true)
+	}, false, true, {name: 'insertContent'})
 }
 
 function updateHintById(id, message, color, duration = 1500) {

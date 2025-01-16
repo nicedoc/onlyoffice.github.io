@@ -14,8 +14,7 @@ function batchProportion(idList, proportion) {
 	Asc.scope.change_id_list = idList
 	Asc.scope.proportion = proportion
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[batchProportion] begin')
+			// console.log('[batchProportion] begin')
 			var idList = Asc.scope.change_id_list
 			var question_map = Asc.scope.question_map || {}
 			var oDocument = Api.GetDocument()
@@ -332,10 +331,7 @@ function batchProportion(idList, proportion) {
 				effect_id_list: effect_id_list,
 				proportion: target_proportion
 			}
-		} catch (error) {
-			console.error('[batchProportion]', error)
-		}
-	}, false, false).then((res) => {
+	}, false, false, {name: 'batchProportion'}).then((res) => {
 		return handleProportionSuccess(res)
 	})
 }
@@ -404,8 +400,7 @@ function changeProportion(idList, proportion) {
 	Asc.scope.change_id_list = idList
 	Asc.scope.proportion = proportion
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[changeProportion] begin')
+			// console.log('[changeProportion] begin')
 			var idList = Asc.scope.change_id_list
 			var question_map = Asc.scope.question_map || {}
 			var target_proportion = Asc.scope.proportion || 1
@@ -793,10 +788,7 @@ function changeProportion(idList, proportion) {
 				effect_id_list: effect_id_list,
 				proportion: target_proportion
 			}
-		} catch (error) {
-			console.error('[changeProportion]', error)
-		}
-	}, false, false).then(res => {
+	}, false, false, {name: 'changeProportion'}).then(res => {
 		return handleProportionSuccess(res)
 	})
 }

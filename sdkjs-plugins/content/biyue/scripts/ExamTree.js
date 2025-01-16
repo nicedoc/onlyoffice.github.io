@@ -145,8 +145,7 @@ function updateQuestionMapByDoc(list) {
 // 获取文档列表
 function getDocList() {
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[getDocList] begin')
+			// console.log('[getDocList] begin')
 			var oDocument = Api.GetDocument()
 			var elementCount = oDocument.GetElementsCount()
 			if (elementCount == 0) {
@@ -226,10 +225,7 @@ function getDocList() {
 			}
 			console.log('[getDocList] result', list)
 			return list
-		} catch (error) {
-			console.error('[getDocList]', error)
-		}
-	}, false, false)
+	}, false, false, {name: 'getDocList'})
 }
 // 根据文档列表生成list
 function generateListByDoc(docList) {
@@ -366,8 +362,7 @@ function clickItem(id, item, e) {
 	Asc.scope.controlId = null
 	Asc.scope.click_id = id
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[clickItem] begin')
+			// console.log('[clickItem] begin')
 			var click_id = Asc.scope.click_id
 			var oDocument = Api.GetDocument()
 			oDocument.RemoveSelection()
@@ -378,10 +373,7 @@ function clickItem(id, item, e) {
 					oRange.Select()
 				}
 			}
-		} catch (error) {
-			console.error('[clickItem]', error)
-		}
-	}, false, false)
+	}, false, false, {name: 'clickItem'})
 }
 
 function dropItem(list, dragId, dropId, direction) {
@@ -395,8 +387,7 @@ function dropItem(list, dragId, dropId, direction) {
 		horList: g_horizontal_list
 	}
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[dropItem] begin')
+			// console.log('[dropItem] begin')
 			var drag_options = Asc.scope.drag_options
 			console.log('drag_options', drag_options)
 			var horList = drag_options.horList
@@ -664,10 +655,7 @@ function dropItem(list, dragId, dropId, direction) {
 					}
 				}
 			}
-		} catch (error) {
-			console.error('[dropItem]', error)
-		}
-	}, false, false).then(res => {
+	}, false, false, {name: 'dropItem'}).then(res => {
 		// 当使用自动编号时，拖动后文档里的编号会相应更新，但目前树没有更新，需要再取一次，拿到的text才是最新的
 		return handleDocUpdate()
 		// var hlist = []
@@ -734,8 +722,7 @@ function updateRangeControlType(typeName) {
 	Asc.scope.typename = typeName
 	console.log('updateRangeControlType begin:', typeName)
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[updateRangeControlType] begin')
+			// console.log('[updateRangeControlType] begin')
 			var typeName = Asc.scope.typename
 			var oDocument = Api.GetDocument()
 			var oRange = oDocument.GetRangeBySelect()
@@ -1185,10 +1172,7 @@ function updateRangeControlType(typeName) {
 			result.code = 1
 			console.log('updateControlType function end', result)
 			return result
-		} catch (error) {
-			console.error('[updateRangeControlType]', error)
-		}
-	}, false, true).then(res => {
+	}, false, true, {name: 'updateRangeControlType'}).then(res => {
 		console.log('updateControlType result:', res)
 		if (res) {
 			if (res.code == 1) {
@@ -1559,8 +1543,7 @@ function reqGetQuestionType(source) {
 	setBtnLoading('getQuesType', true)
 	Asc.scope.horlist = g_horizontal_list
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[reqGetQuestionType] begin')
+			// console.log('[reqGetQuestionType] begin')
 			var horlist = Asc.scope.horlist
 			var target_list = []
 			var oDocument = Api.GetDocument()
@@ -1592,10 +1575,7 @@ function reqGetQuestionType(source) {
 			})
 			console.log('[reqGetQuestionType] target_list', target_list)
 			return target_list
-		} catch (error) {
-			console.error('[reqGetQuestionType]', error)
-		}
-	}, false, false).then( control_list => {
+	}, false, false, {name: 'reqGetQuestionType'}).then( control_list => {
 		console.log('[reqGetQuestionType] control_list', control_list)
 		return new Promise((resolve, reject) => {
 			if (!window.BiyueCustomData.paper_uuid || !control_list || control_list.length == 0) {
@@ -1634,8 +1614,7 @@ function reqUploadTree() {
 	console.log('[reqUploadTree start]', Date.now())
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[reqUploadTree] begin')
+			// console.log('[reqUploadTree] begin')
 			var horlist = Asc.scope.horlist
 			var target_list = []
 			var oDocument = Api.GetDocument()
@@ -1694,10 +1673,7 @@ function reqUploadTree() {
 				}
 			})
 			return target_list
-		} catch (error) {
-			console.error('[reqUploadTree]', error)
-		}
-	}, false, false).then( control_list => {
+	}, false, false, {name: 'reqUploadTree'}).then( control_list => {
 		if (control_list) {
 			upload_control_list = control_list
 			if (control_list.length) {
@@ -1834,8 +1810,7 @@ function changeProportion(id, proportion) {
 	}
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	return biyueCallCommand(window, function () {
-		try {
-			console.log('[changeProportion] begin')
+			// console.log('[changeProportion] begin')
 			var change_options = Asc.scope.change_options
 			var oControl = Api.LookupObject(change_options.id)
 			if (!oControl) {
@@ -1899,18 +1874,14 @@ function changeProportion(id, proportion) {
 
 				}
 			}
-		} catch (error) {
-			console.error('[changeProportion]', error)
-		}
-	}, false, true)
+	}, false, true, {name: 'changeProportion'})
 }
 
 // 批量设置题型
 function batchChangeQuesType(type) {
 	Asc.scope.ques_type = type
 	return biyueCallCommand(window, function () {
-		try {
-			console.log('[batchChangeQuesType] begin')
+			// console.log('[batchChangeQuesType] begin')
 			var oDocument = Api.GetDocument()
 			var control_list = oDocument.GetAllContentControls()
 			var ques_id_list = []
@@ -1936,10 +1907,7 @@ function batchChangeQuesType(type) {
 				list: ques_id_list,
 				type: Asc.scope.ques_type
 			}
-		} catch (error) {
-			console.error('[batchChangeQuesType]', error)
-		}
-	}, false, false).then((res) => {
+	}, false, false, {name: 'batchChangeQuesType'}).then((res) => {
 		if (!res || !res.code || !res.list) {
 			return
 		}

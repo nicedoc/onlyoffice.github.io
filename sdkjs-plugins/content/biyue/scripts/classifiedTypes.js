@@ -7,8 +7,7 @@ function handleRangeType(options) {
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	Asc.scope.options = options
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[handleRangeType] begin')
+			// console.log('[handleRangeType] begin')
 			var client_node_id = Asc.scope.client_node_id || 0
 			var node_list = Asc.scope.node_list || []
 			var question_map = Asc.scope.question_map || {}
@@ -1717,10 +1716,7 @@ function handleRangeType(options) {
 				}
 			}
 			return result
-		} catch (error) {
-			console.error('[handleRangeType]', error)
-		}
-	}, false, true).then((res1) => {
+	}, false, true, {name: 'handleRangeType'}).then((res1) => {
 		if (res1) {
 			if (res1.message && res1.message != '') {
 				alert(res1.message)
@@ -1816,8 +1812,7 @@ function addWriteZone() {
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	window.write_zone_add = true
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[addWriteZone] begin')
+			// console.log('[addWriteZone] begin')
 			var question_map = Asc.scope.question_map || {}
 			var oDocument = Api.GetDocument()
 			var curControl = oDocument.Document.GetContentControl()
@@ -1871,10 +1866,7 @@ function addWriteZone() {
 				shapeIds: shapeIds,
 				ques_id: quesTag.client_id
 			}
-		} catch (error) {
-			console.error('[addWriteZone]', error)
-		}
-	}, false, false).then(res => {
+	}, false, false, {name: 'addWriteZone'}).then(res => {
 		if (res && res.ques_id) {
 			window.write_zone_add = true
 			Asc.scope.add_write_zone_data = res
@@ -1890,8 +1882,7 @@ function addWriteZone() {
 
 function continueAddShape() {
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[continueAddShape] begin')
+			// console.log('[continueAddShape] begin')
 			Api.StartAddShape('rect', true)
 			var oDocument = Api.GetDocument()
 			var oShapes = oDocument.GetAllShapes() || []
@@ -1901,10 +1892,7 @@ function continueAddShape() {
 			return {
 				shapeIds: shapeIds
 			}	
-		} catch (error) {
-			console.error('[continueAddShape]', error)
-		}
-	}, false, false).then(res => {
+	}, false, false, {name: 'continueAddShape'}).then(res => {
 		return new Promise((resolve, reject) => {
 			if ( res && res.shapeIds && 
 				window.write_zone_add &&
@@ -1926,8 +1914,7 @@ function endAddShape() {
 	}
 	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[endAddShape] begin')
+			// console.log('[endAddShape] begin')
 			var oDocument = Api.GetDocument()
 			var params = Asc.scope.add_write_zone_data
 			if (!params || !params.ques_id || !params.shapeIds) {
@@ -1976,10 +1963,7 @@ function endAddShape() {
 				}]
 			}
 			return result
-		} catch (error) {
-			console.error('[endAddShape]', error)
-		}
-	}, false, false).then(res1 => {
+	}, false, false, {name: 'endAddShape'}).then(res1 => {
 		// delete Asc.scope.add_write_zone_data
 		if (res1 && res1.change_list && res1.change_list.length) {
 			var delete_asks = deleteMutualAsks(res1.change_list[0].parent_id, 'write')

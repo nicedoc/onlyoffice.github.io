@@ -129,8 +129,7 @@ function drawHeader(cmdType, examTitle) {
 	Asc.scope.qrcode_url = map_base64.qrcode
 	loading = true
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[drawHeader] begin')
+			// console.log('[drawHeader] begin')
 			var cmdType = Asc.scope.header_cmd
 			var examTitle = Asc.scope.header_exam_title
 			var qrcode_url = Asc.scope.qrcode_url
@@ -216,10 +215,7 @@ function drawHeader(cmdType, examTitle) {
 				var oHeader2 = oSections[1].GetHeader('default', true)
 				setHeader(oSections[1], oHeader2, false)
 			}
-		} catch (error) {
-			console.error('[drawHeader]', error)
-		}
-	}, false, true).then(res => {
+	}, false, true, {name: 'drawHeader'}).then(res => {
 		// handleNext()
 	})
 }
@@ -229,8 +225,7 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 	Asc.scope.exceptList = exceptList
 	Asc.scope.specifyFeatures = specifyFeatures
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[deleteAllFeatures] begin')
+			// console.log('[deleteAllFeatures] begin')
 			var oDocument = Api.GetDocument()
 			var drawings = oDocument.GetAllDrawingObjects()
 			var exceptList = Asc.scope.exceptList
@@ -403,10 +398,7 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 						}
 					}
 			}
-		} catch (error) {
-			console.error('[deleteAllFeatures]', error)
-		}
-	}, false, true)
+	}, false, true, {name: 'deleteAllFeatures'})
 }
 
 function drawList(list, recalc = true) {
@@ -415,8 +407,7 @@ function drawList(list, recalc = true) {
 	Asc.scope.ZONE_TYPE = ZONE_TYPE
 	Asc.scope.page_type = window.BiyueCustomData.page_type
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[drawList] begin')
+			// console.log('[drawList] begin')
 			var imageDimensionsCache = Asc.scope.imageDimensionsCache || {}
 			var ZONE_TYPE = Asc.scope.ZONE_TYPE
 			var MM2TWIPS = 25.4 / 72 / 20
@@ -1059,12 +1050,7 @@ function drawList(list, recalc = true) {
 			}
 			console.log('=====================drawList end ')
 			return res
-		} catch (error) {
-			console.error('[drawList]', error)
-		}
-		console.log('=====================drawList end ')
-		return res
-	}, false, false)
+	}, false, recalc, {name: 'drawList'})
 }
 
 function setLoading(v) {
@@ -1078,8 +1064,7 @@ function setInteraction(type, quesIds, recalc = true) {
 	Asc.scope.node_list = window.BiyueCustomData.node_list
 	Asc.scope.simple_interaction = 1 // window.BiyueCustomData.simple_interaction
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[setInteraction] begin')
+			// console.log('[setInteraction] begin')
 			var interaction_type_use = Asc.scope.interaction_type_use
 			var simple_interaction = Asc.scope.simple_interaction
 			var oDocument = Api.GetDocument()
@@ -1742,10 +1727,7 @@ function setInteraction(type, quesIds, recalc = true) {
 				}
 				handleControlAccurate(oControl, ask_list, write_list, type, nodeData.is_big)
 			}
-		} catch (error) {
-			console.error('[setInteraction]', error)
-		}
-	}, false, recalc)
+	}, false, recalc, {name: 'setInteraction'})
 }
 
 function updateChoice(recalc = true) {
@@ -1754,8 +1736,7 @@ function updateChoice(recalc = true) {
 	Asc.scope.choice_params = window.BiyueCustomData.choice_display
 	console.log('Asc.scope.choice_params', Asc.scope.choice_params)
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[updateChoice] begin')
+			// console.log('[updateChoice] begin')
 			var node_list = Asc.scope.node_list
 			var oDocument = Api.GetDocument()
 			var oTables = oDocument.GetAllTables() || []
@@ -1974,10 +1955,7 @@ function updateChoice(recalc = true) {
 				}
 			}
 			return node_list
-		} catch (error) {
-			console.error('[updateChoice]', error)
-		}
-	}, false, recalc)
+	}, false, recalc, {name: 'updateChoice'})
 }
 
 function handleChoiceUpdateResult(res) {
@@ -1995,8 +1973,7 @@ function handleChoiceUpdateResult(res) {
 function showOrHidePagination(v) {
 	Asc.scope.vshow = v
 	return biyueCallCommand(window, function(){
-		try {
-			console.log('[showOrHidePagination] begin')
+			// console.log('[showOrHidePagination] begin')
 			var oDocument = Api.GetDocument()
 			var drawings = oDocument.GetAllDrawingObjects() || []
 			var vshow = Asc.scope.v
@@ -2015,17 +1992,13 @@ function showOrHidePagination(v) {
 					}
 				}
 			})
-		} catch (error) {
-			console.error('[showOrHidePagination]', error)
-		}
-	}, false, false)
+	}, false, false, {name: 'showOrHidePagination'})
 }
 // 单独更新统计图标
 function drawStatistics(options, recalc) {
 	Asc.scope.options = options
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[drawStatistics] begin')
+			// console.log('[drawStatistics] begin')
 			var options = Asc.scope.options || {}
 			var oDocument = Api.GetDocument()
 			var oSections = oDocument.GetSections()
@@ -2133,15 +2106,11 @@ function drawStatistics(options, recalc) {
 					})
 				}
 			}
-		} catch (error) {
-			console.error('[drawStatistics]', error)
-		}
-	}, false, recalc)
+	}, false, recalc, {name: 'drawStatistics'})
 }
 function removeAllHeaderFooter() {
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[removeAllHeaderFooter] begin')
+			// console.log('[removeAllHeaderFooter] begin')
 			var oDocument = Api.GetDocument()
 			var oSections = oDocument.GetSections()
 			if (!oSections) {
@@ -2156,10 +2125,7 @@ function removeAllHeaderFooter() {
 				oSection.RemoveFooter('even')
 				oSection.RemoveFooter('title')
 			}
-		} catch (error) {
-			console.error('[removeAllHeaderFooter]', error)
-		}
-	}, false, false)
+	}, false, false, {name: 'removeAllHeaderFooter'})
 }
 function drawHeaderFooter(options, calc) {
 	return removeAllHeaderFooter().then(()=> {
@@ -2172,8 +2138,7 @@ function drawHeaderFooter(options, calc) {
 function drawHeaderFooter0(options, calc) {
 	Asc.scope.options_header_footer = options
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[drawHeaderFooter] begin')
+			// console.log('[drawHeaderFooter] begin')
 			var options = Asc.scope.options_header_footer || {}
 			var oDocument = Api.GetDocument()
 			var oSections = oDocument.GetSections()
@@ -2470,16 +2435,12 @@ function drawHeaderFooter0(options, calc) {
 				})
 			}
 			console.log('==================== draw header footer end')
-		} catch (error) {
-			console.error('[drawHeaderFooter]', error)
-		}
-	}, false, calc)
+	}, false, calc, {name: 'drawHeaderFooter'})
 }
 
 function updateHederFooterDistance() {
 	return biyueCallCommand(window, function() {
-		try {
-			console.log('[updateHederFooterDistance] begin')
+			// console.log('[updateHederFooterDistance] begin')
 			var oDocument = Api.GetDocument()
 			var oSections = oDocument.GetSections()
 			if (!oSections || oSections.length == 0) {
@@ -2505,10 +2466,7 @@ function updateHederFooterDistance() {
 				updateHeader(oSection.GetHeader('default', false), PageMargins)
 				updateHeader(oSection.GetHeader('even', false), PageMargins)
 			}
-		} catch (error) {
-			console.error('[updateHederFooterDistance]', error)
-		}
-	}, false, false)
+	}, false, false, {name: 'updateHederFooterDistance'})
 }
 
 export { handleFeature, handleHeader, drawExtroInfo, setLoading, deleteAllFeatures, setInteraction, updateChoice, handleChoiceUpdateResult, showOrHidePagination,drawHeaderFooter, drawStatistics }
