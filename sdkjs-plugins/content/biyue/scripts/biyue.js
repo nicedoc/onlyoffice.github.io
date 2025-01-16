@@ -1855,12 +1855,27 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		if (id == -1) {
 			console.log('StoreCustomData', window.BiyueCustomData)
 			closeAllWindows()
-			onSaveData(false).then(() => {
-				StoreCustomData(() => {
-					console.log('store custom data done')
-					window.Asc.plugin.executeCommand("close", '')
+			if (window.write_zone_add) {
+				window.write_zone_add = false
+				biyueCallCommand(window, function() {
+					Api.sync_EndAddShape()
+					Api.isStartAddShape = false
+				}, false, false).then(() => {
+					onSaveData(false).then(() => {
+						StoreCustomData(() => {
+							console.log('store custom data done')
+							window.Asc.plugin.executeCommand("close", '')
+						})
+					})
 				})
-			})
+			} else {
+				onSaveData(false).then(() => {
+					StoreCustomData(() => {
+						console.log('store custom data done')
+						window.Asc.plugin.executeCommand("close", '')
+					})
+				})
+			}
 			return
 		}
 	}
@@ -2476,6 +2491,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 						window.BiyueCustomData.client_node_id = 1
 					}
 					console.log('BiyueCustomData', window.BiyueCustomData)
+					window.write_zone_add = false
 					handleInit()
 					return params
 				}
