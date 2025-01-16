@@ -6020,6 +6020,7 @@ function importExam() {
 		return
 	}
 	setBtnLoading('importExam', true)
+	console.log(Date.now(), '[点击上传卷面]')
 	if (window.BiyueCustomData.page_type == 1) {
 		return handleUploadPrepare('hide')
 		.then(() => {
@@ -6027,6 +6028,7 @@ function importExam() {
 		}).then(res => {
 			Asc.scope.questionPositions = res
 			if (uploadValidateHandler.onValidate()) {
+				console.log(Date.now(), '[打开上传窗口]')
 				window.biyue.showDialog('exportExamWindow', '上传试卷', 'examExport.html', 1000, 800, true)
 			} else {
 				handleUploadPrepare('show').then(() => {
