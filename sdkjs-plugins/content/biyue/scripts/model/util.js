@@ -125,3 +125,16 @@ function getFixedValue(v, fractionDigits = 1) {
 	return v + ''
 }
 export { showCom, updateText, addClickEvent, closeOtherSelect, getListByMap, getInfoForServerSave, setBtnLoading, isLoading, getYYMMDDHHMMSS, addTypeEvent, getFixedValue }
+
+function handleCommandError(window, params, error) {
+	if (params) {
+		console.error(params, error)
+		if (!window.error_list) {
+			window.error_list = []
+		}
+		window.error_list.push({ params: params, error: error })
+		updateText('#printStack', 'error数量：' + window.error_list.length)
+		$('#printStack').css('color', "#ff0000")
+	}
+}
+export { showCom, updateText, addClickEvent, closeOtherSelect, getListByMap, getInfoForServerSave, setBtnLoading, isLoading, getYYMMDDHHMMSS, addTypeEvent, getFixedValue, handleCommandError }
