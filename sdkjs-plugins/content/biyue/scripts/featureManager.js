@@ -1092,6 +1092,12 @@ function setInteraction(type, quesIds, recalc = true) {
 						targetInd = 0 - vInd
 					}
 				}
+				if (oParagraph.Paragraph.Get_CurrentColumn) {
+					var column = oParagraph.Paragraph.Get_CurrentColumn(0)
+					if (column) {
+						targetInd = 0
+					}
+				}
 				oParagraph.SetIndFirstLine(targetInd)
 			}
 			function syncSameParagraph(numbering, oParagraph, vshow) {
@@ -1248,7 +1254,14 @@ function setInteraction(type, quesIds, recalc = true) {
 						style = 'tight'
 					}
 				} else {
-					oParagraph.SetIndFirstLine(0)
+					var ind = 0
+					if (oParagraph.Paragraph.Get_CurrentColumn) {
+						var column = oParagraph.Paragraph.Get_CurrentColumn(0)
+						if (column) {
+							ind = 5
+						}
+					}
+					oParagraph.SetIndFirstLine(ind / (25.4 / 72 / 20))
 				}
 				oDrawing.SetWrappingStyle(style)
 				horOffset -= 5
