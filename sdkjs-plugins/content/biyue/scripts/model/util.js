@@ -126,8 +126,8 @@ function getFixedValue(v, fractionDigits = 1) {
 }
 
 function handleCommandError(window, params, error) {
+	console.error(params, error)
 	if (params) {
-		console.error(params, error)
 		if (!window.error_list) {
 			window.error_list = []
 		}
