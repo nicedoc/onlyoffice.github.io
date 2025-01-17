@@ -211,7 +211,7 @@ function checkPositions(postions) {
 			const mark_ask_region = postions[key].mark_ask_region || {}
 			postions[key].ask_num = Object.keys(mark_ask_region).length
 
-			if (postions[key].ask_num > 1) {
+			if (postions[key].ask_num > 0) {
 				const question_ask = {}
 				if (postions[key].mark_method == MARK_METHOD_TYPE.SCORE) {
 					// 主观题
