@@ -1,5 +1,5 @@
 
-import { biyueCallCommand, dispatchCommandResult } from "./command.js";
+import { biyueCallCommand } from "./command.js";
 import { getQuesType, reqComplete } from '../scripts/api/paper.js'
 import { handleChoiceUpdateResult, setInteraction, updateChoice } from "./featureManager.js";
 import { initExtroInfo } from "./panelFeature.js";
@@ -2359,35 +2359,35 @@ function confirmLevelSet(levels) {
 								}
 							}
 						}
-					}
-				} else {
-					var proportion = getProportion(oControl)
-					var text = oControl.GetRange().GetText()
-					var numberingInfo = GetNumberingValue(oControl)
-					var lvl = numberingInfo && numberingInfo.lvl != undefined && numberingInfo.lvl >= 0 ? numberingInfo.lvl : tagInfo.lvl
-					if (lvl != tagInfo.lvl) {
-						tagInfo.lvl = lvl
-					}
-					var level_type = levelmap[lvl] || 'question'
-					nodeData.level_type = level_type
-					nodeData.proportion = proportion
-					var detail = {
-						text: text,
-						ask_list: [],
-						level_type: level_type,
-						numbing_text: numberingInfo ? numberingInfo.text : '',
-						proportion: proportion
-					}
-					if (tagInfo.regionType == 'question') {
-						nodeData.write_list = []
-						detail.ask_list = []
-						detail.score = 0
-						if (level_type == 'question') {
-							tagInfo.clr = tagInfo.color = '#d9d9d940'
-						} else if (level_type == 'struct') {
-							tagInfo.clr = tagInfo.color = '#CFF4FF80'
-						} else {
-							tagInfo.clr = tagInfo.color = '#ffffff'
+					} else {
+						var proportion = getProportion(oControl)
+						var text = oControl.GetRange().GetText()
+						var numberingInfo = GetNumberingValue(oControl)
+						var lvl = numberingInfo && numberingInfo.lvl != undefined && numberingInfo.lvl >= 0 ? numberingInfo.lvl : tagInfo.lvl
+						if (lvl != tagInfo.lvl) {
+							tagInfo.lvl = lvl
+						}
+						var level_type = levelmap[lvl] || 'question'
+						nodeData.level_type = level_type
+						nodeData.proportion = proportion
+						var detail = {
+							text: text,
+							ask_list: [],
+							level_type: level_type,
+							numbing_text: numberingInfo ? numberingInfo.text : '',
+							proportion: proportion
+						}
+						if (tagInfo.regionType == 'question') {
+							nodeData.write_list = []
+							detail.ask_list = []
+							detail.score = 0
+							if (level_type == 'question') {
+								tagInfo.clr = tagInfo.color = '#d9d9d940'
+							} else if (level_type == 'struct') {
+								tagInfo.clr = tagInfo.color = '#CFF4FF80'
+							} else {
+								tagInfo.clr = tagInfo.color = '#ffffff'
+							}
 						}
 						nodeList.push(nodeData)
 						questionMap[id] = detail
@@ -2404,7 +2404,8 @@ function confirmLevelSet(levels) {
 		} catch (error) {
 			console.error('[confirmLevelSet]', error)
 		}
-	}, false, false).then(res => {
+	}, false, false)
+	.then(res => {
 		console.log('===== confirmLevelSet res', res)
 		Asc.scope.control_hightlight = true
 		if (res) {
