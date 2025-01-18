@@ -3245,65 +3245,40 @@ function getControlListForUpload() {
 			if (!tree_info.list) {
 				continue
 			}
-			for (var i = 0, imax = controls.length; i < imax; ++i) {
-				var oControl = controls[i]
-				if (handledcontrol[oControl.Sdt.GetId()]) {
-					continue
-				}
-				var tag = Api.ParseJSON(oControl.GetTag() || '{}')
-				if (tag.regionType != 'question' || !tag.client_id) {
-					continue
-				}
-				var quesData
-				var clientid = tag.mid ? tag.mid : tag.client_id
-				var quesData = question_map[clientid]
-				if (!quesData) {
-					continue
-				}
-				if (!question_map[clientid].level_type) {
-					continue
-				}
-				if (!tree_info.list) {
-					continue
-				}
-				var itemData = tree_info.list.find(e => {
-					return e.id == clientid
+			var itemData = tree_info.list.find(e => {
+				return e.id == clientid
+			})
+			if (!itemData) {
+				continue
+			}
+			var parent_id = itemData.parent_id
+			var useControl = oControl
+			if (tag.big) {
+				var childcontrols = oControl.GetAllContentControls() || []
+				var bigControl = childcontrols.find(e => {
+					var btag = Api.ParseJSON(e.GetTag())
+					return e.GetClassType() == 'blockLvlSdt' && btag.onlybig == 1 && btag.link_id == tag.client_id
 				})
-				if (!itemData) {
-					continue
+				if (bigControl) {
+					useControl = bigControl
 				}
-				var parent_id = itemData.parent_id
-				var useControl = oControl
-				if (tag.big) {
-					var childcontrols = oControl.GetAllContentControls() || []
-					var bigControl = childcontrols.find(e => {
-						var btag = Api.ParseJSON(e.GetTag())
-						return e.GetClassType() == 'blockLvlSdt' && btag.onlybig == 1 && btag.link_id == tag.client_id
+			}
+			var oRange = null
+			if (tag.mid) {
+				for (var idkey in quesData.ids) {
+					var control = controls.find(e => {
+						var tag2 = Api.ParseJSON(e.GetTag())
+						return e.GetClassType() == 'blockLvlSdt' && e.GetPosInParent() >= 0 && tag2.client_id == quesData.ids[idkey] && tag2.mid == tag.mid
 					})
-					if (bigControl) {
-						useControl = bigControl
-					}
-				}
-				var oRange = null
-				if (tag.mid) {
-					for (var idkey in quesData.ids) {
-						var control = controls.find(e => {
-							var tag2 = Api.ParseJSON(e.GetTag())
-							return e.GetClassType() == 'blockLvlSdt' && e.GetPosInParent() >= 0 && tag2.client_id == quesData.ids[idkey] && tag2.mid == tag.mid
-						})
-						if (control) {
-							handledcontrol[control.Sdt.GetId()] = 1
-							var parentcell = control.GetParentTableCell()
-							if (!oRange) {
-								oRange = parentcell.GetContent().GetRange()
-							} else {
-								oRange = oRange.ExpandTo(parentcell.GetContent().GetRange())
-							}
+					if (control) {
+						handledcontrol[control.Sdt.GetId()] = 1
+						var parentcell = control.GetParentTableCell()
+						if (!oRange) {
+							oRange = parentcell.GetContent().GetRange()
+						} else {
+							oRange = oRange.ExpandTo(parentcell.GetContent().GetRange())
 						}
 					}
-				} else {
-					handledcontrol[oControl.Sdt.GetId()] = 1
-					oRange = useControl.GetRange()
 				}
 			} else {
 				handledcontrol[oControl.Sdt.GetId()] = 1
