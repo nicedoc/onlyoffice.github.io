@@ -1,9 +1,4 @@
 // 用于管理主界面
-
-import {
-	initFeature,
-} from './panelFeature.js'
-
 import { showQuesData, initListener } from './panelQuestionDetail.js'
 import {
 	handleAllWrite,
@@ -189,8 +184,16 @@ function initView() {
 }
 
 function onFeature() {
-	$('#panelFeature').show()
-	initFeature()
+	window.biyue.refreshDialog({
+		winName:'featureDialog',
+		name:'智批元素',
+		url:'featureDialog.html',
+		width:400,
+		height:800,
+		isModal:false,
+		type:'panel',
+		icons:['resources/light/check.png']
+	})
 }
 
 function handlePaperInfoResult(success, res) {
@@ -238,9 +241,7 @@ function changeTabPanel(id, event) {
 			$('#' + panel).hide()
 		}
 	})
-	if (id == 'tabFeature') {
-		initFeature()
-	} else if (id == 'tabQues') {
+	if (id == 'tabQues') {
 		if (event && event.detail && event.detail.parentTag) {
 			showQuesData(event.detail)
 		} else if (g_click_value) {

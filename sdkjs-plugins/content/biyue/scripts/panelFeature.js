@@ -1,33 +1,7 @@
-import ComponentSelect from '../components/Select.js'
-import NumberInput from '../components/NumberInput.js'
 import { ZONE_SIZE, ZONE_TYPE, ZONE_TYPE_NAME, getInteractionTypes } from './model/feature.js'
 import { handleFeature, handleHeader, drawExtroInfo, setLoading, deleteAllFeatures, setInteraction, updateChoice, handleChoiceUpdateResult, drawHeaderFooter, drawStatistics } from './featureManager.js'
 import { biyueCallCommand } from "./command.js";
-import { showCom } from './model/util.js'
 var list_feature = []
-var choiceStyles = [
-	{
-		value: 'brackets_choice_region',
-		label: '括号识别'
-	}, {
-		value: 'show_choice_region',
-		label: '集中作答区'
-	}
-]
-var choiceAreas = [
-	{
-	  value: false,
-	  label: '作答区前置'
-	},
-	{
-	  value: true,
-	  label: '作答区后置'
-	}
-]
-var select_choice_style = null
-var select_choice_area = null
-var input_choice_num = null
-var timeout_change_choice_num = null
 var imageDimensionsCache = {} // 图片的宽高比缓存
 var STAT_URL = 'https://by-qa-image-cdn.biyue.tech/statistics.png'
 function initExtroInfo() {
@@ -37,7 +11,6 @@ function initExtroInfo() {
 	}
 	return initPositions1()
 }
-
 function getValue(v1, v2) {
 	if (v1 == '' || isNaN(v1 * 1)) {
 		return v2
@@ -45,7 +18,6 @@ function getValue(v1, v2) {
 		return v1
 	}
 }
-
 function getList() {
 	var workbook = window.BiyueCustomData.workbook_info
 	if (!workbook) {
@@ -59,7 +31,7 @@ function getList() {
 			console.log('json parse error', error)
 			return
 		}
-		
+		// 选择题作答区
 		var choice_display = Object.assign({
 			num_row: 10,
 			area: false,
@@ -91,81 +63,79 @@ function getList() {
 	var list = []
 	var scale = 0.2647058823529412
 	var page_type = window.BiyueCustomData.page_type
+	var feature_map = window.feature_map || {}
 	if (page_type == 0) {
+		// 二维码
 		if (extra_info.workbook_qr_code_show) {
 			var size = getValue(extra_info.workbook_qr_code_size, 45 * scale)
 			list.push({
 				zone_type: ZONE_TYPE.QRCODE,
-				  id: ZONE_TYPE_NAME[ZONE_TYPE.QRCODE],
-				  label: '二维码',
+				id: ZONE_TYPE_NAME[ZONE_TYPE.QRCODE],
 				ox: getValue(extra_info.workbook_qr_code_x, 700 * scale),
 				oy: getValue(extra_info.workbook_qr_code_y, 20 * scale),
 				ow: size,
 				oh: size,
-				url: 'https://by-qa-image-cdn.biyue.tech/qrCodeUnset.png',
-				value_select: 'open'
+				url: 'https://by-qa-image-cdn.biyue.tech/qrCodeUnset.png'
 			})
+			feature_map[ZONE_TYPE_NAME[ZONE_TYPE.QRCODE]] = { sel: 'open' }
 		}
+		// 再练
 		if (extra_info.practise_again && extra_info.practise_again.switch) {
 			list.push({
 				zone_type: ZONE_TYPE.AGAIN,
 				id: ZONE_TYPE_NAME[ZONE_TYPE.AGAIN],
 				label: '再练',
-				ox: extra_info.practise_again.x,
-				oy: extra_info.practise_again.y,
-				value_select: 'open',
-				separator: true
+				ox: getValue(extra_info.practise_again.x, 0),
+				oy: getValue(extra_info.practise_again.y, 0)
 			})
+			feature_map[ZONE_TYPE_NAME[ZONE_TYPE.AGAIN]] = { sel: 'open' }
 		}
+		// 评价和通过
 		if (extra_info.custom_evaluate) {
 			list.push({
 				zone_type: ZONE_TYPE.SELF_EVALUATION,
 				id: ZONE_TYPE_NAME[ZONE_TYPE.SELF_EVALUATION],
 				label: extra_info.self_evaluate || '自我评价',
 				icon_url: workbook.self_evaluate_img, // || 'https://by-base-cdn.biyue.tech/xiaoyue_s.png',
-				flowers: Object.values(extra_info.self_filling_imgs || {}),
-				value_select: 'open'
+				flowers: Object.values(extra_info.self_filling_imgs || {})
 			})
+			feature_map[ZONE_TYPE_NAME[ZONE_TYPE.SELF_EVALUATION]] = { sel: 'open' }
 			list.push({
 				zone_type: ZONE_TYPE.THER_EVALUATION,
 				id: ZONE_TYPE_NAME[ZONE_TYPE.THER_EVALUATION],
 				label: '教师评价',
 				icon_url: workbook.teacher_evaluate_img, // || 'https://by-base-cdn.biyue.tech/xiaotao_s.png',
-				flowers: Object.values(extra_info.teacher_filling_imgs || {}),
-				value_select: 'open'
+				flowers: Object.values(extra_info.teacher_filling_imgs || {})
 			})
+			feature_map[ZONE_TYPE_NAME[ZONE_TYPE.THER_EVALUATION]] = { sel: 'open' }
 			list.push({
 				zone_type: ZONE_TYPE.PASS,
 				id: ZONE_TYPE_NAME[ZONE_TYPE.PASS],
 				label: '通过',
-				value_select: 'open',
-				separator: true
 			})
+			feature_map[ZONE_TYPE_NAME[ZONE_TYPE.PASS]] = { sel: 'open' }
 		} else if (extra_info.hiddenComplete && extra_info.hiddenComplete.checked === false) {
+			// 完成
 			list.push({
 				zone_type: ZONE_TYPE.END,
 				id: ZONE_TYPE_NAME[ZONE_TYPE.END],
-				label: '完成',
-				value_select: 'open',
-				separator: true
+				label: '完成'
 			})
+			feature_map[ZONE_TYPE_NAME[ZONE_TYPE.END]] = { sel: 'open' }
 		}
 		list.push({
 			zone_type: ZONE_TYPE.STATISTICS,
-			id: ZONE_TYPE_NAME[ZONE_TYPE.STATISTICS],
-			label: '统计',
-			value_select: 'open'
+			id: ZONE_TYPE_NAME[ZONE_TYPE.STATISTICS]
 		})
+		feature_map[ZONE_TYPE_NAME[ZONE_TYPE.STATISTICS]] = { sel: 'open' }
 		list.push({
 			zone_type: ZONE_TYPE.IGNORE,
 			id: ZONE_TYPE_NAME[ZONE_TYPE.IGNORE],
-			label: '日期/评语',
-			value_select: 'open',
-			separator: true
+			label: '日期/评语'
 		})
-	} 
-	if (page_type == 0) {
-		if (!extra_info.hidden_correct_region.checked) {
+		feature_map[ZONE_TYPE_NAME[ZONE_TYPE.IGNORE]] = { sel: 'open' }
+		// 互动模式
+		if (extra_info.hidden_correct_region && !extra_info.hidden_correct_region.checked) {
 			var value_select = extra_info.start_interaction.checked ? 'accurate' : 'simple'
 			window.BiyueCustomData.interaction = value_select
 		} else {
@@ -173,177 +143,15 @@ function getList() {
 		}
 		list.push({
 			id: 'interaction',
-			label: '互动模式',
-			value_select: value_select
+			label: '互动模式'
 		})
 	} else {
 		window.BiyueCustomData.interaction = 'none'
 	}
-
+	feature_map.interaction = { sel: window.BiyueCustomData.interaction }
+	window.feature_map = feature_map
 	return list
 }
-
-function initFeature() {
-	var types = [
-		{
-			value: 'close',
-			label: '关',
-		},
-		{
-			value: 'open',
-			label: '开',
-		},
-	]
-	var interactionTypes = getInteractionTypes()
-	console.log('=============== initFeature interactionTypes', interactionTypes)
-	$('#wrapperFeature').empty()
-	var content = '<table style="width: 100%"><tbody>'
-	content += `<tr><td colspan="2"><label class="header">全部</label></td></tr><tr><td class="padding-small" width="100%" colspan="2"><div id='all'></div></td></tr>`
-	content += '<tr><td class="padding-small" colspan="2"><div class="separator horizontal"></div></td></tr>'
-	var list = list_feature || getList()
-	var flag = 0
-	list.forEach((e, index) => {
-		if (!e.hidden) {
-			var str = ''
-			if (flag == 0) {
-				str += '<tr>'
-			}
-			str += `<td class="padding-small" width="50%">
-						<label class="input-label">${e.label}</label>
-						<div id=${e.id}></div>
-					</td>`
-			flag++
-			if (e.id == 'interaction') {
-				str += `<td class="padding-small" width="50%" id="tdSimple">
-							<label class="input-label">简单使用方式</label>
-							<div id="simpleMode"></div>
-						</td>`
-				flag++
-			}
-			content += str
-			// if (e.id != 'header' && e.id != 'statistics') {
-			// 	str += `<tr id="${e.id}Pos">
-			// 				<td class="padding-small" width="50%">
-			// 					<label class="input-label">X坐标</label>
-			// 					<div id="${e.id}X"></div>
-			// 				</td>
-			// 				<td class="padding-small" width="50%">
-			// 					<label class="input-label">Y坐标</label>
-			// 					<div id="${e.id}Y"></div>
-			// 				</td>
-			// 			</tr>`
-			// }
-			if (e.separator) {
-				content += '</tr>'
-				flag = 0
-			} else {
-				if (flag % 2 == 0) {
-					content += '</tr>'
-					flag = 0
-				}
-			}
-			if (index != list.length - 1 && e.separator) {
-				content +=
-					'<tr><td class="padding-small" colspan="2"><div class="separator horizontal"></div></td></tr>'
-			}
-		}
-	})
-	// 添加选择题集中作答区
-	var choice_display = window.BiyueCustomData.choice_display || {}
-	content += '<tr><td class="padding-small" colspan="2"><div class="separator horizontal"></div></td></tr>'
-	content += `<tr><td colspan="2"><label class="header">选择题作答区</label></td></tr><tr><td class="padding-small" width="100%" colspan="2"><div id='select_choice_style'></div></td></tr>`
-	content += `<tr id="choiceGather"><td class="padding-small" width="40%"><label class="input-label">每行数量</label><div id="input_choice_num"></div></td><td class="padding-small" width="60%"><label class="input-label">作答区位置</label><div id="select_choice_area"></div></td></tr>`
-	content += '</tbody></table>'
-	$('#wrapperFeature').html(content)
-	var allComSelect = new ComponentSelect({
-		id: 'all',
-		options: types,
-		value_select: types[1].value,
-		width: '100%',
-		force_click_notify: true,
-		callback_item: (data) => {
-			changeAll(data)
-		},
-	})
-	list.forEach((e, index) => {
-		var optionsTypes = e.id == 'interaction' ? interactionTypes : types
-		if (!e.hidden) {
-			e.comSelect = new ComponentSelect({
-				id: e.id,
-				options: optionsTypes,
-				value_select: e.value_select || optionsTypes[0].value,
-				width: '100%',
-				force_click_notify: true,
-				callback_item: (data) => {
-					changeItem(e.zone_type, data, e.id)
-				},
-			})
-			if (e.id == 'interaction') {
-				var vInteraction = e.value_select || optionsTypes[0].value
-				e.comSelect2 = new ComponentSelect({
-					id: 'simpleMode',
-					options: [
-						{ value: '1', label: '题号' },
-						{ value: '2', label: '浮动图片' }
-					],
-					value_select: (window.BiyueCustomData.simple_interaction || 1) + '',
-					callback_item: (data) => {
-						changeSimpleInteraction(data.value)
-					},
-					width: '100%',
-					pop_width: '100%',
-					enabled: vInteraction != 'none'
-				})
-			}
-			e.inputX = new NumberInput(`${e.id}X`, {
-				change: (id, data) => {
-					changePos(e.zone_type, 'x', data)
-				},
-				width: '100%',
-			})
-			e.inputY = new NumberInput(`${e.id}Y`, {
-				change: (id, data) => {
-					changePos(e.zone_type, 'y', data)
-				},
-				width: '100%',
-			})
-		}
-	})
-	list_feature = list
-	if (choice_display) {
-		select_choice_style = new ComponentSelect({
-			id: 'select_choice_style',
-			options: choiceStyles,
-			value_select: choice_display.style,
-			callback_item: (data) => {
-				changeChoiceStyle(data)
-			},
-			width: '100%',
-		})
-		select_choice_area = new ComponentSelect({
-			id: 'select_choice_area',
-			options: choiceAreas,
-			value_select: choice_display.area,
-			callback_item: (data) => {
-				changeChoiceArea(data)
-			},
-			width: '100%',
-		})
-		input_choice_num = new NumberInput('input_choice_num', {
-			width: '100%',
-			change: (id, data) => {
-				changeChoiceNum(id, data)
-			},
-		})
-		if (input_choice_num) {
-			input_choice_num.setValue(choice_display.num_row + '')
-		}
-	}
-	showCom('#choiceGather', choice_display && choice_display.style != 'brackets_choice_region')
-
-	initPositions2()
-}
-
 function changeAll(data) {
 	if (!window.BiyueCustomData.workbook_info) {
 		return
@@ -372,47 +180,52 @@ function changeAll(data) {
 	if (list_feature) {
 		list_feature.forEach(e => {
 			if (e.id == 'interaction') {
-				if (e.comSelect) {
-					e.comSelect.setSelect(vinteraction)
-				}
-				e.value_select = vinteraction
 				updateAllInteraction(vinteraction)
-			} else {
-				if (e.comSelect) {
-					e.comSelect.setSelect(data.value)
+			}
+			if (window.feature_map) {
+				var v = e.id == 'interaction' ? vinteraction : data.value
+				if (window.feature_map[e.id]) {
+					window.feature_map[e.id].sel = v
+				} else {
+					window.feature_map[e.id] = { sel: v}
 				}
 			}
 		})
+		window.feature_map['all'] = { sel: data.value }
+		window.biyue.sendToDialog('featureDialog', 'featureUpdate', {
+			BiyueCustomData: window.BiyueCustomData,
+			feature_map: window.feature_map
+		})
 	}
-} 
-
+}
 function changeItem(type, data, id) {
-	var poscom = $(`#${id}Pos`)
-	if (poscom) {
-		if (data.value == 'open') {
-			poscom.show()
-		} else {
-			poscom.hide()
-		}
-	}
 	var fdata = list_feature.find(e => {
 		return e.id == id
 	})
-	if (fdata) {
-		fdata.value_select = data.value
-	}
-	if (id == 'header') {
-		handleHeader(data.value, window.BiyueCustomData.exam_title || '试卷标题')
-	} else if (id == 'interaction') {
+	if (id == 'interaction') {
 		window.BiyueCustomData.interaction = data.value
+		window.biyue.sendToDialog('featureDialog', 'featureUpdate', {
+			field: 'interaction',
+			data: window.BiyueCustomData.interaction
+		})
 		if (data.value == 'none') {
 			deleteAllFeatures(null, ['ques_interaction'])
 		} else {
 			setInteraction(data.value)
 		}
-		enableSimpleMode(data.value != 'none')
 		updateAllInteraction(data.value)
 	} else {
+		if (!window.feature_map) {
+			window.feature_map = {}
+		}
+		if (window.feature_map[id]) {
+			window.feature_map[id].sel = data.value
+		} else {
+			window.feature_map[id] = { sel: data.value }
+		}
+		window.biyue.sendToDialog('featureDialog', 'featureUpdate', {
+			feature_map: window.feature_map
+		})
 		if (id == ZONE_TYPE_NAME[ZONE_TYPE.STATISTICS]) {
 			var extra_info = window.BiyueCustomData.workbook_info.parse_extra_data
 			drawStatistics({
@@ -430,26 +243,10 @@ function changeItem(type, data, id) {
 			var newObj = Object.assign({}, fdata, {
 				cmd: data.value,
 			})
-			delete newObj.comSelect
-			delete newObj.inputX
-			delete newObj.inputY
 			handleFeature(newObj)
 		}
 	}
 }
-
-function enableSimpleMode(v) {
-	if (!list_feature) {
-		return
-	}
-	var item = list_feature.find(e => {
-		return e.id == 'interaction'
-	})
-	if (item && item.comSelect2) {
-		item.comSelect2.setEnable(v)
-	}
-}
-
 function changeSimpleInteraction(data) {
 	var oldValue = window.BiyueCustomData.simple_interaction
 	if (oldValue == 1) {
@@ -473,22 +270,6 @@ function syncInteractionWhenReSplit() {
 		updateAllInteraction(window.BiyueCustomData.interaction)
 	}
 }
-
-function changePos(zone_type, id, data) {
-	var index = list_feature.findIndex((e) => e.zone_type == zone_type)
-	if (index == -1) {
-		return
-	}
-	list_feature[index][id] = data * 1
-	handleFeature({
-		zone_type: list_feature[index].zone_type,
-		cmd: 'open',
-		x: list_feature[index].x,
-		y: list_feature[index].y,
-		p: list_feature[index].p,
-	})
-}
-
 function setXY(index, p, x, y, size) {
 	if (!list_feature) {
 		return
@@ -498,18 +279,11 @@ function setXY(index, p, x, y, size) {
 	}
 	list_feature[index].p = p
 	list_feature[index].x = x
-	if (list_feature[index].inputX) {
-		list_feature[index].inputX.setValue(x)
-	}
 	list_feature[index].y = y
-	if (list_feature[index].inputY) {
-		list_feature[index].inputY.setValue(y)
-	}
 	if (size) {
 		list_feature[index].size = size
 	}
 }
-
 function getPageData() {
 	Asc.scope.workbook = window.BiyueCustomData.workbook_info
 	return biyueCallCommand(window, function () {
@@ -581,23 +355,7 @@ function updateFeatureList(res) {
 				size
 			)
 		})
-		if (res.hasHeader) {
-			var headerIndex = list_feature.findIndex((e) => e.id == 'header')
-			if (headerIndex >= 0 && list_feature[headerIndex].comSelect) {
-				list_feature[headerIndex].comSelect.setSelect('open')
-			}
-		}
 	}
-	list_feature.forEach((e) => {
-		var pos = $(`#${e.id}Pos`)
-		if (pos && e.comSelect) {
-			if (e.comSelect.getValue() == 'open') {
-				pos.show()
-			} else {
-				pos.hide()
-			}
-		}
-	})
 }
 
 function initPositions1_intro() {
@@ -625,7 +383,6 @@ function initPositions1_intro() {
 		return MoveCursor()
 	})
 }
-
 function loadImages() {
 	const imageUrls = [];
 	if (window.BiyueCustomData.page_type == 0) {
@@ -647,18 +404,10 @@ function loadImages() {
 	}
 	return Promise.all(imageUrls.map(getImageDimensions));
 }
+
 function initPositions1() {
 	return getPageData().then(res => {
 		updateFeatureList(res)
-		// var specifyFeatures = list_feature.map(e => {
-		// 	return ZONE_TYPE_NAME[e.zone_type]
-		// })
-		// if (!specifyFeatures.includes(ZONE_TYPE_NAME[ZONE_TYPE.STATISTICS])) {
-		// 	specifyFeatures.push(ZONE_TYPE_NAME[ZONE_TYPE.STATISTICS])
-		// }
-		// if (!specifyFeatures.includes(ZONE_TYPE_NAME[ZONE_TYPE.PAGINATION])) {
-		// 	specifyFeatures.push(ZONE_TYPE_NAME[ZONE_TYPE.PAGINATION])
-		// }
 		return deleteAllFeatures([])
 	})
 	.then(() => {
@@ -715,12 +464,11 @@ function updateAllInteraction(vinteraction, isForce = true) {
 		}
 	})
 }
-
 // 切换选择题作答区样式
 function changeChoiceStyle(data) {
+	console.log('changeChoiceStyle', data)
 	if (data) {
 		window.BiyueCustomData.choice_display.style = data.value
-		showCom('#choiceGather', data.value != 'brackets_choice_region')
 	}
 	return updateChoice(true).then(res => {
 		return handleChoiceUpdateResult(res)
@@ -728,23 +476,21 @@ function changeChoiceStyle(data) {
 }
 // 切换选择题作答区位置
 function changeChoiceArea(data) {
+	console.log('changeChoiceArea', data)
 	window.BiyueCustomData.choice_display.area = data.value
 	return updateChoice(true).then(res => {
 		return handleChoiceUpdateResult(res)
 	})
 }
-
 function changeChoiceNum(id, data) {
+	console.log('changeChoiceNum', id, data)
 	if (!window.BiyueCustomData.choice_display) {
 		return
 	}
-	clearTimeout(timeout_change_choice_num)
-	timeout_change_choice_num = setTimeout(() => {
-		window.BiyueCustomData.choice_display.num_row = data
-		updateChoice(true).then(res => {
-			return handleChoiceUpdateResult(res)
-		})
-	}, 400);
+	window.BiyueCustomData.choice_display.num_row = data
+	updateChoice(true).then(res => {
+		return handleChoiceUpdateResult(res)
+	})
 }
 // 获取图片宽高比
 function getImageDimensions(url) {
@@ -816,4 +562,31 @@ function drawPageHeaderFooter(recalc) {
 	}
 	return drawHeaderFooter(options, recalc)
 }
-export { initFeature, initExtroInfo, syncInteractionWhenReSplit }
+function handleFeatureMessage(message) {
+	if (!message) {
+		return
+	}
+	switch(message.cmd) {
+		case 'all':
+			changeAll(message.data)
+			break
+		case 'choiceStyle':
+			changeChoiceStyle(message.data)
+			break
+		case 'choiceArea':
+			changeChoiceArea(message.data)
+			break
+		case 'choice_num_row':
+			changeChoiceNum(null, message.data)
+			break
+		case 'simple_interaction':
+			changeSimpleInteraction(message.data)
+			break
+		case 'zoneType':
+			changeItem(message.data.zone_type, message.data.data, message.data.id)
+			break
+		default:
+			break
+	}
+}
+export { initExtroInfo, syncInteractionWhenReSplit, handleFeatureMessage }

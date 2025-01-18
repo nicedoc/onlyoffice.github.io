@@ -1008,10 +1008,10 @@ function drawList(list, recalc = true) {
 													}
 												}
 											}
-										})									
-									})								
+										})
+									})
 								} else {
-									var page_num = options.page_num || options.p
+									var page_num = options.page_num != undefined ? options.page_num : options.p
 									if (options.zone_type == ZONE_TYPE.THER_EVALUATION ||
 										options.zone_type == ZONE_TYPE.SELF_EVALUATION ||
 										options.zone_type == ZONE_TYPE.PASS ||

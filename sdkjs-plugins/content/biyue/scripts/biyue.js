@@ -20,6 +20,7 @@ import { getVersion } from "./ver.js"
 import { ReplaceRubyField } from "./phonetic.js";
 import {
 	initExtroInfo,
+	handleFeatureMessage
 } from './panelFeature.js'
 import { biyueCallCommand } from './command.js'
 import {
@@ -98,6 +99,11 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 					// 重新打开上传的时候关闭的识别区域
     				// 必须保证一个执行完成之后在去开启下一个
 					showOrHiddenRegion('show')
+				}
+				if (win && win.type == 'panel') {
+					biyueCallCommand(window, function() {
+						Api.asc_OpenPlugin('asc.{BE5CBF95-C0AD-4842-B157-AC40FEDD9443}')
+					})
 				}
 			}
 		})
@@ -235,6 +241,8 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 					}
 					if (message.initmsg == 'uploadValidationMessage') {
 						obj.validate_info = Asc.scope.upload_validate
+					} else if (message.initmsg == 'featureMessage') {
+						obj.feature_map = window.feature_map
 					}
 					modal.command(message.initmsg, obj)
 				}
@@ -381,6 +389,9 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 				} else if (message.cmd == 'toFeature') {
 					onFeature()
 				}
+				break
+			case 'featureMessage':
+				handleFeatureMessage(message)
 				break
 			default:
 				break
@@ -2589,7 +2600,8 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 			windowList.push({
 				name: winName,
 				id: windows[winName].id,
-				visible: true
+				visible: true,
+				type: type
 			})
 		}
 		return windows[winName]
@@ -2698,6 +2710,23 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		}
 	}
 
+	function sendToDialog(winName, msgId, data) {
+		if (!winName || !msgId) {
+			return
+		}
+		var win = windows[winName]
+		if (!win) {
+			return
+		}
+		var win2 = windowList.find(e => {
+			return e.name == winName
+		})
+		if (win2 && win2.visible) {
+			win.activate()
+			win.command(msgId, data)
+		}
+	}
+
 	window.biyue = {
 		showDialog: showDialog,
 		StoreCustomData: StoreCustomData,
@@ -2708,6 +2737,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		onBatchScoreSet: onBatchScoreSet,
 		sendMessageToWindow: sendMessageToWindow,
 		refreshDialog: refreshDialog,
-		closeDialog: closeDialog
+		closeDialog: closeDialog,
+		sendToDialog: sendToDialog
 	}
 })(window, undefined)

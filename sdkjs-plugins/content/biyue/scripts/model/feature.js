@@ -92,25 +92,37 @@ var ZONE_SIZE = {
 	},
 }
 // 是否有互动
-function hasInteraction() {
-	if (window.BiyueCustomData && 
-		window.BiyueCustomData.workbook_info && 
-		window.BiyueCustomData.workbook_info.parse_extra_data &&
-		window.BiyueCustomData.workbook_info.parse_extra_data.hidden_correct_region
+function hasInteraction(BiyueCustomData) {
+	if (!BiyueCustomData) {
+		BiyueCustomData = window.BiyueCustomData
+	}
+	if (!BiyueCustomData) {
+		return
+	}
+	if (BiyueCustomData && 
+		BiyueCustomData.workbook_info && 
+		BiyueCustomData.workbook_info.parse_extra_data &&
+		BiyueCustomData.workbook_info.parse_extra_data.hidden_correct_region
 	) {
-		if (window.BiyueCustomData.workbook_info.parse_extra_data.hidden_correct_region.checked === false) {
+		if (BiyueCustomData.workbook_info.parse_extra_data.hidden_correct_region.checked === false) {
 			return true
 		}
 	}
 	return false
 }
 // 获取互动类型列表
-function getInteractionTypes() {
+function getInteractionTypes(BiyueCustomData) {
+	if (!BiyueCustomData) {
+		BiyueCustomData = window.BiyueCustomData
+	}
+	if (!BiyueCustomData) {
+		return
+	}
 	var interactionTypes = [{
 		value: 'none',
 		label: '无互动'
 	}]
-	var extra_info = window.BiyueCustomData.workbook_info.parse_extra_data
+	var extra_info = BiyueCustomData.workbook_info.parse_extra_data
 	if (extra_info && extra_info.hidden_correct_region) {
 		if (!extra_info.hidden_correct_region.checked) {
 			interactionTypes.push({
@@ -128,8 +140,14 @@ function getInteractionTypes() {
 	return interactionTypes
 }
 
-function getWorkbookInteraction() {
-	var extra_info = window.BiyueCustomData.workbook_info.parse_extra_data
+function getWorkbookInteraction(BiyueCustomData) {
+	if (!BiyueCustomData) {
+		BiyueCustomData = window.BiyueCustomData
+	}
+	if (!BiyueCustomData) {
+		return
+	}
+	var extra_info = BiyueCustomData.workbook_info.parse_extra_data
 	if (extra_info && extra_info.hidden_correct_region) {
 		if (!extra_info.hidden_correct_region.checked) {
 			if (extra_info.start_interaction.checked) {
