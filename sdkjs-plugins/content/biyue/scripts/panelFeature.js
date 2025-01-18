@@ -2,7 +2,7 @@ import ComponentSelect from '../components/Select.js'
 import NumberInput from '../components/NumberInput.js'
 import { ZONE_SIZE, ZONE_TYPE, ZONE_TYPE_NAME, getInteractionTypes } from './model/feature.js'
 import { handleFeature, handleHeader, drawExtroInfo, setLoading, deleteAllFeatures, setInteraction, updateChoice, handleChoiceUpdateResult, drawHeaderFooter, drawStatistics } from './featureManager.js'
-import { biyueCallCommand, dispatchCommandResult } from "./command.js";
+import { biyueCallCommand } from "./command.js";
 import { showCom } from './model/util.js'
 var list_feature = []
 var choiceStyles = [

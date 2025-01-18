@@ -21,7 +21,7 @@ import { ReplaceRubyField } from "./phonetic.js";
 import {
 	initExtroInfo,
 } from './panelFeature.js'
-import { biyueCallCommand, dispatchCommandResult } from './command.js'
+import { biyueCallCommand } from './command.js'
 import {
 	reqUploadTree,
 	splitEnd,
@@ -710,7 +710,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
                 console.log(styledString, ...styles);
             };
 
-            //debugger;
+            // debugger;
 
             var oDocument = Api.GetDocument();
             var controls = oDocument.GetAllContentControls();
@@ -1099,7 +1099,6 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 
 	window.Asc.plugin.onCommandCallback = function (result) {
 		//console.log("onCommandCallback", result);
-		dispatchCommandResult(window, result)
 	}
 
 	let createContentControl = function (ranges) {

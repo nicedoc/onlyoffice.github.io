@@ -1,6 +1,6 @@
 import { map_base64 } from '../resources/list_base64.js'
 import { ZONE_TYPE, ZONE_SIZE, ZONE_TYPE_NAME } from './model/feature.js'
-import { biyueCallCommand, dispatchCommandResult } from "./command.js";
+import { biyueCallCommand } from "./command.js";
 
 var loading = false // 正在绘制中
 var list_command = [] // 操作列表
