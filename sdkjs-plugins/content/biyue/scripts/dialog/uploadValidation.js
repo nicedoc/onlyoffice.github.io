@@ -104,7 +104,7 @@ import { UPLOAD_VALIDATE_RESULT } from '../model/uploadValidateEnum.js'
 		list.forEach((item, index) => {
 			message += `<div class="row-between">
 				<div class="ques clicked" data-id=${item.ques_id} title="${item.text}">${item.ques_name}</div>
-				<div class="clicked clr1 locate" data-id=${item.ques_id}>定位</div>
+				<div class="clicked clr1 locate keepall" data-id=${item.ques_id}>定位</div>
 			</div>`
 		});
 		message += '</div>'
