@@ -1266,10 +1266,10 @@ function setChoiceOptionLayout(options) {
 				}
 
 				var oOptionParagraph = null
-				if (firstOption > 65 && firstOption <= 72) {
+				if (firstOption >= 65 && firstOption <= 72) {
 					optionMin = 65
 					optionMax = 72
-				} else if (firstOption > 9312 && firstOption <= 9320) {
+				} else if (firstOption >= 9312 && firstOption <= 9320) {
 					optionMin = 9312
 					optionMax = 9320
 				}
