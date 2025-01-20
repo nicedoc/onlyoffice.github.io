@@ -665,7 +665,7 @@ function ShowLinkedWhenclickImage(options, control_id) {
 				if (dtag.feature && dtag.feature.partical_no_dot) {
 					oDrawing.SetShadow(null, 0, 100, null, 0, '#0fc1fd')
 				} else {
-					if (oDrawing.Drawing.spPr && oDrawing.Drawing.spPr.effectProps && oDrawing.Drawing.spPr.effectProps.EffectLst) {
+					if (oDrawing.Drawing.spPr && dtag.feature && dtag.feature.ques_use) {
 						oDrawing.ClearShadow()
 					}
 				}
