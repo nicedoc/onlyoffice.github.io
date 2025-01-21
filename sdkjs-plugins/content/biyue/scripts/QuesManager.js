@@ -326,11 +326,13 @@ function getContextMenuItems(type, selectedRes) {
 					disabled: selectInfo.partical_no_dot == selectInfo.drawing_count
 				}]
 			})
-			items.push({
-				id: 'imageRelation',
-				text: '图片关联'
-			})
 		}
+	}
+	if (selectInfo.drawing_count) {
+		items.push({
+			id: 'imageRelation',
+			text: '图片关联'
+		})
 	}
 	if (selectInfo.write_list.length) {
 		var askData = selectInfo.write_list[0]
