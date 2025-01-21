@@ -453,7 +453,7 @@ function getContextMenuItems(type, selectedRes) {
 			})
 		}
 	}
-	if (selectInfo.drawing_count) {
+	if (type == 'Image' || type == 'Shape' || (type == 'Target' && selectInfo.drawing_count)) {
 		items.push({
 			id: 'imageRelation',
 			text: '图片关联'
