@@ -233,16 +233,13 @@ function handleContextMenuShow(options) {
 					result.column_num =  oSection.Section.GetColumnsCount()
 				}
 			}
-			if (options.type == 'Image' || options.type == 'Shape') {
-				var DrawingObjects = selectContent.DrawingObjects || []
-				if (DrawingObjects.length) {
-					DrawingObjects.forEach(e => {
-						if (e.docPr) {
-							result.drawings.push(e.docPr.title)
-						}
-					})
+			var selectedDrawings = oDocument.GetSelectedDrawings() || []
+			if (selectedDrawings.length) {
+				for (var oDrawing of selectedDrawings) {
+					result.drawings.push(oDrawing.GetTitle())
 				}
-			} else {
+			}
+			if (options.type != 'Image' && options.type != 'Shape') {
 				var elementsInfo = oDocument.Document.GetSelectedElementsInfo() || {}
 				result.bTable = elementsInfo.m_bTable
 				var tableIds = {}
@@ -347,61 +344,157 @@ function getJsonData(str) {
 
 function getContextMenuItems(type, selectedRes) {
 	console.log('getContextMenuItems ', selectedRes)
+	var question_map = window.BiyueCustomData.question_map || {}
+	var node_list = window.BiyueCustomData.node_list || []
 	var items = []
-	if (type == 'Image' || type == 'Shape') {
-		var ignoreCount = 0
-		var count = 0
-		var writeCount = 0
-		var identifyCount = 0
+	// 获取小问类型
+	function getAskType(ids, ask_id) {
+		for (var id of ids) {
+			var nodeData = node_list.find(e => {
+				return e.id == id
+			})
+			if (nodeData && nodeData.write_list) {
+				var writeData = nodeData.write_list.find(e => {
+					return e.id == ask_id
+				})
+				if (writeData) {
+					return writeData.sub_type
+				}
+			}
+		}
+		return null
+	}
+	// 根据题目Id和小问Id获取小问数据
+	function getAskData(parent_id, client_id) {
+		var qid = 0
+		var keys = Object.keys(question_map)
+		for (const key of keys) {
+			if (key == parent_id) {
+				qid = key
+				break
+			} else {
+				if (question_map[key].is_merge && question_map[key].ids.includes(parent_id)) {
+					qid = key
+					break
+				}
+			}
+		}
+		var askIndex = -1 
+		var is_merge_ask = false
+		var can_merge = false
+		if (qid) {
+			var ask_list = question_map[qid].ask_list || []
+			for (var i = 0; i < ask_list.length; ++i) {
+				if (ask_list[i].id == client_id) {
+					askIndex = i
+					if (askIndex > 0) {
+						var preType = getAskType(question_map[qid].is_merge ? question_map[qid].ids : [qid], ask_list[i - 1].id)
+						can_merge = preType != 'identify'
+					}
+					break
+				} else if (ask_list[i].other_fields && ask_list[i].other_fields.includes(client_id)) {
+					askIndex = i
+					is_merge_ask = true
+					break
+				}
+			}
+		}
+		return {
+			ask_index: askIndex,
+			ques_id: qid,
+			ask_id: client_id,
+			is_merge_ask: is_merge_ask,
+			can_merge: can_merge
+		}
+	}
+	// 获取选中的题目数据
+	function getSelectData() {
+		var info = {
+			partical_no_dot: 0,
+			write_list: [],
+			identify_list: [],
+			drawing_created: 0
+		}
 		if (selectedRes) {
-			selectedRes.drawings.forEach(title => {
-				var titleObj = getJsonData(title)
-				if (titleObj.feature) {
+			if (selectedRes.drawings && selectedRes.drawings.length) { // 图片
+				for (var title of selectedRes.drawings) {
+					var titleObj = getJsonData(title)
+					if (!titleObj.feature) {
+						continue
+					}
 					if (titleObj.feature.partical_no_dot) {
-						ignoreCount++
-					} else if (titleObj.feature.sub_type == 'write') {
-						writeCount++
-					} else if (titleObj.feature.sub_type == 'identify') {
-						identifyCount++
+						info.partical_no_dot++
+					} else if (titleObj.feature.sub_type == 'write' || titleObj.feature.sub_type == 'identify') {
+						var askData = getAskData(titleObj.feature.parent_id, titleObj.feature.client_id)
+						titleObj.feature.sub_type == 'write' ? info.write_list.push(askData) : info.identify_list.push(askData)
+						info.drawing_created++
 					}
 				}
-				count++
+				info.drawing_count = selectedRes.drawings.length
+			}
+		}
+		return info
+	}
+	var selectInfo = getSelectData()
+	if (type == 'Image' || type == 'Shape') {
+		if (selectInfo.drawing_created == 0) {
+			items.push({
+				id: 'handleImageIgnore',
+				text: '图片铺码',
+				items: [{
+					id: 'handleImageIgnore:del',
+					text: '开启',
+					disabled: selectInfo.partical_no_dot == 0
+				}, {
+					id: 'handleImageIgnore:add',
+					text: '关闭',
+					disabled: selectInfo.partical_no_dot == selectInfo.drawing_count
+				}]
+			})
+			items.push({
+				id: 'imageRelation',
+				text: '图片关联'
 			})
 		}
-		items.push({
-			id: 'handleImageIgnore',
-			text: '图片铺码',
-			items: [{
-				id: 'handleImageIgnore:del',
-				text: '开启',
-				disabled: ignoreCount == 0
-			}, {
-				id: 'handleImageIgnore:add',
-				text: '关闭',
-				disabled: ignoreCount == count
-			}]
-		})
-		items.push({
-			id: 'imageRelation',
-			text: '图片关联'
-		})
-		if (type == 'Shape') {
-			if (writeCount) {
-				items.push({
-					id: 'updateControlType:writeZone:del',
-					text: '删除作答区'
+	}
+	if (selectInfo.write_list.length) {
+		var askData = selectInfo.write_list[0]
+		if (askData.ask_index == -1) {
+			items.push({
+				id: 'updateControlType:writeZone:del',
+				text: '删除作答区'
+			})
+		} else {
+			var childItems = []
+			if (askData.can_merge) {
+				childItems.push({
+					id: `mergeAsk:${askData.ques_id}:${askData.ask_id}:1`,
+					text: '向前合并'
+				})
+			} else if (askData.is_merge_ask) {
+				childItems.push({
+					id: `mergeAsk:${askData.ques_id}:${askData.ask_id}:0`,
+					text: '取消合并'
 				})
 			}
-			if (identifyCount) {
-				items.push({
-					id: 'updateControlType:identify:del',
-					text: '删除识别框'
-				})	
-			}
+			childItems.push({
+				id: 'updateControlType:writeZone:del',
+				text: '删除',
+			})
+			items.push({
+				id: 'write',
+				text: '作答区',
+				items: childItems
+			})
 		}
-	} else {
-		var question_map = window.BiyueCustomData.question_map || {}
-		var node_list = window.BiyueCustomData.node_list || []
+	}
+	if (selectInfo.identify_list.length) {
+		items.push({
+			id: 'updateControlType:identify:del',
+			text: '删除识别框'
+		})
+	}
+	if (selectedRes && (!selectedRes.drawings || !selectedRes.drawings.length)) {
 		function getControlData(tag, jstart) {
 			var cData = null
 			if (tag.client_id) {
@@ -4320,13 +4413,11 @@ function focusAsk(writeData) {
 				}
 				return null
 			}
-			if (write_data.sub_type == 'control') {
-				var oRange = null
-				var ids = []
-				for (var wData of writeList) {
-					if (wData.sub_type != 'control') {
-						continue
-					}
+			var oRange = null
+			var ids = []
+			var rangeCount = 0
+			for (var wData of writeList) {
+				if (wData.sub_type == 'control') {
 					var oControls = controls.filter(e => {
 						var tag = Api.ParseJSON(e.GetTag())
 						if (tag.client_id == wData.id && e.Sdt) {
@@ -4340,6 +4431,7 @@ function focusAsk(writeData) {
 					if (oControls && oControls.length) {
 						if (oControls.length == 1) {
 							ids.push(oControls[0].Sdt.GetId())
+							rangeCount++
 							if (oRange) {
 								oRange = oRange.ExpandTo(oControls[0].GetRange())
 							} else {
@@ -4347,47 +4439,57 @@ function focusAsk(writeData) {
 							}
 						}
 					}
-				}
-				if (ids.length == 1) {
-					oDocument.Document.MoveCursorToContentControl(ids[0], true)
-				} else if (oRange) {
-					oRange.Select()
-				}
-			} else if (write_data.sub_type == 'cell') {
-				var oRange = null
-				for (var wData of writeList) {
-					if (wData.cell_id) {
-						var oCell = Api.LookupObject(wData.cell_id)
-						if (oCell && oCell.GetClassType() == 'tableCell') {
-							var table = oCell.GetParentTable()
-							if (table.GetPosInParent() == -1) {
-								oCell = getCell(wData)
-							}
-							if (oCell) {
-								var cellContent = oCell.GetContent()
-								if (cellContent) {
-									if (oRange) {
-										oRange = oRange.ExpandTo(cellContent.GetRange())
-									} else {
-										oRange = cellContent.GetRange()
+				} else if (wData.sub_type == 'write' || wData.sub_type == 'identify') {
+					var oDrawing = drawings.find(e => {
+						var tag = Api.ParseJSON(e.GetTitle())
+						return tag.feature && tag.feature.client_id == wData.id
+					})
+					if (oDrawing) {
+						if (writeList.length == 1 || rangeCount == 0) {
+							oDrawing.Select()
+						}
+						if (writeList.length > 1) {
+							var drawing = oDrawing.getParaDrawing()
+							if (drawing && drawing.GetRun) {
+								var parentRun = drawing.GetRun()
+								if (parentRun) {
+									var oRun = Api.LookupObject(parentRun.Id)
+									if (oRun) {
+										rangeCount++
+										if (!oRange) {
+											oRange = oRun.GetRange()
+										} else {
+											oRange = oRange.ExpandTo(oRun.GetRange())
+										}
 									}
+								}
+							}
+						} 
+					}
+				} else if (wData.sub_type == 'cell' && wData.cell_id) {
+					var oCell = Api.LookupObject(wData.cell_id)
+					if (oCell && oCell.GetClassType() == 'tableCell') {
+						var table = oCell.GetParentTable()
+						if (table.GetPosInParent() == -1) {
+							oCell = getCell(wData)
+						}
+						if (oCell) {
+							var cellContent = oCell.GetContent()
+							if (cellContent) {
+								rangeCount++
+								if (oRange) {
+									oRange = oRange.ExpandTo(cellContent.GetRange())
+								} else {
+									oRange = cellContent.GetRange()
 								}
 							}
 						}
 					}
 				}
-				if (oRange) {
-					oRange.Select()
-				}
-			} else if (write_data.sub_type == 'write' || write_data.sub_type == 'identify') {
-				var oDrawing = drawings.find(e => {
-					var tag = Api.ParseJSON(e.GetTitle())
-					return tag.feature && tag.feature.client_id == write_data.id
-				})
-				if (oDrawing) {
-					oDrawing.Select()
-				}
-			}	
+			}
+			if (oRange) {
+				oRange.Select()
+			}
 	}, false, false, {name: 'focusAsk'})
 }
 
