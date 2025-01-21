@@ -703,6 +703,10 @@ function handleRangeType(options) {
 								}
 								oDrawing.SetTitle(JSON.stringify(title))
 							}
+							if (uselist.length == 0) {
+								oDrawing.ClearShadow()
+							}
+							oDrawing.SetTitle(JSON.stringify(title))
 						}
 					}
 				}
