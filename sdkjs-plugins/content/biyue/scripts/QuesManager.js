@@ -288,7 +288,7 @@ function getContextMenuItems(type, selectedRes) {
 			partical_no_dot: 0,
 			write_list: [],
 			identify_list: [],
-			drawing_created: 0
+			drawing_created: 0,
 		}
 		if (selectedRes) {
 			if (selectedRes.drawings && selectedRes.drawings.length) { // 图片
@@ -369,7 +369,8 @@ function getContextMenuItems(type, selectedRes) {
 			text: '删除识别框'
 		})
 	}
-	if (selectedRes && (!selectedRes.drawings || !selectedRes.drawings.length)) {
+	var selectIsDraw = type == 'Image' || type == 'Shape' || (type == 'Target' && selectInfo.drawing_created)
+	if (!selectIsDraw) {
 		function getControlData(tag, jstart) {
 			var cData = null
 			if (tag.client_id) {
