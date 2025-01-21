@@ -700,6 +700,9 @@ function handleRangeType(options) {
 									delete title.feature.client_id
 								}
 							}
+							if (uselist.length == 0) {
+								oDrawing.ClearShadow()
+							}
 							oDrawing.SetTitle(JSON.stringify(title))
 						}
 					}
