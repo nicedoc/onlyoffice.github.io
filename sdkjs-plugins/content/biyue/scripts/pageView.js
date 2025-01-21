@@ -84,12 +84,13 @@ function initView() {
 	showCom('#extro_buttons', false)
 	showCom('#tool_buttons', false)
 	addClickEvent('#printStack', () => {
-		if (window.error_list) {
-			var len = window.error_list.length
-			updateText('#printStack', 'error数量：' + len)
+		if (window.commandStack) {
+			var len = window.commandStack.length
+			updateText('#printStack', '输出当前stack length：' + len)
+			console.log('commandStack len:', len)
 			if (len == 0) {
 				setTimeout(() => {
-					updateText('#printStack', '查看error数量')
+					updateText('#printStack', '输出当前stack length')
 				}, 1000);
 			} else {
 				$('#printStack').css('color', "#ff0000")
@@ -334,38 +335,37 @@ function onPaste() {
 function insertContent(str) {
 	Asc.scope.insert_str = str
 	return biyueCallCommand(window, function() {
-			// console.log('[insertContent] begin')
-			var content = Asc.scope.insert_str		
-			const srcMatch = content.match(/src="([^"]*)"/);
-			var src = srcMatch ? srcMatch[1] : null;
-			var oDocument = Api.GetDocument()
-			var pos = oDocument.Document.Get_CursorLogicPosition()
-			if (src) {
-				const widthMatch = content.match(/width:(\d+)px/);
-				const heightMatch = content.match(/height:(\d+)px/);
-				const width = widthMatch ? widthMatch[1] : null;
-				const height = heightMatch ? heightMatch[1] : null;
-				src = src.replace('img.xmdas-link.com', 'img2.xmdas-link.com')
-				var scale = 0.25 * 36000
-				var oDrawing = Api.CreateImage(src, width * scale, height * scale)
-				if (pos && pos.length) {
-					var lastElement = pos[pos.length - 1].Class
-					if (lastElement.Add_ToContent) {
-						lastElement.Add_ToContent(
-							pos[pos.length - 1].Position,
-							oDrawing.getParaDrawing()
-						)
-					}
-				}
-			} else { // 不是图片
-				if (pos) {
-					var lastElement = pos[pos.length - 1].Class
-					if (lastElement.AddText) {
-						lastElement.AddText(content, pos[pos.length - 1].Position)
-					}
+		var content = Asc.scope.insert_str		
+		const srcMatch = content.match(/src="([^"]*)"/);
+		var src = srcMatch ? srcMatch[1] : null;
+		var oDocument = Api.GetDocument()
+		var pos = oDocument.Document.Get_CursorLogicPosition()
+		if (src) {
+			const widthMatch = content.match(/width:(\d+)px/);
+			const heightMatch = content.match(/height:(\d+)px/);
+			const width = widthMatch ? widthMatch[1] : null;
+			const height = heightMatch ? heightMatch[1] : null;
+			src = src.replace('img.xmdas-link.com', 'img2.xmdas-link.com')
+			var scale = 0.25 * 36000
+			var oDrawing = Api.CreateImage(src, width * scale, height * scale)
+			if (pos && pos.length) {
+				var lastElement = pos[pos.length - 1].Class
+				if (lastElement.Add_ToContent) {
+					lastElement.Add_ToContent(
+						pos[pos.length - 1].Position,
+						oDrawing.getParaDrawing()
+					)
 				}
 			}
-	}, false, true, {name: 'insertContent'})
+		} else { // 不是图片
+			if (pos) {
+				var lastElement = pos[pos.length - 1].Class
+				if (lastElement.AddText) {
+					lastElement.AddText(content, pos[pos.length - 1].Position)
+				}
+			}
+		}
+	}, false, true)
 }
 
 function updateHintById(id, message, color, duration = 1500) {

@@ -13,6 +13,8 @@ import {
 	updatePageSizeMargins,
 	updateCustomControls,
 	drawPositions,
+	handleContentControlChange,
+	deletePositions,
 	setSectionColumn,
 	getAllPositions,
 } from './business.js'
@@ -21,7 +23,7 @@ import { ReplaceRubyField } from "./phonetic.js";
 import {
 	initExtroInfo,
 } from './panelFeature.js'
-import { biyueCallCommand } from './command.js'
+import { biyueCallCommand, dispatchCommandResult } from './command.js'
 import {
 	reqUploadTree,
 	splitEnd,
@@ -184,6 +186,10 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 				break
 			case 'drawPosition': // 绘制区域
 				drawPositions(message.data)
+				closeWindow(modal.id)
+				break
+			case 'deletePosition': // 删除区域
+				deletePositions(message.data)
 				closeWindow(modal.id)
 				break
 			case 'LevelSetConfirm': // 确定大小题设置
@@ -710,7 +716,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
                 console.log(styledString, ...styles);
             };
 
-            // debugger;
+            //debugger;
 
             var oDocument = Api.GetDocument();
             var controls = oDocument.GetAllContentControls();
@@ -1099,6 +1105,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 
 	window.Asc.plugin.onCommandCallback = function (result) {
 		//console.log("onCommandCallback", result);
+		dispatchCommandResult(window, result)
 	}
 
 	let createContentControl = function (ranges) {
@@ -1515,17 +1522,16 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 				biyueCallCommand(
 					window,
 					function () {
-							// console.log('[clearAllControls] begin')	
-							var controls = Asc.scope.controls
-							for (var i = 0; i < controls.length; i++) {
-								// set selection
-								var e = controls[i]
-								Api.asc_RemoveContentControlWrapper(e.InternalId)
-							}
+						var controls = Asc.scope.controls
+
+						for (var i = 0; i < controls.length; i++) {
+							// set selection
+							var e = controls[i]
+							Api.asc_RemoveContentControlWrapper(e.InternalId)
+						}
 					},
 					false,
-					false,
-					{name: 'clearAllControls'}
+					false
 				).then(() => {
 					console.log('删除所有控件完成')
 					// window.BiyueCustomData.client_node_id = 0
@@ -1537,119 +1543,118 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 	}
 	function onClearAllControls(recalc = false) {
 		return biyueCallCommand(window, function () {
-				// console.log('[onClearAllControls] begin')
-				var oDocument = Api.GetDocument()
-				var controls = oDocument.GetAllContentControls() || []
-				// 先删除所有题目的互动
-				var drawings = oDocument.GetAllDrawingObjects() || []
-				for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
-					var oDrawing = drawings[j]
-					var title = oDrawing.GetTitle()
-					if (title && title.indexOf('feature') >= 0) {
-						var titleObj = Api.ParseJSON(title)
-						if (titleObj.feature) {
-							if (titleObj.feature.zone_type == 'question') {
-								oDrawing.Delete()
+			var oDocument = Api.GetDocument()
+			var controls = oDocument.GetAllContentControls() || []
+			// 先删除所有题目的互动
+			var drawings = oDocument.GetAllDrawingObjects() || []
+			for (var j = 0, jmax = drawings.length; j < jmax; ++j) {
+				var oDrawing = drawings[j]
+				var title = oDrawing.GetTitle()
+				if (title && title.indexOf('feature') >= 0) {
+					var titleObj = Api.ParseJSON(title)
+					if (titleObj.feature) {
+						if (titleObj.feature.zone_type == 'question') {
+							oDrawing.Delete()
+						} else {
+							if (titleObj.feature.ques_use) {
+								delete titleObj.feature.ques_use
+							}
+							if (titleObj.feature.client_id) {
+								delete titleObj.feature.client_id
+							}
+							oDrawing.SetTitle(JSON.stringify(titleObj))
+							if (titleObj.feature.partical_no_dot) {
+								oDrawing.SetShadow(null, 0, 100, null, 0, '#0fc1fd')	
 							} else {
-								if (titleObj.feature.ques_use) {
-									delete titleObj.feature.ques_use
-								}
-								if (titleObj.feature.client_id) {
-									delete titleObj.feature.client_id
-								}
-								oDrawing.SetTitle(JSON.stringify(titleObj))
-								if (titleObj.feature.partical_no_dot) {
-									oDrawing.SetShadow(null, 0, 100, null, 0, '#0fc1fd')	
-								} else {
-									if (oDrawing.Drawing.spPr && oDrawing.Drawing.spPr.effectProps && oDrawing.Drawing.spPr.effectProps.EffectLst) {
-										oDrawing.ClearShadow()
-									}	
-								}
+								if (oDrawing.Drawing.spPr && oDrawing.Drawing.spPr.effectProps && oDrawing.Drawing.spPr.effectProps.EffectLst) {
+									oDrawing.ClearShadow()
+								}	
 							}
 						}
 					}
 				}
-				// 删除regionType == num的control
-				for (var i = controls.length - 1; i >= 0; --i) {
-					if (controls[i].GetClassType() != 'inlineLvlSdt') {
-						continue
-					}
-					var tag = Api.ParseJSON(controls[i].GetTag())
-					if (tag.regionType == 'num') {
-						var parent = controls[i].Sdt.Parent
-						if (parent) {
-							var oParent = Api.LookupObject(parent.Id)
-							if (oParent && (oParent.GetClassType() == 'paragraph' || oParent.GetClassType() == 'blockLvlSdt')) {
-								var pos = controls[i].Sdt.GetPosInParent()
-								if (pos >= 0) {
-									oParent.RemoveElement(pos)
-								}
+			}
+			// 删除regionType == num的control
+			for (var i = controls.length - 1; i >= 0; --i) {
+				if (controls[i].GetClassType() != 'inlineLvlSdt') {
+					continue
+				}
+				var tag = Api.ParseJSON(controls[i].GetTag())
+				if (tag.regionType == 'num') {
+					var parent = controls[i].Sdt.Parent
+					if (parent) {
+						var oParent = Api.LookupObject(parent.Id)
+						if (oParent && (oParent.GetClassType() == 'paragraph' || oParent.GetClassType() == 'blockLvlSdt')) {
+							var pos = controls[i].Sdt.GetPosInParent()
+							if (pos >= 0) {
+								oParent.RemoveElement(pos)
 							}
 						}
 					}
 				}
-				// 再删除所有control
-				console.log('删除所有control')
-				controls.forEach((e) => {
-					if (e.Sdt) {
-						Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
-					}
-				})
-				// 重置单元格颜色
-				var tables = oDocument.GetAllTables() || []
-				for (var t = 0, tmax = tables.length; t < tmax; ++t) {
-					var oTable = tables[t]
-					var desc = oTable.GetTableDescription()
-					if (desc && desc != '') {
-						oTable.SetTableDescription('{}')
-					}
-					var rowcount = oTable.GetRowsCount()
-					for (var r = 0; r < rowcount; ++r) {
-						var oRow = oTable.GetRow(r)
-						var cellcount = oRow.GetCellsCount()
-						for (var c = 0; c < cellcount; ++c) {
-							var oCell = oRow.GetCell(c)
-							var shd = oCell.Cell.Get_Shd()
-							if (shd) {
-								var fill = shd.Fill
-								if (fill && fill.r == 255 && fill.g == 191 && fill.b == 191) {
-									oCell.SetBackgroundColor(255, 191, 191, true)
-								}
+			}
+			// 再删除所有control
+			console.log('删除所有control')
+			controls.forEach((e) => {
+				if (e.Sdt) {
+					Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
+				}
+			})
+			// 重置单元格颜色
+			var tables = oDocument.GetAllTables() || []
+			for (var t = 0, tmax = tables.length; t < tmax; ++t) {
+				var oTable = tables[t]
+				var desc = oTable.GetTableDescription()
+				if (desc && desc != '') {
+					oTable.SetTableDescription('{}')
+				}
+				var rowcount = oTable.GetRowsCount()
+				for (var r = 0; r < rowcount; ++r) {
+					var oRow = oTable.GetRow(r)
+					var cellcount = oRow.GetCellsCount()
+					for (var c = 0; c < cellcount; ++c) {
+						var oCell = oRow.GetCell(c)
+						var shd = oCell.Cell.Get_Shd()
+						if (shd) {
+							var fill = shd.Fill
+							if (fill && fill.r == 255 && fill.g == 191 && fill.b == 191) {
+								oCell.SetBackgroundColor(255, 191, 191, true)
 							}
 						}
 					}
-					var tabletitle = oTable.GetTableTitle()
-					if (tabletitle) {
-						var title = Api.ParseJSON(tabletitle)
-						if (title.client_id) {
-							delete title.client_id
-						}
-						if (title.ques_use) {
-							delete title.ques_use
-						}
-						oTable.SetTableTitle(JSON.stringify(title))
+				}
+				var tabletitle = oTable.GetTableTitle()
+				if (tabletitle) {
+					var title = Api.ParseJSON(tabletitle)
+					if (title.client_id) {
+						delete title.client_id
+					}
+					if (title.ques_use) {
+						delete title.ques_use
+					}
+					oTable.SetTableTitle(JSON.stringify(title))
+				}
+			}
+			// 删除选择题集中作答区
+			for (var i1 = tables.length - 1; i1 >= 0; --i1) {
+				var tableTitle = tables[i1].GetTableTitle()
+				if (tableTitle.indexOf('choiceGather') >= 0) {
+					var pos = tables[i1].GetPosInParent()
+					var parent = tables[i1].Table.GetParent()
+					if (parent) {
+						var oParent = Api.LookupObject(parent.Id)
+						oParent.RemoveElement(pos)
 					}
 				}
-				// 删除选择题集中作答区
-				for (var i1 = tables.length - 1; i1 >= 0; --i1) {
-					var tableTitle = tables[i1].GetTableTitle()
-					if (tableTitle.indexOf('choiceGather') >= 0) {
-						var pos = tables[i1].GetPosInParent()
-						var parent = tables[i1].Table.GetParent()
-						if (parent) {
-							var oParent = Api.LookupObject(parent.Id)
-							oParent.RemoveElement(pos)
-						}
-					}
-				}
-				var text_all = oDocument.GetRange().GetText({
-					Math: false,
-					TableCellSeparator: '\u24D2',
-					TableRowSeparator: '\u24E1',
-				}) || ''
-				var text_json = oDocument.ToJSON(false, false, false, false, true, true)
-				return { text_all, text_json }
-		}, false, recalc, {name: 'onClearAllControls'})
+			}
+			var text_all = oDocument.GetRange().GetText({
+				Math: false,
+				TableCellSeparator: '\u24D2',
+				TableRowSeparator: '\u24E1',
+			}) || ''
+			var text_json = oDocument.ToJSON(false, false, false, false, true, true)
+			return { text_all, text_json }
+		}, false, recalc)
 	}
 	// 显示分数框
 	function showScoreContent() {
@@ -2590,7 +2595,10 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 	window.insertHtml = insertHtml
 
 	function onContentControlChange(res) {
-		// todo..
+		clearTimeout(timeout_controlchange)
+		timeout_controlchange = setTimeout(() => {
+			handleContentControlChange(res)
+		}, 500)
 	}
 	// 重新切题
 	function reSplitQustion() {

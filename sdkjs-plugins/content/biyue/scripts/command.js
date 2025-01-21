@@ -2,7 +2,6 @@
  * Generates a random UUID.
  * @returns {string} A random UUID.
  */
-import { handleCommandError } from "./model/util.js";
 function uuid() {
     var s = [];
     var hexDigits = "0123456789abcdef";
@@ -17,7 +16,7 @@ function uuid() {
 }
 
 function commandLog(args) {
-    console.log("commandLog", args);
+    //  console.log("commandLog", args);
 }   
 
 /**
@@ -28,24 +27,84 @@ function commandLog(args) {
  * @param {boolean} isCalc - Indicates whether the command is a calculation command.
  * @returns {Promise} A promise that resolves with the result of the command execution.
  */
-async function biyueCallCommand(window, func, isClose, isCalc, params) {
+async function biyueCallCommand(window, func, isClose, isCalc) {
+    if (window.commandCallbackMap === undefined) {
+        window.commandCallbackMap = {};
+    }
+    if (window.commandStack == undefined)  {
+        window.commandStack = [];
+    }
+
     return new Promise((resolve, reject) => {        
-        var token = uuid();       
-        //commandLog("pluginFrame send command, token=" + token);        
-        window.Asc.plugin.callReliableCommand(token, func, isClose, isCalc, function(token, error, retData)
-        {
-            //commandLog("callback" + token);
-            if (!error)
-            {
-                resolve(retData)
-            }
-            else
-            {
-                reject(error);
-				handleCommandError(window, params, error)
-            }
-        });
+        var token = uuid();
+        var l = func;
+        var g = isClose;
+        var h = isCalc;
+        var b = undefined;
+        
+        window.commandCallbackMap[token] = resolve;
+        commandLog("pluginFrame send command, token=" + token);
+
+        var f = function() {
+            l = "var Asc = {};"+
+            "Asc.scope = " + JSON.stringify(window.Asc.scope) + ";"+
+            //'console.log("editorFrame exec:'+ token+'");' +
+            "var scope = Asc.scope; (function() { return { token:\"" + token + "\", ret: (" + l.toString() + ")()}})();";
+            window.Asc.plugin.windowID ? (window.Asc.plugin.windowID._pushWindowMethodCommandCallback(b),
+            window.Asc.plugin.windowID.sendToPlugin("private_window_command", {
+                code: l,
+                isCalc: h
+            })) : (window.Asc.plugin.info.recalculate = !1 === h ? !1 : !0,        
+            window.Asc.plugin.executeCommand(!0 === g ? "close" : "command", l, b))
+        }
+
+        if (window.commandStack.length > 0) {
+            window.commandStack.push(f);            
+        } else {
+            window.commandStack.push(f);
+            f();
+        }        
     });
 }
 
-export { biyueCallCommand };
+/**
+ * Dispatches the result of a command execution.
+ * @param {Window} window - The window object.
+ * @param {Object} result - The result of the command execution.
+ */
+function dispatchCommandResult(window, result) {
+    if (window.commandCallbackMap === undefined) {
+        return;
+    }
+
+    if (result === undefined) {
+        return;
+    }
+
+    var token = result.token;
+    if (token === undefined) {
+        return;
+    }
+    commandLog("pluginFrame recv command result, token=" + token)
+
+    var callback = window.commandCallbackMap[token];
+    if (callback !== undefined) {
+        delete window.commandCallbackMap[token];
+        callback(result.ret);
+    }
+    var f = window.commandStack.shift();
+    if (window.commandStack.length > 0) {
+        window.commandStack[0]();
+    }
+}
+
+function resetStack(window) {
+	if (window) {
+		window.commandStack = []
+		if (window.commandCallbackMap) {
+			window.commandCallbackMap = {}
+		}
+	}
+}
+
+export { biyueCallCommand, dispatchCommandResult, resetStack };

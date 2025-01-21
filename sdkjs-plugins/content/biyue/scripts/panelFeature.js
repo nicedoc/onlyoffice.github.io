@@ -2,7 +2,7 @@ import ComponentSelect from '../components/Select.js'
 import NumberInput from '../components/NumberInput.js'
 import { ZONE_SIZE, ZONE_TYPE, ZONE_TYPE_NAME, getInteractionTypes } from './model/feature.js'
 import { handleFeature, handleHeader, drawExtroInfo, setLoading, deleteAllFeatures, setInteraction, updateChoice, handleChoiceUpdateResult, drawHeaderFooter, drawStatistics } from './featureManager.js'
-import { biyueCallCommand } from "./command.js";
+import { biyueCallCommand, dispatchCommandResult } from "./command.js";
 import { showCom } from './model/util.js'
 var list_feature = []
 var choiceStyles = [
@@ -424,30 +424,29 @@ function setXY(index, p, x, y, size) {
 function getPageData() {
 	Asc.scope.workbook = window.BiyueCustomData.workbook_info
 	return biyueCallCommand(window, function () {
-			// console.log('[getPageData] begin')
-			var workbook = Asc.scope.workbook || {}
-			var oDocument = Api.GetDocument()
-			var sections = oDocument.GetSections()
-			function MM2Twips(mm) {
-				return mm / (25.4 / 72 / 20)
+		var workbook = Asc.scope.workbook || {}
+		var oDocument = Api.GetDocument()
+		var sections = oDocument.GetSections()
+		function MM2Twips(mm) {
+			return mm / (25.4 / 72 / 20)
+		}
+		function get2(v) {
+			return MM2Twips(v * (workbook.page_size.width / 816)) 
+		}
+		if (sections && sections.length > 0) {
+			var oSection = sections[0]
+			var pageNum = oDocument.Document.Pages.length
+			var hasHeader = !!oSection.GetHeader('title', false)
+			return {
+				Num: oSection.Section.Columns.Num,
+				PageSize: oSection.Section.PageSize,
+				PageMargins: oSection.Section.PageMargins,
+				pageNum: pageNum,
+				hasHeader: hasHeader,
 			}
-			function get2(v) {
-				return MM2Twips(v * (workbook.page_size.width / 816)) 
-			}
-			if (sections && sections.length > 0) {
-				var oSection = sections[0]
-				var pageNum = oDocument.Document.Pages.length
-				var hasHeader = !!oSection.GetHeader('title', false)
-				return {
-					Num: oSection.Section.Columns.Num,
-					PageSize: oSection.Section.PageSize,
-					PageMargins: oSection.Section.PageMargins,
-					pageNum: pageNum,
-					hasHeader: hasHeader,
-				}
-			}
-			return null
-	},false,false, {name: 'getPageData'})
+		}
+		return null
+	},false,false)
 }
 
 function updateFeatureList(res) {
@@ -607,15 +606,14 @@ function initPositions2() {
 
 function MoveCursor() {
 	return biyueCallCommand(window, function() {
-			// console.log('[MoveCursor] begin')
-			var oDocument = Api.GetDocument()
-			var controls = oDocument.GetAllContentControls()
-			if (controls && controls.length) {
-				oDocument.Document.MoveCursorToContentControl(controls[0].Sdt.GetId(), true)
-			} else {
-				oDocument.Document.MoveCursorToPageEnd()
-			}
-	}, false, false, {name: 'MoveCursor'})
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls()
+		if (controls && controls.length) {
+			oDocument.Document.MoveCursorToContentControl(controls[0].Sdt.GetId(), true)
+		} else {
+			oDocument.Document.MoveCursorToPageEnd()
+		}
+	}, false, false)
 }
 
 function updateAllInteraction(vinteraction, isForce = true) {
