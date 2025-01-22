@@ -326,7 +326,7 @@ function updateRangeControlType(typeName) {
 					}
 				})
 				var oTable = oCell.GetParentTable()
-				if (oTable && oTable.GetPosInParent() >= 0) {
+				if (oTable && oTable.Table.IsUseInDocument && oTable.Table.IsUseInDocument()) {
 					var desc = Api.ParseJSON(oTable.GetTableDescription())
 					desc.biyue = 1
 					var key = `${oCell.GetRowIndex()}_${oCell.GetIndex()}`

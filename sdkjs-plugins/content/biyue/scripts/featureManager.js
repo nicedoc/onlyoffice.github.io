@@ -1515,8 +1515,7 @@ function setInteraction(type, quesIds, recalc = true) {
 				if (!oCell || oCell.GetClassType() != 'tableCell') {
 					return
 				}
-				var oTable = oCell.GetParentTable()
-				if (oTable.GetPosInParent() == -1) {
+				if (oCell.Cell.IsUseInDocument && !oCell.Cell.IsUseInDocument()) {
 					return
 				}
 				oCell.SetCellMarginLeft(0)
@@ -1539,8 +1538,8 @@ function setInteraction(type, quesIds, recalc = true) {
 
 			function getControl(client_id, regionType) {
 				return controls.find(e => {
-					var tag = Api.ParseJSON(e.GetTag())
-					if ((e.GetClassType() == 'blockLvlSdt' && e.GetPosInParent() >= 0) || (e.GetClassType() == 'inlineLvlSdt' && e.Sdt.GetPosInParent() >= 0)) {
+					if (e.Sdt && e.Sdt.IsUseInDocument && e.Sdt.IsUseInDocument()) {
+						var tag = Api.ParseJSON(e.GetTag())
 						return tag.client_id == client_id && tag.regionType == regionType
 					}
 				})

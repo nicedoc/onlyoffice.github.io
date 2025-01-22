@@ -860,7 +860,7 @@ function getNodeList() {
 				var list = []
 				var shapes = oDocument.GetAllShapes() || []
 				for (var oShape of shapes) {
-					if (oShape.GetTitle) {
+					if (oShape.Drawing && oShape.Drawing.IsUseInDocument && oShape.Drawing.IsUseInDocument() && oShape.GetTitle) {
 						var titleObj = Api.ParseJSON(oShape.GetTitle())	
 						if (titleObj.feature && titleObj.feature.zone_type == 'question' && titleObj.feature.sub_type == 'write') {
 							list.push({
@@ -902,6 +902,7 @@ function getNodeList() {
 									var oCell = oRow.GetCell(i2)
 									var shd = oCell.Cell.Get_Shd()
 									var fill = shd.Fill
+									var oCellContent = oCell.GetContent()
 									if (fill && fill.r == 255 && fill.g == 191 && fill.b == 191) {
 										var oldId = tableTitle[`${i1}_${i2}`]
 										var obj = Object.assign({}, {
@@ -916,8 +917,15 @@ function getNodeList() {
 										})
 										write_list.push(obj)
 										tableTitle[`${i1}_${i2}`] = 'c_' + oCell.Cell.Id
+										var drawings = oCellContent.GetAllDrawingObjects() || []
+										for (var oDrawing of drawings) {
+											var drawingTitle = Api.ParseJSON(oDrawing.GetTitle())
+											if (drawingTitle.feature && drawingTitle.feature.write_id == oldId) {
+												drawingTitle.feature.write_id = obj.id
+												oDrawing.SetTitle(JSON.stringify(drawingTitle))
+											}
+										}
 									} else {
-										var oCellContent = oCell.GetContent()
 										var cnt1 = oCellContent.GetElementsCount()
 										for (var i3 = 0; i3 < cnt1; ++i3) {
 											var oElement2 = oCellContent.GetElement(i3)
@@ -1132,6 +1140,19 @@ function handleChangeType(res, res2) {
 		})
 		var ask_list = quesData.ask_list
 		if (ask_list) {
+			for (var ask of ask_list) {
+				if (targetMap[ask.id] === undefined) {
+					var index = targetAsks.findIndex(e => {
+						return e.old_id == ask.id
+					})
+					if (index >= 0) {
+						ask.id = targetAsks[index].id
+					}
+				}
+			}
+			ask_list.forEach((e, index) => {
+				console.log(index, e.id, targetMap[e.id])
+			})
 			ask_list = ask_list.sort((a, b) => {
 				return targetMap[a.id] - targetMap[b.id]
 			})
@@ -2081,7 +2102,7 @@ function initControls() {
 			})
 			var cellAskMap = {}
 			oTables.forEach(oTable => {
-				if (oTable.GetPosInParent() >= 0) {
+				if (oTable.Table.IsUseInDocument && oTable.Table.IsUseInDocument()) {
 					var desc = Api.ParseJSON(oTable.GetTableDescription())
 					Object.keys(desc).forEach(key => {
 						if (key != 'biyue') {
@@ -2534,11 +2555,11 @@ function getQuestionHtml(ids, getLatestParent) {
 			var getLatestParent = Asc.scope.getLatestParent
 			function getControlsByClientId(cid) {
 				var findControls = controls.filter(e => {
-					var tag = Api.ParseJSON(e.GetTag())
-					if (e.GetClassType() == 'blockLvlSdt') {
-						return tag.client_id == cid && e.GetPosInParent() >= 0
-					} else if (e.GetClassType() == 'inlineLvlSdt') {
-						return e.Sdt && e.Sdt.GetPosInParent() >= 0 && tag.client_id == cid
+					if (e.Sdt && e.Sdt.IsUseInDocument && e.Sdt.IsUseInDocument()) {
+						var tag = Api.ParseJSON(e.GetTag())
+						if (e.GetClassType() == 'blockLvlSdt' || e.GetClassType() == 'inlineLvlSdt') {
+							return tag.client_id == cid
+						}
 					}
 				})
 				if (findControls && findControls.length) {
@@ -2905,8 +2926,10 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 					continue
 				}
 				var oControl = controls.find(e => {
-					var tag = Api.ParseJSON(e.GetTag())
-					return e.GetClassType() == 'blockLvlSdt' && e.GetPosInParent() >= 0 && tag.client_id == nodeData.id
+					if (e.Sdt && e.Sdt.IsUseInDocument && e.Sdt.IsUseInDocument() && e.GetClassType() == 'blockLvlSdt') {
+						var tag = Api.ParseJSON(e.GetTag())
+						return tag.client_id == nodeData.id
+					}
 				})
 				if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
 					continue
@@ -3094,7 +3117,9 @@ function showAskCells(cmdType) {
 			function getCell(write_data) {
 				for (var i = 0; i < oTables.length; ++i) {
 					var oTable = oTables[i]
-					if (oTable.GetPosInParent() == -1) { continue }
+					if (oTable.Table.IsUseInDocument && !oTable.Table.IsUseInDocument()) {
+						continue
+					}
 					var desc = Api.ParseJSON(oTable.GetTableDescription())
 					var keys = Object.keys(desc)
 					if (keys.length) {
@@ -3127,14 +3152,13 @@ function showAskCells(cmdType) {
 								})
 								if (writeData && writeData.sub_type == 'cell' && writeData.cell_id) {
 									var oCell = Api.LookupObject(writeData.cell_id)
-									if (oCell && oCell.GetClassType && oCell.GetClassType() == 'tableCell') {
-										var oTable = oCell.GetParentTable()
-										if (oTable && oTable.GetPosInParent() == -1) {
+									if (oCell && oCell.GetClassType() == 'tableCell') {
+										if (oCell.Cell.IsUseInDocument && !oCell.Cell.IsUseInDocument()) {
 											oCell = getCell(writeData)
 										}
-										if (oCell) {
-											oCell.SetBackgroundColor(255, 191, 191, cmdType == 'show' ? false : true)
-										}
+									}
+									if (oCell) {
+										oCell.SetBackgroundColor(255, 191, 191, cmdType == 'show' ? false : true)
 									}
 								}
 							})
@@ -3252,7 +3276,7 @@ function getControlListForUpload() {
 					for (var idkey in quesData.ids) {
 						var control = controls.find(e => {
 							var tag2 = Api.ParseJSON(e.GetTag())
-							return e.GetClassType() == 'blockLvlSdt' && e.GetPosInParent() >= 0 && tag2.client_id == quesData.ids[idkey] && tag2.mid == tag.mid
+							return e.GetClassType() == 'blockLvlSdt' && e.Sdt.IsUseInDocument && e.Sdt.IsUseInDocument() && tag2.client_id == quesData.ids[idkey] && tag2.mid == tag.mid
 						})
 						if (control) {
 							handledcontrol[control.Sdt.GetId()] = 1
@@ -3763,7 +3787,7 @@ function deleteAsks(askList, recalc = true, notify = true) {
 			}
 			function removeCellAskRecord(oCell) {
 				var oTable = oCell.GetParentTable()
-				if (oTable && oTable.GetPosInParent() >= 0) {
+				if (oTable && oTable.Table.IsUseInDocument && oTable.Table.IsUseInDocument()) {
 					var desc = Api.ParseJSON(oTable.GetTableDescription())
 					var key = `${oCell.GetRowIndex()}_${oCell.GetIndex()}`
 					if (desc[key]) {
@@ -3792,13 +3816,10 @@ function deleteAsks(askList, recalc = true, notify = true) {
 				if (client_id) {
 					if (control_id) {
 						var oControl = Api.LookupObject(control_id)
-						if (oControl && oControl.GetTag) {
-							var pos = oControl.GetClassType() == 'inlineLvlSdt' ? oControl.Sdt.GetPosInParent() : oControl.GetPosInParent()
-							if (pos >= 0) {
-								var tag = Api.ParseJSON(oControl.GetTag())
-								if (tag.client_id == client_id) {
-									return oControl
-								}
+						if (oControl && oControl.GetTag && oControl.Sdt && oControl.Sdt.IsUseInDocument && oControl.Sdt.IsUseInDocument()) {
+							var tag = Api.ParseJSON(oControl.GetTag())
+							if (tag.client_id == client_id) {
+								return oControl
 							}
 						}
 					}
@@ -4120,11 +4141,11 @@ function focusControl(id) {
 			var controls = oDocument.GetAllContentControls()
 			function getControlsByClientId(cid) {
 				var findControls = controls.filter(e => {
-					var tag = Api.ParseJSON(e.GetTag())
-					if (e.GetClassType() == 'blockLvlSdt') {
-						return tag.client_id == cid && e.GetPosInParent() >= 0
-					} else if (e.GetClassType() == 'inlineLvlSdt') {
-						return e.Sdt && e.Sdt.GetPosInParent() >= 0 && tag.client_id == cid
+					if (e.Sdt && e.Sdt.IsUseInDocument && e.Sdt.IsUseInDocument()) {
+						var tag = Api.ParseJSON(e.GetTag())
+						if (e.GetClassType() == 'blockLvlSdt' || e.GetClassType() == 'inlineLvlSdt') {
+							return tag.client_id == cid
+						}
 					}
 				})
 				if (findControls && findControls.length) {
@@ -4168,7 +4189,9 @@ function focusAsk(writeData) {
 			function getCell(wData) {
 				for (var i = 0; i < oTables.length; ++i) {
 					var oTable = oTables[i]
-					if (oTable.GetPosInParent() == -1) { continue }
+					if (oTable.Table.IsUseInDocument && oTable.Table.IsUseInDocument()) {
+						continue
+					}
 					var desc = Api.ParseJSON(oTable.GetTableDescription())
 					var keys = Object.keys(desc)
 					if (keys.length) {
@@ -4195,13 +4218,9 @@ function focusAsk(writeData) {
 						continue
 					}
 					var oControls = controls.filter(e => {
-						var tag = Api.ParseJSON(e.GetTag())
-						if (tag.client_id == wData.id && e.Sdt) {
-							if (e.GetClassType() == 'blockLvlSdt') {
-								return e.GetPosInParent() >= 0
-							} else if (e.GetClassType() == 'inlineLvlSdt') {
-								return e.Sdt.GetPosInParent() >= 0
-							}
+						if (e.Sdt && e.Sdt.IsUseInDocument && e.Sdt.IsUseInDocument()) {
+							var tag = Api.ParseJSON(e.GetTag())
+							return tag.client_id == wData.id
 						}
 					})
 					if (oControls && oControls.length) {
@@ -4226,8 +4245,7 @@ function focusAsk(writeData) {
 					if (wData.cell_id) {
 						var oCell = Api.LookupObject(wData.cell_id)
 						if (oCell && oCell.GetClassType() == 'tableCell') {
-							var table = oCell.GetParentTable()
-							if (table.GetPosInParent() == -1) {
+							if (oCell.Cell.IsUseInDocument && !oCell.Cell.IsUseInDocument()) {
 								oCell = getCell(wData)
 							}
 							if (oCell) {
@@ -4813,12 +4831,12 @@ function splitControl(qid) {
 				if (!control_id) {
 					control = Api.LookupObject(control_id)
 				}
-				if (!control || control.GetClassType() != 'blockLvlSdt' || control.GetPosInParent() == -1) {
+				if (!control || control.GetClassType() != 'blockLvlSdt' || (control.Sdt && control.Sdt.IsUseInDocument && !control.Sdt.IsUseInDocument()) ) {
 					var controls = oDocument.GetAllContentControls()
 					if (controls) {
 						control = controls.find(e => {
 							var tag = Api.ParseJSON(e.GetTag())
-							return tag.client_id == nodeId && e.GetClassType() == 'blockLvlSdt' && e.GetPosInParent() >= 0
+							return tag.client_id == nodeId && e.GetClassType() == 'blockLvlSdt' && e.Sdt && e.Sdt.IsUseInDocument && e.Sdt.IsUseInDocument()
 						})
 					}
 				}
@@ -5575,7 +5593,7 @@ function handleUploadPrepare(cmdType) {
 			function getCell(write_data) {
 				for (var i = 0; i < oTables.length; ++i) {
 					var oTable = oTables[i]
-					if (oTable.GetPosInParent() == -1) { continue }
+					if (oTable.Table.IsUseInDocument && !oTable.Table.IsUseInDocument()) { continue }
 					var desc = Api.ParseJSON(oTable.GetTableDescription())
 					var keys = Object.keys(desc)
 					if (keys.length) {
@@ -5620,12 +5638,7 @@ function handleUploadPrepare(cmdType) {
 										})
 										if (writeData && writeData.sub_type == 'cell' && writeData.cell_id) {
 											var oCell = Api.LookupObject(writeData.cell_id)
-											if (oCell && oCell.GetClassType && oCell.GetClassType() == 'tableCell') {
-												var oTable = oCell.GetParentTable()
-												if (oTable && oTable.GetPosInParent() == -1) {
-													oCell = getCell(writeData)
-												}
-											} else {
+											if (!oCell || !oCell.GetClassType || !oCell.GetClassType() != 'tableCell' || (oCell.Cell.IsUseInDocument && !oCell.Cell.IsUseInDocument())) {
 												oCell = getCell(writeData)
 											}
 											if (oCell) {
