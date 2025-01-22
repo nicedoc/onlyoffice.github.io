@@ -2111,14 +2111,27 @@ function removeAllHeaderFooter() {
 		if (!oSections) {
 			return
 		}
+		function removeHeader(oSection, name) {
+			if (oSection.GetHeader(name, false)) {
+				oSection.RemoveHeader(name)
+			}
+		}
+		function removeFooter(oSection, name) {
+			if (oSection.GetFooter(name, false)) {
+				oSection.RemoveFooter(name)
+			}
+		}
 		for (var i = 0; i < oSections.length; ++i) {
 			var oSection = oSections[i]
-			oSection.RemoveHeader('default')
-			oSection.RemoveHeader('title')
-			oSection.RemoveHeader('even')
-			oSection.RemoveFooter('default')
-			oSection.RemoveFooter('even')
-			oSection.RemoveFooter('title')
+			if (!oSection) {
+				continue
+			}
+			removeHeader(oSection, 'default')
+			removeHeader(oSection, 'title')
+			removeHeader(oSection, 'even')
+			removeFooter(oSection, 'default')
+			removeFooter(oSection, 'even')
+			removeFooter(oSection, 'title')
 		}
 	}, false, false)
 }
