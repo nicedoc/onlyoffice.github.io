@@ -1920,16 +1920,40 @@ function endAddShape() {
 			if (!params || !params.ques_id || !params.shapeIds) {
 				return
 			}
-			var result = {
-				cmd: "add",
-				typeName: "write",
-				client_node_id: Asc.scope.client_node_id
-			}
+			var result = null
 			var oShapes = oDocument.GetAllShapes() || []
 			var oDrawing = oShapes.find(e => {
 				return !(params.shapeIds.includes(e.Drawing.Id))
 			})
-			if (oDrawing) {
+			if (oDrawing && oDrawing.Drawing && oDrawing.Drawing.IsUseInDocument && oDrawing.Drawing.IsUseInDocument()) {
+				result = {
+					cmd: "add",
+					typeName: "write",
+					client_node_id: Asc.scope.client_node_id
+				}
+				var paraDrawing = oDrawing.getParaDrawing()
+				if (paraDrawing) {
+					var run = paraDrawing.GetRun()
+					if (run) {
+						var oRun = Api.LookupObject(run.Id)
+						if (oRun && oRun.GetClassType() == 'run') {
+							var parentControl = oRun.GetParentContentControl()
+							if (parentControl && parentControl.GetClassType() == 'inlineLvlSdt') {
+								var pos = run.GetPosInParent()
+								if (pos >= 0) {
+									parentControl.RemoveElement(pos)
+								}
+								var ctrlPos = parentControl.Sdt.GetPosInParent()
+								var oParagraph = parentControl.GetParentParagraph()
+								if (oParagraph) {
+									var oRun = Api.CreateRun()
+									oRun.AddDrawing(oDrawing)
+									oParagraph.AddElement(oRun, ctrlPos + 1)
+								}
+							}
+						}
+					}
+				}
 				if (oDrawing.GetContent && !(oDrawing.GetContent())) {
 					oDrawing.Shape.createTextBoxContent()
 				}
