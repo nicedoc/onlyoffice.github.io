@@ -93,8 +93,21 @@ function updatePageSizeMargins() {
 				var m = Math.max(mm, 10)
 				return m / (25.4 / 72 / 20)
 			}
+			function removeHeader(oSection, name) {
+				if (oSection.GetHeader(name, false)) {
+					oSection.RemoveHeader(name)
+				}
+			}
+			function removeFooter(oSection, name) {
+				if (oSection.GetFooter(name, false)) {
+					oSection.RemoveFooter(name)
+				}
+			}
 			if (sections && sections.length > 0) {
-				sections.forEach((oSection) => {
+				for (var oSection of sections) {
+					if (!oSection) {
+						continue
+					}
 					if (workbook.page_size) {
 						oSection.SetPageSize(
 							MM2Twips(workbook.page_size.width),
@@ -111,13 +124,13 @@ function updatePageSizeMargins() {
 						oSection.SetFooterDistance(MM2Twips(workbook.margin.bottom))
 						oSection.SetHeaderDistance(MM2Twips(workbook.margin.top))
 					}
-					oSection.RemoveHeader('default')
-					oSection.RemoveHeader('title')
-					oSection.RemoveHeader('even')
-					oSection.RemoveFooter('default')
-					oSection.RemoveFooter('even')
-					oSection.RemoveFooter('title')
-				})
+					removeHeader(oSection, 'default')
+					removeHeader(oSection, 'title')
+					removeHeader(oSection, 'even')
+					removeFooter(oSection, 'default')
+					removeFooter(oSection, 'even')
+					removeFooter(oSection, 'title')
+				}
 			}
 			var odrawings = oDocument.GetAllDrawingObjects() || []
 			odrawings.forEach(oDrawing => {
