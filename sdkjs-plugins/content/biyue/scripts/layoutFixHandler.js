@@ -416,7 +416,7 @@ function layoutRepair(cmdData) {
 			if (elementcount > 0) {
 				for (var i = elementcount - 1; i >= 0; --i) {
 					var oElement = oParagraph.Paragraph.Content[i]
-					if (oElement.GetType && oElement.GetType() == 71) { // 书签
+					if (oElement && oElement.GetType && oElement.GetType() == 71) { // 书签
 						oParagraph.RemoveElement(i)
 						++i
 					}
