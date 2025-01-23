@@ -1712,29 +1712,27 @@ function setInteraction(type, quesIds, recalc = true) {
 				}
 				return null
 			}
-			for (var i = 0, imax = controls.length; i < imax; ++i) {
-				var oControl = controls[i]
-				var tag = Api.ParseJSON(oControl.GetTag() || '{}')
-				var targetQuesId = tag.mid ? tag.mid : tag.client_id
-				if (quesIds) {
-					var qindex = quesIds.findIndex(e => {
-						return e == targetQuesId
+			for (var id in question_map) {
+				var quesData = question_map[id]
+				if (quesData.level_type != 'question') {
+					continue
+				}
+				var ids = quesData.is_merge && quesData.ids ? quesData.ids : [id]
+				var controlList = controls.filter(e => {
+					var tag = Api.ParseJSON(e.GetTag())
+					return ids.find(e => {
+						return tag.client_id == e
 					})
-					if (qindex == -1) {
-						continue
-					}
+				})
+				if (controlList) {
+					controlList.forEach((oControl, index) => {
+						handleControl(id, oControl, index)
+					})
 				}
-				if (tag.regionType != 'question') {
-					continue
-				}
-				if (!question_map[targetQuesId]) {
-					continue
-				}
+			}
+			function handleControl(targetQuesId, oControl, index) {
 				var interaction_type = interaction_type_use
 				if (interaction_type_use != 'none') {
-					if (!question_map[targetQuesId] || question_map[targetQuesId].level_type != 'question') {
-						continue
-					}
 					if (question_map[targetQuesId].mark_mode == 2) {
 						if (interaction_type_use == 'accurate') {
 							interaction_type = 'simple'
@@ -1749,6 +1747,7 @@ function setInteraction(type, quesIds, recalc = true) {
 					interaction_type = 'none'
 				}
 				var ask_list = question_map[targetQuesId].ask_list
+				var tag = Api.ParseJSON(oControl.GetTag())
 				var nodeData = node_list.find(e => {
 					return e.id == tag.client_id
 				})
@@ -1759,7 +1758,7 @@ function setInteraction(type, quesIds, recalc = true) {
 				var isGatherChoice = (question_map[targetQuesId].ques_mode == 1 || question_map[targetQuesId].ques_mode == 5) && nodeData.use_gather
 				var type = isGatherChoice ? 'none' : interaction_type
 				var firstParagraph = getFirstParagraph(oControl)
-				if (firstParagraph) {
+				if (firstParagraph && !index) {
 					showSimple(firstParagraph, type != 'none')
 				}
 				if (isGatherChoice && nodeData.gather_cell_id) {
