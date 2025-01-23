@@ -1729,7 +1729,7 @@ function handleChangeType(res, res2) {
 		.then(() => {
 			return imageAutoLink(typequesId, false)
 		}).then((res3) => {
-			if (res3.rev) {
+			if (res3 && res3.rev) {
 				return ShowLinkedWhenclickImage({
 					client_id: typequesId
 				})
