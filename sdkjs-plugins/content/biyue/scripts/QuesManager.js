@@ -1612,7 +1612,14 @@ function handleChangeType(res, res2) {
 			}
 		})
 		.then(() => {
-			return splitControl(typequesId)
+			if (window.BiyueCustomData.question_map[typequesId] && isTextMode(window.BiyueCustomData.question_map[typequesId].ques_mode)) {
+				return deleteAsks([{
+					ques_id: typequesId,
+					ask_id: 0
+				}], true ,true)
+			} else{
+				return splitControl(typequesId)
+			}
 		})
 	}
 	if (res.typeName == 'mergedAsk') {
