@@ -1061,9 +1061,16 @@ function handleRangeType(options) {
 			}
 			function addCellAsk(oCell, parent_id, tname) {
 				var oTable = oCell.GetParentTable()
+				var tableTitle = Api.ParseJSON(oTable.GetTableTitle()) || {}
+				if (!tableTitle.client_id) {
+					result.client_node_id += 1
+					tableTitle.client_id = result.client_node_id
+				}
+				oTable.SetTableTitle(JSON.stringify(tableTitle))
 				result.change_list.push({
 					parent_id: parent_id,
 					table_id: oTable.Table.Id,
+					table_cid: tableTitle.client_id,
 					row_index: oCell.GetRowIndex(),
 					cell_index: oCell.GetIndex(),
 					cell_id: oCell.Cell.Id,

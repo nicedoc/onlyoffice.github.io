@@ -2751,14 +2751,33 @@ function getAllPositions2() {
 				}
 			}
 			function getCell(write_data) {
-				for (var i = 0; i < oTables.length; ++i) {
-					var oTable = oTables[i]
-					if (oTable.Table.IsUseInDocument && !oTable.Table.IsUseInDocument()) {
-						continue
+				if (!write_data) {
+					return null
+				}
+				var oCell = Api.LookupObject(write_data.cell_id)
+				if (oCell && oCell.GetClassType() == 'tableCell' && oCell.Cell && oCell.Cell.IsUseInDocument && oCell.Cell.IsUseInDocument()) {
+					return oCell
+				}
+				if (write_data.table_cid) {
+					for (var table of oTables) {
+						var tableTitle = Api.ParseJSON(table.GetTableTitle())
+						if (tableTitle && tableTitle.client_id == write_data.table_cid) {
+							return table.GetCell(write_data.row_index, write_data.cell_index)
+						}
 					}
-					var desc = Api.ParseJSON(oTable.GetTableDescription())
-					var keys = Object.keys(desc)
-					if (keys.length) {
+				} else {
+					for (var oTable of oTables) {
+						if (oTable.Table.IsUseInDocument && !oTable.Table.IsUseInDocument()) {
+							continue
+						}
+						var desc = Api.ParseJSON(table.GetTableDescription())
+						if (typeof desc != 'object') {
+							continue
+						}
+						var keys = Object.keys(desc)
+						if (!keys || keys.length == 0) {
+							continue
+						}
 						for (var j = 0; j < keys.length; ++j) {
 							var key = keys[j]
 							if (desc[key] == write_data.id) {
@@ -2768,7 +2787,6 @@ function getAllPositions2() {
 								} else if (write_data.row_index == rc[0] && write_data.cell_index == rc[1]) {
 									return oTable.GetCell(rc[0], rc[1])
 								}
-								
 							}
 						}
 					}
@@ -3222,10 +3240,7 @@ function getAllPositions2() {
 										find = true
 									}
 								} else if (askData.sub_type == 'cell') {
-									var oCell = Api.LookupObject(askData.cell_id)
-									if (!oCell || oCell.GetClassType() != 'tableCell' || (oCell.Cell.IsUseInDocument && !oCell.Cell.IsUseInDocument())) {
-										oCell = getCell(askData)
-									}
+									var oCell = getCell(askData)
 									if (oCell) {
 										var d = getCellBounds(oCell, ask_score, mark_order)
 										item.write_ask_region = item.write_ask_region.concat(d)

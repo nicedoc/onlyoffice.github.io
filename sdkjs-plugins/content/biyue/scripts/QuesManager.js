@@ -894,7 +894,8 @@ function getNodeList() {
 						} else if (oElement.GetClassType() == 'table') {
 							// todo..可能需要过滤下打分区
 							var rows = oElement.GetRowsCount()
-							var tableTitle = Api.ParseJSON(oElement.GetTableDescription()) || {}
+							var tableTitle = Api.ParseJSON(oElement.GetTableTitle()) || {}
+							var tableDesc = Api.ParseJSON(oElement.GetTableDescription()) || {}
 							for (var i1 = 0; i1 < rows; ++i1) {
 								var oRow = oElement.GetRow(i1)
 								var cells = oRow.GetCellsCount()
@@ -904,7 +905,7 @@ function getNodeList() {
 									var fill = shd.Fill
 									var oCellContent = oCell.GetContent()
 									if (fill && fill.r == 255 && fill.g == 191 && fill.b == 191) {
-										var oldId = tableTitle[`${i1}_${i2}`]
+										var oldId = tableDesc[`${i1}_${i2}`]
 										var obj = Object.assign({}, {
 											index: write_list.length,
 											id: 'c_' + oCell.Cell.Id,
@@ -915,8 +916,11 @@ function getNodeList() {
 											cell_index: i2,
 											old_id: oldId
 										})
+										if (tableTitle.client_id) {
+											obj.table_cid = tableTitle.client_id
+										}
 										write_list.push(obj)
-										tableTitle[`${i1}_${i2}`] = 'c_' + oCell.Cell.Id
+										tableDesc[`${i1}_${i2}`] = 'c_' + oCell.Cell.Id
 										var drawings = oCellContent.GetAllDrawingObjects() || []
 										for (var oDrawing of drawings) {
 											var drawingTitle = Api.ParseJSON(oDrawing.GetTitle())
@@ -941,7 +945,7 @@ function getNodeList() {
 									}
 								}
 							}
-							oElement.SetTableDescription(JSON.stringify(tableTitle))
+							oElement.SetTableDescription(JSON.stringify(tableDesc))
 						}
 					}
 					if (all_write_list.length) {
@@ -3115,14 +3119,33 @@ function showAskCells(cmdType) {
 			var cmdType = Asc.scope.cmdType
 			var oTables = Api.GetDocument().GetAllTables() || []
 			function getCell(write_data) {
-				for (var i = 0; i < oTables.length; ++i) {
-					var oTable = oTables[i]
-					if (oTable.Table.IsUseInDocument && !oTable.Table.IsUseInDocument()) {
-						continue
+				if (!write_data) {
+					return null
+				}
+				var oCell = Api.LookupObject(write_data.cell_id)
+				if (oCell && oCell.GetClassType() == 'tableCell' && oCell.Cell && oCell.Cell.IsUseInDocument && oCell.Cell.IsUseInDocument()) {
+					return oCell
+				}
+				if (write_data.table_cid) {
+					for (var table of oTables) {
+						var tableTitle = Api.ParseJSON(table.GetTableTitle())
+						if (tableTitle && tableTitle.client_id == write_data.table_cid) {
+							return table.GetCell(write_data.row_index, write_data.cell_index)
+						}
 					}
-					var desc = Api.ParseJSON(oTable.GetTableDescription())
-					var keys = Object.keys(desc)
-					if (keys.length) {
+				} else {
+					for (var oTable of oTables) {
+						if (oTable.Table.IsUseInDocument && !oTable.Table.IsUseInDocument()) {
+							continue
+						}
+						var desc = Api.ParseJSON(table.GetTableDescription())
+						if (typeof desc != 'object') {
+							continue
+						}
+						var keys = Object.keys(desc)
+						if (!keys || keys.length == 0) {
+							continue
+						}
 						for (var j = 0; j < keys.length; ++j) {
 							var key = keys[j]
 							if (desc[key] == write_data.id) {
@@ -3132,7 +3155,6 @@ function showAskCells(cmdType) {
 								} else if (write_data.row_index == rc[0] && write_data.cell_index == rc[1]) {
 									return oTable.GetCell(rc[0], rc[1])
 								}
-
 							}
 						}
 					}
@@ -3151,12 +3173,7 @@ function showAskCells(cmdType) {
 									return w.id == ask.id
 								})
 								if (writeData && writeData.sub_type == 'cell' && writeData.cell_id) {
-									var oCell = Api.LookupObject(writeData.cell_id)
-									if (oCell && oCell.GetClassType() == 'tableCell') {
-										if (oCell.Cell.IsUseInDocument && !oCell.Cell.IsUseInDocument()) {
-											oCell = getCell(writeData)
-										}
-									}
+									var oCell = getCell(writeData)
 									if (oCell) {
 										oCell.SetBackgroundColor(255, 191, 191, cmdType == 'show' ? false : true)
 									}
@@ -4186,22 +4203,41 @@ function focusAsk(writeData) {
 			var drawings = oDocument.GetAllDrawingObjects() || []
 			var controls = oDocument.GetAllContentControls() || []
 			var oTables = oDocument.GetAllTables() || []
-			function getCell(wData) {
-				for (var i = 0; i < oTables.length; ++i) {
-					var oTable = oTables[i]
-					if (oTable.Table.IsUseInDocument && oTable.Table.IsUseInDocument()) {
-						continue
+			function getCell(write_data) {
+				if (!write_data) {
+					return null
+				}
+				var oCell = Api.LookupObject(write_data.cell_id)
+				if (oCell && oCell.GetClassType() == 'tableCell' && oCell.Cell && oCell.Cell.IsUseInDocument && oCell.Cell.IsUseInDocument()) {
+					return oCell
+				}
+				if (write_data.table_cid) {
+					for (var table of oTables) {
+						var tableTitle = Api.ParseJSON(table.GetTableTitle())
+						if (tableTitle && tableTitle.client_id == write_data.table_cid) {
+							return table.GetCell(write_data.row_index, write_data.cell_index)
+						}
 					}
-					var desc = Api.ParseJSON(oTable.GetTableDescription())
-					var keys = Object.keys(desc)
-					if (keys.length) {
+				} else {
+					for (var oTable of oTables) {
+						if (oTable.Table.IsUseInDocument && !oTable.Table.IsUseInDocument()) {
+							continue
+						}
+						var desc = Api.ParseJSON(table.GetTableDescription())
+						if (typeof desc != 'object') {
+							continue
+						}
+						var keys = Object.keys(desc)
+						if (!keys || keys.length == 0) {
+							continue
+						}
 						for (var j = 0; j < keys.length; ++j) {
 							var key = keys[j]
-							if (desc[key] == wData.id) {
+							if (desc[key] == write_data.id) {
 								var rc = key.split('_')
-								if (wData.row_index == undefined) {
+								if (write_data.row_index == undefined) {
 									return oTable.GetCell(rc[0], rc[1])
-								} else if (wData.row_index == rc[0] && wData.cell_index == rc[1]) {
+								} else if (write_data.row_index == rc[0] && write_data.cell_index == rc[1]) {
 									return oTable.GetCell(rc[0], rc[1])
 								}
 							}
@@ -4243,19 +4279,14 @@ function focusAsk(writeData) {
 				var oRange = null
 				for (var wData of writeList) {
 					if (wData.cell_id) {
-						var oCell = Api.LookupObject(wData.cell_id)
-						if (oCell && oCell.GetClassType() == 'tableCell') {
-							if (oCell.Cell.IsUseInDocument && !oCell.Cell.IsUseInDocument()) {
-								oCell = getCell(wData)
-							}
-							if (oCell) {
-								var cellContent = oCell.GetContent()
-								if (cellContent) {
-									if (oRange) {
-										oRange = oRange.ExpandTo(cellContent.GetRange())
-									} else {
-										oRange = cellContent.GetRange()
-									}
+						var oCell = getCell(wData)
+						if (oCell) {
+							var cellContent = oCell.GetContent()
+							if (cellContent) {
+								if (oRange) {
+									oRange = oRange.ExpandTo(cellContent.GetRange())
+								} else {
+									oRange = cellContent.GetRange()
 								}
 							}
 						}
@@ -5027,9 +5058,16 @@ function splitControl(qid) {
 							var text = control.GetRange().GetText()
 							if (text && text.replace(/[\s\r\n]/g, '').length === 0) {
 								var oTable = oCell.GetParentTable()
+								var tableTitle = Api.ParseJSON(oTable.GetTableTitle()) || {}
+								if (!tableTitle.client_id) {
+									client_node_id += 1
+									tableTitle.client_id = client_node_id
+								}
+								oTable.SetTableTitle(JSON.stringify(tableTitle))
 								result.change_list.push({
 									parent_id: obj.client_id,
 									table_id: oTable.Table.Id,
+									table_cid: client_node_id,
 									row_index: oCell.GetRowIndex(),
 									cell_index: oCell.GetIndex(),
 									cell_id: oCell.Cell.Id,
@@ -5591,12 +5629,33 @@ function handleUploadPrepare(cmdType) {
 			})
 			// 处理单元格小问
 			function getCell(write_data) {
-				for (var i = 0; i < oTables.length; ++i) {
-					var oTable = oTables[i]
-					if (oTable.Table.IsUseInDocument && !oTable.Table.IsUseInDocument()) { continue }
-					var desc = Api.ParseJSON(oTable.GetTableDescription())
-					var keys = Object.keys(desc)
-					if (keys.length) {
+				if (!write_data) {
+					return null
+				}
+				var oCell = Api.LookupObject(write_data.cell_id)
+				if (oCell && oCell.GetClassType() == 'tableCell' && oCell.Cell && oCell.Cell.IsUseInDocument && oCell.Cell.IsUseInDocument()) {
+					return oCell
+				}
+				if (write_data.table_cid) {
+					for (var table of oTables) {
+						var tableTitle = Api.ParseJSON(table.GetTableTitle())
+						if (tableTitle && tableTitle.client_id == write_data.table_cid) {
+							return table.GetCell(write_data.row_index, write_data.cell_index)
+						}
+					}
+				} else {
+					for (var oTable of oTables) {
+						if (oTable.Table.IsUseInDocument && !oTable.Table.IsUseInDocument()) {
+							continue
+						}
+						var desc = Api.ParseJSON(table.GetTableDescription())
+						if (typeof desc != 'object') {
+							continue
+						}
+						var keys = Object.keys(desc)
+						if (!keys || keys.length == 0) {
+							continue
+						}
 						for (var j = 0; j < keys.length; ++j) {
 							var key = keys[j]
 							if (desc[key] == write_data.id) {
@@ -5606,7 +5665,6 @@ function handleUploadPrepare(cmdType) {
 								} else if (write_data.row_index == rc[0] && write_data.cell_index == rc[1]) {
 									return oTable.GetCell(rc[0], rc[1])
 								}
-
 							}
 						}
 					}
@@ -5637,10 +5695,7 @@ function handleUploadPrepare(cmdType) {
 											return w.id == wid
 										})
 										if (writeData && writeData.sub_type == 'cell' && writeData.cell_id) {
-											var oCell = Api.LookupObject(writeData.cell_id)
-											if (!oCell || !oCell.GetClassType || !oCell.GetClassType() != 'tableCell' || (oCell.Cell.IsUseInDocument && !oCell.Cell.IsUseInDocument())) {
-												oCell = getCell(writeData)
-											}
+											var oCell = getCell(writeData)
 											if (oCell) {
 												oCell.SetBackgroundColor(255, 191, 191, cmdType == 'show' ? false : true)
 											}
