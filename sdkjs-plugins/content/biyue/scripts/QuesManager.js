@@ -5024,7 +5024,7 @@ function splitControl(qid) {
 					var elCount2 = run.GetElementsCount()
 					for (var i2 = 0; i2 < elCount2; ++i2) {
 						var oElement2 = run.GetElement(i2)
-						if (WORDS.includes(oElement2.Value)) {
+						if (oElement2 && WORDS.includes(oElement2.Value)) {
 							oElement.GetRange(i2, i2 + 1).Select()
 							client_node_id += 1
 							var tag = JSON.stringify({ regionType: 'write', mode: 3, client_id: client_node_id, color: '#ff000040' })
