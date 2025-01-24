@@ -370,7 +370,7 @@ function onAllCheck() {
 					var index = 0
 					for (j = 0; j < elementCount; ++j) {
 						var child = oRun.Run.GetElement(0)
-						if (child.Id == oDrawing.Drawing.Id) {
+						if (child && child.Id == oDrawing.Drawing.Id) {
 							index = j
 							break
 						}
@@ -468,7 +468,7 @@ function onLinkedCheck() {
 						var index = 0
 						for (var i = 0; i < elementCount; ++i) {
 							var child = oRun.Run.GetElement(0)
-							if (child.Id == oDrawing.Drawing.Id) {
+							if (child && child.Id == oDrawing.Drawing.Id) {
 								index = i
 								break
 							}

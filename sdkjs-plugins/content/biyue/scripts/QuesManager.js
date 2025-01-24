@@ -850,11 +850,17 @@ function getNodeList() {
 			var childCount = oElement.GetElementsCount()
 			for (var k = 0; k < childCount; ++k) {
 				var oChild = oElement.GetElement(k)
+				if (!oChild) {
+					continue
+				}
 				var childType = oChild.GetClassType()
 				if (childType == 'run') {
 					var childCount1 = oChild.Run.GetElementsCount()
 					for (var k2 = 0; k2 < childCount1; ++k2) {
 						var oChild2 = oChild.Run.GetElement(k2)
+						if (!oChild2) {
+							continue
+						}
 						if (oChild2.GetType && oChild2.GetType() == 22) {
 							if (oChild2.docPr) {
 								var title = oChild2.docPr.title
@@ -981,6 +987,9 @@ function getNodeList() {
 				var elementCount = controlContent.GetElementsCount()
 				for (var j = 0; j < elementCount; ++j) {
 					var oElement = controlContent.GetElement(j)
+					if (!oElement) {
+						continue
+					}
 					if (oElement.GetClassType() == 'paragraph') {
 						getParagraphWriteList(oElement, write_list)
 					} else if (oElement.GetClassType() == 'blockLvlSdt') {
@@ -2379,7 +2388,10 @@ function confirmLevelSet(levels) {
 			var cnt1 = cellContent.GetElementsCount()
 			for (var i = 0; i < cnt1; ++i) {
 				var oElement = cellContent.GetElement(i)
-				if (oElement && oElement.GetClassType && oElement.GetClassType() == 'blockLvlSdt') {
+				if (!oElement) {
+					continue
+				}
+				if (oElement.GetClassType && oElement.GetClassType() == 'blockLvlSdt') {
 					if (oElement.Sdt.GetId() == oControl.Sdt.GetId()) {
 						var TableCellW = oCell.CellPr.TableCellW
 						if (!TableCellW) {
@@ -2921,6 +2933,9 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 				var elementcount = blankControl.GetElementsCount()
 				for (var i = 0; i < elementcount; ++i) {
 					var oChild = blankControl.GetElement(i)
+					if (!oChild) {
+						continue
+					}
 					if (oChild.GetClassType() == 'run' && oChild.Run.Content && oChild.Run.Content.length) { // ParaRun
 						var drawing = oChild.Run.Content[0]
 						if (drawing.docPr && drawing.docPr.title && drawing.GraphicObj) {
@@ -3958,6 +3973,9 @@ function deleteAsks(askList, recalc = true, notify = true) {
 						var count = oParent.GetElementsCount()
 						for (var c = 0; c < count; ++c) {
 							var child = oParent.GetElement(c)
+							if (!child) {
+								continue
+							}
 							if (child.GetClassType() == 'run' && child.Run.Id == run.Id) {
 								deleteAccurateRun(child)
 								break
@@ -5015,6 +5033,9 @@ function splitControl(qid) {
 			}
 			for (var i1 = 0; i1 < oParagraph.GetElementsCount(); ++i1) {
 				var oElement = oParagraph.GetElement(i1)
+				if (!oElement) {
+					continue
+				}
 				if (oElement.GetClassType() == 'run') {
 					var fontfamily = oElement.GetFontFamily()
 					if (fontfamily != 'iconfont') {
@@ -5049,6 +5070,9 @@ function splitControl(qid) {
 			var elementCount = controlContent.GetElementsCount()
 			for (var i = 0; i < elementCount; ++i) {
 				var oElement1 = controlContent.GetElement(i)
+				if (!oElement1) {
+					continue
+				}
 				if (oElement1.GetClassType() == 'paragraph') {
 					handleParagraph(oElement1, client_id, qid)
 				}
@@ -5223,6 +5247,9 @@ function splitControl(qid) {
 				var elements = content.GetElementsCount();
 				for (var j = elements - 1; j >= 0; j--) {
 					var para = content.GetElement(j);
+					if (!para) {
+						continue
+					}
 					if (para.GetClassType() !== "paragraph") {
 						break;
 					}
@@ -5479,6 +5506,9 @@ function tidyTree() {
 						var count = oParent.GetElementsCount()
 						for (var c = 0; c < count; ++c) {
 							var child = oParent.GetElement(c)
+							if (!child) {
+								continue
+							}
 							if (child.GetClassType() == 'run' && child.Run.Id == run.Id) {
 								deleteAccurateRun(child)
 								break
@@ -6621,6 +6651,9 @@ function splitWordAsk() {
 			var elCount = oParagraph.GetElementsCount()
 			for (var i1 = 0; i1 < elCount; ++i1) {
 				var oElement = oParagraph.GetElement(i1)
+				if (!oElement) {
+					continue
+				}
 				if (oElement.GetClassType() == 'run') {
 					var fontfamily = oElement.GetFontFamily()
 					if (fontfamily != 'iconfont') {
@@ -6630,6 +6663,9 @@ function splitWordAsk() {
 					var elCount2 = run.GetElementsCount()
 					for (var i2 = 0; i2 < elCount2; ++i2) {
 						var oElement2 = run.GetElement(i2)
+						if (!oElement2) {
+							continue
+						}
 						if (WORDS.includes(oElement2.Value)) {
 							oElement.GetRange(i2, i2 + 1).Select()
 							var tag = JSON.stringify({ regionType: 'write', mode: 3, color: '#ff000040' })
@@ -6652,6 +6688,9 @@ function splitWordAsk() {
 			var elementCount = controlContent.GetElementsCount()
 			for (var i = 0; i < elementCount; ++i) {
 				var oElement1 = controlContent.GetElement(i)
+				if (!oElement1) {
+					continue
+				}
 				if (oElement1.GetClassType() == 'paragraph') {
 					handleParagraph(oElement1)
 				}
