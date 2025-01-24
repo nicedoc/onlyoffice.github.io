@@ -192,6 +192,9 @@ function drawHeader(cmdType, examTitle) {
 				var pSize = oSection.Section.PageSize
 				var pw = pSize.W - pmargins.Left - pmargins.Right
 				var oParagraph = oHeader.GetElement(0)
+				if (!oParagraph) {
+					return
+				}
 				oParagraph.SetTabs(
 					[1, (pw * 0.5) / MM2TWIPS, pw / MM2TWIPS],
 					['left', 'center', 'right']
@@ -427,7 +430,7 @@ function drawList(list, recalc = true) {
 			var pageCount = oDocument.GetPageCount()
 
 			var lastParagraph = null
-			if (lastElement.GetClassType() == 'paragraph') {
+			if (lastElement && lastElement.GetClassType() == 'paragraph') {
 				lastParagraph = lastElement
 			} else {
 				lastParagraph = Api.CreateParagraph()
@@ -934,7 +937,7 @@ function drawList(list, recalc = true) {
 											type: 'default',
 											oFooter: oDefaultFooter
 										})
-										footerList.forEach((footerObj) => {
+										for (var footerObj of footerList) {
 											var oFooter = footerObj.oFooter
 											var elementCount = oFooter.GetElementsCount()
 											if (elementCount > 2) {
@@ -944,6 +947,9 @@ function drawList(list, recalc = true) {
 											}
 											var PageMargins = section.Section.PageMargins
 											var oParagraph = oFooter.GetElement(0)
+											if (!oParagraph) {
+												continue
+											}
 											if (page_type == 0) {
 												// 统计
 												var sh = PageMargins.Right - (options.size.right || 0) - options.size.w
@@ -1008,7 +1014,7 @@ function drawList(list, recalc = true) {
 													}
 												}
 											}
-										})
+										}
 									})
 								} else {
 									var page_num = options.page_num != undefined ? options.page_num : options.p
@@ -1142,6 +1148,9 @@ function setInteraction(type, quesIds, recalc = true) {
 					if (elementcount > 0) {
 						for (var i = 0; i < elementcount; ++i) {
 							var oChild = oParagraph.GetElement(i)
+							if (!oChild) {
+								continue
+							}
 							if (oChild.GetClassType() == 'run') {
 								if (oChild.Run.IsEmpty()) {
 									continue
@@ -1149,6 +1158,9 @@ function setInteraction(type, quesIds, recalc = true) {
 								var find = false
 								for (var j = 0; j < oChild.Run.GetElementsCount(); ++j) {
 									var oElement = oChild.Run.GetElement(j)
+									if (!oElement) {
+										continue
+									}
 									if (oElement.GetType() == 1) {
 										if (oElement.Value == 59209) {
 											oChild.Run.RemoveElement(oElement)
@@ -1212,22 +1224,24 @@ function setInteraction(type, quesIds, recalc = true) {
 				)
 				var drawDocument = oDrawing.GetContent()
 				var paragraphs = drawDocument.GetAllParagraphs()
-				if (paragraphs && paragraphs.length > 0) {
+				if (paragraphs && paragraphs.length > 0 && paragraphs[0]) {
 					var oRun = paragraphs[0].GetElement(0)
-					oRun.SetFontFamily('iconfont')
-					oRun.AddText("\ue749")
-					oRun.SetFontSize(24)
-					oRun.SetColor(3, 3, 3, false)
-					paragraphs[0].SetSpacingAfter(0)
-					oDrawing.SetPaddings(0, 0, 0, 0)
-					var titleobj = {
-						feature: {
-							zone_type: 'question',
-							type: 'ques_interaction',
-							sub_type: 'simple'
+					if (oRun) {
+						oRun.SetFontFamily('iconfont')
+						oRun.AddText("\ue749")
+						oRun.SetFontSize(24)
+						oRun.SetColor(3, 3, 3, false)
+						paragraphs[0].SetSpacingAfter(0)
+						oDrawing.SetPaddings(0, 0, 0, 0)
+						var titleobj = {
+							feature: {
+								zone_type: 'question',
+								type: 'ques_interaction',
+								sub_type: 'simple'
+							}
 						}
+						oDrawing.SetTitle(JSON.stringify(titleobj))
 					}
-					oDrawing.SetTitle(JSON.stringify(titleobj))
 				}
 				var horOffset = 0
 				var hasLevel = false
@@ -1485,6 +1499,9 @@ function setInteraction(type, quesIds, recalc = true) {
 							var count = oParent.GetElementsCount()
 							for (var c = 0; c < count; ++c) {
 								var child = oParent.GetElement(c)
+								if (!child) {
+									continue
+								}
 								if (child.GetClassType() == 'run' && child.Run.Id == run.Id) {
 									deleteAccurateRun(child)
 									break
@@ -1896,6 +1913,9 @@ function updateChoice(recalc = true) {
 			var elementcount = oDocument.GetElementsCount()
 			for (var i = 0; i < elementcount; ++i) {
 				var oElement = oDocument.GetElement(i)
+				if (!oElement) {
+					continue
+				}
 				if (oElement.GetClassType() == 'table') {
 					var rows = oElement.GetRowsCount()
 					for (var i1 = 0; i1 < rows; ++i1) {
@@ -1923,7 +1943,7 @@ function updateChoice(recalc = true) {
 			if (structs.length) {
 				structs[structs.length - 1].last_pos = elementcount - 1
 				var lastelement = oDocument.GetElement(elementcount - 1)
-				if (lastelement.GetClassType() == 'paragraph') { // 有段落时，最后一行不算
+				if (lastelement && lastelement.GetClassType() == 'paragraph') { // 有段落时，最后一行不算
 					var text = lastelement.GetText()
 					if (lastelement.GetElementsCount() == 0 || text == '' || text == '\r\n') {
 						structs[structs.length - 1].last_pos = elementcount - 2

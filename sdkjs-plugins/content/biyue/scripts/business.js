@@ -2672,7 +2672,7 @@ function addOnlyBigControl(recalc = true) {
 					var count = oControl.Sdt.GetElementsCount()
 					for (var i = 0; i < count; ++i) {
 						var element = oControl.Sdt.GetElement(i)
-						if (element.Id) {
+						if (element && element.Id) {
 							var oElement = Api.LookupObject(element.Id)
 							if (oElement) {
 								if (oElement.GetClassType() == 'paragraph' || oElement.GetClassType() == 'table') {

@@ -118,6 +118,9 @@ function handleRangeType(options) {
 				var pcount = drawingParentParagraph.GetElementsCount()
 				for (var i = 0; i < pcount; ++i) {
 					var oChild = drawingParentParagraph.GetElement(i)
+					if (!oChild) {
+						continue
+					}
 					if (oChild.GetClassType) {
 						var childType = oChild.GetClassType()
 						if (childType == 'run') {
@@ -128,6 +131,9 @@ function handleRangeType(options) {
 							var cnt3 = oChild.GetElementsCount()
 							for (var i3 = 0; i3 < cnt3; ++i3) {
 								var oChild3 = oChild.GetElement(i3)
+								if (!oChild3) {
+									continue
+								}
 								if (oChild3.GetClassType() == 'run') {
 									if (inRun(oChild3, oDrawing.Drawing.Id)) {
 										return null
@@ -326,6 +332,9 @@ function handleRangeType(options) {
 							var count = oParent.GetElementsCount()
 							for (var c = 0; c < count; ++c) {
 								var child = oParent.GetElement(c)
+								if (!child) {
+									continue
+								}
 								if (child.GetClassType() == 'run' && child.Run.Id == run.Id) {
 									deleteDrawingRun(child, 'ask_accurate')
 									break
@@ -826,7 +835,7 @@ function handleRangeType(options) {
 									var sum = oCellContent.GetElementsCount()
 									for (var j = 0; j < sum; ++j) {
 										var oElement3 = oCellContent.GetElement(j)
-										if (oElement3.GetClassType() == 'blockLvlSdt') {
+										if (oElement3 && oElement3.GetClassType() == 'blockLvlSdt') {
 											var tag3 = Api.ParseJSON(oElement3.GetTag())
 											var id3 = tag3.mid || tag3.client_id
 											if (id3 == options.end_id) {
@@ -909,6 +918,9 @@ function handleRangeType(options) {
 					for (var c = 0; c < cnt; ++c) {
 						var oCell = oRow.GetCell(c)
 						var oCellContent = oCell.GetContent()
+						if (!oCellContent) {
+							continue
+						}
 						var elcount = oCellContent.GetElementsCount()
 						for (var k = 0; k < elcount; ++k) {
 							var el = oCellContent.GetElement(k)
@@ -1019,6 +1031,9 @@ function handleRangeType(options) {
 				} 
 			}
 			function cellNotControl(cellContent) {
+				if (!cellContent) {
+					return true
+				}
 				var elementCount = cellContent.GetElementsCount()
 				if (elementCount == 0) {
 					return true
@@ -1234,6 +1249,9 @@ function handleRangeType(options) {
 					var hasControl = true
 					for (var i = 0; i < cnt; ++i) {
 						var oElement = cellContent.GetElement(i)
+						if (!oElement) {
+							continue
+						}
 						if (oElement.GetClassType() != 'blockLvlSdt') {
 							hasControl = false
 						} else {

@@ -101,6 +101,9 @@ function batchProportion(idList, proportion) {
 					var cellChildCount = oCellContent.GetElementsCount()
 					for (var i3 = 0; i3 < cellChildCount; ++i3) {
 						var oCellChild = oCellContent.GetElement(i3)
+						if (!oCellChild) {
+							continue
+						}
 						if (oCellChild.GetClassType() == 'blockLvlSdt') {
 							var tag = Api.ParseJSON(oCellChild.GetTag())
 							if (tag.client_id && idList.find(e => {return e.id == tag.client_id})) {
@@ -134,7 +137,7 @@ function batchProportion(idList, proportion) {
 					cellContent.AddElement(index, e)
 				})
 				var lastindex = cellContent.GetElementsCount() - 1
-				if (cellContent.GetElementsCount() > 1 && cellContent.GetElement(lastindex).GetClassType() == 'paragraph') {
+				if (cellContent.GetElementsCount() > 1 && cellContent.GetElement(lastindex) && cellContent.GetElement(lastindex).GetClassType() == 'paragraph') {
 					cellContent.RemoveElement(lastindex)
 				}
 			}
@@ -174,6 +177,9 @@ function batchProportion(idList, proportion) {
 			var elementCount1 = oDocument.GetElementsCount()
 			for (var i1 = beginPos; i1 < elementCount1; ++i1) {
 				var element = oDocument.GetElement(i1)
+				if (!element) {
+					continue
+				}
 				if (element.GetClassType() == 'table') {
 					if (element.GetTableTitle() != TABLE_TITLE) {
 						if (i1 > endPos) {
@@ -442,7 +448,7 @@ function changeProportion(idList, proportion) {
 					cellContent.AddElement(index, e)
 				})
 				var lastindex = cellContent.GetElementsCount() - 1
-				if (cellContent.GetElementsCount() > 1 && cellContent.GetElement(lastindex).GetClassType() == 'paragraph') {
+				if (cellContent.GetElementsCount() > 1 && cellContent.GetElement(lastindex) && cellContent.GetElement(lastindex).GetClassType() == 'paragraph') {
 					cellContent.RemoveElement(lastindex)
 				}
 			}
@@ -493,6 +499,9 @@ function changeProportion(idList, proportion) {
 				var elementCount1 = oStartTableParent.GetElementsCount()
 				for (var i1 = startTablePos; i1 < elementCount1; ++i1) {
 					var element = oStartTableParent.GetElement(i1)
+					if (!element) {
+						continue
+					}
 					if (element.GetClassType() != 'table') {
 						if (dataHandled.pos != undefined && dataHandled.pos == i1 && element.GetClassType() == 'blockLvlSdt' && element.Sdt.GetId() == oControl.Sdt.GetId()) {
 							if (tag.client_id) {
@@ -556,7 +565,7 @@ function changeProportion(idList, proportion) {
 						oControl.Sdt.GetLogicDocument().PreventPreDelete = true
 						for (var k = 0; k < elementcount; ++k) {
 							var cellChild = cellContent.GetElement(k)
-							if (cellChild.GetClassType() == 'blockLvlSdt') { 
+							if (cellChild && cellChild.GetClassType() == 'blockLvlSdt') { 
 								var ctag = Api.ParseJSON(cellChild.Sdt.GetTag())
 								if (ctag.client_id) {
 									effect_id_list.push(ctag.client_id)
@@ -657,7 +666,7 @@ function changeProportion(idList, proportion) {
 					var oTable
 					if (i <= toIndex) {
 						oTable = oStartTableParent.GetElement(startTablePos + i)
-						if (oTable.GetClassType() != 'table') {
+						if (!oTable || oTable.GetClassType() != 'table') {
 							break
 						}
 						var oRow = oTable.GetRow(0)
@@ -744,7 +753,7 @@ function changeProportion(idList, proportion) {
 						if (tablepos) {
 							var tableParent = Api.LookupObject(oTable.Table.Parent.Id)
 							var pre = tableParent.GetElement(tablepos - 1)
-							if (pre.GetClassType() == 'table' && pre.GetTableTitle() == TABLE_TITLE) {
+							if (pre && pre.GetClassType() == 'table' && pre.GetTableTitle() == TABLE_TITLE) {
 								var TableW = pre.TablePr.TableW.W
 								if(TableW + newW <= 100 ) {
 									preTable = pre

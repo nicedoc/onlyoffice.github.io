@@ -477,6 +477,9 @@ function dropItem(list, dragId, dropId, direction) {
 			function getObjectByPos2(posArray) {
 				var objList = []
 				for (var i = 0; i < posArray.length; ++i) {
+					if (!posArray[i]) {
+						continue
+					}
 					if (i == 0) {
 						var obj = oDocument.GetElement(posArray[i].Position)
 						objList.push(obj)
@@ -532,8 +535,10 @@ function dropItem(list, dragId, dropId, direction) {
 					continue
 				}
 				if (docPos.length == 1) {
-					templist.push(oDocument.GetElement(docPos[0].Position))
-					oDocument.RemoveElement(docPos[0].Position)
+					if (docPos[0]) {
+						templist.push(oDocument.GetElement(docPos[0].Position))
+						oDocument.RemoveElement(docPos[0].Position)
+					}
 				} else {
 					if (docPos.length > 1) {
 						var objList = getObjectByPos2(docPos)
@@ -1829,7 +1834,7 @@ function changeProportion(id, proportion) {
 					var parent = oControl.Sdt.GetParent()
 					if (posinparent > 1) {
 						var preElement = oParentControl.GetContent().GetElement(posinparent - 1)
-						if (preElement.GetClassType && preElement.GetClassType() == 'table' && preElement.GetTableTitle() == 'question') {
+						if (preElement && preElement.GetClassType && preElement.GetClassType() == 'table' && preElement.GetTableTitle() == 'question') {
 							var oRow = preElement.GetRow(0)
 							var cellCount = oRow.GetCellsCount()
 							for (var i = 0; i < cellCount; ++i) {
@@ -1846,7 +1851,7 @@ function changeProportion(id, proportion) {
 										}
 								}
 							}
-							if (targetCellIndex >= 0) {
+							if (preElement && targetCellIndex >= 0) {
 								// 暂时不考虑此时要设的占比，只一味丢到空单元格里
 								oParentControl.GetContent().RemoveElement(posinparent)
 								var oCell = preElement.GetCell(0, targetCellIndex);
