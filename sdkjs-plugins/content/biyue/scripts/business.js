@@ -146,7 +146,23 @@ function updatePageSizeMargins() {
 					}
 				// }
 				// 移除图片阴影
-				oDrawing.ClearShadow()
+				var a = oDrawing.Drawing.extX
+				var b = oDrawing.Drawing.getXfrmExtX()
+				var c = oDrawing.Drawing.extY
+				var d = oDrawing.Drawing.getXfrmExtY()
+				if (a != b) {
+					if (b) {
+						oDrawing.ScaleWidth(a/b)
+					}
+				}
+				if (c != d) {
+					if (d) {
+						oDrawing.ScaleHeight(c/d)
+					}
+				}
+				if (b && d) {
+					oDrawing.ClearShadow()
+				}
 			})
 			Api.asc_SetGlobalContentControlShowHighlight(true, 255, 191, 191)
 			Api.asc_SetTab('tab_biyue')
