@@ -95,7 +95,8 @@
 				for (let index = 0; index < num; index++) {
 				  space += '&nbsp;'
 				}
-				html = '<span class="fourwire-region fixed-size" style="background-image: url(https://by-base.oss-cn-shenzhen.aliyuncs.com/sixian.png) !important; background-size: 2.6em; background-repeat:repeat-x;background-position:0% 50%; line-height:3em;height:3em;width:auto;display: inline-block;">'+ space +'</span>'
+				var height = 50
+				html = `<div class="fourwire-region fixed-size" style="background-image: url(https://by-base.oss-cn-shenzhen.aliyuncs.com/sixian.png) !important; background-size: ${height}px; background-repeat:repeat-x;background-position:0% 50%; line-height:${height}px;height:${height}px;width:auto;display: inline-block;">${space}</div>`
 				$('.preview').addClass('width-fit')
 			}
 			content += html
