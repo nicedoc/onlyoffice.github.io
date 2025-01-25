@@ -3269,14 +3269,21 @@ function reqUploadTree() {
 		return getControlListForUpload()
 	}).then(control_list => {
 		if (control_list && control_list.length) {
-			generateTreeForUpload(control_list).then(() => {
-				handleCompleteResult('全量更新成功')
-			  }).catch((res) => {
-				handleCompleteResult(res && res.message && res.message != '' ? res.message : '全量更新失败')
-			  })
+			var repeatList = judgeRepeat(control_list)
+			if (repeatList && repeatList.length) {
+				uploadValidateHandler.showValidateDialog({
+					source: 'uploadTree',
+					repeat_list: repeatList,
+				})
+			} else {
+				generateTreeForUpload(control_list).then(() => {
+					handleCompleteResult('全量更新成功')
+				}).catch((res) => {
+					handleCompleteResult(res && res.message && res.message != '' ? res.message : '全量更新失败')
+				})
+			}
 		  } else {
 			handleCompleteResult('未找到可更新的题目，请检查题目列表')
-
 		  }
 	})
 }
@@ -3704,6 +3711,40 @@ function handleXml(controlId, content) {
 
 function handleXmlError() {
 	generateTreeForUpload(upload_control_list)
+}
+
+function judgeRepeat(target_list) {
+	if (!target_list) {
+		return null
+	}
+	var repeatList = []
+	var repeatIds = {}
+	var findRepeat = false
+	target_list.forEach((e, index) => {
+		if (!repeatIds[e.id]) {
+			repeatIds[e.id] = [index]
+		} else {
+			repeatIds[e.id].push(index)
+			findRepeat = true
+		}
+	})
+	if (findRepeat) {
+		for (var key in repeatIds) {
+			if (repeatIds[key].length > 1) {
+				var items = repeatIds[key].map(index => {
+					return {
+						control_id: target_list[index].control_id,
+						content_text: target_list[index].content_text
+					}
+				})
+				repeatList.push({
+					id: key,
+					items: items
+				})
+			}
+		}
+	}
+	return repeatList
 }
 
 // 后端已支持结构和题目可同级出现在结构下，取代旧代码
@@ -4413,6 +4454,19 @@ function focusControl(id) {
 			resolve()
 		})
 	})
+}
+
+function focusControlById(control_id) {
+	Asc.scope.focus_control_id = control_id
+	return biyueCallCommand(window, function() {
+		var focus_control_id = Asc.scope.focus_control_id
+		//var oDocument = Api.GetDocument()
+		var oControl = Api.LookupObject(focus_control_id)
+		if (oControl) {
+			oControl.Select()
+		}
+		// oDocument.Document.MoveCursorToContentControl(focus_control_id, true)
+	}, false, false)
 }
 
 function focusAsk(writeData) {
@@ -5957,28 +6011,36 @@ function importExam() {
 		return getControlListForUpload()
 	}).then(control_list => {
 		if (control_list && control_list.length) {
-			generateTreeForUpload(control_list).then(() => {
-				setBtnLoading('uploadTree', false)
-				setInteraction('useself').then(() => {
-					return getAllPositions2()
-				}).then(res => {
-					Asc.scope.questionPositions = res
-					return removeOnlyBigControl()
-				}).then(() => {
-					setBtnLoading('importExam', false)
-					if (uploadValidateHandler.onValidate()) {
-						window.biyue.showDialog('exportExamWindow', '上传试卷', 'examExport.html', 1000, 800, true)
-					} else {
-						handleUploadPrepare('show').then(() => {
-							return setInteraction('useself')
-						})
-					}
+			var repeatList = judgeRepeat(control_list)
+			if (repeatList && repeatList.length) {
+				uploadValidateHandler.showValidateDialog({
+					source: 'uploadExam',
+					repeat_list: repeatList,
 				})
-			}).catch((res) => {
-				setBtnLoading('uploadTree', false)
-				handleCompleteResult(res && res.message && res.message != '' ? res.message : '全量更新失败')
-				setBtnLoading('importExam', false)
-			})
+			} else {
+				generateTreeForUpload(control_list).then(() => {
+					setBtnLoading('uploadTree', false)
+					setInteraction('useself').then(() => {
+						return getAllPositions2()
+					}).then(res => {
+						Asc.scope.questionPositions = res
+						return removeOnlyBigControl()
+					}).then(() => {
+						setBtnLoading('importExam', false)
+						if (uploadValidateHandler.onValidate()) {
+							window.biyue.showDialog('exportExamWindow', '上传试卷', 'examExport.html', 1000, 800, true)
+						} else {
+							handleUploadPrepare('show').then(() => {
+								return setInteraction('useself')
+							})
+						}
+					})
+				}).catch((res) => {
+					setBtnLoading('uploadTree', false)
+					handleCompleteResult(res && res.message && res.message != '' ? res.message : '全量更新失败')
+					setBtnLoading('importExam', false)
+				})
+			}
 		} else {
 			setBtnLoading('uploadTree', false)
 			setBtnLoading('importExam', false)
@@ -6730,5 +6792,6 @@ export {
 	getQuestionHtml,
 	focusControl,
 	setNumberingLevel,
-	splitWordAsk
+	splitWordAsk,
+	focusControlById
 }

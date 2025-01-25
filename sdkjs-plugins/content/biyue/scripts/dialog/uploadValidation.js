@@ -5,7 +5,27 @@ import { UPLOAD_VALIDATE_RESULT } from '../model/uploadValidateEnum.js'
 	window.Asc.plugin.init = function () {
 		window.Asc.plugin.sendToPlugin('onWindowMessage', { type: 'initDialog', initmsg: 'uploadValidationMessage' })
 	}
+	function showRepeat() {
+		updateText('#exambasic', '存在ID重复，请定位检查')
+		var message = ''
+		for (var item1 of validate_info.repeat_list) {
+			message += `<div>id-${item1.id}重复情况：</div>`
+			if (item1.items) {
+				for (var item2 of item1.items) {
+					message += `<div class="item2 clicked" data-id="${item2.control_id}" title="${item2.control_id}\n${item2.content_text}">${item2.content_text}</div>`
+				}
+			}
+		}
+		updateText('#message', message)
+		addClickEvent('#reCheck', onRecheck)
+		$('body').off('click', '.item2', onLocateControl);
+		$('body').on('click', '.item2', onLocateControl);
+	}
 	function init() {
+		if (validate_info.repeat_list && validate_info.repeat_list.length) {
+			showRepeat()
+			return
+		}
 		var msgCodes = [UPLOAD_VALIDATE_RESULT.NOT_WORKBOOK_LAYOUT, UPLOAD_VALIDATE_RESULT.NOT_QUESTION, UPLOAD_VALIDATE_RESULT.MISS_QUESTION_UUID]
 		console.log('validate_info', validate_info)
 		var basictext = ''
@@ -57,33 +77,30 @@ import { UPLOAD_VALIDATE_RESULT } from '../model/uploadValidateEnum.js'
 	}
 
 	function onBatchButton() {
-		var id = $(this).data('id');
-		// 执行你的代码
-		onCommand(id)
+		sendCommand($(this).data('id'))
 	}
 
 	function onLocate() {
-		var id = $(this).data('id');
-		// 执行你的代码
-		window.Asc.plugin.sendToPlugin('onWindowMessage', {
-			type: 'uploadValidationMessage',
-			cmd: 'locate',
-			data: id
-		})
+		sendCommand('locate', $(this).data('id'))
 	}
 
-	function onCommand(cmd) {
+	function onLocateControl() {
+		sendCommand('locateControl', $(this).data('id'))
+	}
+
+	function sendCommand(cmd, data) {
 		window.Asc.plugin.sendToPlugin('onWindowMessage', {
 			type: 'uploadValidationMessage',
-			cmd: cmd
+			cmd: cmd,
+			data: data
 		})
 	}
 	function toAllUpdate() {
-		onCommand('toAllUpdate')
+		sendCommand('toAllUpdate')
 	}
 
 	function toFeature() {
-		onCommand('toFeature')
+		sendCommand('toFeature')
 	}
 
 	function addQues(list, title, type) {
@@ -116,7 +133,7 @@ import { UPLOAD_VALIDATE_RESULT } from '../model/uploadValidateEnum.js'
 			return
 		}
 		setBtnLoading('reCheck', true)
-		onCommand('reCheck')
+		sendCommand('reCheck', validate_info.source)
 	}
 
 	window.Asc.plugin.attachEvent('uploadValidationMessage', function (message) {

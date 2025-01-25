@@ -42,7 +42,8 @@ import {
 	focusAsk,
 	focusControl,
 	splitWordAsk,
-	deleteAsks
+	deleteAsks,
+	focusControlById
 } from './QuesManager.js'
 import {
 	tagImageCommon,
@@ -366,7 +367,11 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 				} else if (message.cmd == 'toAllUpdate') {
 					reqUploadTree()
 				} else if (message.cmd == 'reCheck') {
-					importExam()
+					if (message.data == 'uploadTree') {
+						reqUploadTree()
+					} else {
+						importExam()
+					}
 				} else if (message.cmd == 'locate') {
 					focusControl(message.data).then(res => {
 						if (window.tab_select != 'tabQues') {
@@ -386,6 +391,8 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 					})
 				} else if (message.cmd == 'toFeature') {
 					onFeature()
+				} else if (message.cmd == 'locateControl') {
+					focusControlById(message.data)
 				}
 				break
 			default:
