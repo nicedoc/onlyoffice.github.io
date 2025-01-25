@@ -743,5 +743,6 @@ export {
 	changeTabPanel,
 	onFeature,
 	showPanelLink,
-	onImageAutoLink
+	onImageAutoLink,
+	insertContent
 }

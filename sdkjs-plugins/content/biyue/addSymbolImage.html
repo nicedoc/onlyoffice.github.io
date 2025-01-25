@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8" />
+		<title>插入符号图片</title>
+		<script
+			type="text/javascript"
+			src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.js"
+		></script>
+		<script
+			type="text/javascript"
+			src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins-ui.js"
+		></script>
+		<link
+			rel="stylesheet"
+			href="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.css"
+		/>
+		<link rel="stylesheet" href="./resources/iconfont_word/iconfont.css">
+		<script src="vendor/jQuery-2.2.2-min/jquery-v2.2.2-min.js"></script>
+		<script src="vendor/html2canvas.min.js"></script>
+		<style>
+			.width-fit {
+				width: max-content;
+			}
+			.preview {
+    			height: max-content;
+				padding-left: 1px;
+			}
+			span.pinyin, strong.pinyin {
+				position: relative;
+				margin-left: -1px;
+				display: inline-block;
+			}
+			strong.pinyin::before {
+				top: 0.2em;
+				content: attr(data-content-before);
+    			position: absolute;
+				line-height: 1em;
+				left: 0;
+				right: 0;
+				text-align: center;
+				font-weight: normal;
+				font-family: 'FZShuTi-S05S';
+				font-size: 18px;
+				white-space: nowrap;
+				width: 100%;
+			}
+			p {
+				line-height: 1.5em;
+			}
+			p img {
+				vertical-align: middle;
+				max-width: 100%;
+				image-rendering: -webkit-optimize-contrast;
+				width: 50px;
+				overflow-clip-margin: content-box;
+				overflow: clip;
+			}
+			.list {
+				display: flex;
+				flex-wrap: wrap;
+    			margin-top: 8px;
+			}
+			.item {
+				margin: 4px 8px;
+				border: 1px solid transparent;
+				&:hover {
+					border: 1px solid #0c84f557;
+					cursor: pointer;
+				}
+			}
+			.itemimg {
+				width: 30px;
+				height: auto;
+			}
+			.selected {
+				border: 1px solid #0c84f5 !important;
+			}
+			.tip {
+				margin-bottom: 8px;
+			}
+			.btn {
+				font-size: 12px;
+				padding: 4px 8px;
+				border: 1px solid #a5a5a5;
+				border-radius: 4px;
+				cursor: pointer;
+			}
+			input:focus-visible{
+				outline: none !important;
+			}
+			.preview1 {
+				margin-top: 8px;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="info">
+			<div>请选择要插入的符号：</div>
+			<div class="list"></div>
+			<div class="tip"></div>
+			<div class="input-box">
+				<input type="text" id="input" />
+				<div style="margin-top: 8px;display: flex;flex-direction: row;">
+					<div class="btn" style="margin-right: 8px;" id="confirm">确定</div>
+					<div class="btn" id="cancel">取消</div>
+				</div>
+			</div>
+			<div class="preview1">
+				<div>预览：</div>
+				<div class="preview"></div>
+				<div class="btn" id="generate" style="width: max-content;padding: 4px 12px;">插入到光标处</div>
+			</div>
+		</div>
+	</body>
+</html>
+<script type="module" type="text/javascript" src="scripts/dialog/addSymbolImage.js"></script>

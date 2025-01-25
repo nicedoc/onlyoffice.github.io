@@ -6010,6 +6010,30 @@ function insertSymbol(unicode) {
 	})
 }
 
+function insertImage(data) {
+	if (!data) {
+		return
+	}
+	Asc.scope.insert_data = data
+	return biyueCallCommand(window, function() {
+		var image_data = Asc.scope.insert_data
+		var oDocument = Api.GetDocument()
+		var pos = oDocument.Document.Get_CursorLogicPosition()
+		var oDrawing = Api.CreateImage(image_data.src, image_data.width * 36e3, image_data.height * 36e3)
+		if (pos && pos.length && pos[pos.length - 1]) {
+			var lastElement = pos[pos.length - 1].Class
+			if (lastElement.Add_ToContent) {
+				lastElement.Add_ToContent(
+					pos[pos.length - 1].Position,
+					oDrawing.getParaDrawing()
+				)
+				oDocument.Document.MoveCursorRight()
+
+			}
+		}
+	}, false, true, {name: 'insertImage'})
+}
+
 function preGetExamTree() {
 	Asc.scope.node_list = window.BiyueCustomData.node_list
 	Asc.scope.question_map = window.BiyueCustomData.question_map
@@ -6460,5 +6484,6 @@ export {
 	getQuestionHtml,
 	focusControl,
 	setNumberingLevel,
-	splitWordAsk
+	splitWordAsk,
+	insertImage
 }

@@ -41,7 +41,8 @@ import {
 	focusAsk,
 	focusControl,
 	splitWordAsk,
-	deleteAsks
+	deleteAsks,
+	insertImage
 } from './QuesManager.js'
 import {
 	tagImageCommon,
@@ -308,6 +309,9 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 			case 'insertSymbol':
 				// closeWindow(modal.id)
 				insertSymbol(message.data)
+				break
+			case 'insertSymbolImage':
+				insertImage(message.data)
 				break
 			case 'focusQuestion':
 				var event = new CustomEvent('focusQuestion', {
@@ -917,6 +921,9 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		this.attachToolbarMenuClickEvent("insertSymbol", function (data) {
 			window.biyue.showDialog('addSymbolWindow', '插入符号', 'addSymbol.html', 600, 400, false, 'panelRight', ['resources/light/symbol.png'])
 		});
+		this.attachToolbarMenuClickEvent('insertSymbolImage', function (data) {
+			window.biyue.showDialog('addSymbolImageWindow', '插入符号图片', 'addSymbolImage.html', 600, 400, false, 'panelRight', ['resources/light/symbol.png'])
+		})
 		this.attachToolbarMenuClickEvent("batchScore", onBatchScoreSet);
 		this.attachToolbarMenuClickEvent("batchQuesType", onBatchQuesTypeSet);
 		this.attachToolbarMenuClickEvent("imageLink", function (data) {
@@ -977,6 +984,15 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 					type: "button",
 					text: "插入符号",
 					hint: "插入符号",
+					icons: "resources/buttons/symbol.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: false
+				}, {
+					id: "insertSymbolImage",
+					type: "button",
+					text: "插入符号图片",
+					hint: "插入符号图片",
 					icons: "resources/buttons/symbol.png", 
 					lockInViewMode: true,
 					enableToggle: false,
