@@ -18,7 +18,12 @@ function onValidate() {
 function notifyError(result) {
 	if (result) {
 		result.exam_info = getExamInfo()
+		result.source = 'uploadExam'
 	}
+	showValidateDialog(result)
+}
+
+function showValidateDialog(result) {
 	Asc.scope.upload_validate = result
 	window.biyue.refreshDialog({
 		winName:'uploadValidation',
@@ -450,17 +455,8 @@ function convertDataToNumber(data, numericFields) {
 
 	return data
 }
-function showExportDialog() {
-	window.biyue.showDialog(
-		'exportExamWindow',
-		'上传试卷',
-		'examExport.html',
-		1000,
-		800,
-		true
-	)
-}
 
 export default {
 	onValidate,
+	showValidateDialog
 }
