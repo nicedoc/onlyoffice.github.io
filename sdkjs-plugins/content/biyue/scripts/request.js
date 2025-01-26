@@ -85,5 +85,10 @@ service.interceptors.response.use(
 		}
 	}
 )
+function setBaseURL(url) {
+    baseURL = url;
+    service.defaults.baseURL = baseURL;
+}
 
+export { setBaseURL };
 export default service

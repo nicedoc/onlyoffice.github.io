@@ -76,5 +76,9 @@ service.interceptors.response.use(
 		return Promise.reject(error)
 	}
 )
-
+function setAuthBaseURL(url) {
+    baseURL = url;
+    service.defaults.baseURL = baseURL;
+}
+export { setAuthBaseURL };
 export default service
