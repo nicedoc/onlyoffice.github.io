@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8" />
+		<title>message</title>
+		<script
+			type="text/javascript"
+			src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.js"
+		></script>
+		<script
+			type="text/javascript"
+			src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins-ui.js"
+		></script>
+		<link
+			rel="stylesheet"
+			href="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.css"
+		/>
+		<link rel="stylesheet" href="resources/css/appuse.css">
+		<link rel="stylesheet" href="resources/iconfont/iconfont.css">
+		<script src="vendor/jQuery-2.2.2-min/jquery-v2.2.2-min.js"></script>
+		<style>
+			.panel-box {
+				position: absolute;
+				z-index: 3;
+				left: 0;
+				right: 0;
+				bottom: 0;
+				top: 0;
+				background-color: #fff;
+				max-height: calc(100vh - 30px);
+				overflow-y: auto;
+			}
+			#panelTypeErrorUpload {
+				display: flex;
+				flex-direction: column;
+				padding: 12px;
+			}
+			#typeErrorDiv {
+				padding: 8px 4px;
+				flex: 1;
+				overflow-y: auto;
+				.item {
+					display: flex;
+					justify-content: space-between;
+					align-items: center; /* 垂直居中对齐 */
+					width: 100%; /* 根据需要调整 */
+					padding: 2px 0;
+				}
+				.content {
+					display: flex;
+					align-items: center;
+					flex: 1; /* 让 content 占据尽可能多的空间 */
+					overflow: hidden; /* 防止内部元素超出边界 */
+				}
+				.ques-type-name {
+				margin-left: 10px;
+				margin-right: 4px;
+				}
+				.target-select {
+					width: 70px;
+				}
+				select:focus-visible {
+					outline: none;
+				}
+			}
+			.upload-wrapper {
+				padding-top: 12px;
+				text-align: center;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="panel-box" id="panelTypeErrorUpload">
+			<div class="row-between">
+				<div class="font-14 bold">
+					<span class="clicked" style="color: #2489f6;" id="downloadExamHtml">下载题目html</span>
+				</div>
+				<div class="clicked bg1 clr-white br4 border-b" id="refresh" style="padding: 2px 8px;">刷新</div>
+			</div>
+			<div id="uploadHint"></div>
+			<div class="b-b-b ml-4 row-between" style="padding-bottom: 4px;margin-top: 2px;">
+				<div>
+					<span for="check_level"><input type="checkbox" id="check_level" style="margin-right: 2px;">展示层级结构</span>
+					<span for="check_text_ques ml-4"><input type="checkbox" id="check_text_ques" style="margin-right: 2px;">显示文本题</span>
+				</div>
+				<div style="margin-right: 8px;">目标题型</div>
+			</div>
+			<div id="typeErrorDiv"></div>
+			<div class="upload-wrapper row-center w100 b-t-b">
+				<div id="uploadTypeError" class="flex bg1 clr-white p-4-8 w-fit br2 clicked">上报日志</div>
+			</div>
+		</div>
+	</body>
+</html>
+<script type="module" type="text/javascript" src="scripts/dialog/quesTypeErrorReport.js"></script>
+
+
+
+

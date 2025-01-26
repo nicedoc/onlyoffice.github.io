@@ -52,7 +52,7 @@ import {
 import { layoutRepair, removeAllComment, layoutDetect } from './layoutFixHandler.js'
 import { reqSaveInfo } from './api/paper.js'
 
-import { initView, onSaveData, clickSplitQues, clickUploadTree, showTypeErrorPanel, changeTabPanel, onFeature, showPanelLink, onImageAutoLink } from './pageView.js'
+import { initView, onSaveData, clickSplitQues, clickUploadTree, showTypeErrorPanel, changeTabPanel, onFeature, showPanelLink, onImageAutoLink, onUploadTypeErrorList, clickDownloadExamHtml } from './pageView.js'
 
 import { setInteraction, updateChoice, deleteAllFeatures } from './featureManager.js'
 import { getInfoForServerSave, showCom } from './model/util.js'
@@ -244,6 +244,8 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 						obj.validate_info = Asc.scope.upload_validate
 					} else if (message.initmsg == 'featureMessage') {
 						obj.feature_map = window.feature_map
+					} else if (message.initmsg == 'quesTypeErrorReportMessage') {
+						obj.tree_info = Asc.scope.tree_info
 					}
 					modal.command(message.initmsg, obj)
 				}
@@ -396,6 +398,21 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 				break
 			case 'featureMessage':
 				handleFeatureMessage(message)
+				break
+			case 'quesTypeErrorReportMessage':
+				if (message.cmd == 'refreshTypeError') {
+					preGetExamTree().then(res => {
+						Asc.scope.tree_info = res
+						modal.command('quesTypeErrorReportMessage', {
+							tree_info: Asc.scope.tree_info,
+							BiyueCustomData: window.BiyueCustomData
+						})
+					})
+				} else if (message.cmd == 'uploadTypeError') {
+					onUploadTypeErrorList(message.data)
+				} else if (message.cmd == 'downloadExamHtml') {
+					clickDownloadExamHtml()
+				}
 				break
 			default:
 				break

@@ -24,8 +24,6 @@ var timeout_paste_hint = null
 var select_image_link = null
 var select_link_type = null
 var input_coverage_percent = null
-let check_text_ques = true
-let check_level = true
 let inner_pop_list = ['link_container', 'func_key_container', 'tree_container']
 const CLR_SUCCESS = '#4EAB6D'
 const CLR_FAIL = '#ff0000'
@@ -137,25 +135,9 @@ function initView() {
 	showCom('#imageLinkTip')
 	addClickEvent('#btnImageLink', onImageLink)
 	addClickEvent('#imageLinkCheck', onImageLinkCheck)
-	if ($('#check_level')) {
-		$('#check_level').prop('checked', check_level)
-		$('#check_level').on('click', () => {
-			check_level = !check_level
-			renderQuesTypeTree()
-		})
-	}
-	if ($('#check_text_ques')) {
-		$('#check_text_ques').prop('checked', check_text_ques)
-		$('#check_text_ques').on('click', () => {
-			check_text_ques = !check_text_ques
-			renderQuesTypeTree()
-		})
-	}
-	addClickEvent('#uploadTypeError', onUploadTypeError)
 	showCom('#uploadHint', false)
 	showCom('#panelFeature', false)
 	showCom('#panelLink', false)
-	showCom('#panelTypeErrorUpload', false)
 	addClickEvent('#tabFeature', onFeature)
 	addClickEvent('.panelclose', (e) => {
 		var target = e.currentTarget || e.target
@@ -486,102 +468,8 @@ function onImageLinkCheck() {
 	onAllCheck()
 }
 
-function renderTreeNode(parent, item, identation = 0) {
-	if (!parent) {
-		return
-	}
-	var question_map = window.BiyueCustomData.question_map || {}
-	var quesData = question_map[item.id]
-	if (!quesData) {
-		return
-	}
-	var  types = window.BiyueCustomData.paper_options.question_type || []
-	var html = ''
-	if (item.level_type == 'struct') {
-		if (check_level) {
-			html += `<div class=item id="group-id-${item.id}" style="padding-left:${identation}px"><div class="text-over-ellipsis flex-1 ml-4" title="${quesData.text}">${quesData.text}</div></div>`
-		}
-	} else if (item.level_type == 'question') {
-		if (quesData.question_type != 6 || check_text_ques) {
-			var quesType = types.find(e => {
-				return e.value == quesData.question_type
-			})
-			var typeOptions = types.map(e => {
-				return `<option value="${e.value}">${e.label}</option>`
-			})
-			html += `<div class="item" style="padding-left:${identation}px">
-        				<div class="content" title="${quesData.text}">
-          					<input type="checkbox" id="check_${item.id}">
-          					<div class="text-over-ellipsis flex-1 ml-4">${quesData.text}</div>
-        				</div>
-        				<div class="ques-type-name" id="ques-type-${item.id}">${quesType ? quesType.label : '未定义'}</div>
-						<select class="target-select" id="target_type_${item.id}">
-							<option value="" style="display:none;"></option>
-							${typeOptions.join('')}
-						</select>
-      				</div>`;
-		}
-	}
-	parent.append(html)
-	if (item.children && item.children.length > 0) {
-		identation += 20
-		for (var child of item.children) {
-			renderTreeNode(parent, child, check_level ? identation : 0)
-		}
-	}
-}
-
-function renderQuesTypeTree() {
-	var tree_info = Asc.scope.tree_info || {}
-	var rootElement = $('#typeErrorDiv')
-	rootElement.empty()
-	if (tree_info.tree && tree_info.tree.length) {
-		tree_info.tree.forEach(item => {
-			renderTreeNode(rootElement, item, 0)
-		})
-	} else {
-		$('#typeErrorDiv').html('<div class="ques-none">暂无题目，请先切题</div>')
-	} 
-}
-
-function onUploadTypeError() {
-	if (isLoading('uploadTypeError')) {
-		return
-	}
-	var list = []
-	var types = window.BiyueCustomData.paper_options.question_type || []
-	var typeMaps = {}
-	types.forEach(e => {
-		typeMaps[e.value + ''] = e.label
-	})
-	for (var item of Asc.scope.tree_info.list) {
-		var quesData = window.BiyueCustomData.question_map[item.id]
-		if (item.level_type == 'question' && quesData) {
-			var check = $('#check_' + item.id)
-			if (check) {
-				if (check.prop('checked')) {
-					var target_type = $('#target_type_' + item.id).val()
-					if (!target_type) {
-						updateHintById('uploadHint', '请设置目标题型', CLR_FAIL)
-						return
-					}
-					list.push({
-						paper_uuid: window.BiyueCustomData.paper_uuid,
-						id: item.id,
-						question_type: quesData.question_type,
-						question_type_name: typeMaps[quesData.question_type + ''],
-						target_type: target_type,
-						target_type_name: typeMaps[target_type + '']
-					})
-				}
-			}
-		}
-	}
-	if (list.length == 0) {
-		updateHintById('uploadHint', '请勾选需要上传的题目', CLR_FAIL)
-		return
-	}
-	if (!list || list.length == 0) {
+function onUploadTypeErrorList(list) {
+	if (!list) {
 		return
 	}
 	getQuestionHtml(list.map(e => e.id), 2).then(html_list => {
@@ -608,8 +496,8 @@ function logQuesTypeError(list, index) {
 	if (index >= list.length) {
 		updateHintById('uploadHint', '上传成功', CLR_SUCCESS)
 		setTimeout(() => {
+			window.biyue.sendMessageToWindow('quesTypeErrorReport', 'uploadLoading', false)
 			setBtnLoading('uploadTypeError', false)
-			showCom('#panelTypeErrorUpload', false)
 		}, 2000)
 		return
 	}
@@ -623,6 +511,7 @@ function logQuesTypeError(list, index) {
 	}).catch(res => {
 		updateHintById('uploadHint', res ? res.message || '上传失败' : '网络不稳定', CLR_FAIL)
 		setBtnLoading('uploadTypeError', false)
+		window.biyue.sendMessageToWindow('quesTypeErrorReport', 'uploadLoading', false)
 	})
 }
 
@@ -728,10 +617,21 @@ function clickUploadTree() {
 }
 
 function showTypeErrorPanel() {
-	showCom('#panelTypeErrorUpload', true)
 	preGetExamTree().then(res => {
 		Asc.scope.tree_info = res
-		renderQuesTypeTree()
+		window.biyue.refreshDialog({
+			winName:'quesTypeErrorReport',
+			name:'题型错误上报',
+			url:'quesTypeErrorReport.html',
+			width:400,
+			height:800,
+			isModal:false,
+			type:'panel',
+			icons:['resources/light/error.png']
+		}, 'quesTypeErrorReportMessage', {
+			tree_info: res,
+			BiyueCustomData: window.BiyueCustomData
+		})
 	})
 }
 export {
@@ -746,5 +646,7 @@ export {
 	onFeature,
 	showPanelLink,
 	onImageAutoLink,
-	insertContent
+	insertContent,
+	onUploadTypeErrorList,
+	clickDownloadExamHtml
 }
