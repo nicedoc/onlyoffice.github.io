@@ -1982,9 +1982,22 @@ function batchChangeInteraction(type) {
 // 切题完成
 function splitEnd() {
 	console.log('splitEnd')
-	return new Promise((resolve, reject) => {
-		window.biyue.showDialog('levelSetWindow', '自动序号识别设置', 'levelSet.html', 592, 400)
-		resolve()
+	return biyueCallCommand(window, function() {
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls() || []
+		return controls.length
+	}).then(controlCount => {
+		return new Promise((resolve, reject) => {
+			if (controlCount) {
+				window.biyue.showDialog('levelSetWindow', '自动序号识别设置', 'levelSet.html', 592, 400)
+			} else {
+				window.biyue.showMessageBox({
+					content: '该文档未检测到多级编号与样式。请补充后重新导入文档。',
+					showCancel: false
+				})
+			}
+			resolve()
+		})
 	})
 }
 function updateDataBySavedData(str) {
