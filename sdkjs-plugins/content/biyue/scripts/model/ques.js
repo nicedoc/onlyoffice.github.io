@@ -1,3 +1,15 @@
+function getAskIndex(quesData, ask_id) {
+	if (!quesData) {
+		return -1
+	}
+	var ask_list = quesData.ask_list || []
+	return ask_list.findIndex(e => {
+		if (e.other_fields && e.other_fields.includes(ask_id)) {
+			return true
+		}
+		return e.id == ask_id
+	})
+}
 function getDataByParams(params) {
 	if(!params) {
 		return null
@@ -52,25 +64,30 @@ function getDataByParams(params) {
 	}
 	var ques_client_id = 0
 	var findIndex = -1
-	if (params.regionType == 'write') {
+	if (quesData && quesData.level_type == 'question') {
+		ques_client_id = client_id
+	} else if (params.regionType == 'question') {
+		ques_client_id = client_id
+	}
+	if (params.cell_id && quesData) {
+		findIndex = getAskIndex(quesData, 'c_' + params.cell_id)
+		if (findIndex >= 0) {
+			ques_client_id = client_id
+		}
+	} else if (params.drawing_client_id && quesData) {
+		findIndex = getAskIndex(quesData, params.drawing_client_id)
+		if (findIndex >= 0) {
+			ques_client_id = client_id
+		}
+	} else if (params.regionType == 'write') {
 		var keys = Object.keys(question_map)
 		for (var i = 0; i < keys.length; ++i) {
-			var ask_list = question_map[keys[i]].ask_list || []
-			findIndex = ask_list.findIndex(e => {
-				if (e.other_fields && e.other_fields.includes(client_id)) {
-					return true
-				}
-				return e.id == client_id
-			})
+			findIndex = getAskIndex(question_map[keys[i]], params.ask_client_id || client_id)
 			if (findIndex >= 0) {
 				ques_client_id = keys[i]
 				break
 			}
 		}
-	} else if (quesData && quesData.level_type == 'question') {
-		ques_client_id = client_id
-	} else if (params.regionType == 'question') {
-		ques_client_id = client_id
 	}
 	if (!ques_client_id) {
 		return null
