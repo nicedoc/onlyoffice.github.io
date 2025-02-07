@@ -136,4 +136,18 @@ function handleCommandError(window, params, error) {
 		$('#printStack').css('color', "#ff0000")
 	}
 }
-export { showCom, updateText, addClickEvent, closeOtherSelect, getListByMap, getInfoForServerSave, setBtnLoading, isLoading, getYYMMDDHHMMSS, addTypeEvent, getFixedValue, handleCommandError }
+function updateHintById(id, message, color, duration = 1500) {
+    var $tooltip = $(id);
+    if ($tooltip.length === 0) {
+        return;
+    }
+    $tooltip.text(message);
+    $tooltip.css({
+        'color': color || '#999',
+        'display': 'block'
+    });
+    setTimeout(function() {
+        $tooltip.css('display', 'none');
+    }, duration);
+}
+export { showCom, updateText, addClickEvent, closeOtherSelect, getListByMap, getInfoForServerSave, setBtnLoading, isLoading, getYYMMDDHHMMSS, addTypeEvent, getFixedValue, handleCommandError, updateHintById }

@@ -13,14 +13,13 @@ import {
 	imageAutoLink,
 	onAllCheck
 } from './linkHandler.js'
-import { showCom, updateText, addClickEvent, getInfoForServerSave, setBtnLoading, isLoading, getYYMMDDHHMMSS } from './model/util.js'
+import { showCom, updateText, addClickEvent, getInfoForServerSave, setBtnLoading, isLoading, getYYMMDDHHMMSS, updateHintById } from './model/util.js'
 import { reqSaveInfo, onLatexToImg, logOnlyOffice} from './api/paper.js'
 import { biyueCallCommand } from './command.js'
 import { generateTree, updateTreeSelect, clickTreeLock, initTreeListener } from './panelTree.js'
 import ComponentSelect from '../components/Select.js'
 import NumberInput from '../components/NumberInput.js'
 import { initSetEv } from './debugging/evSet.js'
-var timeout_paste_hint = null
 var select_image_link = null
 var select_link_type = null
 var input_coverage_percent = null
@@ -351,20 +350,6 @@ function insertContent(str) {
 				}
 			}
 	}, false, true, {name: 'insertContent'})
-}
-
-function updateHintById(id, message, color, duration = 1500) {
-	var tooltip = document.getElementById(id);
-	if (!tooltip) {
-		return
-	}
-	tooltip.textContent = message;
-	tooltip.style.color = color || '#999';
-	tooltip.style.display = 'block';
-	clearTimeout(timeout_paste_hint)
-	timeout_paste_hint = setTimeout(function() {
-		tooltip.style.display = 'none';
-	}, duration);
 }
 
 function updatePasteHint(message, color) {

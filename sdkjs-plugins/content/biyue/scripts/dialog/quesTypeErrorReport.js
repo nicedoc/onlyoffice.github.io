@@ -1,4 +1,4 @@
-import { showCom, addClickEvent, isLoading, setBtnLoading } from '../model/util.js'
+import { showCom, addClickEvent, isLoading, setBtnLoading, updateHintById } from '../model/util.js'
 ;(function (window, undefined) {
 	var BiyueCustomData = {}
 	var tree_info = {}
@@ -107,7 +107,7 @@ import { showCom, addClickEvent, isLoading, setBtnLoading } from '../model/util.
 					if (check.prop('checked')) {
 						var target_type = $('#target_type_' + item.id).val()
 						if (!target_type) {
-							updateHintById('uploadHint', '请设置目标题型', CLR_FAIL)
+							updateHintById('uploadHint', '请设置目标题型', '#f00')
 							return
 						}
 						list.push({
@@ -123,7 +123,7 @@ import { showCom, addClickEvent, isLoading, setBtnLoading } from '../model/util.
 			}
 		}
 		if (list.length == 0) {
-			updateHintById('uploadHint', '请勾选需要上传的题目', CLR_FAIL)
+			updateHintById('uploadHint', '请勾选需要上传的题目', '#f00')
 			return
 		}
 		if (!list || list.length == 0) {
