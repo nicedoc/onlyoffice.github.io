@@ -377,7 +377,7 @@ function onAllCheck() {
 						var index = 0
 						for (j = 0; j < elementCount; ++j) {
 							var child = oRun.Run.GetElement(0)
-							if (child.Id == oDrawing.Drawing.Id) {
+							if (child && child.Id == oDrawing.Drawing.Id) {
 								index = j
 								break
 							}
@@ -476,7 +476,7 @@ function onLinkedCheck() {
 							var index = 0
 							for (var i = 0; i < elementCount; ++i) {
 								var child = oRun.Run.GetElement(0)
-								if (child.Id == oDrawing.Drawing.Id) {
+								if (child && child.Id == oDrawing.Drawing.Id) {
 									index = i
 									break
 								}
@@ -676,7 +676,7 @@ function ShowLinkedWhenclickImage(options, control_id) {
 					if (dtag.feature && dtag.feature.partical_no_dot) {
 						oDrawing.SetShadow(null, 0, 100, null, 0, '#0fc1fd')
 					} else {
-						if (oDrawing.Drawing.spPr && oDrawing.Drawing.spPr.effectProps && oDrawing.Drawing.spPr.effectProps.EffectLst) {
+						if (oDrawing.Drawing.spPr && dtag.feature && dtag.feature.ques_use) {
 							oDrawing.ClearShadow()
 						}
 					}

@@ -118,6 +118,9 @@ function handleRangeType(options) {
 				var pcount = drawingParentParagraph.GetElementsCount()
 				for (var i = 0; i < pcount; ++i) {
 					var oChild = drawingParentParagraph.GetElement(i)
+					if (!oChild) {
+						continue
+					}
 					if (oChild.GetClassType) {
 						var childType = oChild.GetClassType()
 						if (childType == 'run') {
@@ -128,6 +131,9 @@ function handleRangeType(options) {
 							var cnt3 = oChild.GetElementsCount()
 							for (var i3 = 0; i3 < cnt3; ++i3) {
 								var oChild3 = oChild.GetElement(i3)
+								if (!oChild3) {
+									continue
+								}
 								if (oChild3.GetClassType() == 'run') {
 									if (inRun(oChild3, oDrawing.Drawing.Id)) {
 										return null
@@ -293,11 +299,13 @@ function handleRangeType(options) {
 				var cellContent = oCell.GetContent()
 				var paragraphs = cellContent.GetAllParagraphs()
 				paragraphs.forEach(oParagraph => {
-					var childCount = oParagraph.GetElementsCount()
-					for (var i = 0; i < childCount; ++i) {
-						var oRun = oParagraph.GetElement(i)
-						if (deleteDrawingRun(oRun, 'ask_accurate')) {
-							break
+					if (oParagraph) {
+						var childCount = oParagraph.GetElementsCount()
+						for (var i = 0; i < childCount; ++i) {
+							var oRun = oParagraph.GetElement(i)
+							if (deleteDrawingRun(oRun, 'ask_accurate')) {
+								break
+							}
 						}
 					}
 				})
@@ -326,7 +334,7 @@ function handleRangeType(options) {
 							var count = oParent.GetElementsCount()
 							for (var c = 0; c < count; ++c) {
 								var child = oParent.GetElement(c)
-								if (child.GetClassType() == 'run' && child.Run.Id == run.Id) {
+								if (child && child.GetClassType() == 'run' && child.Run.Id == run.Id) {
 									deleteDrawingRun(child, 'ask_accurate')
 									break
 								}
@@ -701,6 +709,9 @@ function handleRangeType(options) {
 										delete title.feature.client_id
 									}
 								}
+								if (uselist.length == 0) {
+									oDrawing.ClearShadow()
+								}
 								oDrawing.SetTitle(JSON.stringify(title))
 							}
 						}
@@ -822,7 +833,7 @@ function handleRangeType(options) {
 									var sum = oCellContent.GetElementsCount()
 									for (var j = 0; j < sum; ++j) {
 										var oElement3 = oCellContent.GetElement(j)
-										if (oElement3.GetClassType() == 'blockLvlSdt') {
+										if (oElement3 && oElement3.GetClassType() == 'blockLvlSdt') {
 											var tag3 = Api.ParseJSON(oElement3.GetTag())
 											var id3 = tag3.mid || tag3.client_id
 											if (id3 == options.end_id) {
@@ -905,6 +916,9 @@ function handleRangeType(options) {
 					for (var c = 0; c < cnt; ++c) {
 						var oCell = oRow.GetCell(c)
 						var oCellContent = oCell.GetContent()
+						if (!oCellContent) {
+							continue
+						}
 						var elcount = oCellContent.GetElementsCount()
 						for (var k = 0; k < elcount; ++k) {
 							var el = oCellContent.GetElement(k)
@@ -1015,6 +1029,9 @@ function handleRangeType(options) {
 				} 
 			}
 			function cellNotControl(cellContent) {
+				if (!cellContent) {
+					return true
+				}
 				var elementCount = cellContent.GetElementsCount()
 				if (elementCount == 0) {
 					return true
@@ -1230,6 +1247,9 @@ function handleRangeType(options) {
 					var hasControl = true
 					for (var i = 0; i < cnt; ++i) {
 						var oElement = cellContent.GetElement(i)
+						if (!oElement) {
+							continue
+						}
 						if (oElement.GetClassType() != 'blockLvlSdt') {
 							hasControl = false
 						} else {
@@ -1312,11 +1332,12 @@ function handleRangeType(options) {
 								if (oCell.GetContent().GetElementsCount() > 1) {
 									oCell.GetContent().RemoveElement(1)
 								}
-								if (oControl.GetContent().GetElementsCount() > 1) {
-									var lastpos = oControl.GetContent().GetElementsCount() - 1
-									var lastElement = oControl.GetContent().GetElement(lastpos)
-									if (lastElement.GetClassType() == 'paragraph' && lastElement.GetElementsCount() == 0) {
-										oControl.GetContent().RemoveElement(lastpos)
+								var controlContent = oControl.GetContent()
+								if (controlContent && controlContent.GetElementsCount() > 1) {
+									var lastpos = controlContent.GetElementsCount() - 1
+									var lastElement = controlContent.GetElement(lastpos)
+									if (lastElement && lastElement.GetClassType() == 'paragraph' && lastElement.GetElementsCount() == 0) {
+										controlContent.RemoveElement(lastpos)
 									}
 								}
 							}
@@ -1716,7 +1737,7 @@ function handleRangeType(options) {
 				}
 			}
 			return result
-	}, false, true, {name: 'handleRangeType'}).then((res1) => {
+		}, false, true, {name: 'handleRangeType'}).then((res1) => {
 		if (res1) {
 			if (res1.message && res1.message != '') {
 				alert(res1.message)
@@ -1891,7 +1912,7 @@ function continueAddShape() {
 			})
 			return {
 				shapeIds: shapeIds
-			}	
+			}
 	}, false, false, {name: 'continueAddShape'}).then(res => {
 		return new Promise((resolve, reject) => {
 			if ( res && res.shapeIds && 
@@ -1965,36 +1986,36 @@ function endAddShape() {
 			return result
 	}, false, false, {name: 'endAddShape'}).then(res1 => {
 		// delete Asc.scope.add_write_zone_data
-		if (res1 && res1.change_list && res1.change_list.length) {
-			var delete_asks = deleteMutualAsks(res1.change_list[0].parent_id, 'write')
-			return new Promise((resolve, reject) => {
-				if (delete_asks.length) {
-					return deleteAsks(delete_asks, false, false).then(() => {
-						return resolve({})
-					})
-				} else {
-					return resolve({})
-				}
-			}).then(() => {
-				return getNodeList()
-			}).then(res2 => {
-				return handleChangeType(res1, res2)
-			}).then(() => {
-				if (window.write_zone_add) {
-					return continueAddShape()
-				} else {
-					return new Promise((resolve, reject) => {
-						return resolve()
-					})
-				}
-			})
-		} else {
-			if (res1 && res1.message) {
+		if (res1) {
+			if (res1.message && res1.message != '') {
 				alert(res1.message)
+				return new Promise((resolve, reject) => {
+					return resolve()
+				})
+			} else if (res1.change_list && res1.change_list.length) {
+				var delete_asks = deleteMutualAsks(res1.change_list[0].parent_id, 'write')
+				return new Promise((resolve, reject) => {
+					if (delete_asks.length) {
+						return deleteAsks(delete_asks, false, false).then(() => {
+							return resolve({})
+						})
+					} else {
+						return resolve({})
+					}
+				}).then(() => {
+					return getNodeList()
+				}).then(res2 => {
+					return handleChangeType(res1, res2)
+				}).then(() => {
+					if (window.write_zone_add) {
+						return continueAddShape()
+					} else {
+						return new Promise((resolve, reject) => {
+							return resolve()
+						})
+					}
+				})
 			}
-			return new Promise((resolve, reject) => {
-				return resolve()
-			})
 		}
 	})
 }

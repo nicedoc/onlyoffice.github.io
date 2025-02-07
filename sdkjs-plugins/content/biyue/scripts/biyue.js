@@ -40,7 +40,8 @@ import {
 	focusAsk,
 	focusControl,
 	splitWordAsk,
-	deleteAsks
+	deleteAsks,
+	focusControlById
 } from './QuesManager.js'
 import {
 	tagImageCommon,
@@ -360,7 +361,11 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 				} else if (message.cmd == 'toAllUpdate') {
 					reqUploadTree()
 				} else if (message.cmd == 'reCheck') {
-					importExam()
+					if (message.data == 'uploadTree') {
+						reqUploadTree()
+					} else {
+						importExam()
+					}
 				} else if (message.cmd == 'locate') {
 					focusControl(message.data).then(res => {
 						if (window.tab_select != 'tabQues') {
@@ -380,6 +385,8 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 					})
 				} else if (message.cmd == 'toFeature') {
 					onFeature()
+				} else if (message.cmd == 'locateControl') {
+					focusControlById(message.data)
 				}
 				break
 			default:
@@ -656,7 +663,9 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 								var content = control.GetContent()
 								var endParaIndex = content.GetElementsCount() - 1
 								var oPara = content.GetElement(endParaIndex)
-								endRange = oPara.GetRange()
+								if (oPara) {
+									endRange = oPara.GetRange()
+								}
 							}
 
 							var range = apiRanges[i].ExpandTo(endRange)
@@ -834,6 +843,9 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
                         var elements = content.GetElementsCount();
                         for (var j = elements - 1; j >= 0; j--) {
                             var para = content.GetElement(j);
+							if (!para) {
+								continue
+							}
                             if (para.GetClassType() !== "paragraph") {
                                 break;
                             }
@@ -1195,7 +1207,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 							if (oControl.GetContent().GetElementsCount() > 1) {
 								var lastpos = oControl.GetContent().GetElementsCount() - 1
 								var lastElement = oControl.GetContent().GetElement(lastpos)
-								if (lastElement.GetClassType() == 'paragraph' && lastElement.GetElementsCount() == 0) {
+								if (lastElement && lastElement.GetClassType() == 'paragraph' && lastElement.GetElementsCount() == 0) {
 									oControl.GetContent().RemoveElement(lastpos)
 								}
 							}
@@ -1227,6 +1239,9 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 				// get current paragraph
 				var pos = oDocument.Document.CurPos.ContentPos
 				var oElement = oDocument.GetElement(pos)
+				if (!oElement) {
+					return
+				}
 				while (oElement.GetClassType !== 'paragraph') {
 					if (oElement.GetClassType() === 'blockLvlSdt') {
 						oElement = oElement.GetContent()

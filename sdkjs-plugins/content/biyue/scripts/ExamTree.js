@@ -477,6 +477,9 @@ function dropItem(list, dragId, dropId, direction) {
 			function getObjectByPos2(posArray) {
 				var objList = []
 				for (var i = 0; i < posArray.length; ++i) {
+					if (!posArray[i]) {
+						continue
+					}
 					if (i == 0) {
 						var obj = oDocument.GetElement(posArray[i].Position)
 						objList.push(obj)
@@ -532,8 +535,10 @@ function dropItem(list, dragId, dropId, direction) {
 					continue
 				}
 				if (docPos.length == 1) {
-					templist.push(oDocument.GetElement(docPos[0].Position))
-					oDocument.RemoveElement(docPos[0].Position)
+					if (docPos[0]) {
+						templist.push(oDocument.GetElement(docPos[0].Position))
+						oDocument.RemoveElement(docPos[0].Position)
+					}
 				} else {
 					if (docPos.length > 1) {
 						var objList = getObjectByPos2(docPos)
@@ -1520,7 +1525,7 @@ function setBtnLoading(elementId, isLoading) {
 		if (children) {
 			children.remove()
 		}
- 	}
+	}
 	
 }
 
@@ -1597,7 +1602,7 @@ function reqGetQuestionType(source) {
 				console.log('getQuesType fail ', res)
 				setBtnLoading('getQuesType', false)
 				return reject(res)
-			})	
+			})
 		})
 	})
 }
@@ -1676,7 +1681,7 @@ function reqUploadTree() {
 	}, false, false, {name: 'reqUploadTree'}).then( control_list => {
 		if (control_list) {
 			upload_control_list = control_list
-			if (control_list.length) {
+			if (control_list && control_list.length) {
 				getXml(control_list[0].id)
 			}
 		}
@@ -1686,35 +1691,36 @@ function reqUploadTree() {
 function getXml(controlId) {
 	window.Asc.plugin.executeMethod("SelectContentControl", [controlId])
 	window.Asc.plugin.executeMethod("GetSelectionToDownload", ["docx"], function (data) {
-        // 假设这是你的 ZIP 文件的 URL  
-        const zipFileUrl = data;        
-        fetch(zipFileUrl).then(response => {  
-            if (!response.ok) {  
-            throw new Error('Failed to fetch zip file');  
-            }  
-            return response.arrayBuffer(); // 获取 ArrayBuffer 而不是 Blob，因为 JSZip 需要它  
-        })  
-        .then(arrayBuffer => {  
-            return JSZip.loadAsync(arrayBuffer); // 使用 JSZip 加载 ArrayBuffer  
-        })  
-        .then(zip => {  
-            // 现在你可以操作 zip 对象了  
-            zip.forEach(function(relativePath, file) {  
-                if (relativePath.indexOf('word/document.xml') === -1) {
-                    return;
-                }
-                // 这里可以遍历 ZIP 文件中的所有文件  
-                file.async("text").then(function(content) {  
-                    // 假设文件是文本文件，打印文件内容和相对路径
+		// 假设这是你的 ZIP 文件的 URL  
+		const zipFileUrl = data;        
+		fetch(zipFileUrl).then(response => {  
+			if (!response.ok) {  
+			throw new Error('Failed to fetch zip file');  
+			}  
+			return response.arrayBuffer(); // 获取 ArrayBuffer 而不是 Blob，因为 JSZip 需要它  
+		})  
+		.then(arrayBuffer => {  
+			return JSZip.loadAsync(arrayBuffer); // 使用 JSZip 加载 ArrayBuffer  
+		})  
+		.then(zip => {  
+			// 现在你可以操作 zip 对象了  
+			zip.forEach(function(relativePath, file) {  
+				if (relativePath.indexOf('word/document.xml') === -1) {
+					return;
+				}
+				// 这里可以遍历 ZIP 文件中的所有文件  
+				file.async("text").then(function(content) {  
+					// 假设文件是文本文件，打印文件内容和相对路径
 					handleXml(controlId, content)
-                });  
-            });  
-        })  
-        .catch(error => {  
-            console.error('Error:', error);
+				});  
+			});  
+		})  
+		.catch(error => {  
+			console.error('Error:', error);
 			handleXmlError()
-        });
-    });
+		});
+		
+	});
 }
 
 function handleXml(controlId, content) {
@@ -1760,13 +1766,13 @@ function generateTreeForUpload(control_list) {
 	})
 	var uploadTree = {
 		id: "",
-        uuid: window.BiyueCustomData.paper_uuid,
-        question_type:0,
-        question_name:"",
-        content_type:"paper",
-        content_text:"",
-        content_xml:"",
-        content_html:"",
+		uuid: window.BiyueCustomData.paper_uuid,
+		question_type:0,
+		question_name:"",
+		content_type:"paper",
+		content_text:"",
+		content_xml:"",
+		content_html:"",
 		children: tree
 	}
 	console.log('               uploadTree', uploadTree)
@@ -1829,7 +1835,7 @@ function changeProportion(id, proportion) {
 					var parent = oControl.Sdt.GetParent()
 					if (posinparent > 1) {
 						var preElement = oParentControl.GetContent().GetElement(posinparent - 1)
-						if (preElement.GetClassType && preElement.GetClassType() == 'table' && preElement.GetTableTitle() == 'question') {
+						if (preElement && preElement.GetClassType && preElement.GetClassType() == 'table' && preElement.GetTableTitle() == 'question') {
 							var oRow = preElement.GetRow(0)
 							var cellCount = oRow.GetCellsCount()
 							for (var i = 0; i < cellCount; ++i) {
@@ -1846,7 +1852,7 @@ function changeProportion(id, proportion) {
 										}
 								}
 							}
-							if (targetCellIndex >= 0) {
+							if (preElement && targetCellIndex >= 0) {
 								// 暂时不考虑此时要设的占比，只一味丢到空单元格里
 								oParentControl.GetContent().RemoveElement(posinparent)
 								var oCell = preElement.GetCell(0, targetCellIndex);

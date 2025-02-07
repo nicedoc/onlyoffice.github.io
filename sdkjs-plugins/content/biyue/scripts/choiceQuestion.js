@@ -55,7 +55,16 @@ function getChoiceQuesData() {
 					doc_path, begin_path, end_path
 				}
 			}
-			function getNextElement(i3, runContent, i2, oElement) {
+			function getNextElement(i3, runContent, i2, oElement, run) {
+				if (!runContent) {
+					if (!run || !run.Run) {
+						return null
+					}
+					runContent = run.Run.Content
+				}
+				if (!runContent) {
+					return null
+				}
 				if (i3 + 1 < runContent.length) {
 					return {
 						i2: i2,
@@ -63,9 +72,15 @@ function getChoiceQuesData() {
 						Data: runContent[i3 + 1]
 					}
 				} else {
+					if (!oElement) {
+						return null
+					}
 					for (var i = i2 + 1; i < oElement.GetElementsCount(); ++i) {
 						var oRun = oElement.GetElement(i)
-						if (oRun.GetClassType() != 'run') {
+						if (!oRun) {
+							continue
+						}
+						if (oRun.GetClassType() != 'run' || !oRun.Run) {
 							continue
 						}
 						var runContent2 = oRun.Run.Content || []
@@ -94,6 +109,9 @@ function getChoiceQuesData() {
 				var firstValue = null
 				for (var i = 0; i < elementCount; i++) {
 					var oElement = oControlContent.GetElement(i)
+					if (!oElement) {
+						continue
+					}
 					if (oElement.GetClassType() == 'paragraph') {
 						var count2 = oElement.Paragraph.Content ? oElement.Paragraph.Content.length : 0
 						for (var i2 = 0; i2 < count2; i2++) {
@@ -112,13 +130,16 @@ function getChoiceQuesData() {
 								}
 								continue
 							}
-							if (oRun.GetClassType() != 'run') { // 目前只针对run进行处理
+							if (oRun.GetClassType() != 'run' || !oRun.Run) { // 目前只针对run进行处理
 								continue
 							}
 							var runContent = oRun.Run.Content || []
 							var count3 = runContent.length
 							for (var i3 = 0; i3 < count3; ++i3) {
 								var element3 = runContent[i3]
+								if (element3) {
+									continue
+								}
 								var type = element3.GetType()
 								if (type == 1) { // CRunText								
 									var flag2 = 0
@@ -127,17 +148,17 @@ function getChoiceQuesData() {
 										var nextElement = getNextElement(i3, runContent, i2, oElement)
 										if (nextElement) {
 											if (nextElement.Data.Value == 46) { // .
-												var nextNextElement = getNextElement(nextElement.i3, oElement.GetElement(nextElement.i2).Run.Content, nextElement.i2, oElement)
+												var nextNextElement = getNextElement(nextElement.i3, null, nextElement.i2, oElement, oElement.GetElement(nextElement.i2))
 												if (nextNextElement && (nextNextElement.Data.Value == 32 || nextNextElement.Data.Value == 12288)) { // 空格 or 全角空格
 													flag2 = 'A'
-													var optElement = getNextElement(nextNextElement.i3, oElement.GetElement(nextNextElement.i2).Run.Content, nextNextElement.i2, oElement)
+													var optElement = getNextElement(nextNextElement.i3, null, nextNextElement.i2, oElement, oElement.GetElement(nextNextElement.i2))
 													if (optElement) {
 														beginPath = `$['sdtContent']` + `['content'][${i}]['content'][${optElement.i2}]['content'][${optElement.i3}]`
 													}
 												}
 											} else if (nextElement.Data.Value == 65294) { // ．全角的点
 												flag2 = 'A'
-												var optElement = getNextElement(nextElement.i3, oElement.GetElement(nextElement.i2).Run.Content, nextElement.i2, oElement)
+												var optElement = getNextElement(nextElement.i3, null, nextElement.i2, oElement, oElement.GetElement(nextElement.i2))
 												if (optElement) {
 													beginPath = `$['sdtContent']` + `['content'][${i}]['content'][${optElement.i2}]['content'][${optElement.i3}]`
 												}
@@ -147,7 +168,7 @@ function getChoiceQuesData() {
 										var nextElement = getNextElement(i3, runContent, i2, oElement)
 										if (nextElement && (nextElement.Data.Value == 32 || nextElement.Data.Value == 12288)) { // 空格
 											flag2 = 'c1'
-											var optElement = getNextElement(nextElement.i3, oElement.GetElement(nextElement.i2).Run.Content, nextElement.i2, oElement)
+											var optElement = getNextElement(nextElement.i3, null, nextElement.i2, oElement, oElement.GetElement(nextElement.i2))
 											if (optElement) {
 												beginPath = `$['sdtContent']` + `['content'][${i}]['content'][${optElement.i2}]['content'][${optElement.i3}]`
 											}
@@ -367,7 +388,16 @@ function getChoiceOptionAndSteam(ids) {
 					doc_path, begin_path, end_path
 				}
 			}
-			function getNextElement(i3, runContent, i2, oElement) {
+			function getNextElement(i3, runContent, i2, oElement, run) {
+				if (!runContent) {
+					if (!run || !run.Run) {
+						return null
+					}
+					runContent = run.Run.Content
+				}
+				if (!runContent) {
+					return null
+				}
 				if (i3 + 1 < runContent.length) {
 					return {
 						i2: i2,
@@ -377,7 +407,7 @@ function getChoiceOptionAndSteam(ids) {
 				} else {
 					for (var i = i2 + 1; i < oElement.GetElementsCount(); ++i) {
 						var oRun = oElement.GetElement(i)
-						if (oRun.GetClassType() != 'run') {
+						if (!oRun || oRun.GetClassType() != 'run') {
 							continue
 						}
 						var runContent2 = oRun.Run.Content || []
@@ -419,7 +449,7 @@ function getChoiceOptionAndSteam(ids) {
 						var count = oChildControl.GetElementsCount()
 						for (var i2 = 0; i2 < count; ++i2) {
 							var oRun = oChildControl.GetElement(i2)
-							if (oRun.GetClassType() != 'run') {
+							if (!oRun || oRun.GetClassType() != 'run') {
 								continue
 							}
 							var runContent = oRun.Run.Content || []
@@ -437,13 +467,13 @@ function getChoiceOptionAndSteam(ids) {
 											isecond = nextElement.i2
 											ithird = nextElement.i3
 											if (nextElement.Data.Value == 46) { // .
-												var nextNextElement = getNextElement(nextElement.i3, oChildControl.GetElement(nextElement.i2).Run.Content, nextElement.i2, oChildControl)
+												var nextNextElement = getNextElement(nextElement.i3, null, nextElement.i2, oChildControl, oChildControl.GetElement(nextElement.i2))
 												if (nextNextElement) {
 													isecond = nextNextElement.i2
 													ithird = nextNextElement.i3
 													if ((nextNextElement.Data.Value == 32 || nextNextElement.Data.Value == 12288)) { // 空格 or 全角空格
 														flag2 = 'A'
-														var optElement = getNextElement(nextNextElement.i3, oChildControl.GetElement(nextNextElement.i2).Run.Content, nextNextElement.i2, oChildControl)
+														var optElement = getNextElement(nextNextElement.i3, null, nextNextElement.i2, oChildControl, oChildControl.GetElement(nextNextElement.i2))
 														if (optElement) {
 															isecond = optElement.i2
 															ithird = optElement.i3
@@ -452,19 +482,19 @@ function getChoiceOptionAndSteam(ids) {
 												}
 											} else if (nextElement.Data.Value == 65294) { // ．全角的点
 												flag2 = 'A'
-												var optElement = getNextElement(nextElement.i3, oChildControl.GetElement(nextElement.i2).Run.Content, nextElement.i2, oChildControl)
+												var optElement = getNextElement(nextElement.i3, null, nextElement.i2, oChildControl, oChildControl.GetElement(nextElement.i2))
 												if (optElement) {
 													isecond = optElement.i2
 													ithird = optElement.i3
 												}
 											} else if (nextElement.Data.Value == 32 || nextElement.Data.Value == 12288) { // 空格或全角空格
-												var nextNextElement = getNextElement(nextElement.i3, oChildControl.GetElement(nextElement.i2).Run.Content, nextElement.i2, oChildControl)
+												var nextNextElement = getNextElement(nextElement.i3, null, nextElement.i2, oChildControl, oChildControl.GetElement(nextElement.i2))
 												if (nextNextElement) {
 													isecond = nextNextElement.i2
 													ithird = nextNextElement.i3
 													if ((nextNextElement.Data.Value == 46 || nextNextElement.Data.Value == 65294)) { // .
 														flag2 = 'A'
-														var optElement = getNextElement(nextNextElement.i3, oChildControl.GetElement(nextNextElement.i2).Run.Content, nextNextElement.i2, oChildControl)
+														var optElement = getNextElement(nextNextElement.i3, null, nextNextElement.i2, oChildControl, oChildControl.GetElement(nextNextElement.i2))
 														if (optElement) {
 															isecond = optElement.i2
 															ithird = optElement.i3
@@ -480,7 +510,7 @@ function getChoiceOptionAndSteam(ids) {
 											ithird = nextElement.i3
 											if (nextElement.Data.Value == 32 || nextElement.Data.Value == 12288) { // 空格
 												flag2 = 'c1'
-												var optElement = getNextElement(nextElement.i3, oChildControl.GetElement(nextElement.i2).Run.Content, nextElement.i2, oChildControl)
+												var optElement = getNextElement(nextElement.i3, null, nextElement.i2, oChildControl, oChildControl.GetElement(nextElement.i2))
 												if (optElement) {
 													isecond = optElement.i2
 													ithird = optElement.i3
@@ -681,7 +711,16 @@ function extractChoiceOptions(ids, calc) {
 						doc_path, begin_path, end_path
 					}
 				}
-				function getNextElement(i3, runContent, i2, oElement) {
+				function getNextElement(i3, runContent, i2, oElement, run) {
+					if (!runContent) {
+						if (!run || !run.Run) {
+							return null
+						}
+						runContent = run.Run.Content
+					}
+					if (!runContent) {
+						return null
+					}
 					if (i3 + 1 < runContent.length) {
 						return {
 							i2: i2,
@@ -691,7 +730,7 @@ function extractChoiceOptions(ids, calc) {
 					} else {
 						for (var i = i2 + 1; i < oElement.GetElementsCount(); ++i) {
 							var oRun = oElement.GetElement(i)
-							if (oRun.GetClassType() != 'run') {
+							if (!oRun || oRun.GetClassType() != 'run') {
 								continue
 							}
 							var runContent2 = oRun.Run.Content || []
@@ -711,6 +750,9 @@ function extractChoiceOptions(ids, calc) {
 						return null
 					}
 					var oControlContent = oControl.GetContent()
+					if (!oControlContent) {
+						return null
+					}
 					var elementCount = oControlContent.GetElementsCount()
 					var opt_list = []
 					var flag = 0
@@ -720,7 +762,13 @@ function extractChoiceOptions(ids, calc) {
 					var firstValue = null
 					for (var i = 0; i < elementCount; i++) {
 						var oElement = oControlContent.GetElement(i)
+						if (!oElement) {
+							continue
+						}
 						if (oElement.GetClassType() == 'paragraph') {
+							if (!oElement.Paragraph) {
+								continue
+							}
 							var count2 = oElement.Paragraph.Content ? oElement.Paragraph.Content.length : 0
 							for (var i2 = 0; i2 < count2; i2++) {
 								var oRun = oElement.GetElement(i2)
@@ -754,15 +802,15 @@ function extractChoiceOptions(ids, calc) {
 											if (nextElement) {
 												if (nextElement.Data.Value == 65294 || nextElement.Data.Value == 46) { // ．全角半角都算
 													flag2 = 'A'
-													var optElement = getNextElement(nextElement.i3, oElement.GetElement(nextElement.i2).Run.Content, nextElement.i2, oElement)
+													var optElement = getNextElement(nextElement.i3, null, nextElement.i2, oElement, oElement.GetElement(nextElement.i2))
 													if (optElement) {
 														beginPath = `$['sdtContent']` + `['content'][${i}]['content'][${i2}]['content'][${i3}]`
 													}
 												} else if (nextElement.Data.Value == 32 || nextElement.Data.Value == 12288) { // 空格 or 全角空格
-													var nextNextElement = getNextElement(nextElement.i3, oElement.GetElement(nextElement.i2).Run.Content, nextElement.i2, oElement)
+													var nextNextElement = getNextElement(nextElement.i3, null, nextElement.i2, oElement, oElement.GetElement(nextElement.i2))
 													if (nextNextElement && (nextNextElement.Data.Value == 46 || nextNextElement.Data.Value == 65294)) {
 														flag2 = 'A'
-														var optElement = getNextElement(nextNextElement.i3, oElement.GetElement(nextNextElement.i2).Run.Content, nextNextElement.i2, oElement)
+														var optElement = getNextElement(nextNextElement.i3, null, nextNextElement.i2, oElement, oElement.GetElement(nextNextElement.i2))
 														if (optElement) {
 															beginPath = `$['sdtContent']` + `['content'][${i}]['content'][${i2}]['content'][${i3}]`
 														}
@@ -773,7 +821,7 @@ function extractChoiceOptions(ids, calc) {
 											var nextElement = getNextElement(i3, runContent, i2, oElement)
 											if (nextElement && (nextElement.Data.Value == 32 || nextElement.Data.Value == 12288)) { // 空格
 												flag2 = 'c1'
-												var optElement = getNextElement(nextElement.i3, oElement.GetElement(nextElement.i2).Run.Content, nextElement.i2, oElement)
+												var optElement = getNextElement(nextElement.i3, null, nextElement.i2, oElement, oElement.GetElement(nextElement.i2))
 												if (optElement) {
 													beginPath = `$['sdtContent']` + `['content'][${i}]['content'][${i2}]['content'][${i3}]`
 												}
@@ -937,11 +985,14 @@ function setChoiceOptionLayout(options) {
 					var spaceCount = 0
 					for (var j = 0; j < count; ++j) {
 						var oRun = askControl.GetElement(j)
-						if (!oRun.GetClassType || oRun.GetClassType() != 'run') {
+						if (!oRun || !oRun.GetClassType || oRun.GetClassType() != 'run') {
 							continue
 						}
 						for (var k = 0; k < oRun.Run.GetElementsCount(); ++k) {
 							var oElement2 = oRun.Run.GetElement(k)
+							if (!oElement2) {
+								continue
+							}
 							var newBarcket = null
 							if (oElement2.Value == 65288 || oElement2.Value == 40) { // 左括号
 								flag = 1
@@ -1011,6 +1062,9 @@ function setChoiceOptionLayout(options) {
 				for (var oParagraph of paragrahs) {
 					for (var i = 0; i < oParagraph.GetElementsCount(); ++i) {
 						var oElement = oParagraph.GetElement(i)
+						if (!oElement) {
+							continue
+						}
 						var oType = oElement.GetClassType()
 						if (oType != 'run' && oType != 'inlineLvlSdt') {
 							continue
@@ -1036,7 +1090,7 @@ function setChoiceOptionLayout(options) {
 				} else {
 					for (var i = i2 + 1; i < oElement.GetElementsCount(); ++i) {
 						var oRun = oElement.GetElement(i)
-						if (oRun.GetClassType() != 'run') {
+						if (!oRun || oRun.GetClassType() != 'run') {
 							continue
 						}
 						var runContent2 = oRun.Run.Content || []
@@ -1082,6 +1136,9 @@ function setChoiceOptionLayout(options) {
 			}
 			// 第一个选项是否与题干混在一起
 			function isFirstOptionMixWithQuesTitle(i1, oParagraph) {
+				if (!oParagraph) {
+					return
+				}
 				for (var j1 = i1 - 1; j1 >= 0; --j1) {
 					var lastElement = oParagraph.GetElement(i1 - 1)
 					if (!lastElement) {
@@ -1106,6 +1163,9 @@ function setChoiceOptionLayout(options) {
 				var optionList = []
 				for (var i1 = 0; i1 < oParagraph.GetElementsCount(); ++i1) {
 					var oElement = oParagraph.GetElement(i1)
+					if (!oElement) {
+						continue
+					}
 					if (oElement.GetClassType() == 'run') {
 						if (oElement.Run.IsEmpty()) {
 							var preCount = oParagraph.GetElementsCount()
@@ -1266,10 +1326,10 @@ function setChoiceOptionLayout(options) {
 				}
 
 				var oOptionParagraph = null
-				if (firstOption > 65 && firstOption <= 72) {
+				if (firstOption >= 65 && firstOption <= 72) {
 					optionMin = 65
 					optionMax = 72
-				} else if (firstOption > 9312 && firstOption <= 9320) {
+				} else if (firstOption >= 9312 && firstOption <= 9320) {
 					optionMin = 9312
 					optionMax = 9320
 				}

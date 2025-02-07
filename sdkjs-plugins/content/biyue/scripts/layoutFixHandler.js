@@ -1,8 +1,7 @@
 import { biyueCallCommand } from "./command.js";
 function layoutDetect(all) {
 	Asc.scope.layout_all_range = !!all
-	return removeAllComment()
-	.then(() => {
+	return removeAllComment().then(() => {
 		return biyueCallCommand(window, function() {
 				// console.log('[layoutDetect] begin')
 				var oDocument = Api.GetDocument()
@@ -338,6 +337,9 @@ function layoutRepair(cmdData) {
 			function hasRightBracket(oParagraph, iElement, jRun, idxParent) {
 				for (var j = iElement; j < oParagraph.GetElementsCount(); ++j) {
 					var oElement = oParagraph.GetElement(j)
+					if (!oElement) {
+						continue
+					}
 					if (oElement.GetClassType() == 'run') {
 						var runContents = oElement.Run.Content || []
 						var begin = iElement == j ? jRun : 0
@@ -348,8 +350,12 @@ function layoutRepair(cmdData) {
 						var count2 = oElement.GetElementsCount()
 						var begin = iElement == j ? idxParent : 0
 						for (var idx = begin; idx < count2; ++idx) {
-							if (oElement.GetElement(idx).GetClassType() == 'run') {
-								var runContents = oElement.GetElement(idx).Run.Content || []
+							var element = oElement.GetElement(idx)
+							if (!element) {
+								continue
+							}
+							if (element.GetClassType() == 'run') {
+								var runContents = element.Run.Content || []
 								var begin = iElement == j ? idxParent : 0
 								if (hasRightBracket2(begin, runContents)) {
 									return true
@@ -419,7 +425,7 @@ function layoutRepair(cmdData) {
 				if (elementcount > 0) {
 					for (var i = elementcount - 1; i >= 0; --i) {
 						var oElement = oParagraph.Paragraph.Content[i]
-						if (oElement.GetType && oElement.GetType() == 71) { // 书签
+						if (oElement && oElement.GetType && oElement.GetType() == 71) { // 书签
 							oParagraph.RemoveElement(i)
 							++i
 						}
@@ -433,6 +439,9 @@ function layoutRepair(cmdData) {
 					var fixed = false
 					for (var j = 0; j < oParagraph.GetElementsCount(); ++j) {
 						var oElement = oParagraph.GetElement(j)
+						if (!oElement) {
+							continue
+						}
 						if (oElement.GetClassType() == 'run') {
 							if (handleRun2(oParagraph, j, oElement, bflag)) {
 								fixed = true
@@ -441,8 +450,12 @@ function layoutRepair(cmdData) {
 						} else if (oElement.GetClassType() == 'inlineLvlSdt') {
 							var count2 = oElement.GetElementsCount()
 							for (var idx = 0; idx < count2; ++idx) {
-								if (oElement.GetElement(idx).GetClassType() == 'run') {
-									if (handleRun2(oParagraph, j, oElement.GetElement(idx), bflag)) {
+								var el = oElement.GetElement(idx)
+								if (!el) {
+									continue
+								}
+								if (el.GetClassType() == 'run') {
+									if (handleRun2(oParagraph, j, el, bflag)) {
 										fixed = true
 									}
 									

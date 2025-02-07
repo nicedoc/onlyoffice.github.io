@@ -115,7 +115,7 @@ function renderTreeNode(parent, item, parentData) {
 					<div id="group-${item.id}">
 						<div class="struct font-12" style="left:${-24 - identation}px" id="struct${item.id}">构</div>
 						<div class="itemques">
-							<div class="text-over-ellipsis flex-1 clicked" id="box-${item.id}" title="${quesData.text}">${quesData.ques_name || quesData.text}</div>
+							<div class="text-over-ellipsis flex-1 clicked" id="box-${item.id}" title="id:${item.id}\n${quesData.text}">${quesData.ques_name || quesData.text}</div>
 							${strIcon}
 						</div>
 					</div>
@@ -126,7 +126,7 @@ function renderTreeNode(parent, item, parentData) {
 	} else if (item.level_type == 'question') {
 		html += `<div class="qwrapper" style="margin-left: ${identation}px;">
 					<div class="itemques" id="box-${item.id}" >
-						<div title="${quesData.text}" id="ques-${item.id}" class="text-over-ellipsis clicked flex-1">${quesData.text}</div>
+						<div title="id:${item.id}\n${quesData.text}" id="ques-${item.id}" class="text-over-ellipsis clicked flex-1">${quesData.text}</div>
 						${strIcon}
 						<div class="children" id="ques-${item.id}-children"></div>
 					</div>
