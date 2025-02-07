@@ -2243,6 +2243,9 @@ function drawHeaderFooter0(options, calc) {
 					var width = header.image_width || 10 // mm
 					var height = header.image_height || 10 // mm
 					var oDrawing = Api.CreateImage(header.image_url, width * 36e3, height * 36e3)
+					oDrawing.SetTitle(JSON.stringify({
+						ignore: 1
+					}))
 					oParagraph.AddDrawing(oDrawing)
 					var paraDrawing = oDrawing.getParaDrawing()
 					if (paraDrawing) {
@@ -2337,6 +2340,9 @@ function drawHeaderFooter0(options, calc) {
 						Api.CreateSolidFill(Api.CreateRGBColor(255, 255, 255)),
 						Api.CreateStroke(0, Api.CreateNoFill())
 					)
+					oDrawing.SetTitle(JSON.stringify({
+						ignore: 1
+					}))
 					var drawContent = oDrawing.GetContent()
 					var paragraphs = drawContent.GetAllParagraphs()
 					if (paragraphs && paragraphs.length) {

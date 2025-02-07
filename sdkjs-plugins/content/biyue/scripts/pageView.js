@@ -11,7 +11,8 @@ import {
 } from './QuesManager.js'
 import {
 	imageAutoLink,
-	onAllCheck
+	onAllCheck,
+	getPictureList
 } from './linkHandler.js'
 import { showCom, updateText, addClickEvent, getInfoForServerSave, setBtnLoading, isLoading, getYYMMDDHHMMSS, updateHintById } from './model/util.js'
 import { reqSaveInfo, onLatexToImg, logOnlyOffice} from './api/paper.js'
@@ -391,16 +392,41 @@ function onPasteInputClear() {
 	com.val('')
 }
 function showPanelLink() {
-	showCom('#panelLink', true)
-	var link_type = window.BiyueCustomData.link_type || 'all'
-	if (select_link_type) {
-		select_link_type.setSelect(link_type)
-	}
-	showCom('#CoveragePercentInput', link_type == 'area')
-	if (input_coverage_percent && link_type == 'area') {
-		var percent = window.BiyueCustomData.link_coverage_percent || 80
-		input_coverage_percent.setValue(percent + '')
-	}
+	return getPictureList().then(res => {
+		if (!res) {
+			return
+		}
+		if (res.picture_id) {
+			window.BiyueCustomData.picture_id = res.picture_id
+		}
+		if (res.table_id) {
+			window.BiyueCustomData.table_id = res.table_id
+		}
+		Asc.scope.list_picture = res.list
+		Asc.scope.list_ignore = res.list_ignore
+		window.biyue.refreshDialog({
+			winName:'pictureIndex',
+			name:'图片关联',
+			url:'pictureIndex.html',
+			width:400,
+			height:800,
+			isModal:false,
+			type:'panelRight',
+			icons:['resources/light/img.png']
+		}, 'pictureIndexMessage', {
+			list: res.list
+		})
+	})
+	// showCom('#panelLink', true)
+	// var link_type = window.BiyueCustomData.link_type || 'all'
+	// if (select_link_type) {
+	// 	select_link_type.setSelect(link_type)
+	// }
+	// showCom('#CoveragePercentInput', link_type == 'area')
+	// if (input_coverage_percent && link_type == 'area') {
+	// 	var percent = window.BiyueCustomData.link_coverage_percent || 80
+	// 	input_coverage_percent.setValue(percent + '')
+	// }
 }
 function changeImageLink(data) {
 	enableBtnImageLink(data.value * 1)

@@ -1,6 +1,6 @@
 // 这个文件主要处理图片或表格关联相关操作
 import { biyueCallCommand } from "./command.js";
-import { preGetExamTree } from "./QuesManager.js";
+import { preGetExamTree, focusControl } from "./QuesManager.js";
 
 function tagImageCommon(params) {
 	Asc.scope.tag_params = params
@@ -11,6 +11,7 @@ function tagImageCommon(params) {
 			var client_node_id = Asc.scope.client_node_id
 			var oDocument = Api.GetDocument()
 			var drawings = oDocument.GetAllDrawingObjects() || []
+			var uid = 0
 			if (tag_params.target_type == 'table') {
 				var oTable = Api.LookupObject(tag_params.target_id)
 				if (oTable && oTable.GetClassType && oTable.GetClassType() == 'table') {
@@ -21,6 +22,7 @@ function tagImageCommon(params) {
 					}
 					title.ques_use = tag_params.ques_use.join('_')
 					oTable.SetTableTitle(JSON.stringify(title))
+					uid = title.tid
 				}
 			} else {
 				var oDrawing = drawings.find(e => {
@@ -36,20 +38,20 @@ function tagImageCommon(params) {
 						tag.feature.ques_use = tag_params.ques_use.join('_')
 					} else {
 						client_node_id += 1
-						tag = {
-							feature: {
-								ques_use: tag_params.ques_use.join('_'),
-								client_id: client_node_id
-							}
+						tag.feature = {
+							ques_use: tag_params.ques_use.join('_'),
+							client_id: client_node_id
 						}
 					}
 					oDrawing.SetTitle(JSON.stringify(tag))
+					uid = tag.pid
 				}
 			}
 			return {
 				client_node_id: client_node_id,
 				drawing_id: tag_params.target_id,
-				ques_use: tag_params.ques_use
+				ques_use: tag_params.ques_use,
+				uid: uid
 			}
 	}, false, false, {name: 'tagImageCommon'}).then(res => {
 		if (res) {
@@ -58,7 +60,23 @@ function tagImageCommon(params) {
 				window.BiyueCustomData.image_use = {}
 			}
 			window.BiyueCustomData.image_use[res.drawing_id] = res.ques_use
-			return ShowLinkedWhenclickImage()
+			window.biyue.sendToDialog('pictureIndex', 'updateUse', {
+				from: 'ques_use',
+				list: [{
+					type: params.target_type,
+					uid: res.uid,
+					sort_id: res.uid ? res.uid.substring(2, res.uid.length) * 1 : 0,
+					id: res.drawing_id,
+					ques_use: res.ques_use
+				}]
+			}, false)
+			if (params.ques_id) {
+				return ShowLinkedWhenclickImage({
+					client_id: params.ques_id
+				})
+			} else {
+				return ShowLinkedWhenclickImage()
+			}
 		} else {
 			return new Promise((resolve, reject) => {
 				return resolve()
@@ -86,6 +104,7 @@ function imageAutoLink(ques_id, calc) {
 			var link_type = Asc.scope.link_type
 			var link_coverage_percent = Asc.scope.link_coverage_percent / 100
 			var rev = false
+			var list_update = []
 			// 获取重叠面积
 			function getOverlapArea(quesFields, imageFields) {
 				var overlapArea = 0
@@ -267,15 +286,21 @@ function imageAutoLink(ques_id, calc) {
 					title.feature.ques_use = getNewQuesUse(quesuse, quesList)
 				} else {
 					client_node_id += 1
-					title = {
-						feature: {
-							ques_use: quesList.join('_'),
-							client_id: client_node_id
-						}
+					title.feature = {
+						ques_use: quesList.join('_'),
+						client_id: client_node_id
 					}
 				}
 				rev = true
 				oDrawing.SetTitle(JSON.stringify(title))
+				list_update.push({
+					type: 'drawing',
+					uid: title.pid,
+					sort_id: title.pid ? title.pid.substring(2, title.pid.length) * 1 : 0,
+					id: oDrawing.Drawing.Id,
+					ques_use: quesList,
+					partical_no_dot: title.feature && title.feature.partical_no_dot
+				})
 			}
 			// 暂不考虑大小题的问题
 			// 表格关联
@@ -313,15 +338,30 @@ function imageAutoLink(ques_id, calc) {
 				}
 				title.ques_use = getNewQuesUse(title.ques_use, quesList)
 				oTable.SetTableTitle(JSON.stringify(title))
+				list_update.push({
+					type: 'table',
+					uid: title.tid,
+					sort_id: title.tid ? title.tid.substring(2, title.tid.length) * 1 : 0,
+					id: oTable.Table.Id,
+					ques_use: quesList,
+					partical_no_dot: title.partical_no_dot
+				})
 				rev = true
 			}
 			return {
 				client_node_id,
-				rev
+				rev,
+				list_update
 			}
 	}, false, calc, {name: 'imageAutoLink'}).then(res => {
 		if (res) {
 			window.BiyueCustomData.client_node_id = res.client_node_id
+			if (res.list_update) {
+				window.biyue.sendToDialog('pictureIndex', 'updateUse', {
+					from: 'ques_use',
+					list: res.list_update
+				}, false)
+			}
 		}
 		return new Promise((resolve, reject) => {resolve(res)})
 	})
@@ -549,11 +589,9 @@ function updateLinkedInfo(info) {
 						tag.feature.ques_use = data.ques_use
 					} else {
 						client_node_id += 1
-						tag = {
-							feature: {
-								ques_use: data.ques_use,
-								client_id: client_node_id
-							}
+						tag.feature = {
+							ques_use: data.ques_use,
+							client_id: client_node_id
 						}
 					}
 					oDrawing.SetTitle(JSON.stringify(tag))
@@ -706,6 +744,214 @@ function locateItem(data) {
 			}
 	}, false, false, {name: 'locateItem'})
 }
+// 获取所有图片
+function getPictureList() {
+	Asc.scope.picture_id = window.BiyueCustomData.picture_id || 0
+	Asc.scope.table_id = window.BiyueCustomData.table_id || 0
+	return biyueCallCommand(window, function() {
+		var oDocument = Api.GetDocument()
+		var picture_id = Asc.scope.picture_id
+		var list = []
+		var allDrawings = oDocument.GetAllDrawingObjects() || []
+		var list_ignore = []
+		for (var oDrawing of allDrawings) {
+			var title = Api.ParseJSON(oDrawing.GetTitle())
+			var Drawing = oDrawing.getParaDrawing()
+			if (!Drawing) {
+				continue
+			}
+			var title = Api.ParseJSON(oDrawing.GetTitle())
+			if (title.ignore == 1) {
+				continue
+			}
+			if (title.feature && title.feature.zone_type) {
+				continue
+			}
+			if (!title.pid) {
+				title.pid = `d_${++picture_id}` 
+				oDrawing.SetTitle(JSON.stringify(title))
+			}
+			var targetList = title.ignore == 2 ? list_ignore : list
+			targetList.push({
+				type: 'drawing',
+				uid: title.pid,
+				sort_id: title.pid ? title.pid.substring(2, title.pid.length) * 1 : 0,
+				id: oDrawing.Drawing.Id,
+				ques_use: title.feature && title.feature.ques_use ? getQuesUse(title.feature.ques_use) : [],
+				partical_no_dot: title.feature && title.feature.partical_no_dot
+			})
+		}
+		var table_id = Asc.scope.table_id
+		var tables = oDocument.GetAllTables() || []
+		for (var oTable of tables) {
+			var strtitle = oTable.GetTableTitle()
+			if (strtitle == 'questionTable') {
+				continue
+			}
+			var title = Api.ParseJSON(strtitle)
+			if (title.ignore == 1) {
+				continue
+			}
+			if (!title.tid) {
+				title.tid = `t_${++table_id}`
+				oTable.SetTableTitle(JSON.stringify(title))
+			}
+			var targetList = title.ignore == 2 ? list_ignore : list
+			targetList.push({
+				type: 'table',
+				uid: title.tid,
+				sort_id: title.tid ? title.tid.substring(2, title.tid.length) * 1 : 0,
+				id: oTable.Table.Id,
+				ques_use: getQuesUse(title.ques_use),
+				partical_no_dot: title.partical_no_dot
+			})
+		}
+		function getQuesUse(ques_use) {
+			if (!ques_use) {
+				return []
+			}
+			var useList = ques_use.split('_')
+			return useList
+		}
+		return {
+			picture_id,
+			table_id,
+			list,
+			list_ignore
+		}
+	}, false, false, {name: 'getPictureList'})
+}
+
+function handleIgnore(data) {
+	Asc.scope.pic_data = data
+	return biyueCallCommand(window, function() {
+		var oDocument = Api.GetDocument()
+		var picData = Asc.scope.pic_data
+		if (picData.type == 'table') {
+			var tables = oDocument.GetAllTables() || []
+			var oTable = tables.find(e => {
+				return oTable.Table.Id == picData.id
+			})
+			if (oTable) {
+				var title = Api.ParseJSON(oTable.GetTableTitle())
+				if (picData.ignore) {
+					title.ignore = 2
+					if (title.ques_use) {
+						delete title.ques_use
+					}
+				} else if (title.ignore == 2) {
+					delete title.ignore
+				}
+				oTable.SetTableTitle(JSON.stringify(title))
+			}
+		} else {
+			var drawings = oDocument.GetAllDrawingObjects() || []
+			var oDrawing = drawings.find(e => {
+				return e.Drawing.Id == picData.id
+			})
+			if (oDrawing) {
+				var title = Api.ParseJSON(oDrawing.GetTitle())
+				if (picData.ignore) {
+					title.ignore = 2
+					if (title.feature && title.feature.ques_use) {
+						delete title.feature.ques_use
+					}
+				} else if (title.ignore == 2) {
+					delete title.ignore
+				}
+				oDrawing.SetTitle(JSON.stringify(title))
+			}
+		}
+		
+	}, false, false, {name: 'handleIgnore'})
+}
+// 更新局部不铺码
+function updateImageParticalNoDot(params) {
+	Asc.scope.tag_params = params
+	return biyueCallCommand(window, function() {
+		var params = Asc.scope.tag_params
+		var oDocument = Api.GetDocument()
+		var drawings = oDocument.GetAllDrawingObjects() || []
+		var oDrawing = drawings.find(e => {
+			return e.Drawing.Id == params.target_id
+		})
+		if (oDrawing) {
+			var tag = Api.ParseJSON(oDrawing.GetTitle())
+			if (params.partical_no_dot) {
+				if (tag.feature) {
+					tag.feature.partical_no_dot = 1
+				} else {
+					tag.feature = {
+						partical_no_dot: 1
+					}
+				}
+			} else {
+				if (tag.feature && tag.feature.partical_no_dot) {
+					delete tag.feature.partical_no_dot
+				}
+			}
+			oDrawing.SetTitle(JSON.stringify(tag))
+			if (params.partical_no_dot) {
+				oDrawing.SetShadow('ctr', 0, 100, null, 0, '#007bff')
+			} else {
+				oDrawing.ClearShadow()
+			}
+		}
+	}, false, false, {name: 'updateImageParticalNoDot'})
+}
+
+function handlePictureIndexMessage(modal, message) {
+	if (message.cmd == 'ignore') {
+		handleIgnore(message.data)
+	} else if (message.cmd == 'link') {
+		tagImageCommon(message.data)
+	} else if (message.cmd == 'locateQues') {
+		var event = new CustomEvent('focusQuestion', {
+			detail: message.data
+		})
+		document.dispatchEvent(event)
+		focusControl(message.data.ques_id).then(() => {
+			ShowLinkedWhenclickImage({
+				client_id: message.data.ques_id
+			})
+		})
+	} else if (message.cmd == 'updateDot') {
+		updateImageParticalNoDot(message.data)
+	} else if (message.cmd == 'autoLink') {
+		window.BiyueCustomData.link_type = message.data.link_type
+		window.BiyueCustomData.coverage_percent = message.data.coverage_percent
+		imageAutoLink(null, true).then(res => {
+			return getPictureList()
+		}).then(res => {
+			if (res.picture_id) {
+				window.BiyueCustomData.picture_id = res.picture_id
+			}
+			if (res.table_id) {
+				window.BiyueCustomData.table_id = res.table_id
+			}
+			modal.command('pictureIndexMessage', {
+				BiyueCustomData: window.BiyueCustomData,
+				list: res.list,
+				list_ignore: res.list_ignore,
+				type: 'autolink'
+			})
+		})
+	} else if (message.cmd == 'refresh') {
+		getPictureList().then(res => {
+			if (res.picture_id) {
+				window.BiyueCustomData.picture_id = res.picture_id
+			}
+			if (res.table_id) {
+				window.BiyueCustomData.table_id = res.table_id
+			}
+			modal.command('pictureIndexMessage', {
+				BiyueCustomData: window.BiyueCustomData,
+				list: res.list,
+				list_ignore: res.list_ignore
+			})
+		})
+	}
+}
 
 export {
 	tagImageCommon,
@@ -714,5 +960,7 @@ export {
 	updateLinkedInfo,
 	onAllCheck,
 	locateItem,
-	ShowLinkedWhenclickImage
+	ShowLinkedWhenclickImage,
+	getPictureList,
+	handlePictureIndexMessage
 }

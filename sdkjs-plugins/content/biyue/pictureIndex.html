@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8" />
+		<title>图片关联</title>
+		<script
+			type="text/javascript"
+			src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.js"
+		></script>
+		<script
+			type="text/javascript"
+			src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins-ui.js"
+		></script>
+		<link
+			rel="stylesheet"
+			href="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.css"
+		/>
+		<link rel="stylesheet" href="resources/css/appuse.css">
+		<link rel="stylesheet" href="resources/iconfont/iconfont.css">
+		<script src="vendor/jQuery-2.2.2-min/jquery-v2.2.2-min.js"></script>
+		<style>
+			.info {
+				display: flex;
+				flex-direction: column;
+				max-height: calc(100vh - 1px);
+				overflow-y: auto;
+			}
+			.item-pic {
+				background-color: transparent;
+				padding: 2px 8px;
+				&:hover {
+					background-color: #fff;
+				}
+			}
+			.list-ignore {
+				.link {
+					display: none;
+				}
+			}
+			.ignore-header {
+				font-size: 14px;
+				font-weight: bold;
+				padding-left: 8px;
+				color: #4798ec;
+			}
+			.list-ques {
+				background-color: #fff;
+				padding: 4px;
+				margin: 4px 8px;
+				border-radius: 4px;
+			}
+			.item-ques {
+				margin-top: 6px;
+				margin-bottom: 6px;
+				padding: 0 4px;
+			}
+			.ques-text {
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				padding-right: 4px;
+				&:hover {
+					color: #2489f6;
+				}
+			}
+			.link {
+				color: #2489f6;
+				word-break: keep-all;
+			}
+			.cancel-link {
+				color: #aaa;
+				word-break: keep-all;
+			}
+			.pic-selected {
+				background-color: #fefefe !important;
+			}
+			.title {
+				margin: 4px 0;
+				font-size: 14px;
+			}
+			#btnImageLink {
+				width: 50%;
+			}
+			#confirmAutoLink {
+				width: 40%;
+			}
+			#cancelAutoLink {
+				width: 40%;
+			}
+			.btn-text-default {
+				min-height: 22px;
+				margin: 0 auto;
+				text-align: center;
+				line-height: 18px;
+			}
+			.none,
+			.ignore-none {
+				color: #bbb;
+				text-align: center;
+				margin: 8px auto;
+			}
+
+		</style>
+	</head>
+	<body>
+		<div class="info">
+			<div style="margin: 8px;">
+				<div class="row-between">
+					<div id="imageLinkSelect"></div>
+					<div id="btnRefresh" class="btn-text-default" style="width: 45%;min-height: 22px;">刷新</div>
+				</div>
+				<div id="linkwrapper">
+					<div class="row-between title">
+						<div>关联规则</div>
+						<div style="position: relative;">
+							<i id="myIcon" class="iconfont icon-bangzhu clr1"></i>
+							<div id="tooltip" class="tooltip" style="display:none;top:0;right:20px;width: max-content;">
+								<span>全包关联：只有图片的四个角都在题干区内才会被关联。</span>
+								</br>
+								<span>面积关联：按图片和题干的重叠区域占图片的面积的百分比进行关联。</span>
+							</div>
+						</div>
+					</div>
+					<div style="display: flex;flex-direction: row; margin-bottom: 8px;">
+						<div id="linkTypeSelect"></div>
+						<div style="width: 12px;height: 1px;"></div>
+						<div id="CoveragePercentInput"></div>
+					</div>
+					<div id="btnImageLink" class="btn-text-default">关联</div>
+					<div class="check-wrapper">
+						<div style="color: #f00;margin-bottom: 8px;">图片关联将会清除旧有数据，确定继续操作吗？</div>
+						<div class="row-arround">
+							<div id="cancelAutoLink" class="btn-text-default">取消</div>
+							<div id="confirmAutoLink" class="btn-text-default">确定</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div id="imageLinkTip" style="text-align: center;"></div>
+			<div class="list"></div>
+			<div class="ignore-header">忽略列表：</div>
+			<div class="list-ignore"></div>
+			<div class="ignore-none">暂无数据</div>
+			<div class="list-ques"></div>
+		</div>
+	</body>
+</html>
+<script type="module" type="text/javascript" src="scripts/dialog/pictureIndex.js"></script>

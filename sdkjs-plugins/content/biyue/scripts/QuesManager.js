@@ -118,7 +118,16 @@ function handleDocClick(options) {
 			if (drawingTitle.feature && (drawingTitle.feature.sub_type == 'identify' || drawingTitle.feature.sub_type == 'write')) {
 				obj.drawing_client_id = drawingTitle.feature.client_id
 				obj.client_id = drawingTitle.feature.parent_id
+			} else {
+				window.biyue.sendToDialog('pictureIndex', 'locatePicture', {
+					uid: drawingTitle.pid
+				}, false)
 			}
+		}
+		if (res.click_type == 'table') {
+			window.biyue.sendToDialog('pictureIndex', 'locatePicture', {
+				uid: getJsonData(res.table_title).tid
+			}, false)
 		}
 		if (obj.InternalId || obj.client_id) {
 			var event = new CustomEvent('clickSingleQues', {
@@ -4389,6 +4398,7 @@ function handleImageIgnore(cmdType) {
 			var cmdType = Asc.scope.cmdType
 			var oDocument = Api.GetDocument()
 			var drawings = oDocument.GetAllDrawingObjects() || []
+			var list = []
 			// 若调用oState的方式，oDrawing.Drawing.selected得到的值会是false，因而这里暂时注释
 			// var oState = oDocument.Document.SaveDocumentState()
 			drawings.forEach(oDrawing => {
@@ -4398,10 +4408,8 @@ function handleImageIgnore(cmdType) {
 						if (tag.feature) {
 							tag.feature.partical_no_dot = 1
 						} else {
-							tag = {
-								feature: {
-									partical_no_dot: 1
-								}
+							tag.feature = {
+								partical_no_dot: 1
 							}
 						}
 					} else {
@@ -4415,10 +4423,22 @@ function handleImageIgnore(cmdType) {
 					} else {
 						oDrawing.ClearShadow()
 					}
+					list.push({
+						uid: tag.pid,
+						partical_no_dot: cmdType == 'add'
+					})
 				}
 			})
+			return list
 			// oDocument.Document.LoadDocumentState(oState)
-	}, false, false, {name: 'handleImageIgnore'})
+	}, false, false, {name: 'handleImageIgnore'}).then((res) => {
+		if (res) {
+			window.biyue.sendToDialog('pictureIndex', 'updateUse', {
+				from: 'particalNoDot',
+				list: res
+			}, false)
+		}
+	})
 }
 // todo。。分栏需要考虑的因素很多，需要之后再考虑
 function setSectionColumn(column) {

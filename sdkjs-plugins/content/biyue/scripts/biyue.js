@@ -47,7 +47,8 @@ import {
 import {
 	tagImageCommon,
 	updateLinkedInfo,
-	locateItem
+	locateItem,
+	handlePictureIndexMessage
 } from './linkHandler.js'
 import { layoutRepair, removeAllComment, layoutDetect } from './layoutFixHandler.js'
 import { reqSaveInfo } from './api/paper.js'
@@ -246,6 +247,9 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 						obj.feature_map = window.feature_map
 					} else if (message.initmsg == 'quesTypeErrorReportMessage') {
 						obj.tree_info = Asc.scope.tree_info
+					} else if (message.initmsg == 'pictureIndexMessage') {
+						obj.list = Asc.scope.list_picture
+						obj.list_ignore = Asc.scope.list_ignore
 					}
 					modal.command(message.initmsg, obj)
 				}
@@ -304,6 +308,9 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 						tree_info: Asc.scope.tree_info
 					})
 				}
+				break
+			case 'pictureIndexMessage':
+				handlePictureIndexMessage(modal, message)
 				break
 			case 'showSymbols':
 				modal.command('initSymbols')
@@ -2534,7 +2541,11 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 	function handleInit() {
 		initPaperInfo().then((res2) => {
 			console.log('initPaperInfo', res2)
-			updatePageSizeMargins().then(() => {
+			updatePageSizeMargins().then((res) => {
+				if (res) {
+					window.BiyueCustomData.picture_id = res.pictureId
+					window.BiyueCustomData.table_id = res.tableId
+				}
 				// 是否初次导入
 				var isFirstLoad =
 					!window.BiyueCustomData.node_list ||
@@ -2674,9 +2685,11 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		return deleteAllFeatures().then(() => {
 			return onClearAllControls()
 		}).then((result) => {
-				var ranges = newSplit(result.text_json)
-				console.log('splitQuestion:', ranges)
-				return createContentControl(ranges)
+				if (result) {
+					var ranges = newSplit(result.text_json)
+					console.log('splitQuestion:', ranges)
+					return createContentControl(ranges)
+				}
 			})
 			// .then(() => {
 			// 	console.log('2.处理需要分列的题目')
@@ -2743,7 +2756,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		}
 	}
 
-	function sendToDialog(winName, msgId, data) {
+	function sendToDialog(winName, msgId, data, activateDialog = true) {
 		if (!winName || !msgId) {
 			return
 		}
@@ -2755,7 +2768,9 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 			return e.name == winName
 		})
 		if (win2 && win2.visible) {
-			win.activate()
+			if (activateDialog) {
+				win.activate()
+			}
 			win.command(msgId, data)
 		}
 	}

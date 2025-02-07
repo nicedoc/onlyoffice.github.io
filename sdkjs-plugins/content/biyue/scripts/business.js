@@ -80,11 +80,15 @@ function initPaperInfo() {
 function updatePageSizeMargins() {
 	Asc.scope.workbook = window.BiyueCustomData.workbook_info
 	Asc.scope.control_hightlight = true
+	Asc.scope.picture_id = 0
+	Asc.scope.table_id = 0
 	return biyueCallCommand( window, function () {
 			// console.log('[updatePageSizeMargins] begin')
 			var workbook = Asc.scope.workbook || {}
 			var oDocument = Api.GetDocument()
 			var sections = oDocument.GetSections()
+			var pictureId = Asc.scope.picture_id
+			var tableId = Asc.scope.table_id
 			function MM2Twips(mm) {
 				var m = Math.max(mm, 10)
 				return m / (25.4 / 72 / 20)
@@ -133,10 +137,23 @@ function updatePageSizeMargins() {
 				// }
 				// 移除图片阴影
 				oDrawing.ClearShadow()
+				// 分配编号
+				var title = Api.ParseJSON(oDrawing.GetTitle())
+				title.pid = `d_${++pictureId}`
+				oDrawing.SetTitle(JSON.stringify(title))
 			})
 			Api.asc_SetGlobalContentControlShowHighlight(true, 255, 191, 191)
 			Api.asc_SetTab('tab_biyue')
-			return null
+			var allTables = oDocument.GetAllTables() || []
+			allTables.forEach(oTable => {
+				var title = Api.ParseJSON(oTable.GetTableTitle())
+				title.tid = `t_${++tableId}`
+				oTable.SetTableTitle(JSON.stringify(title))
+			})
+			return {
+				pictureId,
+				tableId
+			}
 	}, false, true, {name: 'updatePageSizeMargins'})
 }
 
