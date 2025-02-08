@@ -9,6 +9,7 @@ import {
 	// paperValidatePosition
   } from '../api/paper.js'
   import { setXToken } from '../auth.js'
+  import { isLoading, setBtnLoading } from '../model/util.js';
   ;(function (window, undefined) {
 	let source_data = {}
 	let paper_info = null
@@ -228,6 +229,10 @@ import {
 		if (!file_list) {
 			return
 		}
+		if (isLoading('uploadPreview')) {
+			return
+		}
+		setBtnLoading('uploadPreview', true)
 		var pid = 1
 		printTime('[开始上传预览图]')
 		for (var file of file_list) {
@@ -273,8 +278,10 @@ function onUpdatePostions() {
 				type: 'positionSaveSuccess',
 				data: source_data,
 			})
+			setBtnLoading('uploadPreview', false)
 		})
 		.catch((error) => {
+			setBtnLoading('uploadPreview', false)
 			alert(error && error.message ? `上传失败:${error.message}` : '上传失败')
 			console.log(error)
 		})
