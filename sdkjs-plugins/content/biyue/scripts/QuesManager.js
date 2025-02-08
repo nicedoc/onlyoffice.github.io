@@ -5903,6 +5903,11 @@ function handleUploadPrepare(cmdType) {
 			var oTables = oDocument.GetAllTables() || []
 			var vshow = cmdType == 'show'
 			var oState = oDocument.Document.SaveDocumentState()
+			var isShow = Api.get_ShowParaMarks();
+			if (isShow) {
+				Api.put_ShowParaMarks(!isShow);
+                Api.sync_ShowParaMarks();
+			}
 			function updateFill(oDrawing, oFill) {
 				if (!oFill || !oFill.GetClassType || oFill.GetClassType() !== 'fill') {
 					return false
