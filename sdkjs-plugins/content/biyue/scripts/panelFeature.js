@@ -304,7 +304,7 @@ function changeAll(data) {
 	if (data.value == 'close') {
 		deleteAllFeatures(['pagination'])
 	} else {
-		drawExtroInfo([].concat(list_feature), false)
+		drawExtroInfo([].concat(list_feature), true)
 		.then(() => {
 			return drawPageHeaderFooter(true)
 		})
@@ -587,7 +587,7 @@ function initPositions1() {
 		return loadImages()
 	})
 	.then(() => {
-		return drawExtroInfo(list_feature, imageDimensionsCache, false)
+		return drawExtroInfo(list_feature, imageDimensionsCache, true)
 	})
 	.then(() => {
 		return drawPageHeaderFooter(true)
