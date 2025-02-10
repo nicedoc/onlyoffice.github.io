@@ -2242,6 +2242,9 @@ function initControls() {
 	}, false, false, {name: 'initControls'}).then(res => {
 		console.log('initControls   nodeList', res)
 		return new Promise((resolve, reject) => {
+			if (!res) {
+				return resolve()
+			}
 			// todo.. 这里暂不考虑上次的数据未保存或保存失败的情况，只假设此时的control数据和nodelist里的是一致的，只是乱码而已，其他的后续再处理
 			try {
 				if (res.client_node_id) {
