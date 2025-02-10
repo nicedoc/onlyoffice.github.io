@@ -1154,6 +1154,9 @@ function handleChangeType(res, res2) {
 			return resolve()
 		})
 	}
+	if (!res2) {
+		res2 = []
+	}
 	var change_list = res.change_list || []
 	if (change_list.length == 0) {
 		if (res.typeName != 'clearChildren') {
