@@ -29,7 +29,7 @@ var c_oAscRelativeFromV = {
 	TopMargin: 7
 }
 
-function handleFeature(options) {
+function handleFeature(options, recalc = true) {
 	if (!options) { return }
 	options.size = Object.assign({}, ZONE_SIZE[options.zone_type], (options.size || {}))
 	if (options.v == undefined) {
