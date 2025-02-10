@@ -43,14 +43,18 @@ function handleFeature(options) {
 		console.log('loading...')
 		return
 	}
-	drawList([options]).then(() => {
+	drawList([options], recalc).then(() => {
 		setLoading(false)
-		handleNext()
+		// handleNext()
 	})
 }
 
 function drawExtroInfo(list, imageDimensionsCache, calc) {
-	if (!list) { return }
+	if (!list) {
+		return new Promise((resolve, reject) => {
+			return resolve()
+		})
+	}
 	list.forEach(e => {
 		e.page_num = e.p || 0
 		if (e.v == undefined) {
@@ -78,7 +82,7 @@ function addCommand(options) {
 	}
 	list_wait_command[index] = options
 }
-
+// handleNext 原本是希望能处理等待执行的命令，目前弃用
 function handleNext() {
 	setLoading(false)
 	if (list_wait_command && list_wait_command.length) {
@@ -187,7 +191,7 @@ function drawHeader(cmdType, examTitle) {
 				var pSize = oSection.Section.PageSize
 				var pw = pSize.W - pmargins.Left - pmargins.Right
 				var oParagraph = oHeader.GetElement(0)
-				if (oParagraph) {
+				if (!oParagraph) {
 					return
 				}
 				oParagraph.SetTabs(
@@ -2219,6 +2223,9 @@ function drawHeaderFooter0(options, calc) {
 					var width = header.image_width || 10 // mm
 					var height = header.image_height || 10 // mm
 					var oDrawing = Api.CreateImage(header.image_url, width * 36e3, height * 36e3)
+					oDrawing.SetTitle(JSON.stringify({
+						ignore: 1
+					}))
 					oParagraph.AddDrawing(oDrawing)
 					var paraDrawing = oDrawing.getParaDrawing()
 					if (paraDrawing) {
@@ -2313,6 +2320,9 @@ function drawHeaderFooter0(options, calc) {
 						Api.CreateSolidFill(Api.CreateRGBColor(255, 255, 255)),
 						Api.CreateStroke(0, Api.CreateNoFill())
 					)
+					oDrawing.SetTitle(JSON.stringify({
+						ignore: 1
+					}))
 					var drawContent = oDrawing.GetContent()
 					var paragraphs = drawContent.GetAllParagraphs()
 					if (paragraphs && paragraphs.length) {
