@@ -199,12 +199,13 @@ function imageAutoLink(ques_id, calc) {
 								let h = page.Bounds.Bottom - page.Bounds.Top
 								if (w > 0 && h > 0) {
 									var pindex = oControl.Sdt.GetAbsolutePage(j)
+									var bounds = oControl.Sdt.GetContentBounds(j)
 									quesFields.push({
 										page: pindex,
 										x: page.Bounds.Left,
-										y: page.Bounds.Top,
+										y: bounds.Top, // page.Bounds.Top,
 										w: w,
-										h: h
+										h: bounds.Bottom - bounds.Top // h
 									})
 								}
 							}
