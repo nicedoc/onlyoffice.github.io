@@ -5266,63 +5266,43 @@ function splitControl(qid) {
 							a.End <= b.End);
 					};
 					let mergeRange = function(arrA, arrB)
-					{
-						let all = arrA.concat(arrB);
-						let ret = []
-						for(var i = 0; i < all.length; i++) {
-							var newE = true;
-							for (var j = 0; j < all.length; j++) {
-								if (i == j)
-									continue;
-								if (includeRange(all[i], all[j])) {
-									newE = false;
-								}
-							}
-							if (newE)
-								ret.push(all[i]);
-						}
-						return ret;
-					};
-		
-					let mergeRanges2 = function(ranges) {
-						var newRanges = []
-						for (var i = 0; i < ranges.length; ++i) {
-							if (i == 0) {
-								newRanges.push(ranges[i])
-							} else {
-								var lastRange = newRanges[newRanges.length - 1]
-								var canMerge = false
-								if (ranges[i].Element == lastRange.Element && ranges[i].Start == lastRange.End) {
-									var rText = ranges[i].GetText ? ranges[i].GetText() : ''
-									var idx = rText.indexOf('\r')
-									var lastText = lastRange.GetText ? lastRange.GetText() : ''
-									if (idx == 0 && rText[idx + 1] == lastText[lastText.length - 1]) {
-										var Start = lastRange.Start
-										var End = ranges[i].End
-										var nrange = lastRange.ExpandTo(ranges[i])
-										nrange.Start = Start
-										nrange.End = End
-										newRanges[newRanges.length - 1] = nrange
-										canMerge = true
-									}
-								}
-								if (!canMerge) {
-									newRanges.push(ranges[i])
-								}
-							}
-						}
-						return newRanges
-					}
-					//debugger;
-					var apiRanges = [];
-					textSet.forEach(e => {
-						var ranges = control.Search(e, false);
-						//debugger;;
-						apiRanges = mergeRange(apiRanges, ranges);
-					});
-					if (apiRanges.length > 1) {
-						apiRanges = mergeRanges2(apiRanges)
-					}
+                    {
+                        console.time("mergeRange");
+                        let all = arrA.concat(arrB);
+                        // Sort ranges by start position
+                        all.sort(function(a, b) {
+                            var len = Math.min(a.StartPos.length, b.StartPos.length);
+                            for (var i = 0; i< len; i++) {
+                                if (a.StartPos[i].Position != b.StartPos[i].Position)
+                                    return a.StartPos[i].Position - b.StartPos[i].Position
+                            }
+                            return 0;
+                        });
+
+                        let ret = []
+                        let last = null;
+                        for (let range of all) {
+                            if (last === null || last.End < range.Start || last.Element != range.Element) {
+                                // No overlap, add to result
+                                ret.push(range);
+                                last = range;
+                            } else if (last.End < range.End) {
+                                // Overlapping ranges, merge them
+                                last.End = range.End;
+                            }
+                        }
+                        console.timeEnd("mergeRange");
+                        return ret;
+                    };
+                                        
+                    
+                    var apiRanges = [];
+                    textSet.forEach(e => {
+                        var ranges = control.Search(e, false);
+                        //debugger;;
+                        
+                        apiRanges = mergeRange(apiRanges, ranges);
+                    });
 						// search 有bug少返回一个字符
 					apiRanges.reverse().forEach(apiRange => {
 							apiRange.Select();

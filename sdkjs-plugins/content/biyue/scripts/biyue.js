@@ -769,73 +769,57 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
                     };
                     let mergeRange = function(arrA, arrB)
                     {
+                        console.time("mergeRange");
                         let all = arrA.concat(arrB);
-                        let ret = []
-                        for(var i = 0; i < all.length; i++) {
-                            var newE = true;
-                            for (var j = 0; j < all.length; j++) {
-                                if (i == j)
-                                    continue;
-                                if (includeRange(all[i], all[j])) {
-                                    newE = false;
-                                }
+                        // Sort ranges by start position
+                        all.sort(function(a, b) {
+                            var len = Math.min(a.StartPos.length, b.StartPos.length);
+                            for (var i = 0; i< len; i++) {
+                                if (a.StartPos[i].Position != b.StartPos[i].Position)
+                                    return a.StartPos[i].Position - b.StartPos[i].Position
                             }
-                            if (newE)
-                                ret.push(all[i]);
+                            return 0;
+                        });
+
+                        let ret = []
+                        let last = null;
+                        for (let range of all) {
+                            if (last === null || last.End < range.Start || last.Element != range.Element) {
+                                // No overlap, add to result
+                                ret.push(range);
+                                last = range;
+                            } else if (last.End < range.End) {
+                                // Overlapping ranges, merge them
+                                last.End = range.End;
+                            }
                         }
+                        console.timeEnd("mergeRange");
                         return ret;
                     };
-					let mergeRanges2 = function(ranges) {
-						var newRanges = []
-						for (var i = 0; i < ranges.length; ++i) {
-							if (i == 0) {
-								newRanges.push(ranges[i])
-							} else {
-								var lastRange = newRanges[newRanges.length - 1]
-								var canMerge = false
-								if (ranges[i].Element == lastRange.Element && ranges[i].Start == lastRange.End) {
-									var rText = ranges[i].GetText ? ranges[i].GetText() : ''
-									if (rText) {
-										var idx = rText.indexOf('\r')
-										var lastText = lastRange.GetText ? lastRange.GetText() : ''
-										if (idx == 0 && rText[idx + 1] == lastText[lastText.length - 1]) {
-											var Start = lastRange.Start
-											var End = ranges[i].End
-											var nrange = lastRange.ExpandTo(ranges[i])
-											nrange.Start = Start
-											nrange.End = End
-											newRanges[newRanges.length - 1] = nrange
-											canMerge = true
-										}
-									}
-								}
-								if (!canMerge) {
-									newRanges.push(ranges[i])
-								}
-							}
-						}
-						return newRanges
-					}
-                    //debugger;
+                                        
+                    
                     var apiRanges = [];
+                    console.time("查找所有答题区 no: "+i);
                     textSet.forEach(e => {
                         var ranges = control.Search(e, false);
                         //debugger;;
-						apiRanges = mergeRange(apiRanges, ranges);
+                        
+                        apiRanges = mergeRange(apiRanges, ranges);
                     });
-					if (apiRanges.length > 1) {
-						apiRanges = mergeRanges2(apiRanges)
-					}
+                    console.timeEnd("查找所有答题区 no: "+i);
+                    
 
-                        // search 有bug少返回一个字符
+                    // search 有bug少返回一个字符            
+                    console.time("插入答题区控件");
                     apiRanges.reverse().forEach(apiRange => {
                             apiRange.Select();
                             var tag = JSON.stringify({ 'regionType': 'write', 'mode': 3 });
                             Api.asc_AddContentControl(2, { "Tag": tag });
                             Api.asc_RemoveSelection();
                     });
+                    console.timeEnd("插入答题区控件");
 
-
+                    
                     // 标记空白行
                     {
                         //debugger;
