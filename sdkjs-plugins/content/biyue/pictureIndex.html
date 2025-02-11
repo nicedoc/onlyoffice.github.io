@@ -2,7 +2,7 @@
 <html>
 	<head>
 		<meta charset="UTF-8" />
-		<title>图片关联</title>
+		<title>待处理图片</title>
 		<script
 			type="text/javascript"
 			src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.js"
@@ -24,10 +24,22 @@
 				flex-direction: column;
 				max-height: calc(100vh - 1px);
 				overflow-y: auto;
+				padding-bottom: 8px;
+			}
+			.clrr {
+				color: #EA4335;
+			}
+			.clrb {
+				color: #3B82F6;
+			}
+			.ft12 {
+				font-size: 12px;
 			}
 			.item-pic {
-				background-color: transparent;
+				background-color: #fff;
+				margin: 8px 8px 0 8px;
 				padding: 2px 8px;
+				border-radius: 4px;
 				&:hover {
 					background-color: #fff;
 				}
@@ -41,34 +53,38 @@
 				font-size: 14px;
 				font-weight: bold;
 				padding-left: 8px;
-				color: #4798ec;
+				color: #555;
+				margin-top: 8px;
 			}
 			.list-ques {
 				background-color: #fff;
 				padding: 4px;
-				margin: 4px 8px;
-				border-radius: 4px;
+				margin: 0 8px;
+				border-top: 1px solid #eee;
+				border-bottom-right-radius: 4px;
+				border-bottom-left-radius: 4px;
 			}
 			.item-ques {
-				margin-top: 6px;
-				margin-bottom: 6px;
-				padding: 0 4px;
+				padding: 4px;
+			}
+			.ques-pre {
+				width: 14px;
+				height: 14px;
+				line-height: 14px;
+				float: left;
 			}
 			.ques-text {
 				white-space: nowrap;
 				overflow: hidden;
 				text-overflow: ellipsis;
 				padding-right: 4px;
+				width: calc(100vw - 80px);
 				&:hover {
-					color: #2489f6;
+					color: #3B82F6;
 				}
 			}
 			.link {
-				color: #2489f6;
-				word-break: keep-all;
-			}
-			.cancel-link {
-				color: #aaa;
+				color: #3B82F6;
 				word-break: keep-all;
 			}
 			.pic-selected {
@@ -79,7 +95,16 @@
 				font-size: 14px;
 			}
 			#btnImageLink {
-				width: 50%;
+				width: 70px;
+				margin: 0 auto;
+				background-color: #3B82F6;
+				color: #fff;
+				border-radius: 4px;
+				padding: 6px 12px;
+				display: flex;
+				flex-direction: row;
+				justify-content: center;
+				align-items: center;
 			}
 			#confirmAutoLink {
 				width: 40%;
@@ -149,14 +174,28 @@
 				box-sizing: border-box;
 			}
 
+			.progress-text-wrapper {
+				margin-top: 10px;
+			}
+			.link1 {
+				font-size: 12px;
+				line-height: 30px;
+				height: 30px;
+			}
+			.idown {
+				font-size: 12px;
+			}
+			.ignore {
+				margin-right: 4px;
+			}
 		</style>
 	</head>
 	<body>
 		<div class="info">
 			<div style="margin: 8px;">
 				<div class="row-between">
-					<div id="imageLinkSelect"></div>
-					<div id="btnRefresh" class="btn-text-default" style="width: 45%;min-height: 22px;">刷新</div>
+					<div>请选择关联模式</div>
+					<div id="btnRefresh"  class="clr1 clicked">刷新</div>
 				</div>
 				<div class="row-between">
 					<div class="box1 clicked" id="areaLink">
@@ -174,12 +213,16 @@
 							<div class="slider-handle"></div>
 						</div>
 					</div>
+					<div class="progress-text-wrapper">
+						<span style="margin-right: 4px;">数值</span>
+						<span class="progress-text clr1">0%</span>
+					</div>
 					<div style="display: flex;flex-direction: row; margin-bottom: 8px;">
 						<div id="linkTypeSelect"></div>
 						<div style="width: 12px;height: 1px;"></div>
 						<div id="CoveragePercentInput"></div>
 					</div>
-					<div id="btnImageLink" class="btn-text-default">关联</div>
+					<div id="btnImageLink" class="clicked">重新关联</div>
 					<div class="check-wrapper">
 						<div style="color: #f00;margin-bottom: 8px;">图片关联将会清除旧有数据，确定继续操作吗？</div>
 						<div class="row-arround">
@@ -190,8 +233,9 @@
 				</div>
 			</div>
 			<div id="imageLinkTip" style="text-align: center;"></div>
+			<div class="ignore-header">关联列表</div>
 			<div class="list"></div>
-			<div class="ignore-header">忽略列表：</div>
+			<div class="ignore-header">已忽略列表</div>
 			<div class="list-ignore"></div>
 			<div class="ignore-none">暂无数据</div>
 			<div class="list-ques"></div>
