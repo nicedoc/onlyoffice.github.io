@@ -6,6 +6,41 @@
   "description": "",
   "glyphs": [
     {
+      "icon_id": "43281049",
+      "name": "选中",
+      "font_class": "puma",
+      "unicode": "e78b",
+      "unicode_decimal": 59275
+    },
+    {
+      "icon_id": "43281047",
+      "name": "锁住",
+      "font_class": "suozhu",
+      "unicode": "e78c",
+      "unicode_decimal": 59276
+    },
+    {
+      "icon_id": "43281050",
+      "name": "铺码不可选",
+      "font_class": "bupuma",
+      "unicode": "e789",
+      "unicode_decimal": 59273
+    },
+    {
+      "icon_id": "43281137",
+      "name": "解锁",
+      "font_class": "jiesuo",
+      "unicode": "e78a",
+      "unicode_decimal": 59274
+    },
+    {
+      "icon_id": "11020997",
+      "name": "马赛克",
+      "font_class": "masaike",
+      "unicode": "e6bd",
+      "unicode_decimal": 59069
+    },
+    {
       "icon_id": "7171965",
       "name": "取消忽略",
       "font_class": "quxiaohulve",
@@ -18,13 +53,6 @@
       "font_class": "hulve",
       "unicode": "e634",
       "unicode_decimal": 58932
-    },
-    {
-      "icon_id": "24599696",
-      "name": "关联",
-      "font_class": "lianjie-copy",
-      "unicode": "e7a0",
-      "unicode_decimal": 59296
     },
     {
       "icon_id": "43135185",

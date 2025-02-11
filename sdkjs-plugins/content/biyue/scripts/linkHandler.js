@@ -920,7 +920,7 @@ function handlePictureIndexMessage(modal, message) {
 		updateImageParticalNoDot(message.data)
 	} else if (message.cmd == 'autoLink') {
 		window.BiyueCustomData.link_type = message.data.link_type
-		window.BiyueCustomData.coverage_percent = message.data.coverage_percent
+		window.BiyueCustomData.link_coverage_percent = message.data.link_coverage_percent
 		imageAutoLink(null, true).then(res => {
 			return getPictureList()
 		}).then(res => {

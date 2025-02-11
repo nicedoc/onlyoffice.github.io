@@ -2,7 +2,7 @@
 <html>
 	<head>
 		<meta charset="UTF-8" />
-		<title>图片关联</title>
+		<title>待处理图片</title>
 		<script
 			type="text/javascript"
 			src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.js"
@@ -24,10 +24,22 @@
 				flex-direction: column;
 				max-height: calc(100vh - 1px);
 				overflow-y: auto;
+				padding-bottom: 8px;
+			}
+			.clrr {
+				color: #EA4335;
+			}
+			.clrb {
+				color: #3B82F6;
+			}
+			.ft12 {
+				font-size: 12px;
 			}
 			.item-pic {
-				background-color: transparent;
+				background-color: #fff;
+				margin: 8px 8px 0 8px;
 				padding: 2px 8px;
+				border-radius: 4px;
 				&:hover {
 					background-color: #fff;
 				}
@@ -41,34 +53,38 @@
 				font-size: 14px;
 				font-weight: bold;
 				padding-left: 8px;
-				color: #4798ec;
+				color: #555;
+				margin-top: 8px;
 			}
 			.list-ques {
 				background-color: #fff;
 				padding: 4px;
-				margin: 4px 8px;
-				border-radius: 4px;
+				margin: 0 8px;
+				border-top: 1px solid #eee;
+				border-bottom-right-radius: 4px;
+				border-bottom-left-radius: 4px;
 			}
 			.item-ques {
-				margin-top: 6px;
-				margin-bottom: 6px;
-				padding: 0 4px;
+				padding: 4px;
+			}
+			.ques-pre {
+				width: 14px;
+				height: 14px;
+				line-height: 14px;
+				float: left;
 			}
 			.ques-text {
 				white-space: nowrap;
 				overflow: hidden;
 				text-overflow: ellipsis;
 				padding-right: 4px;
+				width: calc(100vw - 80px);
 				&:hover {
-					color: #2489f6;
+					color: #3B82F6;
 				}
 			}
 			.link {
-				color: #2489f6;
-				word-break: keep-all;
-			}
-			.cancel-link {
-				color: #aaa;
+				color: #3B82F6;
 				word-break: keep-all;
 			}
 			.pic-selected {
@@ -79,7 +95,16 @@
 				font-size: 14px;
 			}
 			#btnImageLink {
-				width: 50%;
+				width: 70px;
+				margin: 0 auto;
+				background-color: #3B82F6;
+				color: #fff;
+				border-radius: 4px;
+				padding: 6px 12px;
+				display: flex;
+				flex-direction: row;
+				justify-content: center;
+				align-items: center;
 			}
 			#confirmAutoLink {
 				width: 40%;
@@ -99,34 +124,107 @@
 				text-align: center;
 				margin: 8px auto;
 			}
+			.box1 {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				border-radius: 4px;
+				background-color: #fff;
+				padding: 12px 16px;
+				margin-top: 4px;
+				border: 2px solid transparent;
+				&:hover {
+					border: 2px solid #3b83f675;
+				}
+			}
+			.selected {
+				border: 2px solid #3B82F6;
+			}
+			.box1 {
+				img {
+					width: 57px;
+				}
+			}
+			.progress-container {
+				width: calc(100vw - 30px);
+				height: 8px;
+				background-color: #fff;
+				border-radius: 10px;
+				margin: 8px 0;
+				position: relative;
+			}
 
+			.progress-bar {
+				height: 100%;
+				background-color: #3B82F6;
+				border-radius: 10px;
+				width: 0%;
+				position: relative;
+			}
+
+			.slider-handle {
+				width: 16px;
+				height: 16px;
+				border: 2px solid #3B82F6;
+				background-color: #ffffff;
+				border-radius: 50%;
+				position: absolute;
+				top: 50%;
+				left: calc(100% - 8px); /* 修改：使用left定位，并设置为100%减去handle半宽 */
+				transform: translateY(-50%);
+				cursor: pointer;
+				box-sizing: border-box;
+			}
+
+			.progress-text-wrapper {
+				margin-top: 10px;
+			}
+			.link1 {
+				font-size: 12px;
+				line-height: 30px;
+				height: 30px;
+			}
+			.idown {
+				font-size: 12px;
+			}
+			.ignore {
+				margin-right: 4px;
+			}
 		</style>
 	</head>
 	<body>
 		<div class="info">
 			<div style="margin: 8px;">
 				<div class="row-between">
-					<div id="imageLinkSelect"></div>
-					<div id="btnRefresh" class="btn-text-default" style="width: 45%;min-height: 22px;">刷新</div>
+					<div>请选择关联模式</div>
+					<div id="btnRefresh"  class="clr1 clicked">刷新</div>
 				</div>
-				<div id="linkwrapper">
-					<div class="row-between title">
-						<div>关联规则</div>
-						<div style="position: relative;">
-							<i id="myIcon" class="iconfont icon-bangzhu clr1"></i>
-							<div id="tooltip" class="tooltip" style="display:none;top:0;right:20px;width: max-content;">
-								<span>全包关联：只有图片的四个角都在题干区内才会被关联。</span>
-								</br>
-								<span>面积关联：按图片和题干的重叠区域占图片的面积的百分比进行关联。</span>
-							</div>
+				<div class="row-between">
+					<div class="box1 clicked" id="areaLink">
+						<img src="resources/img/area_link.png" alt="面积关联">
+						<div>面积关联</div>
+					</div>
+					<div class="box1 clicked" id="allLink">
+						<img src="resources/img/all_link.png" alt="全包关联">
+						<div>全包关联</div>
+					</div>
+				</div>
+				<div id="linkwrapper" style="margin: 8px;">
+					<div class="progress-container">
+						<div class="progress-bar">
+							<div class="slider-handle"></div>
 						</div>
+					</div>
+					<div class="progress-text-wrapper">
+						<span style="margin-right: 4px;">数值</span>
+						<span class="progress-text clr1">0%</span>
 					</div>
 					<div style="display: flex;flex-direction: row; margin-bottom: 8px;">
 						<div id="linkTypeSelect"></div>
 						<div style="width: 12px;height: 1px;"></div>
 						<div id="CoveragePercentInput"></div>
 					</div>
-					<div id="btnImageLink" class="btn-text-default">关联</div>
+					<div id="btnImageLink" class="clicked">重新关联</div>
 					<div class="check-wrapper">
 						<div style="color: #f00;margin-bottom: 8px;">图片关联将会清除旧有数据，确定继续操作吗？</div>
 						<div class="row-arround">
@@ -137,8 +235,9 @@
 				</div>
 			</div>
 			<div id="imageLinkTip" style="text-align: center;"></div>
+			<div class="ignore-header">关联列表</div>
 			<div class="list"></div>
-			<div class="ignore-header">忽略列表：</div>
+			<div class="ignore-header">已忽略列表</div>
 			<div class="list-ignore"></div>
 			<div class="ignore-none">暂无数据</div>
 			<div class="list-ques"></div>

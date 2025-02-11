@@ -406,7 +406,7 @@ function showPanelLink() {
 		Asc.scope.list_ignore = res.list_ignore
 		window.biyue.refreshDialog({
 			winName:'pictureIndex',
-			name:'图片关联',
+			name:'待处理图片',
 			url:'pictureIndex.html',
 			width:400,
 			height:800,
