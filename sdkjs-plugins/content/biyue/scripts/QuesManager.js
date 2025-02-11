@@ -6510,7 +6510,7 @@ function preGetExamTree() {
 									obj.parent_index = i
 									// console.log(qId, '5   p_id', obj.parent_id, obj.parent_index)
 									break
-								} else {
+								} else if (!list[i].is_child) {
 									obj.parent_id = 0
 									obj.parent_index = -1
 									// console.log(qId, '6   p_id', obj.parent_id, obj.parent_index)
