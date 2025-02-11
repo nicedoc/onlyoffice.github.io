@@ -310,41 +310,57 @@ import { ReplaceRubyField } from "./phonetic.js";
                     };
                     let mergeRange = function(arrA, arrB)
                     {
+                        console.time("mergeRange");
                         let all = arrA.concat(arrB);
+                        // Sort ranges by start position
+                        all.sort(function(a, b) {
+                            var len = Math.min(a.StartPos.length, b.StartPos.length);
+                            for (var i = 0; i< len; i++) {
+                                if (a.StartPos[i].Position != b.StartPos[i].Position)
+                                    return a.StartPos[i].Position - b.StartPos[i].Position
+                            }
+                            return 0;
+                        });
+
                         let ret = []
-                        for(var i = 0; i < all.length; i++) {
-                            var newE = true;
-                            for (var j = 0; j < all.length; j++) {
-                                if (i == j)
-                                    continue;
-                                if (includeRange(all[i], all[j])) {
-                                    newE = false;
-                                }
-                            }    
-                            if (newE)
-                                ret.push(all[i]);
+                        let last = null;
+                        for (let range of all) {
+                            if (last === null || last.End < range.Start || last.Element != range.Element) {
+                                // No overlap, add to result
+                                ret.push(range);
+                                last = range;
+                            } else if (last.End < range.End) {
+                                // Overlapping ranges, merge them
+                                last.End = range.End;
+                            }
                         }
+                        console.timeEnd("mergeRange");
                         return ret;
                     };
+                                        
                     
-
-                    //debugger;
                     var apiRanges = [];
+                    console.time("查找所有答题区 no: "+i);
                     textSet.forEach(e => {
                         var ranges = control.Search(e, false);
                         //debugger;;
+                        
                         apiRanges = mergeRange(apiRanges, ranges);
                     });
+                    console.timeEnd("查找所有答题区 no: "+i);
+                    
 
-                        // search 有bug少返回一个字符            
+                    // search 有bug少返回一个字符            
+                    console.time("插入答题区控件");
                     apiRanges.reverse().forEach(apiRange => {
                             apiRange.Select();
                             var tag = JSON.stringify({ 'regionType': 'write', 'mode': 3 });
                             Api.asc_AddContentControl(2, { "Tag": tag });
                             Api.asc_RemoveSelection();
                     });
-                    
+                    console.timeEnd("插入答题区控件");
 
+                    
                     // 标记空白行
                     {
                         //debugger;
@@ -372,7 +388,9 @@ import { ReplaceRubyField } from "./phonetic.js";
                         }
                     }
                 }
+                
             }
+            
         }, false, false);
     }
 
