@@ -1,4 +1,5 @@
 import { biyueCallCommand } from "./command.js";
+import { getPictureList } from "./linkHandler.js";
 function layoutDetect(all) {
 	Asc.scope.layout_all_range = !!all
 	return removeAllComment()
@@ -6,6 +7,12 @@ function layoutDetect(all) {
 		return biyueCallCommand(window, function() {
 				// console.log('[layoutDetect] begin')
 				var oDocument = Api.GetDocument()
+				var oSections = oDocument.GetSections() || []
+				var pageSize = {}
+				if (oSections[0] && oSections[0].Section) {
+					pageSize.width = oSections[0].Section.GetPageWidth()
+					pageSize.height = oSections[0].Section.GetPageHeight()
+				}
 				var oRange = null
 				if (Asc.scope.layout_all_range) {
 					oRange = oDocument.GetRange()
@@ -34,6 +41,7 @@ function layoutDetect(all) {
 					hasWhiteBg: false, // 存在背景为白色的段落
 					hasSmallImage: false, // 存在宽高过小的图片
 					hasBookmark: false, // 存在书签
+					hasOutOfRange: false, // 存在超出范围的图片
 				}
 				var type_map = {
 					'hasSmallImage': '宽高过小的图片',
@@ -43,7 +51,8 @@ function layoutDetect(all) {
 					'has65307': '中文分号',
 					'has12288': '中文空格',
 					'hasWhiteBg': '段落背景为白色',
-					'hasBookmark': '存在书签'
+					'hasBookmark': '存在书签',
+					'hasOutOfRange': '超出范围的图片'
 				}
 				function isWhite(shd) {
 					return shd && shd.Fill && shd.Fill.r == 255 && shd.Fill.g == 255 && shd.Fill.b == 255 && shd.Fill.Auto == false
@@ -131,6 +140,16 @@ function layoutDetect(all) {
 					}
 					return false
 				}
+				function isOutOfRange(oDrawing) {
+					if (!oDrawing || !oDrawing.Drawing) {
+						return false
+					}
+					var bounds = oDrawing.Drawing.getRectBounds ? oDrawing.Drawing.getRectBounds() : oDrawing.Drawing.bounds
+					if (!bounds) {
+						return false
+					}
+					return bounds.l < 0 || bounds.l > pageSize.width || bounds.t < 0 || bounds.t > pageSize.height || bounds.r < 0 || bounds.r > pageSize.width || bounds.b < 0 || bounds.b > pageSize.height
+				}
 				for (var i = 0, imax = paragraphs.length; i < imax; ++i) {
 					var oParagraph = paragraphs[i]
 					bflag = []
@@ -167,7 +186,15 @@ function layoutDetect(all) {
 					if (!result.hasBookmark && hasBookmark(oParagraph)) {
 						result.hasBookmark = true
 					}
+					var oDrawings = oParagraph.GetAllDrawingObjects() || []
+					for (var oDrawing of oDrawings) {
+						if (isOutOfRange(oDrawing)) {
+							result.hasOutOfRange = true
+							break
+						}
+					}
 				}
+				
 				return result
 		}, false, false, {name: 'layoutDetect'})
 	}).then(res => {
@@ -178,6 +205,10 @@ function layoutDetect(all) {
 
 // 排版修复
 function layoutRepair(cmdData) {
+	if (cmdData.type == 3 && cmdData.value == 'outOfRange') {
+		window.biyue.closeDialog('layoutRepairWindow')
+		return showOutOfRange()
+	}
 	Asc.scope.cmdData = cmdData
 	return biyueCallCommand(window, function() {
 			// console.log('[layoutRepair begin]')
@@ -522,6 +553,29 @@ function removeAllComment() {
 	}, false, false, {name: 'removeAllComment'})
 }
 
+function showOutOfRange() {
+	return getPictureList(true).then(res => {
+		if (res.picture_id) {
+			window.BiyueCustomData.picture_id = res.picture_id
+		}
+		if (res.table_id) {
+			window.BiyueCustomData.table_id = res.table_id
+		}
+		Asc.scope.list_picture = res.list
+		window.biyue.refreshDialog({
+			winName:'pictureList',
+			name:'超出范围图片',
+			url:'pictureList.html',
+			width:400,
+			height:800,
+			isModal:false,
+			type:'panelRight',
+			icons:['resources/light/img.png']
+		}, 'pictureListMessage', {
+			list: res.list
+		})
+	})
+}
 export {
 	layoutDetect,
 	layoutRepair,

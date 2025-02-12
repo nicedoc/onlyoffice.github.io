@@ -746,15 +746,43 @@ function locateItem(data) {
 	}, false, false, {name: 'locateItem'})
 }
 // 获取所有图片
-function getPictureList() {
+function getPictureList(outOfRange) {
 	Asc.scope.picture_id = window.BiyueCustomData.picture_id || 0
 	Asc.scope.table_id = window.BiyueCustomData.table_id || 0
+	Asc.scope.outOfRange = outOfRange
 	return biyueCallCommand(window, function() {
 		var oDocument = Api.GetDocument()
+		var oSections = oDocument.GetSections() || []
+		var pageSize = {}
+		if (oSections[0] && oSections[0].Section) {
+			pageSize.width = oSections[0].Section.GetPageWidth()
+			pageSize.height = oSections[0].Section.GetPageHeight()
+		}
 		var picture_id = Asc.scope.picture_id
+		var outOfRange = Asc.scope.outOfRange
 		var list = []
 		var allDrawings = oDocument.GetAllDrawingObjects() || []
 		var list_ignore = []
+		function isOutOfRange(oDrawing) {
+			if (!oDrawing || !oDrawing.Drawing) {
+				return false
+			}
+			var bounds = oDrawing.Drawing.getRectBounds ? oDrawing.Drawing.getRectBounds() : oDrawing.Drawing.bounds
+			if (!bounds) {
+				return false
+			}
+			return bounds.l < 0 || bounds.l > pageSize.width || bounds.t < 0 || bounds.t > pageSize.height || bounds.r < 0 || bounds.r > pageSize.width || bounds.b < 0 || bounds.b > pageSize.height
+		}
+		function isTableOutOfRange(oTable) {
+			if (!oTable || !oTable.Table) {
+				return false
+			}
+			var bounds = oTable.Table.GetPageBounds ? oTable.Table.GetPageBounds(0) : oTable.Table.Bounds
+			if (!bounds) {
+				return false
+			}
+			return bounds.Left < 0 || bounds.Right > pageSize.width
+		}
 		for (var oDrawing of allDrawings) {
 			var title = Api.ParseJSON(oDrawing.GetTitle())
 			var Drawing = oDrawing.getParaDrawing()
@@ -762,7 +790,7 @@ function getPictureList() {
 				continue
 			}
 			var title = Api.ParseJSON(oDrawing.GetTitle())
-			if (title.ignore == 1) {
+			if (!outOfRange && title.ignore == 1) {
 				continue
 			}
 			if (title.feature && title.feature.zone_type) {
@@ -773,14 +801,21 @@ function getPictureList() {
 				oDrawing.SetTitle(JSON.stringify(title))
 			}
 			var targetList = title.ignore == 2 ? list_ignore : list
-			targetList.push({
+			var obj = {
 				type: 'drawing',
 				uid: title.pid,
 				sort_id: title.pid ? title.pid.substring(2, title.pid.length) * 1 : 0,
 				id: oDrawing.Drawing.Id,
 				ques_use: title.feature && title.feature.ques_use ? getQuesUse(title.feature.ques_use) : [],
 				partical_no_dot: title.feature && title.feature.partical_no_dot
-			})
+			}
+			if (outOfRange) {
+				if (isOutOfRange(oDrawing)) {
+					targetList.push(obj)
+				}
+			} else {
+				targetList.push(obj)
+			}
 		}
 		var table_id = Asc.scope.table_id
 		var tables = oDocument.GetAllTables() || []
@@ -790,7 +825,7 @@ function getPictureList() {
 				continue
 			}
 			var title = Api.ParseJSON(strtitle)
-			if (title.ignore == 1) {
+			if (!outOfRange && title.ignore == 1) {
 				continue
 			}
 			if (!title.tid) {
@@ -798,14 +833,22 @@ function getPictureList() {
 				oTable.SetTableTitle(JSON.stringify(title))
 			}
 			var targetList = title.ignore == 2 ? list_ignore : list
-			targetList.push({
+			var isOutOfRange = isTableOutOfRange(oTable)
+			var obj = {
 				type: 'table',
 				uid: title.tid,
 				sort_id: title.tid ? title.tid.substring(2, title.tid.length) * 1 : 0,
 				id: oTable.Table.Id,
 				ques_use: getQuesUse(title.ques_use),
 				partical_no_dot: title.partical_no_dot
-			})
+			}
+			if (outOfRange) {
+				if (isTableOutOfRange(oTable)) {
+					targetList.push(obj)
+				}
+			} else {
+				targetList.push(obj)
+			}
 		}
 		function getQuesUse(ques_use) {
 			if (!ques_use) {
@@ -902,55 +945,70 @@ function updateImageParticalNoDot(params) {
 }
 
 function handlePictureIndexMessage(modal, message) {
-	if (message.cmd == 'ignore') {
-		handleIgnore(message.data)
-	} else if (message.cmd == 'link') {
-		tagImageCommon(message.data)
-	} else if (message.cmd == 'locateQues') {
-		var event = new CustomEvent('focusQuestion', {
-			detail: message.data
-		})
-		document.dispatchEvent(event)
-		focusControl(message.data.ques_id).then(() => {
-			ShowLinkedWhenclickImage({
-				client_id: message.data.ques_id
+	switch(message.cmd) {
+		case 'ignore':
+			handleIgnore(message.data)
+			break
+		case 'link':
+			tagImageCommon(message.data)
+			break
+		case 'locateQues':
+			var event = new CustomEvent('focusQuestion', {
+				detail: message.data
 			})
-		})
-	} else if (message.cmd == 'updateDot') {
-		updateImageParticalNoDot(message.data)
-	} else if (message.cmd == 'autoLink') {
-		window.BiyueCustomData.link_type = message.data.link_type
-		window.BiyueCustomData.link_coverage_percent = message.data.link_coverage_percent
-		imageAutoLink(null, true).then(res => {
-			return getPictureList()
-		}).then(res => {
-			if (res.picture_id) {
-				window.BiyueCustomData.picture_id = res.picture_id
-			}
-			if (res.table_id) {
-				window.BiyueCustomData.table_id = res.table_id
-			}
-			modal.command('pictureIndexMessage', {
-				BiyueCustomData: window.BiyueCustomData,
-				list: res.list,
-				list_ignore: res.list_ignore,
-				type: 'autolink'
+			document.dispatchEvent(event)
+			focusControl(message.data.ques_id).then(() => {
+				ShowLinkedWhenclickImage({
+					client_id: message.data.ques_id
+				})
 			})
-		})
-	} else if (message.cmd == 'refresh') {
-		getPictureList().then(res => {
-			if (res.picture_id) {
-				window.BiyueCustomData.picture_id = res.picture_id
-			}
-			if (res.table_id) {
-				window.BiyueCustomData.table_id = res.table_id
-			}
-			modal.command('pictureIndexMessage', {
-				BiyueCustomData: window.BiyueCustomData,
-				list: res.list,
-				list_ignore: res.list_ignore
+			break
+		case 'updateDot':
+			updateImageParticalNoDot(message.data)
+			break
+		case 'autoLink':
+			window.BiyueCustomData.link_type = message.data.link_type
+			window.BiyueCustomData.link_coverage_percent = message.data.link_coverage_percent
+			imageAutoLink(null, true).then(res => {
+				return getPictureList()
+			}).then(res => {
+				if (res.picture_id) {
+					window.BiyueCustomData.picture_id = res.picture_id
+				}
+				if (res.table_id) {
+					window.BiyueCustomData.table_id = res.table_id
+				}
+				modal.command('pictureIndexMessage', {
+					BiyueCustomData: window.BiyueCustomData,
+					list: res.list,
+					list_ignore: res.list_ignore,
+					type: 'autolink'
+				})
 			})
-		})
+			break
+		case 'refresh':
+			getPictureList(message.data == 'pictureList').then(res => {
+				if (res.picture_id) {
+					window.BiyueCustomData.picture_id = res.picture_id
+				}
+				if (res.table_id) {
+					window.BiyueCustomData.table_id = res.table_id
+				}
+				if (message.data == 'pictureList') {
+					modal.command('pictureListMessage', {
+						list: res.list
+					})
+				} else {
+					modal.command('pictureIndexMessage', {
+						BiyueCustomData: window.BiyueCustomData,
+						list: res.list,
+						list_ignore: res.list_ignore
+					})
+				}
+			})
+			break
+		default:
+			break
 	}
 }
 

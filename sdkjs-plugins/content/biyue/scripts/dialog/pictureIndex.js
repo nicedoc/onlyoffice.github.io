@@ -500,7 +500,8 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 		hideQuesList()
 		window.Asc.plugin.sendToPlugin('onWindowMessage', {
 			type: 'pictureIndexMessage',
-			cmd: 'refresh'
+			cmd: 'refresh',
+			data: 'pictureIndex'
 		})
 	}
 

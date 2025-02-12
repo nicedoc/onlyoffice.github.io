@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8" />
+		<title>待处理图片</title>
+		<script
+			type="text/javascript"
+			src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.js"
+		></script>
+		<script
+			type="text/javascript"
+			src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins-ui.js"
+		></script>
+		<link
+			rel="stylesheet"
+			href="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.css"
+		/>
+		<link rel="stylesheet" href="resources/css/appuse.css">
+		<link rel="stylesheet" href="resources/iconfont/iconfont.css">
+		<script src="vendor/jQuery-2.2.2-min/jquery-v2.2.2-min.js"></script>
+		<style>
+			.info {
+				display: flex;
+				flex-direction: column;
+				max-height: calc(100vh - 1px);
+				overflow-y: auto;
+				padding-bottom: 8px;
+			}
+			.item-pic {
+				background-color: #fff;
+				border: 1px solid #fff;
+				margin: 8px 8px 0 8px;
+				padding: 2px 8px;
+				border-radius: 4px;
+				&:hover {
+					background-color: #fff;
+				}
+			}
+			.pic-selected {
+				border: 1px solid #3B82F6 !important;
+			}
+			.none {
+				color: #bbb;
+				text-align: center;
+				margin: 8px auto;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="info">
+			<div style="margin: 8px;">
+				<div class="row-between">
+					<div id="btnRefresh"  class="clr1 clicked">刷新</div>
+				</div>
+			</div>
+			<div class="list"></div>
+		</div>
+	</body>
+</html>
+<script type="module" type="text/javascript" src="scripts/dialog/pictureList.js"></script>

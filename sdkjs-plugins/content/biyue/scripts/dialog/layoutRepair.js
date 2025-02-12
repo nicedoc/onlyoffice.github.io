@@ -74,6 +74,14 @@
 		text1: '书签，',
 		text2: '建议删除，',
 		value: 'bookmark'
+	}, {
+		idname: 'outOfRange',
+		type: 'warning',
+		locate: true,
+		keyname: 'hasOutOfRange',
+		text1: '超出范围的图片，',
+		text2: '建议',
+		value: 'outOfRange'
 	}]
 	window.Asc.plugin.init = function () {
 		console.log('layoutRepair init')
@@ -92,8 +100,8 @@
 					str += `<span style="color: #E6A23C;">Warning：</span>`
 				}
 				str +='<span>检查到</span>'
-				str += `<span style="font-weight: bold;">${item.text1}</span>`
-				str += `<span>${item.text2}</span>`
+				str += `<span style="font-weight: bold;">${item.text1 || ''}</span>`
+				str += `<span>${item.text2 || ''}</span>`
 				if (item.ignore) {
 					str +='<span class="ignore">忽略></span>'
 				}
@@ -102,6 +110,9 @@
 				}
 				if (item.delete) {
 					str +='<span class="delete">删除></span>'
+				}
+				if (item.locate) {
+					str +='<span class="locate">定位检查></span>'
 				}
 				str += '</div>'
 			}
@@ -132,7 +143,7 @@
 		var value = detect_list[i].value
 		var newValue = detect_list[i].newValue
 		var idName = `#${detect_list[i].idname}`
-		var classlist = ['.ignore', '.replace', '.delete']
+		var classlist = ['.ignore', '.replace', '.delete', '.locate']
 		for (var j = 0; j < classlist.length; ++j) {
 			addCmdEvent(detect_list[i].idname, classlist[j], j, value, newValue, idName, detect_list[i].keyname)
 		}

@@ -248,7 +248,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 						obj.feature_map = window.feature_map
 					} else if (message.initmsg == 'quesTypeErrorReportMessage') {
 						obj.tree_info = Asc.scope.tree_info
-					} else if (message.initmsg == 'pictureIndexMessage') {
+					} else if (message.initmsg == 'pictureIndexMessage' || message.initmsg == 'pictureListMessage') {
 						obj.list = Asc.scope.list_picture
 						obj.list_ignore = Asc.scope.list_ignore
 					}
