@@ -174,7 +174,7 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 			list.forEach(e => {
 				addClickEvent(`#${e.uid}`, locatePicture)
 				addClickEvent(`#${e.uid} .ignore`, onIgnore)
-				addClickEvent(`#${e.uid} .link1`, onLink)
+				// addClickEvent(`#${e.uid} .link1`, onLink)
 				addClickEvent(`#${e.uid} .link2`, onLink)
 				addClickEvent(`#${e.uid} .nodot`, onNoDot)
 				addClickEvent(`#${e.uid} .dot`, onOpenDot)
@@ -209,9 +209,9 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 			})
 		}
 		updateSelected(dataset.id, dataset.ignore)
-		if (!dataset.ignore) {
-			renderQuesList(data, false)
-		}
+		// if (!dataset.ignore) {
+		// 	renderQuesList(data, false)
+		// }
 	}
 
 	function updateSelected(id, ignore) {
