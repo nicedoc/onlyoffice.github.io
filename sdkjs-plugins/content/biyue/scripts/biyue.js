@@ -43,7 +43,8 @@ import {
 	splitWordAsk,
 	deleteAsks,
 	insertImage,
-	focusControlById
+	focusControlById,
+	setUnderLine
 } from './QuesManager.js'
 import {
 	tagImageCommon,
@@ -427,6 +428,9 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 				} else if (message.cmd == 'downloadExamHtml') {
 					clickDownloadExamHtml()
 				}
+				break
+			case 'setUnderLineMessage':
+				setUnderLine(message.data)
 				break
 			default:
 				break
@@ -960,6 +964,18 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		this.attachToolbarMenuClickEvent('insertSymbolImage', function (data) {
 			window.biyue.showDialog('addSymbolImageWindow', '插入符号图片', 'addSymbolImage.html', 600, 400, false, 'panelRight', ['resources/light/symbol.png'])
 		})
+		this.attachToolbarMenuClickEvent('setUnderline', function (data) {
+			window.biyue.refreshDialog({
+				winName:'setUnderlineWindow',
+				name:'设置下划线',
+				url:'setUnderline.html',
+				width:400,
+				height:800,
+				isModal:false,
+				type:'panelRight',
+				icons:['resources/light/underline.png']
+			})
+		})
 		this.attachToolbarMenuClickEvent("batchScore", onBatchScoreSet);
 		this.attachToolbarMenuClickEvent("batchQuesType", onBatchQuesTypeSet);
 		this.attachToolbarMenuClickEvent("imageLink", function (data) {
@@ -1034,6 +1050,16 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 					enableToggle: false,
 					separator: false
 				}, {
+					id: "setUnderline",
+					type: "button",
+					text: "设置下划线",
+					hint: "设置下划线",
+					icons: "resources/buttons/underline.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: false
+				},
+				{
 					id: "batchScore",
 					type: "button",
 					text: "批量分数",

@@ -853,6 +853,12 @@ function getContextMenuItems(type, selectedRes) {
 				})
 			}
 		}
+		if (type == 'Selection') {
+			items.push({
+				id: 'setUnderLine',
+				text: '设置下划线'
+			})
+		}
 		if (selectedRes.bTable) {
 			items.push({
 				id: 'tableRelation',
@@ -931,6 +937,18 @@ function onContextMenuClick(id) {
 				break
 			case 'mergeAsk':
 				mergeAsk(strs)
+				break
+			case 'setUnderLine':
+				window.biyue.refreshDialog({
+					winName:'setUnderlineWindow',
+					name:'设置下划线',
+					url:'setUnderline.html',
+					width:400,
+					height:800,
+					isModal:false,
+					type:'panelRight',
+					icons:['resources/light/underline.png']
+				})
 				break
 			default:
 				break
@@ -6821,6 +6839,17 @@ function splitWordAsk() {
 	}, false, false, {name: 'splitWordAsk'})
 }
 
+function setUnderLine(id) {
+	Asc.scope.undlerline_id = id
+	return biyueCallCommand(window, function() {
+		var undlerline_id = Asc.scope.undlerline_id
+		var oRange = Api.GetDocument().GetRangeBySelect()
+		if (oRange) {
+			oRange.SetUnderline(undlerline_id)
+		}
+		return true
+	}, false, true, {name: 'setUnderLine'})
+}
 export {
 	handleDocClick,
 	handleContextMenuShow,
@@ -6854,5 +6883,6 @@ export {
 	setNumberingLevel,
 	splitWordAsk,
 	insertImage,
-	focusControlById
+	focusControlById,
+	setUnderLine
 }
