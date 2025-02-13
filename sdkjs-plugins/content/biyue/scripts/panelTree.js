@@ -258,15 +258,15 @@ function renderTree() {
 						if (nodeData && !quesData.is_merge) { // 合并题不可设置为大题, 当题目处于单元格中时，只能清除大题，不可构建大小题
 							if (nodeData.is_big) {
 								menuItems.push('clearBig')
-								if (!item.cell_id) {
-									menuItems.push('setBig2')
-								}
+								// if (!item.cell_id) {
+								// 	menuItems.push('setBig2')
+								// }
 								updateMenuPos(event)
 							} else if (!item.cell_id) {
-								menuItems.push('setBig2')
-								if (item.lvl !== null) {
-									menuItems.push('setBig')
-								}
+								// menuItems.push('setBig2')
+								// if (item.lvl !== null) {
+								// 	menuItems.push('setBig')
+								// }
 							}
 						}
 					} else if (quesData.level_type == 'struct') {
