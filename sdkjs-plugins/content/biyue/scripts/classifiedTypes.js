@@ -1,6 +1,7 @@
 // 划分类型，处理结构，题目，小问的增删维护
 import { biyueCallCommand } from "./command.js";
 import { deleteAsks, getNodeList, handleChangeType } from './QuesManager.js'
+import { showAddShapeState } from './panelQuestionDetail.js'
 function handleRangeType(options) {
 	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
 	Asc.scope.node_list = window.BiyueCustomData.node_list
@@ -1831,6 +1832,7 @@ function deleteMutualAsks(ques_id, addWriteType) {
 }
 // 添加作答区
 function addWriteZone() {
+	showAddShapeState(true)
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	window.write_zone_add = true
 	return biyueCallCommand(window, function() {
@@ -2044,8 +2046,20 @@ function endAddShape() {
 		}
 	})
 }
+
+function leaveAddShape() {
+	Asc.scope.add_write_zone_data = null
+	window.write_zone_add = false
+	return biyueCallCommand(window, function() {
+		Api.sync_EndAddShape()
+		Api.isStartAddShape = false
+	}, false, false, {name: 'leaveAddShape'}).then(() => {
+		showAddShapeState(false)
+	})
+}
 export {
 	handleRangeType,
 	addWriteZone,
-	endAddShape
+	endAddShape,
+	leaveAddShape
 }

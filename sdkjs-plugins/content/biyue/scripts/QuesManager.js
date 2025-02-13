@@ -14,6 +14,7 @@ import { getInteractionTypes } from './model/feature.js'
 import proportionHandler from './handler/proportionHandler.js'
 import uploadValidateHandler from './handler/validateUpload.js'
 import { isChoiceMode, isTextMode } from "./model/ques.js";
+import { showAddShapeState } from './panelQuestionDetail.js'
 var g_click_value = null
 var upload_control_list = []
 
@@ -211,6 +212,7 @@ function handleContextMenuShow(options) {
 	Asc.scope.add_write_zone_data = null
 	window.write_zone_add = false
 	Asc.scope.menu_options = options
+	showAddShapeState(false)
 	return biyueCallCommand(window, function() {
 			// console.log('[handleContextMenuShow begin]')
 			Api.isStartAddShape = false
