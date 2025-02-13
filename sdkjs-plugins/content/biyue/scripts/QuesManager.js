@@ -6437,7 +6437,6 @@ function preGetExamTree() {
 		}
 		var list = []
 		var handled = {}
-		var lastStructIndex = -1; 
 		for (var oControl of controls) {
 			var tag = Api.ParseJSON(oControl.GetTag())
 			if (!tag.client_id) {
@@ -6494,11 +6493,7 @@ function preGetExamTree() {
 								max_struct_index = i
 							}
 						}
-						if (min_p_index == list.length) {
-							min_p_index = list[i].parent_index
-						} else if (list[i].parent_index < min_p_index) {
-							min_p_index = list[i].parent_index
-						}
+						min_p_index = Math.min(min_p_index, list[i].parent_index);
 						if (list[i].lvl < lvl) {
 							if (quesData.level_type == 'struct') {
 								if (list[i].level_type == 'struct') {
@@ -6517,7 +6512,6 @@ function preGetExamTree() {
 												obj.parent_index = i
 												break
 											}
-											break
 										} else if (min_p_index == -1) {
 											if (isValidParent(list.length - 1, list, i)) {
 												obj.parent_id = list[i].id
