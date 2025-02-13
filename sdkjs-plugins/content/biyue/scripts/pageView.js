@@ -7,7 +7,8 @@ import {
 	clearRepeatControl,
 	tidyNodes,
 	preGetExamTree,
-	getQuestionHtml
+	getQuestionHtml,
+	refreshDocTree
 } from './QuesManager.js'
 import {
 	imageAutoLink,
@@ -163,6 +164,7 @@ function initView() {
 		}
 	})
 	addClickEvent('#panelTree #lock', clickTreeLock)
+	addClickEvent('#panelTree #refreshDoc', refreshDocTree)
 	addClickEvent('#downloadExamHtml', clickDownloadExamHtml)
 	initSetEv()
 }

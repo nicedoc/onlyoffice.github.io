@@ -6747,6 +6747,79 @@ function setUnderLine(id) {
 		return true
 	}, false, true, {name: 'setUnderLine'})
 }
+function refreshDocTree() {
+	Asc.scope.question_map = window.BiyueCustomData.question_map
+	return biyueCallCommand(window, function() {
+		var question_map = Asc.scope.question_map || {}
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls() || []
+		function getControlsByClientId(cid) {
+			var findControls = controls.filter(e => {
+				var tag = Api.ParseJSON(e.GetTag())
+				if (e.GetClassType() == 'blockLvlSdt') {
+					return tag.client_id == cid && e.GetPosInParent() >= 0
+				} else if (e.GetClassType() == 'inlineLvlSdt') {
+					return e.Sdt && e.Sdt.GetPosInParent() >= 0 && tag.client_id == cid
+				}
+			})
+			if (findControls && findControls.length) {
+				return findControls[0]
+			}
+		}
+		function GetNumberingValue(oControl) {
+			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
+				return null
+			}
+			var paragraphs = oControl.GetAllParagraphs()
+			for (var i = 0; i < paragraphs.length; ++i) {
+				var oParagraph = paragraphs[i]
+				if (oParagraph) {
+					var parent1 = oParagraph.Paragraph.Parent
+					var parent2 = parent1.Parent
+					if (parent2) {
+						if (parent2.Id == oControl.Sdt.GetId()) {
+							if (oParagraph.Paragraph.HaveNumbering()) {
+								var oNumberingLevel = oParagraph.GetNumbering()
+								return {text: oParagraph.Paragraph.GetNumberingText(), lvl: oNumberingLevel ? oNumberingLevel.Lvl : 0} 
+							}
+							return null
+						}
+					}
+				}
+			}
+			return null
+		}
+		var newQuesMaps = {}
+		for (var id in question_map) {
+			var ques_data = question_map[id]
+			var ids = ques_data.is_merge ? ques_data.ids : [id]
+			var text = ''
+			var numbing_text = ''
+			for (var cid of ids) {
+				var oControl = getControlsByClientId(cid)
+				if (oControl) {
+					text += oControl.GetRange().GetText()
+					if (!numbing_text) {
+						numbing_text = GetNumberingValue(oControl)
+					}
+				}
+			}
+			newQuesMaps[id] = {
+				text: text,
+				numbing_text: numbing_text ? numbing_text.text : ''
+			}
+		}
+		return newQuesMaps
+	}, false, false, {name: 'refreshDocTree'}).then(res => {
+		if (res) {
+			for (var id in res) {
+				window.BiyueCustomData.question_map[id].text = res[id].text
+				window.BiyueCustomData.question_map[id].ques_default_name = res[id].numbing_text ? getNumberingText(res[id].numbing_text) : GetDefaultName(window.BiyueCustomData.question_map[id].level_type, res[id].text)
+			}
+		}
+		return refreshTree()
+	})
+}
 export {
 	handleDocClick,
 	handleContextMenuShow,
@@ -6781,5 +6854,6 @@ export {
 	splitWordAsk,
 	insertImage,
 	focusControlById,
-	setUnderLine
+	setUnderLine,
+	refreshDocTree
 }
