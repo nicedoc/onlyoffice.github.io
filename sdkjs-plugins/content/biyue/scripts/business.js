@@ -2817,6 +2817,9 @@ function getAllPositions2() {
 					if (pagebounds.Right == 0 && pagebounds.Left == 0) {
 						continue
 					}
+					if (!(pagebounds.Right - pagebounds.Left) || !(pagebounds.Bottom - pagebounds.Top)) {
+						continue
+					}
 					bounds.push({
 						order: order + '',
 						page: oCell.Cell.Get_AbsolutePage(p) + 1,
@@ -2874,7 +2877,7 @@ function getAllPositions2() {
 								})
 								if (numControl && numControl.Sdt && numControl.Sdt.Bounds) {
 									var bounds = Object.values(numControl.Sdt.Bounds) || []
-									if (bounds.length) {
+									if (bounds.length && bounds[0].W && bounds[0].H) {
 										return {
 											page: bounds[0].Page + 1,
 											x: mmToPx(bounds[0].X),
@@ -2883,7 +2886,6 @@ function getAllPositions2() {
 											h: mmToPx(bounds[0].H),
 										}
 									}
-									
 								}
 							}
 						}
@@ -2920,6 +2922,9 @@ function getAllPositions2() {
 									titleObj.feature &&
 									titleObj.feature.zone_type == 'question'
 								) {
+									if (!paraDrawing.Width || !paraDrawing.Height) {
+										continue
+									}
 									var obj = {
 										page: paraDrawing.PageNum + 1,
 										x: mmToPx(paraDrawing.X),
@@ -2944,7 +2949,7 @@ function getAllPositions2() {
 						}
 					}
 					var simpleRegion = getSimplePos(oControl)
-					if (simpleRegion) {
+					if (simpleRegion && simpleRegion.w && simpleRegion.h) {
 						correct_region = simpleRegion
 					}
 				}
@@ -3061,13 +3066,15 @@ function getAllPositions2() {
 									if (pagebounds.Right == 0 && pagebounds.Left == 0) {
 										continue
 									}
-									bounds.push({
-										Page: parentcell.Cell.Get_AbsolutePage(p),
-										X: mmToPx(pagebounds.Left),
-										Y: mmToPx(pagebounds.Top),
-										W: mmToPx(pagebounds.Right - pagebounds.Left),
-										H: mmToPx(pagebounds.Bottom - pagebounds.Top),
-									})
+									if (!(pagebounds.Right - pagebounds.Left) && !(pagebounds.Bottom - pagebounds.Top)) {
+										bounds.push({
+											Page: parentcell.Cell.Get_AbsolutePage(p),
+											X: mmToPx(pagebounds.Left),
+											Y: mmToPx(pagebounds.Top),
+											W: mmToPx(pagebounds.Right - pagebounds.Left),
+											H: mmToPx(pagebounds.Bottom - pagebounds.Top),
+										})
+									}
 								}
 							}
 						}
@@ -3152,27 +3159,31 @@ function getAllPositions2() {
 					write_ask_region: [],
 				}
 				bounds.forEach((e) => {
-					item.title_region.push({
-						page: e.Page + 1,
-						x: e.X,
-						y: e.Y,
-						w: e.W,
-						h: e.H,
-					})
+					if (e.W && e.H) {
+						item.title_region.push({
+							page: e.Page + 1,
+							x: e.X,
+							y: e.Y,
+							w: e.W,
+							h: e.H,
+						})
+					}
 				})
 				if (is_gather_region) {
 					// 集中作答区的题目
 					let cell_region = gatherRegion.cell_region || []
 					cell_region.forEach((e) => {
-						item.write_ask_region.push({
-							page: e.page,
-							order: e.order + '',
-							v: item.score + '',
-							x: e.x,
-							y: e.y,
-							w: e.w,
-							h: e.h,
-						})
+						if (e.w && e.h) {
+							item.write_ask_region.push({
+								page: e.page,
+								order: e.order + '',
+								v: item.score + '',
+								x: e.x,
+								y: e.y,
+								w: e.w,
+								h: e.h,
+							})
+						}
 					})
 					let mark_ask_region = {}
 					mark_ask_region['1'] = item.write_ask_region
@@ -3219,7 +3230,7 @@ function getAllPositions2() {
 										if (oAskControl.GetClassType() == 'inlineLvlSdt') {
 											var askBounds = Object.values(oAskControl.Sdt.Bounds)
 											askBounds.forEach((e) => {
-												if (e.W) {
+												if (e.W && e.H) {
 													item.write_ask_region.push({
 														order: mark_order + '',
 														page: e.Page + 1,
@@ -3236,16 +3247,18 @@ function getAllPositions2() {
 											var rects2 = []
 											getBlockControlBounds(oAskControl, rects2)
 											rects2.forEach(e => {
-												item.write_ask_region.push({
-													order: mark_order + '',
-													page: e.Page + 1,
-													x: e.X,
-													y: e.Y,
-													w: e.W,
-													h: e.H,
-													v: ask_score + '',
-													mark_order: mark_order,
-												})
+												if (e.W && e.H) {
+													item.write_ask_region.push({
+														order: mark_order + '',
+														page: e.Page + 1,
+														x: e.X,
+														y: e.Y,
+														w: e.W,
+														h: e.H,
+														v: ask_score + '',
+														mark_order: mark_order,
+													})
+												}
 											})
 										}
 										find = true
@@ -3268,16 +3281,18 @@ function getAllPositions2() {
 									if (oShape) {
 										var shapeDrawing = oShape.getParaDrawing()
 										if (shapeDrawing) {
-											item.write_ask_region.push({
-												order: mark_order + '',
-												page: shapeDrawing.PageNum + 1,
-												x: mmToPx(shapeDrawing.X),
-												y: mmToPx(shapeDrawing.Y),
-												w: mmToPx(shapeDrawing.Width),
-												h: mmToPx(shapeDrawing.Height),
-												v: ask_score + '',
-												mark_order: mark_order,
-											})
+											if (shapeDrawing.Width && shapeDrawing.Height) {
+												item.write_ask_region.push({
+													order: mark_order + '',
+													page: shapeDrawing.PageNum + 1,
+													x: mmToPx(shapeDrawing.X),
+													y: mmToPx(shapeDrawing.Y),
+													w: mmToPx(shapeDrawing.Width),
+													h: mmToPx(shapeDrawing.Height),
+													v: ask_score + '',
+													mark_order: mark_order,
+												})
+											}
 											find = true
 										}
 									}
@@ -3311,15 +3326,17 @@ function getAllPositions2() {
 				} else if (question_obj.ques_mode != 1 && question_obj.ques_mode != 2 &&  question_obj.ques_mode != 5) { // 单选，填空，多选不适用直接将题干作为作答区
 					// 没有小问的题目 暂时使用当前的题干区域作为批改和作答区 同时如果存在多个题干区，也只算作一个题目的批改区
 					bounds.forEach((e) => {
-						item.write_ask_region.push({
-							page: e.Page + 1,
-							order: '1',
-							v: item.score + '',
-							x: e.X,
-							y: e.Y,
-							w: e.W,
-							h: e.H,
-						})
+						if (e.W && e.H) {
+							item.write_ask_region.push({
+								page: e.Page + 1,
+								order: '1',
+								v: item.score + '',
+								x: e.X,
+								y: e.Y,
+								w: e.W,
+								h: e.H,
+							})
+						}
 					})
 					let mark_ask_region = {}
 					mark_ask_region['1'] = item.write_ask_region
@@ -3358,7 +3375,7 @@ function getAllPositions2() {
 					}
 					if (paraDrawing.docPr) {
 						var title = oDrawing.GetTitle()
-						if (title && title.indexOf('partical_no_dot') >= 0) {
+						if (title && title.indexOf('partical_no_dot') >= 0 && paraDrawing.Width && paraDrawing.Height) {
 							partical_no_dot_list.push({
 								page: paraDrawing.PageNum + 1,
 								x: mmToPx(paraDrawing.X),
@@ -3384,6 +3401,9 @@ function getAllPositions2() {
 								) {
 									var footerType = titleObj.feature.footer_type
 									for (var p = 0; p < pageCount; ++p) {
+										if (!paraDrawing.Width || !paraDrawing.Height) {
+											continue
+										}
 										var fieldObj = {
 											v: p + 1 + '',
 											page: p + 1,
@@ -3455,14 +3475,16 @@ function getAllPositions2() {
 													var CellsInfo = oRow.Row.CellsInfo
 													for (var c = 2; c < CellsInfo.length; ++c) {
 														var cell = CellsInfo[c]
-														featureObj.fields.push({
-															v: c - 1 + '',
-															page: paraDrawing.PageNum + 1,
-															x: mmToPx(paraDrawing.X + cell.X_cell_start),
-															y: mmToPx(paraDrawing.Y),
-															w: mmToPx(cell.X_cell_end - cell.X_cell_start),
-															h: mmToPx(paraDrawing.Height),
-														})
+														if (paraDrawing.Height && cell.X_cell_end - cell.X_cell_start) {
+															featureObj.fields.push({
+																v: c - 1 + '',
+																page: paraDrawing.PageNum + 1,
+																x: mmToPx(paraDrawing.X + cell.X_cell_start),
+																y: mmToPx(paraDrawing.Y),
+																w: mmToPx(cell.X_cell_end - cell.X_cell_start),
+																h: mmToPx(paraDrawing.Height),
+															})
+														}
 													}
 												}
 											} else {
@@ -3472,14 +3494,16 @@ function getAllPositions2() {
 											console.log('cannot find oShape')
 										}
 									} else {
-										featureObj.fields.push({
-											v: titleObj.feature.v + '',
-											page: paraDrawing.PageNum + 1,
-											x: mmToPx(paraDrawing.X),
-											y: mmToPx(paraDrawing.Y),
-											w: mmToPx(paraDrawing.Width),
-											h: mmToPx(paraDrawing.Height),
-										})
+										if (paraDrawing.Width && paraDrawing.Height) {
+											featureObj.fields.push({
+												v: titleObj.feature.v + '',
+												page: paraDrawing.PageNum + 1,
+												x: mmToPx(paraDrawing.X),
+												y: mmToPx(paraDrawing.Y),
+												w: mmToPx(paraDrawing.Width),
+												h: mmToPx(paraDrawing.Height),
+											})
+										}
 									}
 									feature_list.push(featureObj)
 								}
