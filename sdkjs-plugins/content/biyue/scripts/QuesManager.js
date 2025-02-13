@@ -6415,242 +6415,190 @@ function preGetExamTree() {
 	Asc.scope.node_list = window.BiyueCustomData.node_list
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	return biyueCallCommand(window, function() {
-			// console.log('[preGetExamTree begin]')
-			var node_list = Asc.scope.node_list || []
-			var question_map = Asc.scope.question_map || {}
-			var oDocument = Api.GetDocument()
-			var controls = oDocument.GetAllContentControls() || []
-			function getFirstParagraph(oControl) {
-				if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
-					return null
-				}
-				var paragraphs = oControl.GetAllParagraphs()
-				for (var i = 0; i < paragraphs.length; ++i) {
-					var oParagraph = paragraphs[i]
-					if (oParagraph) {
-						var parent1 = oParagraph.Paragraph.Parent
-						var parent2 = parent1.Parent
-						if (parent2 && parent2.Id == oControl.Sdt.GetId()) {
-							return oParagraph
-						}
-					}
-				}
+		var node_list = Asc.scope.node_list || []
+		var question_map = Asc.scope.question_map || {}
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls() || []
+		function getValidParent(oControl) {
+			if (!oControl) {
 				return null
 			}
-			function getLvl(oControl, paraIndex) {
-				var oParagraph = getFirstParagraph(oControl)
-				if (!oParagraph) {
-					return null
-				}
-				var oNumberingLevel = oParagraph.GetNumbering()
-				if (oNumberingLevel) {
-					return oNumberingLevel.Lvl
-				}
-				return null
-			}
-			function getValidParent(oControl) {
-				if (!oControl) {
-					return null
-				}
-				var oParentControl = oControl.GetParentContentControl()
-				if (oParentControl) {
-					var tag = Api.ParseJSON(oParentControl.GetTag())
-					var qId = tag.mid ? tag.mid : tag.client_id
-					if (question_map[qId]) {
-						return oParentControl
-					} else {
-						return getValidParent(oParentControl)
-					}
-				}
-				return null
-			}
-			var list = []
-			var handled = {}
-			for (var oControl of controls) {
-				var tag = Api.ParseJSON(oControl.GetTag())
-				if (!tag.client_id) {
-					continue
-				}
+			var oParentControl = oControl.GetParentContentControl()
+			if (oParentControl) {
+				var tag = Api.ParseJSON(oParentControl.GetTag())
 				var qId = tag.mid ? tag.mid : tag.client_id
-				if (handled[qId]) {
-					continue
-				}
-				var quesData = question_map[qId]
-				if (!quesData) {
-					continue
-				}
-				if (quesData.level_type != 'struct' && quesData.level_type != 'question') {
-					continue
-				}
-				handled[qId] = true
-				var nodeData = node_list.find(e => {
-					return e.id == tag.client_id
-				})
-				var is_big = nodeData ? nodeData.is_big : false
-				var lvl = null
-				var obj = {
-					id: qId,
-					level_type: quesData.level_type,
-					parent_id: 0,
-					parent_index: -1,
-					is_big: is_big,
-				}
-				var oParentControl = getValidParent(oControl)
-				if (quesData.level_type == 'struct') {
-					lvl = getLvl(oControl)
-				} else if (quesData.level_type == 'question') {
-					lvl = getLvl(oControl, is_big ? 0 : -1)
-				}
-				obj.lvl = lvl
-				if (oParentControl && quesData.level_type == 'question') {
-					var parentTag = Api.ParseJSON(oParentControl.GetTag() || '{}')
-					var p_id = parentTag.mid ? parentTag.mid : parentTag.client_id
-					obj.parent_id = p_id
-					obj.parent_index = list.findIndex(e => {
-						return e.id == p_id
-					})
-					// console.log(qId, '1   p_id', obj.parent_id, obj.parent_index)
-				} else if (lvl === 0) {
-					obj.parent_id = 0
-					obj.parent_index = -1
-					// console.log(qId, '2   p_id', obj.parent_id, obj.parent_index)
+				if (question_map[qId]) {
+					return oParentControl
 				} else {
-					// 根据level, 查找在它前面的比它lvl小的struct
-					if (list.length > 0) {
-						for (var i = list.length - 1; i >= 0; --i) {
-							if (list[i].lvl === null) {
+					return getValidParent(oParentControl)
+				}
+			}
+			return null
+		}
+		var list = []
+		var handled = {}
+		var lastStructIndex = -1; 
+		for (var oControl of controls) {
+			var tag = Api.ParseJSON(oControl.GetTag())
+			if (!tag.client_id) {
+				continue
+			}
+			var qId = tag.mid ? tag.mid : tag.client_id
+			if (handled[qId]) {
+				continue
+			}
+			var quesData = question_map[qId]
+			if (!quesData) {
+				continue
+			}
+			if (quesData.level_type != 'struct' && quesData.level_type != 'question') {
+				continue
+			}
+			handled[qId] = true
+			var nodeData = node_list.find(e => {
+				return e.id == tag.client_id
+			})
+			var is_big = nodeData ? nodeData.is_big : false
+			var lvl = quesData.lvl
+			if (!lvl) {
+				lvl = tag.lvl
+			}
+			var obj = {
+				id: qId,
+				level_type: quesData.level_type,
+				parent_id: 0,
+				parent_index: -1,
+				is_big: is_big,
+				lvl: lvl
+			}
+
+			var oParentControl = getValidParent(oControl)
+			if (oParentControl && quesData.level_type == 'question') {
+				var parentTag = Api.ParseJSON(oParentControl.GetTag() || '{}')
+				var p_id = parentTag.mid ? parentTag.mid : parentTag.client_id
+				obj.parent_id = p_id
+				obj.parent_index = list.findIndex(e => {
+					return e.id == p_id
+				})
+			} else {
+				if (list.length && lvl !== null) {
+					var min_p_index = list.length
+					var max_struct_index = -1
+					for (var i = list.length - 1; i >= 0; --i) {
+						console.log(qId, lvl, obj.level_type, list[i].lvl, list[i].id, list[i].level_type, list[i].parent_index)
+						if (list[i].lvl == null) {
+							break
+						}
+						if (list[i].level_type == 'struct') {
+							if (max_struct_index == -1) {
+								max_struct_index = i
+							}
+						}
+						if (min_p_index == list.length) {
+							min_p_index = list[i].parent_index
+						} else if (list[i].parent_index < min_p_index) {
+							min_p_index = list[i].parent_index
+						}
+						if (list[i].lvl < lvl) {
+							if (quesData.level_type == 'struct') {
 								if (list[i].level_type == 'struct') {
-									if (lvl === null) {
-										obj.parent_id = list[i].parent_id
-										obj.parent_index = list[i].parent_index
-									} else {
+									if (isValidParent(list.length - 1, list, i)) {
 										obj.parent_id = list[i].id
 										obj.parent_index = i
-									}
-									// console.log(qId, '3   p_id', obj.parent_id, obj.parent_index)
-									break
-								} else if (list[i].is_child) {
-									continue
-								} else {
-									obj.parent_id = list[i].parent_id
-									obj.parent_index = list[i].parent_index
-									// console.log(qId, '4   p_id', obj.parent_id, obj.parent_index)
-									break
-								}
-							} else if (list[i].lvl === 0) {
-								if (list[i].level_type == 'struct') {
-									obj.parent_id = list[i].id
-									obj.parent_index = i
-									// console.log(qId, '5   p_id', obj.parent_id, obj.parent_index)
-									break
-								} else {
-									obj.parent_id = 0
-									obj.parent_index = -1
-									// console.log(qId, '6   p_id', obj.parent_id, obj.parent_index)
-									break
-								}
-							} else if (list[i].lvl < lvl) {
-								if (list[i].level_type == 'struct') {
-									obj.parent_id = list[i].id
-									obj.parent_index = i
-									// console.log(qId, '7   p_id', obj.parent_id, obj.parent_index)
-									break
-								} else {
-									if (list[i].is_child) {
-										continue
-									} else {
-										obj.parent_id = list[i].parent_id
-										obj.parent_index = list[i].parent_index
-										// console.log(qId, '8   p_id', obj.parent_id, obj.parent_index)
-									}
-									break
-								}
-							} else if (list[i].lvl === lvl) {
-								if (list[i].level_type == 'struct') {
-									if (list[i].parent_id || quesData.level_type == 'struct') {
-										obj.parent_id = list[i].parent_id
-										obj.parent_index = i
-										// console.log(qId, '9   p_id', obj.parent_id, obj.parent_index)
-									} else {
-										obj.parent_id = list[i].id
-										obj.parent_index = i
-										// console.log(qId, '10   p_id', obj.parent_id, obj.parent_index)
-									}
-									break
-								} else if (list[i].level_type == 'question') {
-									if (quesData.level_type == 'struct') {
-										continue
-									} else if (list[i].is_child) {
-										continue
-									} else {
-										obj.parent_id = list[i].parent_id
-										obj.parent_index = list[i].parent_index
-										// console.log(qId, '11   p_id', obj.parent_id, obj.parent_index)
 										break
 									}
 								}
-							} else if (list[i].lvl > lvl) {
-								if (list[i].level_type == 'struct' && list[i].parent_id == 0 && quesData.level_type == 'question' && lvl > 0) {
+							} else {
+								if (max_struct_index >= 0) {
+									if (max_struct_index > i) {
+										if (min_p_index >= 0 && min_p_index >= i) {
+											if (isValidParent(list.length - 1, list, i)) {
+												obj.parent_id = list[i].id
+												obj.parent_index = i
+												break
+											}
+											break
+										} else if (min_p_index == -1) {
+											if (isValidParent(list.length - 1, list, i)) {
+												obj.parent_id = list[i].id
+												obj.parent_index = i
+												break
+											}
+										}
+										continue
+									}
+								}
+								if (isValidParent(list.length - 1, list, i)) {
 									obj.parent_id = list[i].id
 									obj.parent_index = i
 									break
 								}
-								continue
 							}
-						}
-					}
-				}
-				var parentTableCell1 = oControl.GetParentTableCell()
-				if (parentTableCell1) {
-					obj.cell_id = parentTableCell1.Cell.Id
-				}
-				list.push(obj)
-				if (is_big) {
-					var bindex = list.length - 1
-					var childControls = oControl.GetAllContentControls()
-					for (var oChildControl of childControls) {
-						var childTag = Api.ParseJSON(oChildControl.GetTag() || '{}')
-						var childId = childTag.mid || childTag.client_id
-						if (handled[childId] || oChildControl.GetClassType() != 'blockLvlSdt') {
-							continue
-						}
-						var quesData2 = question_map[childId]
-						if (!quesData2) {
-							continue
-						}
-						if (quesData2.level_type != 'struct' && quesData2.level_type != 'question') {
-							continue
-						}
-						handled[childId] = true
-						var parentControl2 = getValidParent(oChildControl)
-						if (parentControl2) {
-							var parentTag2 = Api.ParseJSON(parentControl2.GetTag() || '{}')
-							var parentId2 = parentTag2.mid || parentTag2.client_id
-							var parentIndex2 = list.findIndex(e => {
-								return e.id == parentId2
-							})
-							var obj2 = {
-								id: childId,
-								level_type: quesData2.level_type,
-								parent_id: parentId2,
-								parent_index: parentIndex2,
-								is_big: childTag.big == 1,
-								lvl: getLvl(oChildControl, childTag.big == 1 ? 0 : -1),
-								is_child: true
-							}
-							// console.log(childId, '12   p_id', parentId2, parentIndex2)
-							var parentTableCell = oChildControl.GetParentTableCell()
-							if (parentTableCell) {
-								obj2.cell_id = parentTableCell.Cell.Id
-							}
-							list.push(obj2)
-							list[bindex].end_id = childId
 						}
 					}
 				}
 			}
-			return list
-	}, false, false, {name: 'preGetExamTree'}).then((list => {
+			var parentTableCell1 = oControl.GetParentTableCell()
+			if (parentTableCell1) {
+				obj.cell_id = parentTableCell1.Cell.Id
+			}
+			list.push(obj)
+			if (is_big) {
+				var bindex = list.length - 1
+				var childControls = oControl.GetAllContentControls()
+				for (var oChildControl of childControls) {
+					var childTag = Api.ParseJSON(oChildControl.GetTag() || '{}')
+					var childId = childTag.mid || childTag.client_id
+					if (handled[childId] || oChildControl.GetClassType() != 'blockLvlSdt') {
+						continue
+					}
+					var quesData2 = question_map[childId]
+					if (!quesData2) {
+						continue
+					}
+					if (quesData2.level_type != 'struct' && quesData2.level_type != 'question') {
+						continue
+					}
+					handled[childId] = true
+					var parentControl2 = getValidParent(oChildControl)
+					if (parentControl2) {
+						var parentTag2 = Api.ParseJSON(parentControl2.GetTag() || '{}')
+						var parentId2 = parentTag2.mid || parentTag2.client_id
+						var parentIndex2 = list.findIndex(e => {
+							return e.id == parentId2
+						})
+						var obj2 = {
+							id: childId,
+							level_type: quesData2.level_type,
+							parent_id: parentId2,
+							parent_index: parentIndex2,
+							is_big: childTag.big == 1,
+							lvl: quesData2.lvl || childTag.lvl,
+							is_child: true
+						}
+						// console.log(childId, '12   p_id', parentId2, parentIndex2)
+						var parentTableCell = oChildControl.GetParentTableCell()
+						if (parentTableCell) {
+							obj2.cell_id = parentTableCell.Cell.Id
+						}
+						list.push(obj2)
+						list[bindex].end_id = childId
+					}
+				}
+			}
+			// 判断父节点是否有效
+			function isValidParent(preIndex, list, targetIndex) {
+				for (var i = preIndex; i >= targetIndex; --i) {
+					var pIndex = list[i].parent_index
+					if (i > targetIndex && pIndex < targetIndex) {
+						return false
+					}
+				}
+				return true
+			}
+		}
+		return list
+	}, false, false, {name: 'preGetExamTree'}).then(list => {
 		// 传入OO处理的js代码的列表结构不支持层级过深，嵌套达到5级，就会导致树形结构出错，command无法返回结果
 		return new Promise((resolve, reject) => {
 			if (!list) {
@@ -6684,79 +6632,35 @@ function preGetExamTree() {
 			}
 			resolve({list: list, tree: tree})
 		})
-	}))
+	})
 }
 
 function setNumberingLevel(ids, lvl) {
 	Asc.scope.ids = ids
 	Asc.scope.lvl = lvl
 	return biyueCallCommand(window, function() {
-			// console.log('[setNumberingLevel] begin')
-			var ids = Asc.scope.ids || []
-			var lvl = Asc.scope.lvl
-			var oDocument = Api.GetDocument()
-			var controls = oDocument.GetAllContentControls()
-			var list = []
-			function getFirstParagraph(oControl) {
-				if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
-					return null
-				}
-				var paragraphs = oControl.GetAllParagraphs()
-				for (var i = 0; i < paragraphs.length; ++i) {
-					var oParagraph = paragraphs[i]
-					if (oParagraph) {
-						var parent1 = oParagraph.Paragraph.Parent
-						var parent2 = parent1.Parent
-						if (parent2 && parent2.Id == oControl.Sdt.GetId()) {
-							return oParagraph
-						}
-					}
-				}
-				return null
+		var ids = Asc.scope.ids || []
+		var lvl = Asc.scope.lvl
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls() || []
+		var list = []
+		for (var oControl of controls) {
+			if (oControl.GetClassType() != 'blockLvlSdt') {
+				continue
 			}
-			for (var oControl of controls) {
-				if (oControl.GetClassType() != 'blockLvlSdt') {
-					continue
-				}
-				var tag = Api.ParseJSON(oControl.GetTag() || '{}')
-				var id = tag.mid || tag.client_id
-				if (ids.indexOf(id) == -1) {
-					continue
-				}
-				tag.lvl = lvl
-				oControl.SetTag(JSON.stringify(tag))
-				var numberingtext = ''
-				var oParagraph = getFirstParagraph(oControl)
-				if (oParagraph) {
-					var oNumberingLevel = oParagraph.GetNumbering()
-					if (oNumberingLevel) { // ApiNumberingLevel
-						var oNumbering = oNumberingLevel.GetNumbering()
-						var oNumLvl = oNumbering.GetLevel(lvl)
-						oParagraph.SetNumbering(oNumLvl)
-						numberingtext = oParagraph.Paragraph.GetNumberingText()
-					} else {
-						var oNumbering = Api.GetDocument().CreateNumbering("numbered")  // ApiNumbering
-						for (var i = 0; i < 10; ++i) {
-							var oNumLvl = oNumbering.GetLevel(i)
-							oNumLvl.SetCustomType("none", '', "left");
-							oNumLvl.SetRestart(false);
-							oNumLvl.SetSuff("none")
-							var oParaPr = oNumLvl.GetParaPr()
-							oParaPr.SetIndFirstLine(0);
-							oParaPr.SetIndLeft(0)
-							if (lvl == i) {
-								oParagraph.SetNumbering(oNumLvl)		
-							}
-						}
-					}
-				}
-				list.push({
-					id: id,
-					numbing_text: numberingtext,
-					text: oControl.GetRange().GetText()
-				})
+			var tag = Api.ParseJSON(oControl.GetTag() || '{}')
+			var id = tag.mid || tag.client_id
+			if (ids.indexOf(id) == -1) {
+				continue
 			}
-			return list
+			tag.lvl = lvl
+			oControl.SetTag(JSON.stringify(tag))
+			list.push({
+				id: id,
+				lvl: lvl
+			})
+		}
+		return list
 	}, false, false, {name: 'setNumberingLevel'}).then(list => {
 		return new Promise((resolve, reject) => {
 			try {
@@ -6765,8 +6669,7 @@ function setNumberingLevel(ids, lvl) {
 					for (var item of list) {
 						var question = question_map[item.id]
 						if (question) {
-							question.text = item.text
-							question.ques_default_name = item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(question.level_type, question.text)
+							question.lvl = item.lvl
 						}
 					}
 				}	
