@@ -466,7 +466,13 @@ button,input,optgroup,select,textarea {
 
 .btn.focus,.btn:focus,.btn:hover {
   color: #333;
-  text-decoration: none
+  text-decoration: none;
+}
+
+.btn:focus,
+.btn:focus-visible {
+	outline: 0 !important;
+  	outline-offset: 0 !important;
 }
 
 .btn.active,.btn:active {
