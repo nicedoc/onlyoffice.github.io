@@ -1186,7 +1186,10 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 						if (oControl.GetClassType() == 'blockLvlSdt') {
 							var oCell = oControl.GetParentTableCell()
 							if (oCell.GetContent().GetElementsCount() > 1) {
-								oCell.GetContent().RemoveElement(1)
+								var oEl = oCell.GetContent().GetElement(1)
+								if (oEl && oEl.GetClassType() == 'paragraph' && oEl.GetElementsCount() == 0) {
+									oCell.GetContent().RemoveElement(1)
+								}
 							}
 							if (oControl.GetContent().GetElementsCount() > 1) {
 								var lastpos = oControl.GetContent().GetElementsCount() - 1
