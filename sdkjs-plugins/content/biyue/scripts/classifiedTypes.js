@@ -1,5 +1,5 @@
 // 划分类型，处理结构，题目，小问的增删维护
-import { biyueCallCommand, dispatchCommandResult } from "./command.js";
+import { biyueCallCommand } from "./command.js";
 import { deleteAsks, getNodeList, handleChangeType } from './QuesManager.js'
 function handleRangeType(options) {
 	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
@@ -7,6 +7,7 @@ function handleRangeType(options) {
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	Asc.scope.options = options
 	return biyueCallCommand(window, function() {
+		// console.log('[handleRangeType] begin')
 		var client_node_id = Asc.scope.client_node_id || 0
 		var node_list = Asc.scope.node_list || []
 		var question_map = Asc.scope.question_map || {}
@@ -117,6 +118,9 @@ function handleRangeType(options) {
 			var pcount = drawingParentParagraph.GetElementsCount()
 			for (var i = 0; i < pcount; ++i) {
 				var oChild = drawingParentParagraph.GetElement(i)
+				if (!oChild) {
+					continue
+				}
 				if (oChild.GetClassType) {
 					var childType = oChild.GetClassType()
 					if (childType == 'run') {
@@ -127,6 +131,9 @@ function handleRangeType(options) {
 						var cnt3 = oChild.GetElementsCount()
 						for (var i3 = 0; i3 < cnt3; ++i3) {
 							var oChild3 = oChild.GetElement(i3)
+							if (!oChild3) {
+								continue
+							}
 							if (oChild3.GetClassType() == 'run') {
 								if (inRun(oChild3, oDrawing.Drawing.Id)) {
 									return null
@@ -292,11 +299,13 @@ function handleRangeType(options) {
 			var cellContent = oCell.GetContent()
 			var paragraphs = cellContent.GetAllParagraphs()
 			paragraphs.forEach(oParagraph => {
-				var childCount = oParagraph.GetElementsCount()
-				for (var i = 0; i < childCount; ++i) {
-					var oRun = oParagraph.GetElement(i)
-					if (deleteDrawingRun(oRun, 'ask_accurate')) {
-						break
+				if (oParagraph) {
+					var childCount = oParagraph.GetElementsCount()
+					for (var i = 0; i < childCount; ++i) {
+						var oRun = oParagraph.GetElement(i)
+						if (deleteDrawingRun(oRun, 'ask_accurate')) {
+							break
+						}
 					}
 				}
 			})
@@ -325,7 +334,7 @@ function handleRangeType(options) {
 						var count = oParent.GetElementsCount()
 						for (var c = 0; c < count; ++c) {
 							var child = oParent.GetElement(c)
-							if (child.GetClassType() == 'run' && child.Run.Id == run.Id) {
+							if (child && child.GetClassType() == 'run' && child.Run.Id == run.Id) {
 								deleteDrawingRun(child, 'ask_accurate')
 								break
 							}
@@ -506,7 +515,7 @@ function handleRangeType(options) {
 				if (oShape.GetTitle) {
 					var titleObj = Api.ParseJSON(oShape.GetTitle())
 					if (titleObj.feature && titleObj.feature.zone_type == 'question' &&
-						 titleObj.feature.sub_type == 'write' && titleObj.feature.parent_id == qId) {
+						titleObj.feature.sub_type == 'write' && titleObj.feature.parent_id == qId) {
 						list.push(oShape)
 					}
 				}
@@ -700,6 +709,9 @@ function handleRangeType(options) {
 									delete title.feature.client_id
 								}
 							}
+							if (uselist.length == 0) {
+								oDrawing.ClearShadow()
+							}
 							oDrawing.SetTitle(JSON.stringify(title))
 						}
 					}
@@ -821,7 +833,7 @@ function handleRangeType(options) {
 								var sum = oCellContent.GetElementsCount()
 								for (var j = 0; j < sum; ++j) {
 									var oElement3 = oCellContent.GetElement(j)
-									if (oElement3.GetClassType() == 'blockLvlSdt') {
+									if (oElement3 && oElement3.GetClassType() == 'blockLvlSdt') {
 										var tag3 = Api.ParseJSON(oElement3.GetTag())
 										var id3 = tag3.mid || tag3.client_id
 										if (id3 == options.end_id) {
@@ -904,6 +916,9 @@ function handleRangeType(options) {
 				for (var c = 0; c < cnt; ++c) {
 					var oCell = oRow.GetCell(c)
 					var oCellContent = oCell.GetContent()
+					if (!oCellContent) {
+						continue
+					}
 					var elcount = oCellContent.GetElementsCount()
 					for (var k = 0; k < elcount; ++k) {
 						var el = oCellContent.GetElement(k)
@@ -1014,6 +1029,9 @@ function handleRangeType(options) {
 			} 
 		}
 		function cellNotControl(cellContent) {
+			if (!cellContent) {
+				return true
+			}
 			var elementCount = cellContent.GetElementsCount()
 			if (elementCount == 0) {
 				return true
@@ -1229,6 +1247,9 @@ function handleRangeType(options) {
 				var hasControl = true
 				for (var i = 0; i < cnt; ++i) {
 					var oElement = cellContent.GetElement(i)
+					if (!oElement) {
+						continue
+					}
 					if (oElement.GetClassType() != 'blockLvlSdt') {
 						hasControl = false
 					} else {
@@ -1311,11 +1332,12 @@ function handleRangeType(options) {
 							if (oCell.GetContent().GetElementsCount() > 1) {
 								oCell.GetContent().RemoveElement(1)
 							}
-							if (oControl.GetContent().GetElementsCount() > 1) {
-								var lastpos = oControl.GetContent().GetElementsCount() - 1
-								var lastElement = oControl.GetContent().GetElement(lastpos)
-								if (lastElement.GetClassType() == 'paragraph' && lastElement.GetElementsCount() == 0) {
-									oControl.GetContent().RemoveElement(lastpos)
+							var controlContent = oControl.GetContent()
+							if (controlContent && controlContent.GetElementsCount() > 1) {
+								var lastpos = controlContent.GetElementsCount() - 1
+								var lastElement = controlContent.GetElement(lastpos)
+								if (lastElement && lastElement.GetClassType() == 'paragraph' && lastElement.GetElementsCount() == 0) {
+									controlContent.RemoveElement(lastpos)
 								}
 							}
 						}
@@ -1715,7 +1737,7 @@ function handleRangeType(options) {
 			}
 		}
 		return result
-	}, false, true).then((res1) => {
+	}, false, true, {name: 'handleRangeType'}).then((res1) => {
 		if (res1) {
 			if (res1.message && res1.message != '') {
 				alert(res1.message)
@@ -1749,6 +1771,10 @@ function handleRangeType(options) {
 				return getNodeList()
 			}).then(res2 => {
 				return handleChangeType(res1, res2)
+			})
+		} else {
+			return new Promise((resolve, reject) => {
+				return resolve({})
 			})
 		}
 	})
@@ -1807,6 +1833,7 @@ function addWriteZone() {
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	window.write_zone_add = true
 	return biyueCallCommand(window, function() {
+		// console.log('[addWriteZone] begin')
 		var question_map = Asc.scope.question_map || {}
 		var oDocument = Api.GetDocument()
 		var curControl = oDocument.Document.GetContentControl()
@@ -1860,14 +1887,14 @@ function addWriteZone() {
 			shapeIds: shapeIds,
 			ques_id: quesTag.client_id
 		}
-	}, false, false).then(res => {
+	}, false, false, {name: 'addWriteZone'}).then(res => {
 		if (res && res.ques_id) {
 			window.write_zone_add = true
 			Asc.scope.add_write_zone_data = res
 		} else {
 			window.write_zone_add = false
 			Asc.scope.add_write_zone_data = null
-			if (res.message) {
+			if (res && res.message) {
 				alert(res.message)
 			}
 		}
@@ -1876,6 +1903,7 @@ function addWriteZone() {
 
 function continueAddShape() {
 	return biyueCallCommand(window, function() {
+		// console.log('[continueAddShape] begin')
 		Api.StartAddShape('rect', true)
 		var oDocument = Api.GetDocument()
 		var oShapes = oDocument.GetAllShapes() || []
@@ -1885,23 +1913,29 @@ function continueAddShape() {
 		return {
 			shapeIds: shapeIds
 		}
-	}, false, false).then(res => {
+	}, false, false, {name: 'continueAddShape'}).then(res => {
+	return new Promise((resolve, reject) => {
 		if ( res && res.shapeIds && 
 			window.write_zone_add &&
 			Asc.scope.add_write_zone_data && 
 			Asc.scope.add_write_zone_data.ques_id) {
 			Asc.scope.add_write_zone_data.shapeIds = res.shapeIds
 		}
+		return resolve()	
 	})
+})
 }
 
 function endAddShape() {
 	var params = Asc.scope.add_write_zone_data
 	if (!params || !params.ques_id) {
-		return
+		return new Promise((resolve, reject) => {
+			return resolve()
+		})
 	}
 	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
 	return biyueCallCommand(window, function() {
+		// console.log('[endAddShape] begin')
 		var oDocument = Api.GetDocument()
 		var params = Asc.scope.add_write_zone_data
 		if (!params || !params.ques_id || !params.shapeIds) {
@@ -1950,11 +1984,14 @@ function endAddShape() {
 			}]
 		}
 		return result
-	}, false, false).then(res1 => {
-		// delete Asc.scope.add_write_zone_data
+	}, false, false, {name: 'endAddShape'}).then(res1 => {
+	// delete Asc.scope.add_write_zone_data
 		if (res1) {
 			if (res1.message && res1.message != '') {
 				alert(res1.message)
+				return new Promise((resolve, reject) => {
+					return resolve()
+				})
 			} else if (res1.change_list && res1.change_list.length) {
 				var delete_asks = deleteMutualAsks(res1.change_list[0].parent_id, 'write')
 				return new Promise((resolve, reject) => {

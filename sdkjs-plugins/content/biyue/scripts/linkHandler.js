@@ -1,11 +1,12 @@
 // 这个文件主要处理图片或表格关联相关操作
-import { biyueCallCommand, dispatchCommandResult } from "./command.js";
+import { biyueCallCommand } from "./command.js";
 import { preGetExamTree } from "./QuesManager.js";
 
 function tagImageCommon(params) {
 	Asc.scope.tag_params = params
 	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
 	return biyueCallCommand(window, function() {
+		// console.log('[tagImageCommon] begin')
 		var tag_params = Asc.scope.tag_params
 		var client_node_id = Asc.scope.client_node_id
 		var oDocument = Api.GetDocument()
@@ -50,7 +51,7 @@ function tagImageCommon(params) {
 			drawing_id: tag_params.target_id,
 			ques_use: tag_params.ques_use
 		}
-	}, false, false).then(res => {
+	}, false, false, {name: 'tagImageCommon'}).then(res => {
 		if (res) {
 			window.BiyueCustomData.client_node_id = res.client_node_id
 			if (!window.BiyueCustomData.image_use) {
@@ -58,6 +59,10 @@ function tagImageCommon(params) {
 			}
 			window.BiyueCustomData.image_use[res.drawing_id] = res.ques_use
 			return ShowLinkedWhenclickImage()
+		} else {
+			return new Promise((resolve, reject) => {
+				return resolve()
+			})
 		}
 	})
 }
@@ -70,6 +75,7 @@ function imageAutoLink(ques_id, calc) {
 	Asc.scope.link_type = window.BiyueCustomData.link_type || 'all'
 	Asc.scope.link_coverage_percent = window.BiyueCustomData.link_coverage_percent || 80
 	return biyueCallCommand(window, function() {
+		// console.log('[imageAutoLink] begin')
 		var oDocument = Api.GetDocument()
 		var allDrawings = oDocument.GetAllDrawingObjects() || []
 		var tables = oDocument.GetAllTables() || []
@@ -313,7 +319,7 @@ function imageAutoLink(ques_id, calc) {
 			client_node_id,
 			rev
 		}
-	}, false, calc).then(res => {
+	}, false, calc, {name: 'imageAutoLink'}).then(res => {
 		if (res) {
 			window.BiyueCustomData.client_node_id = res.client_node_id
 		}
@@ -322,6 +328,7 @@ function imageAutoLink(ques_id, calc) {
 }
 function onAllCheck() {
 	return biyueCallCommand(window, function() {
+		// console.log('[onAllCheck] begin')
 		var oDocument = Api.GetDocument()
 		var allDrawings = oDocument.GetAllDrawingObjects() || []
 		var tables = oDocument.GetAllTables() || []
@@ -370,7 +377,7 @@ function onAllCheck() {
 					var index = 0
 					for (j = 0; j < elementCount; ++j) {
 						var child = oRun.Run.GetElement(0)
-						if (child.Id == oDrawing.Drawing.Id) {
+						if (child && child.Id == oDrawing.Drawing.Id) {
 							index = j
 							break
 						}
@@ -418,7 +425,7 @@ function onAllCheck() {
 			}
 		})
 		return allList
-	}, false, false).then(res => {
+	}, false, false, {name: 'onAllCheck'}).then(res => {
 		Asc.scope.linked_list = res
 		return preGetExamTree()
 	}).then(res => {
@@ -429,6 +436,7 @@ function onAllCheck() {
 // 获取已关联列表
 function onLinkedCheck() {
 	return biyueCallCommand(window, function() {
+		// console.log('[onLinkedCheck] begin')
 		var oDocument = Api.GetDocument()
 		var allDrawings = oDocument.GetAllDrawingObjects() || []
 		var tables = oDocument.GetAllTables() || []
@@ -468,7 +476,7 @@ function onLinkedCheck() {
 						var index = 0
 						for (var i = 0; i < elementCount; ++i) {
 							var child = oRun.Run.GetElement(0)
-							if (child.Id == oDrawing.Drawing.Id) {
+							if (child && child.Id == oDrawing.Drawing.Id) {
 								index = i
 								break
 							}
@@ -501,9 +509,8 @@ function onLinkedCheck() {
 				}
 			})
 		}
-		console.log('linkedList', linkedList)
 		return linkedList
-	}, false, false).then(res => {
+	}, false, false, {name: 'onLinkedCheck'}).then(res => {
 		Asc.scope.linked_list = res
 		return preGetExamTree()
 	}).then(res => {
@@ -516,6 +523,7 @@ function updateLinkedInfo(info) {
 	Asc.scope.link_info = info
 	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
 	return biyueCallCommand(window, function() {
+		// console.log('[updateLinkedInfo] begin')
 		var link_info = Asc.scope.link_info
 		var client_node_id = Asc.scope.client_node_id
 		var oDocument = Api.GetDocument()
@@ -566,10 +574,13 @@ function updateLinkedInfo(info) {
 		return {
 			client_node_id: client_node_id
 		}
-	}, false, false).then(res => {
+	}, false, false, {name: 'updateLinkedInfo'}).then(res => {
 		if (res) {
 			window.BiyueCustomData.client_node_id = res.client_node_id
 		}
+		return new Promise((resolve, reject) => {
+			return resolve()
+		})
 	})
 }
 // 点击图片后，自动显示关联的题目
@@ -577,8 +588,8 @@ function ShowLinkedWhenclickImage(options, control_id) {
 	Asc.scope.control_id = control_id
 	Asc.scope.click_options = options
 	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
-	console.log('ShowLinkedWhenclickImage')
 	return biyueCallCommand(window, function() {
+		// console.log('[ShowLinkedWhenclickImage] begin')
 		var oDocument = Api.GetDocument()
 		var selectedDrawings = oDocument.GetSelectedDrawings() || []
 		var allDrawings = oDocument.GetAllDrawingObjects() || []
@@ -665,19 +676,20 @@ function ShowLinkedWhenclickImage(options, control_id) {
 				if (dtag.feature && dtag.feature.partical_no_dot) {
 					oDrawing.SetShadow(null, 0, 100, null, 0, '#0fc1fd')
 				} else {
-					if (oDrawing.Drawing.spPr && oDrawing.Drawing.spPr.effectProps && oDrawing.Drawing.spPr.effectProps.EffectLst) {
+					if (oDrawing.Drawing.spPr && dtag.feature && dtag.feature.ques_use) {
 						oDrawing.ClearShadow()
 					}
 				}
 			}
 		})
 		oDocument.Document.LoadDocumentState(oState)
-	}, false, false)
+	}, false, false, {name: 'ShowLinkedWhenclickImage'})
 }
 
 function locateItem(data) {
 	Asc.scope.locate_data = data
 	return biyueCallCommand(window, function() {
+		// console.log('[locateItem] begin')
 		var locate_data = Asc.scope.locate_data
 		var oDocument = Api.GetDocument()
 		var allDrawings = oDocument.GetAllDrawingObjects() || []
@@ -692,7 +704,7 @@ function locateItem(data) {
 				oTable.Select()
 			}
 		}
-	})
+	}, false, false, {name: 'locateItem'})
 }
 
 export {

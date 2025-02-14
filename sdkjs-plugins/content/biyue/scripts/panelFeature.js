@@ -2,7 +2,7 @@ import ComponentSelect from '../components/Select.js'
 import NumberInput from '../components/NumberInput.js'
 import { ZONE_SIZE, ZONE_TYPE, ZONE_TYPE_NAME, getInteractionTypes } from './model/feature.js'
 import { handleFeature, handleHeader, drawExtroInfo, setLoading, deleteAllFeatures, setInteraction, updateChoice, handleChoiceUpdateResult, drawHeaderFooter, drawStatistics } from './featureManager.js'
-import { biyueCallCommand, dispatchCommandResult } from "./command.js";
+import { biyueCallCommand } from "./command.js";
 import { showCom } from './model/util.js'
 var list_feature = []
 var choiceStyles = [
@@ -304,7 +304,7 @@ function changeAll(data) {
 	if (data.value == 'close') {
 		deleteAllFeatures(['pagination'])
 	} else {
-		drawExtroInfo([].concat(list_feature), false)
+		drawExtroInfo([].concat(list_feature), true)
 		.then(() => {
 			return drawPageHeaderFooter(true)
 		})
@@ -424,6 +424,7 @@ function setXY(index, p, x, y, size) {
 function getPageData() {
 	Asc.scope.workbook = window.BiyueCustomData.workbook_info
 	return biyueCallCommand(window, function () {
+		// console.log('[getPageData] begin')
 		var workbook = Asc.scope.workbook || {}
 		var oDocument = Api.GetDocument()
 		var sections = oDocument.GetSections()
@@ -446,7 +447,7 @@ function getPageData() {
 			}
 		}
 		return null
-	},false,false)
+	},false,false, {name: 'getPageData'})
 }
 
 function updateFeatureList(res) {
@@ -586,7 +587,7 @@ function initPositions1() {
 		return loadImages()
 	})
 	.then(() => {
-		return drawExtroInfo(list_feature, imageDimensionsCache, false)
+		return drawExtroInfo(list_feature, imageDimensionsCache, true)
 	})
 	.then(() => {
 		return drawPageHeaderFooter(true)
@@ -606,6 +607,7 @@ function initPositions2() {
 
 function MoveCursor() {
 	return biyueCallCommand(window, function() {
+		// console.log('[MoveCursor] begin')
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls()
 		if (controls && controls.length) {
@@ -613,7 +615,7 @@ function MoveCursor() {
 		} else {
 			oDocument.Document.MoveCursorToPageEnd()
 		}
-	}, false, false)
+	}, false, false, {name: 'MoveCursor'})
 }
 
 function updateAllInteraction(vinteraction, isForce = true) {

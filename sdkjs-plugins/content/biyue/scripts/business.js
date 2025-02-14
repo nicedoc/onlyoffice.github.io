@@ -80,9 +80,8 @@ function initPaperInfo() {
 function updatePageSizeMargins() {
 	Asc.scope.workbook = window.BiyueCustomData.workbook_info
 	Asc.scope.control_hightlight = true
-	return biyueCallCommand(
-		window,
-		function () {
+	return biyueCallCommand( window, function () {
+			// console.log('[updatePageSizeMargins] begin')
 			var workbook = Asc.scope.workbook || {}
 			var oDocument = Api.GetDocument()
 			var sections = oDocument.GetSections()
@@ -90,8 +89,21 @@ function updatePageSizeMargins() {
 				var m = Math.max(mm, 10)
 				return m / (25.4 / 72 / 20)
 			}
+			function removeHeader(oSection, name) {
+				if (oSection.GetHeader(name, false)) {
+					oSection.RemoveHeader(name)
+				}
+			}
+			function removeFooter(oSection, name) {
+				if (oSection.GetFooter(name, false)) {
+					oSection.RemoveFooter(name)
+				}
+			}
 			if (sections && sections.length > 0) {
-				sections.forEach((oSection) => {
+				for (var oSection of sections) {
+					if (!oSection) {
+						continue
+					}
 					if (workbook.page_size) {
 						oSection.SetPageSize(
 							MM2Twips(workbook.page_size.width),
@@ -108,13 +120,13 @@ function updatePageSizeMargins() {
 						oSection.SetFooterDistance(MM2Twips(workbook.margin.bottom))
 						oSection.SetHeaderDistance(MM2Twips(workbook.margin.top))
 					}
-					oSection.RemoveHeader('default')
-					oSection.RemoveHeader('title')
-					oSection.RemoveHeader('even')
-					oSection.RemoveFooter('default')
-					oSection.RemoveFooter('even')
-					oSection.RemoveFooter('title')
-				})
+					removeHeader(oSection, 'default')
+					removeHeader(oSection, 'title')
+					removeHeader(oSection, 'even')
+					removeFooter(oSection, 'default')
+					removeFooter(oSection, 'even')
+					removeFooter(oSection, 'title')
+				}
 			}
 			var odrawings = oDocument.GetAllDrawingObjects() || []
 			odrawings.forEach(oDrawing => {
@@ -133,15 +145,28 @@ function updatePageSizeMargins() {
 					}
 				// }
 				// 移除图片阴影
-				oDrawing.ClearShadow()
+				var a = oDrawing.Drawing.extX
+				var b = oDrawing.Drawing.getXfrmExtX()
+				var c = oDrawing.Drawing.extY
+				var d = oDrawing.Drawing.getXfrmExtY()
+				if (a != b) {
+					if (b) {
+						oDrawing.ScaleWidth(a/b)
+					}
+				}
+				if (c != d) {
+					if (d) {
+						oDrawing.ScaleHeight(c/d)
+					}
+				}
+				if (b && d) {
+					oDrawing.ClearShadow()
+				}
 			})
 			Api.asc_SetGlobalContentControlShowHighlight(true, 255, 191, 191)
 			Api.asc_SetTab('tab_biyue')
 			return null
-		},
-		false,
-		true
-	)
+	}, false, true, {name: 'updatePageSizeMargins'})
 }
 
 function getPaperInfo() {
@@ -245,9 +270,8 @@ function onQuesTreeClick(e) {
 	}
 	updateQuesStyle(newlist)
 	Asc.scope.click_ids = newlist
-	biyueCallCommand(
-		window,
-		function () {
+	return biyueCallCommand( window, function () {
+			// console.log('[onQuesTreeClick] begin')
 			var ids = Asc.scope.click_ids
 			var oDocument = Api.GetDocument()
 			oDocument.RemoveSelection()
@@ -267,10 +291,7 @@ function onQuesTreeClick(e) {
 				}
 			})
 			firstRange.Select()
-		},
-		false,
-		false
-	)
+	}, false, false, {name: 'onQuesTreeClick'})
 }
 // 更新题目选中样式
 function updateQuesStyle(idList) {
@@ -288,9 +309,8 @@ function updateQuesStyle(idList) {
 
 function updateControls() {
 	Asc.scope.paper_info = paper_info
-	return biyueCallCommand(
-		window,
-		function () {
+	return biyueCallCommand( window, function () {
+			// console.log('[updateControls] begin')
 			let paperinfo = Asc.scope.paper_info
 			var oDocument = Api.GetDocument()
 			let controls = oDocument.GetAllContentControls() || []
@@ -395,19 +415,14 @@ function updateControls() {
 			})
 			console.log(' updatecontrol           control_list', control_list)
 			return control_list
-		},
-		false,
-		false
-	)
+	}, false, false, {name: 'updateControls'})
 }
 
 // 更新customData的control_list
 function updateCustomControls() {
 	Asc.scope.paper_info = paper_info
-	return biyueCallCommand(
-		window,
-		function () {
-			console.log('+++++++++++++++++++++++')
+	return biyueCallCommand( window, function () {
+			// console.log('[updateCustomControls] begin')
 			let paperinfo = Asc.scope.paper_info
 			var oDocument = Api.GetDocument()
 			let controls = oDocument.GetAllContentControls() || []
@@ -512,72 +527,12 @@ function updateCustomControls() {
 			})
 			console.log(' updatecontrol           control_list', control_list)
 			return control_list
-		},
-		false,
-		false
-	).then((res) => {
+	}, false, false, {name: 'updateCustomControls'}).then((res) => {
 		window.BiyueCustomData.control_list = res
+		return new Promise((resolve) => {
+			resolve()
+		})
 	})
-}
-
-// 清除试卷结构和所有题目
-async function clearStruct() {
-	console.log('开始清除结构')
-	if (paper_info.info && paper_info.info.questions) {
-		for (const e of paper_info.info.questions) {
-			await questionDelete(window.BiyueCustomData.paper_uuid, e.uuid, 1)
-		}
-	}
-	if (paper_info.ques_struct_list) {
-		for (const estruct of paper_info.ques_struct_list) {
-			await structDelete(window.BiyueCustomData.paper_uuid, estruct.struct_id)
-		}
-	}
-	console.log('清除结构成功')
-	initPaperInfo()
-}
-
-// 获取试卷结构
-async function getStruct() {
-	if (!window.BiyueCustomData.control_list) {
-		return
-	}
-	console.log('开始获取试卷结构')
-	var struct_index = 0
-	for (var control of window.BiyueCustomData.control_list) {
-		if (control.regionType == 'struct') {
-			++struct_index
-			if (
-				paper_info.ques_struct_list &&
-				struct_index - 1 < paper_info.ques_struct_list.length
-			) {
-				control.struct_id =
-					paper_info.ques_struct_list[struct_index - 1].struct_id
-			}
-			if (!control.struct_id) {
-				await structAdd({
-					paper_uuid: window.BiyueCustomData.paper_uuid,
-					name: control.name,
-					rich_name: control.text,
-				}).then((res) => {
-					if (res.code == 1) {
-						control.struct_id = res.data.struct_id
-						// control.struct_name = control.name
-					}
-				})
-			} else if (
-				control.name !=
-				paper_info.ques_struct_list[struct_index - 1].struct_name
-			) {
-				await structRename(
-					window.BiyueCustomData.paper_uuid,
-					control.struct_id,
-					control.name
-				)
-			}
-		}
-	}
-	await getQuesUuid()
 }
 
 async function getQuesUuid() {
@@ -782,10 +737,8 @@ function addScoreField(score, mode, layout, posall) {
 		scores: getScores(score, mode),
 		posall: posall,
 	}
-	console.log('setup post task for addScoreField')
-	biyueCallCommand(
-		window,
-		function () {
+	return biyueCallCommand( window, function () {
+			// console.log('[addScoreField] begin')
 			var control_list = Asc.scope.control_list
 			var controls = Api.GetDocument().GetAllContentControls()
 			var params = Asc.scope.params
@@ -1017,43 +970,24 @@ function addScoreField(score, mode, layout, posall) {
 					}
 				}
 			}
-			console.log('777777777777 ', res)
-			// debugger
 			return res
-		},
-		false,
-		true
-	).then((res) => {
-		console.log(res)
-		if (res && res.add) {
-			for (var i = 0; i < window.BiyueCustomData.control_list.length; ++i) {
-				if (
-					window.BiyueCustomData.control_list[i].control_id == res.control_id
-				) {
-					window.BiyueCustomData.control_list[i].score = score
-					window.BiyueCustomData.control_list[i].score_options =
-						res.score_options
-					break
+	}, false, true, {name: 'addScoreField'}).then((res) => {
+		return new Promise((resolve, reject) => {
+			if (res && res.add) {
+				for (var i = 0; i < window.BiyueCustomData.control_list.length; ++i) {
+					if (
+						window.BiyueCustomData.control_list[i].control_id == res.control_id
+					) {
+						window.BiyueCustomData.control_list[i].score = score
+						window.BiyueCustomData.control_list[i].score_options =
+							res.score_options
+						break
+					}
 				}
-			}
-		}
+			}	
+			resolve()
+		})
 	})
-}
-
-function selectQues(treeInfo, index) {
-	Asc.scope.temp_sel_index = index
-	biyueCallCommand(
-		window,
-		function () {
-			var res = Api.GetDocument().GetAllContentControls()
-			var index = Asc.scope.temp_sel_index
-			if (res && res[index]) {
-				res[index].GetRange().Select()
-			}
-		},
-		false,
-		false
-	)
 }
 
 function drawPosition2(data) {
@@ -1078,9 +1012,8 @@ function drawPosition2(data) {
 	} else {
 		Asc.scope.control_id = null
 	}
-	biyueCallCommand(
-		window,
-		function () {
+	return biyueCallCommand( window, function () {
+			// console.log('[drawPosition] begin')
 			var posdata = Asc.scope.pos
 			var MM2EMU = Asc.scope.MM2EMU
 			var control_id = Asc.scope.control_id
@@ -1167,13 +1100,13 @@ function drawPosition2(data) {
 					}
 				}
 			}
-		},
-		false,
-		true
-	).then((res) => {
+	}, false, true, {name: 'drawPosition'}).then((res) => {
 		if (res && res.add) {
 			window.BiyueCustomData.control_list.push(res.control)
 		}
+		return new Promise((resolve) => {
+			return resolve()
+		})
 	})
 }
 
@@ -1182,9 +1115,8 @@ function drawPositions(list) {
 	Asc.scope.pos_list = window.BiyueCustomData.pos_list
 	Asc.scope.MM2EMU = MM2EMU
 	Asc.scope.map_base64 = map_base64
-	biyueCallCommand(
-		window,
-		function () {
+	return biyueCallCommand( window, function () {
+			// console.log('[drawPositions] begin')
 			var positions_list = Asc.scope.positions_list || []
 			var pos_list = Asc.scope.pos_list || []
 			var MM2EMU = Asc.scope.MM2EMU
@@ -1287,12 +1219,10 @@ function drawPositions(list) {
 				}
 			})
 			return pos_list
-		},
-		false,
-		true
-	).then((res) => {
+	}, false, true, {name: 'drawPositions'}).then((res) => {
 		console.log('drawPositions result:', res)
 		window.BiyueCustomData.pos_list = res
+		return new Promise((resolve) => resolve(res))
 	})
 }
 
@@ -1312,9 +1242,8 @@ function drawPosition(data) {
 	} else {
 		Asc.scope.drawing_id = null
 	}
-	biyueCallCommand(
-		window,
-		function () {
+	return biyueCallCommand( window, function () {
+			// console.log('[drawPosition] begin')
 			var posdata = Asc.scope.pos
 			console.log('posdata', posdata)
 			var MM2EMU = Asc.scope.MM2EMU
@@ -1379,10 +1308,7 @@ function drawPosition(data) {
 					v: posdata.v,
 				}
 			}
-		},
-		false,
-		true
-	).then((res) => {
+	}, false, true, {name: 'drawPosition'}).then((res) => {
 		console.log(res)
 		if (res && res.add) {
 			if (!window.BiyueCustomData.pos_list) {
@@ -1394,6 +1320,9 @@ function drawPosition(data) {
 				v: res.v,
 			})
 		}
+		return new Promise((resolve, reject) => {
+			resolve()
+		})
 	})
 }
 
@@ -1466,14 +1395,15 @@ function handleScoreField4(options) {
 	})
 	if (list.length == 0) {
 		console.log('没有要处理的题目')
-		return
+		return new Promise((resolve) => {
+			return resolve()
+		})
 	}
 	Asc.scope.control_list = control_list
 	Asc.scope.list = list
 	Asc.scope.map_base64 = map_base64
-	biyueCallCommand(
-		window,
-		function () {
+	return biyueCallCommand( window, function () {
+			// console.log('[handleScoreField4] begin')
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls()
 			var control_list = Asc.scope.control_list
@@ -1680,37 +1610,38 @@ function handleScoreField4(options) {
 				}
 			}
 			return resList
-		},
-		false,
-		true
-	).then((res) => {
+	}, false, true, {name: 'handleScoreField4'}).then((res) => {
 		console.log('callback for handleScoreField', res)
-		if (!res) {
-			return
-		}
-		res.forEach((e) => {
-			if (e.options && e.options.control_index != undefined) {
-				control_list[e.options.control_index].score = e.options.score
-				if (e.options.score) {
-					control_list[e.options.control_index].score_options = {
-						paragraph_id: e.paragraph_id,
-						run_id: e.run_id,
-						drawing_id: e.drawing_id,
-						table_id: e.table_id,
-						mode: e.options.mode,
-						layout: e.options.layout,
+		return new Promise((resolve) => {
+			if (res) {
+				res.forEach((e) => {
+					if (e.options && e.options.control_index != undefined) {
+						control_list[e.options.control_index].score = e.options.score
+						if (e.options.score) {
+							control_list[e.options.control_index].score_options = {
+								paragraph_id: e.paragraph_id,
+								run_id: e.run_id,
+								drawing_id: e.drawing_id,
+								table_id: e.table_id,
+								mode: e.options.mode,
+								layout: e.options.layout,
+							}
+						} else {
+							control_list[e.options.control_index].score_options = null
+						}
 					}
-				} else {
-					control_list[e.options.control_index].score_options = null
-				}
+				})
 			}
+			return resolve()
 		})
 	})
 }
 // 打分区用添加表格单元格距离实现
 function handleScoreField(options) {
 	if (!options) {
-		return
+		return new Promise((resolve) => {
+			return resolve()
+		})
 	}
 	var control_list = window.BiyueCustomData.control_list
 	var list = []
@@ -1746,13 +1677,14 @@ function handleScoreField(options) {
 	})
 	if (list.length == 0) {
 		console.log('没有要处理的题目')
-		return
+		return new Promise((resolve) => {
+			return resolve()
+		})
 	}
 	Asc.scope.control_list = control_list
 	Asc.scope.list = list
-	biyueCallCommand(
-		window,
-		function () {
+	return biyueCallCommand( window, function () {
+			// console.log('[handleScoreField] begin')
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls()
 			var control_list = Asc.scope.control_list
@@ -2061,29 +1993,26 @@ function handleScoreField(options) {
 				}
 			}
 			return resList
-		},
-		false,
-		true
-	).then((res) => {
-		console.log('callback for handleScoreField', res)
-		if (!res) {
-			return
-		}
-		res.forEach((e) => {
-			if (e.options && e.options.control_index != undefined) {
-				control_list[e.options.control_index].score = e.options.score
-				if (e.options.score) {
-					control_list[e.options.control_index].score_options = {
-						paragraph_id: e.paragraph_id,
-						run_id: e.run_id,
-						drawing_id: e.drawing_id,
-						table_id: e.table_id,
-						mode: e.options.mode,
-						layout: e.options.layout,
+	}, false, true, {name: 'handleScoreField'}).then((res) => {
+		return new Promise((resolve) => {
+			if (res) {
+				res.forEach((e) => {
+					if (e.options && e.options.control_index != undefined) {
+						control_list[e.options.control_index].score = e.options.score
+						if (e.options.score) {
+							control_list[e.options.control_index].score_options = {
+								paragraph_id: e.paragraph_id,
+								run_id: e.run_id,
+								drawing_id: e.drawing_id,
+								table_id: e.table_id,
+								mode: e.options.mode,
+								layout: e.options.layout,
+							}
+						} else {
+							control_list[e.options.control_index].score_options = null
+						}
 					}
-				} else {
-					control_list[e.options.control_index].score_options = null
-				}
+				})
 			}
 		})
 	})
@@ -2091,7 +2020,9 @@ function handleScoreField(options) {
 // 打分区用添加表格单元格分割实现
 function handleScoreField2(options) {
 	if (!options) {
-		return
+		return new Promise((resolve) => {
+			return resolve()
+		})
 	}
 	var control_list = window.BiyueCustomData.control_list
 	var list = []
@@ -2127,13 +2058,14 @@ function handleScoreField2(options) {
 	})
 	if (list.length == 0) {
 		console.log('没有要处理的题目')
-		return
+		return new Promise((resolve) => {
+			return resolve()
+		})
 	}
 	Asc.scope.control_list = control_list
 	Asc.scope.list = list
-	biyueCallCommand(
-		window,
-		function () {
+	return biyueCallCommand( window, function () {
+			// console.log('[handleScoreField] begin')
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls()
 			var control_list = Asc.scope.control_list
@@ -2504,29 +2436,27 @@ function handleScoreField2(options) {
 				}
 			}
 			return resList
-		},
-		false,
-		true
-	).then((res) => {
+	}, false, true, {name: 'handleScoreField'}).then((res) => {
 		console.log('callback for handleScoreField', res)
-		if (!res) {
-			return
-		}
-		res.forEach((e) => {
-			if (e.options && e.options.control_index != undefined) {
-				control_list[e.options.control_index].score = e.options.score
-				if (e.options.score) {
-					control_list[e.options.control_index].score_options = {
-						paragraph_id: e.paragraph_id,
-						run_id: e.run_id,
-						drawing_id: e.drawing_id,
-						table_id: e.table_id,
-						mode: e.options.mode,
-						layout: e.options.layout,
+		return new Promise((resolve) => {
+			if (res) {
+				res.forEach((e) => {
+					if (e.options && e.options.control_index != undefined) {
+						control_list[e.options.control_index].score = e.options.score
+						if (e.options.score) {
+							control_list[e.options.control_index].score_options = {
+								paragraph_id: e.paragraph_id,
+								run_id: e.run_id,
+								drawing_id: e.drawing_id,
+								table_id: e.table_id,
+								mode: e.options.mode,
+								layout: e.options.layout,
+							}
+						} else {
+							control_list[e.options.control_index].score_options = null
+						}
 					}
-				} else {
-					control_list[e.options.control_index].score_options = null
-				}
+				})
 			}
 		})
 	})
@@ -2535,9 +2465,8 @@ function handleScoreField2(options) {
 // 切换权重显示
 function toggleWeight() {
 	Asc.scope.control_list = window.BiyueCustomData.control_list
-	biyueCallCommand(
-		window,
-		function () {
+	return biyueCallCommand( window, function () {
+			// console.log('[toggleWeight] begin')
 			var control_list = Asc.scope.control_list
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls()
@@ -2666,116 +2595,18 @@ function toggleWeight() {
 			}
 
 			return control_list
-		},
-		false,
-		true
-	).then((res) => {
-		window.BiyueCustomData.control_list = res
-	})
-}
-
-function handleContentControlChange(params) {
-	var controlId = params.InternalId
-	var control_list = window.BiyueCustomData.control_list
-	var tag = params.Tag
-	if (tag) {
-		try {
-			tag = JSON.parse(params.Tag)
-		} catch (error) {
-			console.log('json parse error', error)
-			return
-		}
-		if (tag.regionType == 'question') {
-			if (control_list) {
-				var find = control_list.find((e) => {
-					return e.control_id == controlId
-				})
-				Asc.scope.find_controldata = find
-			}
-		} else {
-			return
-		}
-	}
-	Asc.scope.params = params
-	biyueCallCommand(
-		window,
-		function () {
-			var controldata = Asc.scope.find_controldata
-			var params = Asc.scope.params
-			var oDocument = Api.GetDocument()
-			var controls = oDocument.GetAllContentControls()
-			var control = controls.find((e) => {
-				return e.Sdt.GetId() == params.InternalId
-			})
-			if (controldata) {
-				// if (control && control.GetAllDrawingObjects) {
-				//   var drawingObjs = control.GetAllDrawingObjects()
-				//   for (var i = 0, imax = drawingObjs.length; i < imax; ++i) {
-				//     var oDrawing = drawingObjs[i]
-				//     if (oDrawing.Drawing.docPr.title == 'ask_weight') {
-				//       oDrawing.Delete()
-				//     }
-				//   }
-				// }
-			}
-		},
-		false,
-		true
-	)
-}
-
-function deletePositions(list) {
-	Asc.scope.pos_delete_list = list
-	var pos_list = window.BiyueCustomData.pos_list
-	Asc.scope.pos_list = pos_list
-	biyueCallCommand(
-		window,
-		function () {
-			var delete_list = Asc.scope.pos_delete_list || []
-			var pos_list = Asc.scope.pos_list || []
-			console.log('delete_list', delete_list)
-			console.log('pos_list', pos_list)
-			var oDocument = Api.GetDocument()
-			var objs = oDocument.GetAllDrawingObjects()
-			delete_list.forEach((e) => {
-				var posdata = pos_list.find((pos) => {
-					return pos.zone_type == e.zone_type && pos.v == e.v
-				})
-				if (posdata && posdata.drawing_id) {
-					var oDrawing = objs.find((obj) => {
-						return obj.Drawing.Id == posdata.drawing_id
-					})
-					if (oDrawing) {
-						oDrawing.Delete()
-					} else {
-						console.log('cannot find oDrawing')
-					}
-				}
-			})
-			return delete_list
-		},
-		false,
-		true
-	).then((res) => {
-		console.log('deletePositions result:', res)
-		if (res) {
-			res.forEach((e) => {
-				var index = pos_list.findIndex((pos) => {
-					return pos.zone_type == e.zone_type && pos.v == e.v
-				})
-				if (index >= 0) {
-					pos_list.splice(index, 1)
-				}
-			})
-		}
+	}, false, true, {name: 'toggleWeight'}).then((res) => {
+		return new Promise((resolve) => {
+			window.BiyueCustomData.control_list = res
+			return resolve(res)	
+		})
 	})
 }
 // 分栏
 function setSectionColumn(num) {
 	Asc.scope.column_num = num
-	biyueCallCommand(
-		window,
-		function () {
+	return biyueCallCommand( window, function () {
+			// console.log('[setSectionColumn] begin')
 			var column_num = Asc.scope.column_num
 			var oDocument = Api.GetDocument()
 			var Document = oDocument.Document
@@ -2824,15 +2655,13 @@ function setSectionColumn(num) {
 					}
 				}
 			}
-		},
-		false,
-		true
-	)
+	}, false, true, {name: 'setSectionColumn'})
 }
 // 提取单独的大题的control
 function addOnlyBigControl(recalc = true) {
 	Asc.scope.node_list = window.BiyueCustomData.node_list || []
 	return biyueCallCommand(window, function() {
+		// console.log('[addOnlyBigControl] begin')
 		var oDocument = Api.GetDocument()
 		var controls = oDocument.GetAllContentControls() || []
 		controls.forEach(oControl => {
@@ -2842,7 +2671,7 @@ function addOnlyBigControl(recalc = true) {
 				var count = oControl.Sdt.GetElementsCount()
 				for (var i = 0; i < count; ++i) {
 					var element = oControl.Sdt.GetElement(i)
-					if (element.Id) {
+					if (element && element.Id) {
 						var oElement = Api.LookupObject(element.Id)
 						if (oElement) {
 							if (oElement.GetClassType() == 'paragraph' || oElement.GetClassType() == 'table') {
@@ -2870,10 +2699,11 @@ function addOnlyBigControl(recalc = true) {
 				}
 			}
 		})
-	}, false, recalc)
+	}, false, recalc, {name: 'addOnlyBigControl'})
 }
 function removeOnlyBigControl() {
 	return biyueCallCommand(window, function() {
+			// console.log('[removeOnlyBigControl] begin')
 		var oDocument = Api.GetDocument()
 		var oControls = oDocument.GetAllContentControls()
 		if (oControls) {
@@ -2884,7 +2714,7 @@ function removeOnlyBigControl() {
 				}
 			})
 		}
-	}, false, true)
+	}, false, true, {name: 'removeOnlyBigControl'})
 }
 function getAllPositions() {
 	return addOnlyBigControl()
@@ -2898,9 +2728,8 @@ function getAllPositions() {
 function getAllPositions2() {
 	Asc.scope.question_map = window.BiyueCustomData.question_map || {}
 	Asc.scope.node_list = window.BiyueCustomData.node_list || []
-	return biyueCallCommand(
-		window,
-		function () {
+	return biyueCallCommand( window, function () {
+			// console.log('[getAllPositions2] begin')
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls()
 			var drawings = oDocument.GetAllDrawingObjects()
@@ -2988,6 +2817,9 @@ function getAllPositions2() {
 					if (pagebounds.Right == 0 && pagebounds.Left == 0) {
 						continue
 					}
+					if (!(pagebounds.Right - pagebounds.Left) || !(pagebounds.Bottom - pagebounds.Top)) {
+						continue
+					}
 					bounds.push({
 						order: order + '',
 						page: oCell.Cell.Get_AbsolutePage(p) + 1,
@@ -3045,7 +2877,7 @@ function getAllPositions2() {
 								})
 								if (numControl && numControl.Sdt && numControl.Sdt.Bounds) {
 									var bounds = Object.values(numControl.Sdt.Bounds) || []
-									if (bounds.length) {
+									if (bounds.length && bounds[0].W && bounds[0].H) {
 										return {
 											page: bounds[0].Page + 1,
 											x: mmToPx(bounds[0].X),
@@ -3054,7 +2886,6 @@ function getAllPositions2() {
 											h: mmToPx(bounds[0].H),
 										}
 									}
-									
 								}
 							}
 						}
@@ -3091,6 +2922,9 @@ function getAllPositions2() {
 									titleObj.feature &&
 									titleObj.feature.zone_type == 'question'
 								) {
+									if (!paraDrawing.Width || !paraDrawing.Height) {
+										continue
+									}
 									var obj = {
 										page: paraDrawing.PageNum + 1,
 										x: mmToPx(paraDrawing.X),
@@ -3115,7 +2949,7 @@ function getAllPositions2() {
 						}
 					}
 					var simpleRegion = getSimplePos(oControl)
-					if (simpleRegion) {
+					if (simpleRegion && simpleRegion.w && simpleRegion.h) {
 						correct_region = simpleRegion
 					}
 				}
@@ -3232,13 +3066,15 @@ function getAllPositions2() {
 									if (pagebounds.Right == 0 && pagebounds.Left == 0) {
 										continue
 									}
-									bounds.push({
-										Page: parentcell.Cell.Get_AbsolutePage(p),
-										X: mmToPx(pagebounds.Left),
-										Y: mmToPx(pagebounds.Top),
-										W: mmToPx(pagebounds.Right - pagebounds.Left),
-										H: mmToPx(pagebounds.Bottom - pagebounds.Top),
-									})
+									if (!(pagebounds.Right - pagebounds.Left) && !(pagebounds.Bottom - pagebounds.Top)) {
+										bounds.push({
+											Page: parentcell.Cell.Get_AbsolutePage(p),
+											X: mmToPx(pagebounds.Left),
+											Y: mmToPx(pagebounds.Top),
+											W: mmToPx(pagebounds.Right - pagebounds.Left),
+											H: mmToPx(pagebounds.Bottom - pagebounds.Top),
+										})
+									}
 								}
 							}
 						}
@@ -3323,27 +3159,31 @@ function getAllPositions2() {
 					write_ask_region: [],
 				}
 				bounds.forEach((e) => {
-					item.title_region.push({
-						page: e.Page + 1,
-						x: e.X,
-						y: e.Y,
-						w: e.W,
-						h: e.H,
-					})
+					if (e.W && e.H) {
+						item.title_region.push({
+							page: e.Page + 1,
+							x: e.X,
+							y: e.Y,
+							w: e.W,
+							h: e.H,
+						})
+					}
 				})
 				if (is_gather_region) {
 					// 集中作答区的题目
 					let cell_region = gatherRegion.cell_region || []
 					cell_region.forEach((e) => {
-						item.write_ask_region.push({
-							page: e.page,
-							order: e.order + '',
-							v: item.score + '',
-							x: e.x,
-							y: e.y,
-							w: e.w,
-							h: e.h,
-						})
+						if (e.w && e.h) {
+							item.write_ask_region.push({
+								page: e.page,
+								order: e.order + '',
+								v: item.score + '',
+								x: e.x,
+								y: e.y,
+								w: e.w,
+								h: e.h,
+							})
+						}
 					})
 					let mark_ask_region = {}
 					mark_ask_region['1'] = item.write_ask_region
@@ -3390,7 +3230,7 @@ function getAllPositions2() {
 										if (oAskControl.GetClassType() == 'inlineLvlSdt') {
 											var askBounds = Object.values(oAskControl.Sdt.Bounds)
 											askBounds.forEach((e) => {
-												if (e.W) {
+												if (e.W && e.H) {
 													item.write_ask_region.push({
 														order: mark_order + '',
 														page: e.Page + 1,
@@ -3407,16 +3247,18 @@ function getAllPositions2() {
 											var rects2 = []
 											getBlockControlBounds(oAskControl, rects2)
 											rects2.forEach(e => {
-												item.write_ask_region.push({
-													order: mark_order + '',
-													page: e.Page + 1,
-													x: e.X,
-													y: e.Y,
-													w: e.W,
-													h: e.H,
-													v: ask_score + '',
-													mark_order: mark_order,
-												})
+												if (e.W && e.H) {
+													item.write_ask_region.push({
+														order: mark_order + '',
+														page: e.Page + 1,
+														x: e.X,
+														y: e.Y,
+														w: e.W,
+														h: e.H,
+														v: ask_score + '',
+														mark_order: mark_order,
+													})
+												}
 											})
 										}
 										find = true
@@ -3439,16 +3281,18 @@ function getAllPositions2() {
 									if (oShape) {
 										var shapeDrawing = oShape.getParaDrawing()
 										if (shapeDrawing) {
-											item.write_ask_region.push({
-												order: mark_order + '',
-												page: shapeDrawing.PageNum + 1,
-												x: mmToPx(shapeDrawing.X),
-												y: mmToPx(shapeDrawing.Y),
-												w: mmToPx(shapeDrawing.Width),
-												h: mmToPx(shapeDrawing.Height),
-												v: ask_score + '',
-												mark_order: mark_order,
-											})
+											if (shapeDrawing.Width && shapeDrawing.Height) {
+												item.write_ask_region.push({
+													order: mark_order + '',
+													page: shapeDrawing.PageNum + 1,
+													x: mmToPx(shapeDrawing.X),
+													y: mmToPx(shapeDrawing.Y),
+													w: mmToPx(shapeDrawing.Width),
+													h: mmToPx(shapeDrawing.Height),
+													v: ask_score + '',
+													mark_order: mark_order,
+												})
+											}
 											find = true
 										}
 									}
@@ -3482,15 +3326,17 @@ function getAllPositions2() {
 				} else if (question_obj.ques_mode != 1 && question_obj.ques_mode != 2 &&  question_obj.ques_mode != 5) { // 单选，填空，多选不适用直接将题干作为作答区
 					// 没有小问的题目 暂时使用当前的题干区域作为批改和作答区 同时如果存在多个题干区，也只算作一个题目的批改区
 					bounds.forEach((e) => {
-						item.write_ask_region.push({
-							page: e.Page + 1,
-							order: '1',
-							v: item.score + '',
-							x: e.X,
-							y: e.Y,
-							w: e.W,
-							h: e.H,
-						})
+						if (e.W && e.H) {
+							item.write_ask_region.push({
+								page: e.Page + 1,
+								order: '1',
+								v: item.score + '',
+								x: e.X,
+								y: e.Y,
+								w: e.W,
+								h: e.H,
+							})
+						}
 					})
 					let mark_ask_region = {}
 					mark_ask_region['1'] = item.write_ask_region
@@ -3529,7 +3375,7 @@ function getAllPositions2() {
 					}
 					if (paraDrawing.docPr) {
 						var title = oDrawing.GetTitle()
-						if (title && title.indexOf('partical_no_dot') >= 0) {
+						if (title && title.indexOf('partical_no_dot') >= 0 && paraDrawing.Width && paraDrawing.Height) {
 							partical_no_dot_list.push({
 								page: paraDrawing.PageNum + 1,
 								x: mmToPx(paraDrawing.X),
@@ -3555,6 +3401,9 @@ function getAllPositions2() {
 								) {
 									var footerType = titleObj.feature.footer_type
 									for (var p = 0; p < pageCount; ++p) {
+										if (!paraDrawing.Width || !paraDrawing.Height) {
+											continue
+										}
 										var fieldObj = {
 											v: p + 1 + '',
 											page: p + 1,
@@ -3626,14 +3475,16 @@ function getAllPositions2() {
 													var CellsInfo = oRow.Row.CellsInfo
 													for (var c = 2; c < CellsInfo.length; ++c) {
 														var cell = CellsInfo[c]
-														featureObj.fields.push({
-															v: c - 1 + '',
-															page: paraDrawing.PageNum + 1,
-															x: mmToPx(paraDrawing.X + cell.X_cell_start),
-															y: mmToPx(paraDrawing.Y),
-															w: mmToPx(cell.X_cell_end - cell.X_cell_start),
-															h: mmToPx(paraDrawing.Height),
-														})
+														if (paraDrawing.Height && cell.X_cell_end - cell.X_cell_start) {
+															featureObj.fields.push({
+																v: c - 1 + '',
+																page: paraDrawing.PageNum + 1,
+																x: mmToPx(paraDrawing.X + cell.X_cell_start),
+																y: mmToPx(paraDrawing.Y),
+																w: mmToPx(cell.X_cell_end - cell.X_cell_start),
+																h: mmToPx(paraDrawing.Height),
+															})
+														}
 													}
 												}
 											} else {
@@ -3643,14 +3494,16 @@ function getAllPositions2() {
 											console.log('cannot find oShape')
 										}
 									} else {
-										featureObj.fields.push({
-											v: titleObj.feature.v + '',
-											page: paraDrawing.PageNum + 1,
-											x: mmToPx(paraDrawing.X),
-											y: mmToPx(paraDrawing.Y),
-											w: mmToPx(paraDrawing.Width),
-											h: mmToPx(paraDrawing.Height),
-										})
+										if (paraDrawing.Width && paraDrawing.Height) {
+											featureObj.fields.push({
+												v: titleObj.feature.v + '',
+												page: paraDrawing.PageNum + 1,
+												x: mmToPx(paraDrawing.X),
+												y: mmToPx(paraDrawing.Y),
+												w: mmToPx(paraDrawing.Width),
+												h: mmToPx(paraDrawing.Height),
+											})
+										}
 									}
 									feature_list.push(featureObj)
 								}
@@ -3671,14 +3524,7 @@ function getAllPositions2() {
 				paper_info,
 				partical_no_dot_list,
 			}
-		},
-		false,
-		false
-	)
-	// .then(res => {
-	// 	console.log('the result of getAllPositions', res)
-	//   return res
-	// })
+	}, false, false, {name: 'getAllPositions2'})
 }
 
 export {
@@ -3686,15 +3532,11 @@ export {
 	initPaperInfo,
 	updatePageSizeMargins,
 	updateCustomControls,
-	clearStruct,
-	getStruct,
 	showQuestionTree,
 	drawPosition,
 	addScoreField,
-	handleContentControlChange,
 	handleScoreField,
 	drawPositions,
-	deletePositions,
 	setSectionColumn,
 	getAllPositions,
 	addOnlyBigControl,

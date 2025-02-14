@@ -1,6 +1,6 @@
 import { map_base64 } from '../resources/list_base64.js'
 import { ZONE_TYPE, ZONE_SIZE, ZONE_TYPE_NAME } from './model/feature.js'
-import { biyueCallCommand, dispatchCommandResult } from "./command.js";
+import { biyueCallCommand } from "./command.js";
 
 var loading = false // 正在绘制中
 var list_command = [] // 操作列表
@@ -29,7 +29,7 @@ var c_oAscRelativeFromV = {
 	TopMargin: 7
 }
 
-function handleFeature(options) {
+function handleFeature(options, recalc = true) {
 	if (!options) { return }
 	options.size = Object.assign({}, ZONE_SIZE[options.zone_type], (options.size || {}))
 	if (options.v == undefined) {
@@ -43,14 +43,18 @@ function handleFeature(options) {
 		console.log('loading...')
 		return
 	}
-	drawList([options]).then(() => {
+	drawList([options], recalc).then(() => {
 		setLoading(false)
-		handleNext()
+		// handleNext()
 	})
 }
 
 function drawExtroInfo(list, imageDimensionsCache, calc) {
-	if (!list) { return }
+	if (!list) {
+		return new Promise((resolve, reject) => {
+			return resolve()
+		})
+	}
 	list.forEach(e => {
 		e.page_num = e.p || 0
 		if (e.v == undefined) {
@@ -78,7 +82,7 @@ function addCommand(options) {
 	}
 	list_wait_command[index] = options
 }
-
+// handleNext 原本是希望能处理等待执行的命令，目前弃用
 function handleNext() {
 	setLoading(false)
 	if (list_wait_command && list_wait_command.length) {
@@ -128,7 +132,8 @@ function drawHeader(cmdType, examTitle) {
 	Asc.scope.header_exam_title = examTitle
 	Asc.scope.qrcode_url = map_base64.qrcode
 	loading = true
-	biyueCallCommand(window, function() {
+	return biyueCallCommand(window, function() {
+		// console.log('[drawHeader] begin')
 		var cmdType = Asc.scope.header_cmd
 		var examTitle = Asc.scope.header_exam_title
 		var qrcode_url = Asc.scope.qrcode_url
@@ -186,6 +191,9 @@ function drawHeader(cmdType, examTitle) {
 			var pSize = oSection.Section.PageSize
 			var pw = pSize.W - pmargins.Left - pmargins.Right
 			var oParagraph = oHeader.GetElement(0)
+			if (!oParagraph) {
+				return
+			}
 			oParagraph.SetTabs(
 				[1, (pw * 0.5) / MM2TWIPS, pw / MM2TWIPS],
 				['left', 'center', 'right']
@@ -214,8 +222,8 @@ function drawHeader(cmdType, examTitle) {
 			var oHeader2 = oSections[1].GetHeader('default', true)
 			setHeader(oSections[1], oHeader2, false)
 		}
-	}, false, true).then(res => {
-		handleNext()
+	}, false, true, {name: 'drawHeader'}).then(res => {
+		// handleNext()
 	})
 }
 // 删除所有功能区 exceptList 指定不删除的功能区
@@ -224,6 +232,7 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 	Asc.scope.exceptList = exceptList
 	Asc.scope.specifyFeatures = specifyFeatures
 	return biyueCallCommand(window, function() {
+		// console.log('[deleteAllFeatures] begin')
 		var oDocument = Api.GetDocument()
 		var drawings = oDocument.GetAllDrawingObjects()
 		var exceptList = Asc.scope.exceptList
@@ -396,7 +405,7 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 				}
 			}
 		}
-	}, false, true)
+	}, false, true, {name: 'deleteAllFeatures'})
 }
 
 function drawList(list, recalc = true) {
@@ -405,6 +414,7 @@ function drawList(list, recalc = true) {
 	Asc.scope.ZONE_TYPE = ZONE_TYPE
 	Asc.scope.page_type = window.BiyueCustomData.page_type
 	return biyueCallCommand(window, function() {
+		// console.log('[drawList] begin')
 		var imageDimensionsCache = Asc.scope.imageDimensionsCache || {}
 		var ZONE_TYPE = Asc.scope.ZONE_TYPE
 		var MM2TWIPS = 25.4 / 72 / 20
@@ -421,7 +431,7 @@ function drawList(list, recalc = true) {
 		var pageCount = oDocument.GetPageCount()
 
 		var lastParagraph = null
-		if (lastElement.GetClassType() == 'paragraph') {
+		if (lastElement && lastElement.GetClassType() == 'paragraph') {
 			lastParagraph = lastElement
 		} else {
 			lastParagraph = Api.CreateParagraph()
@@ -928,7 +938,7 @@ function drawList(list, recalc = true) {
 										type: 'default',
 										oFooter: oDefaultFooter
 									})
-									footerList.forEach((footerObj) => {
+									for (var footerObj of footerList) {
 										var oFooter = footerObj.oFooter
 										var elementCount = oFooter.GetElementsCount()
 										if (elementCount > 2) {
@@ -938,6 +948,9 @@ function drawList(list, recalc = true) {
 										}
 										var PageMargins = section.Section.PageMargins
 										var oParagraph = oFooter.GetElement(0)
+										if (!oParagraph) {
+											continue
+										}
 										if (page_type == 0) {
 											// 统计
 											var sh = PageMargins.Right - (options.size.right || 0) - options.size.w
@@ -1002,7 +1015,7 @@ function drawList(list, recalc = true) {
 												}
 											}
 										}
-									})									
+									}
 								})								
 							} else {
 								var page_num = options.page_num || options.p
@@ -1047,7 +1060,7 @@ function drawList(list, recalc = true) {
 		}
 		console.log('=====================drawList end ')
 		return res
-	}, false, false)
+	}, false, recalc, {name: 'drawList'})
 }
 
 function setLoading(v) {
@@ -1061,6 +1074,7 @@ function setInteraction(type, quesIds, recalc = true) {
 	Asc.scope.node_list = window.BiyueCustomData.node_list
 	Asc.scope.simple_interaction = 1 // window.BiyueCustomData.simple_interaction
 	return biyueCallCommand(window, function() {
+		// console.log('[setInteraction] begin')
 		var interaction_type_use = Asc.scope.interaction_type_use
 		var simple_interaction = Asc.scope.simple_interaction
 		var oDocument = Api.GetDocument()
@@ -1128,6 +1142,9 @@ function setInteraction(type, quesIds, recalc = true) {
 				if (elementcount > 0) {
 					for (var i = 0; i < elementcount; ++i) {
 						var oChild = oParagraph.GetElement(i)
+						if (!oChild) {
+							continue
+						}
 						if (oChild.GetClassType() == 'run') {
 							if (oChild.Run.IsEmpty()) {
 								continue
@@ -1135,6 +1152,9 @@ function setInteraction(type, quesIds, recalc = true) {
 							var find = false
 							for (var j = 0; j < oChild.Run.GetElementsCount(); ++j) {
 								var oElement = oChild.Run.GetElement(j)
+								if (!oElement) {
+									continue
+								}
 								if (oElement.GetType() == 1) {
 									if (oElement.Value == 59209) {
 										oChild.Run.RemoveElement(oElement)
@@ -1193,22 +1213,24 @@ function setInteraction(type, quesIds, recalc = true) {
 			)
 			var drawDocument = oDrawing.GetContent()
 			var paragraphs = drawDocument.GetAllParagraphs()
-			if (paragraphs && paragraphs.length > 0) {
+			if (paragraphs && paragraphs.length > 0 && paragraphs[0]) {
 				var oRun = paragraphs[0].GetElement(0)
-				oRun.SetFontFamily('iconfont')
-				oRun.AddText("\ue749")
-				oRun.SetFontSize(24)
-				oRun.SetColor(3, 3, 3, false)
-				paragraphs[0].SetSpacingAfter(0)
-				oDrawing.SetPaddings(0, 0, 0, 0)
-				var titleobj = {
-					feature: {
-						zone_type: 'question',
-						type: 'ques_interaction',
-						sub_type: 'simple'
+				if (oRun) {
+					oRun.SetFontFamily('iconfont')
+					oRun.AddText("\ue749")
+					oRun.SetFontSize(24)
+					oRun.SetColor(3, 3, 3, false)
+					paragraphs[0].SetSpacingAfter(0)
+					oDrawing.SetPaddings(0, 0, 0, 0)
+					var titleobj = {
+						feature: {
+							zone_type: 'question',
+							type: 'ques_interaction',
+							sub_type: 'simple'
+						}
 					}
+					oDrawing.SetTitle(JSON.stringify(titleobj))
 				}
-				oDrawing.SetTitle(JSON.stringify(titleobj))
 			}
 			
 			var horOffset = 0
@@ -1427,7 +1449,7 @@ function setInteraction(type, quesIds, recalc = true) {
 						var count = oParent.GetElementsCount()
 						for (var c = 0; c < count; ++c) {
 							var child = oParent.GetElement(c)
-							if (child.GetClassType() == 'run' && child.Run.Id == run.Id) {
+							if (child && child.GetClassType() == 'run' && child.Run.Id == run.Id) {
 								deleteAccurateRun(child)
 								break
 							}
@@ -1723,10 +1745,7 @@ function setInteraction(type, quesIds, recalc = true) {
 			}
 			handleControlAccurate(oControl, ask_list, write_list, type, nodeData.is_big)
 		}
-
-	}, false, recalc).then(res => {
-		console.log('setInteraction result:', res)
-	})
+	}, false, recalc, {name: 'setInteraction'})
 }
 
 function updateChoice(recalc = true) {
@@ -1735,6 +1754,7 @@ function updateChoice(recalc = true) {
 	Asc.scope.choice_params = window.BiyueCustomData.choice_display
 	console.log('Asc.scope.choice_params', Asc.scope.choice_params)
 	return biyueCallCommand(window, function() {
+		// console.log('[updateChoice] begin')
 		var node_list = Asc.scope.node_list
 		var oDocument = Api.GetDocument()
 		var oTables = oDocument.GetAllTables() || []
@@ -1840,6 +1860,9 @@ function updateChoice(recalc = true) {
 		var elementcount = oDocument.GetElementsCount()
 		for (var i = 0; i < elementcount; ++i) {
 			var oElement = oDocument.GetElement(i)
+			if (!oElement) {
+				continue
+			}
 			if (oElement.GetClassType() == 'table') {
 				var rows = oElement.GetRowsCount()
 				for (var i1 = 0; i1 < rows; ++i1) {
@@ -1867,7 +1890,7 @@ function updateChoice(recalc = true) {
 		if (structs.length) {
 			structs[structs.length - 1].last_pos = elementcount - 1
 			var lastelement = oDocument.GetElement(elementcount - 1)
-			if (lastelement.GetClassType() == 'paragraph') { // 有段落时，最后一行不算
+			if (lastelement && lastelement.GetClassType() == 'paragraph') { // 有段落时，最后一行不算
 				var text = lastelement.GetText()
 				if (lastelement.GetElementsCount() == 0 || text == '' || text == '\r\n') {
 					structs[structs.length - 1].last_pos = elementcount - 2
@@ -1953,7 +1976,7 @@ function updateChoice(recalc = true) {
 			}
 		}
 		return node_list
-	}, false, recalc)
+	}, false, recalc, {name: 'updateChoice'})
 }
 
 function handleChoiceUpdateResult(res) {
@@ -1971,6 +1994,7 @@ function handleChoiceUpdateResult(res) {
 function showOrHidePagination(v) {
 	Asc.scope.vshow = v
 	return biyueCallCommand(window, function(){
+		// console.log('[showOrHidePagination] begin')
 		var oDocument = Api.GetDocument()
 		var drawings = oDocument.GetAllDrawingObjects() || []
 		var vshow = Asc.scope.v
@@ -1989,12 +2013,13 @@ function showOrHidePagination(v) {
 				}
 			}
 		})
-	}, false, false)
+	}, false, false, {name: 'showOrHidePagination'})
 }
 // 单独更新统计图标
 function drawStatistics(options, recalc) {
 	Asc.scope.options = options
 	return biyueCallCommand(window, function() {
+		// console.log('[drawStatistics] begin')
 		var options = Asc.scope.options || {}
 		var oDocument = Api.GetDocument()
 		var oSections = oDocument.GetSections()
@@ -2102,25 +2127,39 @@ function drawStatistics(options, recalc) {
 				})
 			}
 		}
-	}, false, recalc)
+	}, false, recalc, {name: 'drawStatistics'})
 }
 function removeAllHeaderFooter() {
 	return biyueCallCommand(window, function() {
+		// console.log('[removeAllHeaderFooter] begin')
 		var oDocument = Api.GetDocument()
 		var oSections = oDocument.GetSections()
 		if (!oSections) {
 			return
 		}
+		function removeHeader(oSection, name) {
+			if (oSection.GetHeader(name, false)) {
+				oSection.RemoveHeader(name)
+			}
+		}
+		function removeFooter(oSection, name) {
+			if (oSection.GetFooter(name, false)) {
+				oSection.RemoveFooter(name)
+			}
+		}
 		for (var i = 0; i < oSections.length; ++i) {
 			var oSection = oSections[i]
-			oSection.RemoveHeader('default')
-			oSection.RemoveHeader('title')
-			oSection.RemoveHeader('even')
-			oSection.RemoveFooter('default')
-			oSection.RemoveFooter('even')
-			oSection.RemoveFooter('title')
+			if (!oSection) {
+				continue
+			}
+			removeHeader(oSection, 'default')
+			removeHeader(oSection, 'title')
+			removeHeader(oSection, 'even')
+			removeFooter(oSection, 'default')
+			removeFooter(oSection, 'even')
+			removeFooter(oSection, 'title')
 		}
-	}, false, false)
+	}, false, false, {name: 'removeAllHeaderFooter'})
 }
 function drawHeaderFooter(options, calc) {
 	return removeAllHeaderFooter().then(()=> {
@@ -2133,8 +2172,8 @@ function drawHeaderFooter(options, calc) {
 function drawHeaderFooter0(options, calc) {
 	Asc.scope.options_header_footer = options
 	return biyueCallCommand(window, function() {
+		// console.log('[drawHeaderFooter] begin')
 		var options = Asc.scope.options_header_footer || {}
-		console.log('drawHeaderFooter', options)
 		var oDocument = Api.GetDocument()
 		var oSections = oDocument.GetSections()
 		if (!oSections) {
@@ -2184,6 +2223,9 @@ function drawHeaderFooter0(options, calc) {
 				var width = header.image_width || 10 // mm
 				var height = header.image_height || 10 // mm
 				var oDrawing = Api.CreateImage(header.image_url, width * 36e3, height * 36e3)
+				oDrawing.SetTitle(JSON.stringify({
+					ignore: 1
+				}))
 				oParagraph.AddDrawing(oDrawing)
 				var paraDrawing = oDrawing.getParaDrawing()
 				if (paraDrawing) {
@@ -2278,6 +2320,9 @@ function drawHeaderFooter0(options, calc) {
 					Api.CreateSolidFill(Api.CreateRGBColor(255, 255, 255)),
 					Api.CreateStroke(0, Api.CreateNoFill())
 				)
+				oDrawing.SetTitle(JSON.stringify({
+					ignore: 1
+				}))
 				var drawContent = oDrawing.GetContent()
 				var paragraphs = drawContent.GetAllParagraphs()
 				if (paragraphs && paragraphs.length) {
@@ -2430,11 +2475,12 @@ function drawHeaderFooter0(options, calc) {
 			})
 		}
 		console.log('==================== draw header footer end')
-	}, false, calc)
+	}, false, calc, {name: 'drawHeaderFooter'})
 }
 
 function updateHederFooterDistance() {
 	return biyueCallCommand(window, function() {
+		// console.log('[updateHederFooterDistance] begin')
 		var oDocument = Api.GetDocument()
 		var oSections = oDocument.GetSections()
 		if (!oSections || oSections.length == 0) {
@@ -2460,7 +2506,7 @@ function updateHederFooterDistance() {
 			updateHeader(oSection.GetHeader('default', false), PageMargins)
 			updateHeader(oSection.GetHeader('even', false), PageMargins)
 		}
-	}, false, false)
+	}, false, false, {name: 'updateHederFooterDistance'})
 }
 
 export { handleFeature, handleHeader, drawExtroInfo, setLoading, deleteAllFeatures, setInteraction, updateChoice, handleChoiceUpdateResult, showOrHidePagination,drawHeaderFooter, drawStatistics }

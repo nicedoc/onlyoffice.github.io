@@ -13,8 +13,6 @@ import {
 	updatePageSizeMargins,
 	updateCustomControls,
 	drawPositions,
-	handleContentControlChange,
-	deletePositions,
 	setSectionColumn,
 	getAllPositions,
 } from './business.js'
@@ -23,7 +21,7 @@ import { ReplaceRubyField } from "./phonetic.js";
 import {
 	initExtroInfo,
 } from './panelFeature.js'
-import { biyueCallCommand, dispatchCommandResult } from './command.js'
+import { biyueCallCommand } from './command.js'
 import {
 	reqUploadTree,
 	splitEnd,
@@ -42,7 +40,8 @@ import {
 	focusAsk,
 	focusControl,
 	splitWordAsk,
-	deleteAsks
+	deleteAsks,
+	focusControlById
 } from './QuesManager.js'
 import {
 	tagImageCommon,
@@ -186,10 +185,6 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 				break
 			case 'drawPosition': // 绘制区域
 				drawPositions(message.data)
-				closeWindow(modal.id)
-				break
-			case 'deletePosition': // 删除区域
-				deletePositions(message.data)
 				closeWindow(modal.id)
 				break
 			case 'LevelSetConfirm': // 确定大小题设置
@@ -366,7 +361,11 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 				} else if (message.cmd == 'toAllUpdate') {
 					reqUploadTree()
 				} else if (message.cmd == 'reCheck') {
-					importExam()
+					if (message.data == 'uploadTree') {
+						reqUploadTree()
+					} else {
+						importExam()
+					}
 				} else if (message.cmd == 'locate') {
 					focusControl(message.data).then(res => {
 						if (window.tab_select != 'tabQues') {
@@ -386,6 +385,8 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 					})
 				} else if (message.cmd == 'toFeature') {
 					onFeature()
+				} else if (message.cmd == 'locateControl') {
+					focusControlById(message.data)
 				}
 				break
 			default:
@@ -662,7 +663,9 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 								var content = control.GetContent()
 								var endParaIndex = content.GetElementsCount() - 1
 								var oPara = content.GetElement(endParaIndex)
-								endRange = oPara.GetRange()
+								if (oPara) {
+									endRange = oPara.GetRange()
+								}
 							}
 
 							var range = apiRanges[i].ExpandTo(endRange)
@@ -716,7 +719,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
                 console.log(styledString, ...styles);
             };
 
-            //debugger;
+            // debugger;
 
             var oDocument = Api.GetDocument();
             var controls = oDocument.GetAllContentControls();
@@ -766,73 +769,57 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
                     };
                     let mergeRange = function(arrA, arrB)
                     {
+                        console.time("mergeRange");
                         let all = arrA.concat(arrB);
-                        let ret = []
-                        for(var i = 0; i < all.length; i++) {
-                            var newE = true;
-                            for (var j = 0; j < all.length; j++) {
-                                if (i == j)
-                                    continue;
-                                if (includeRange(all[i], all[j])) {
-                                    newE = false;
-                                }
+                        // Sort ranges by start position
+                        all.sort(function(a, b) {
+                            var len = Math.min(a.StartPos.length, b.StartPos.length);
+                            for (var i = 0; i< len; i++) {
+                                if (a.StartPos[i].Position != b.StartPos[i].Position)
+                                    return a.StartPos[i].Position - b.StartPos[i].Position
                             }
-                            if (newE)
-                                ret.push(all[i]);
+                            return 0;
+                        });
+
+                        let ret = []
+                        let last = null;
+                        for (let range of all) {
+                            if (last === null || last.End < range.Start || last.Element != range.Element) {
+                                // No overlap, add to result
+                                ret.push(range);
+                                last = range;
+                            } else if (last.End < range.End) {
+                                // Overlapping ranges, merge them
+                                last.End = range.End;
+                            }
                         }
+                        console.timeEnd("mergeRange");
                         return ret;
                     };
-					let mergeRanges2 = function(ranges) {
-						var newRanges = []
-						for (var i = 0; i < ranges.length; ++i) {
-							if (i == 0) {
-								newRanges.push(ranges[i])
-							} else {
-								var lastRange = newRanges[newRanges.length - 1]
-								var canMerge = false
-								if (ranges[i].Element == lastRange.Element && ranges[i].Start == lastRange.End) {
-									var rText = ranges[i].GetText ? ranges[i].GetText() : ''
-									if (rText) {
-										var idx = rText.indexOf('\r')
-										var lastText = lastRange.GetText ? lastRange.GetText() : ''
-										if (idx == 0 && rText[idx + 1] == lastText[lastText.length - 1]) {
-											var Start = lastRange.Start
-											var End = ranges[i].End
-											var nrange = lastRange.ExpandTo(ranges[i])
-											nrange.Start = Start
-											nrange.End = End
-											newRanges[newRanges.length - 1] = nrange
-											canMerge = true
-										}
-									}
-								}
-								if (!canMerge) {
-									newRanges.push(ranges[i])
-								}
-							}
-						}
-						return newRanges
-					}
-                    //debugger;
+                                        
+                    
                     var apiRanges = [];
+                    console.time("查找所有答题区 no: "+i);
                     textSet.forEach(e => {
                         var ranges = control.Search(e, false);
                         //debugger;;
-						apiRanges = mergeRange(apiRanges, ranges);
+                        
+                        apiRanges = mergeRange(apiRanges, ranges);
                     });
-					if (apiRanges.length > 1) {
-						apiRanges = mergeRanges2(apiRanges)
-					}
+                    console.timeEnd("查找所有答题区 no: "+i);
+                    
 
-                        // search 有bug少返回一个字符
+                    // search 有bug少返回一个字符            
+                    console.time("插入答题区控件");
                     apiRanges.reverse().forEach(apiRange => {
                             apiRange.Select();
                             var tag = JSON.stringify({ 'regionType': 'write', 'mode': 3 });
                             Api.asc_AddContentControl(2, { "Tag": tag });
                             Api.asc_RemoveSelection();
                     });
+                    console.timeEnd("插入答题区控件");
 
-
+                    
                     // 标记空白行
                     {
                         //debugger;
@@ -840,6 +827,9 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
                         var elements = content.GetElementsCount();
                         for (var j = elements - 1; j >= 0; j--) {
                             var para = content.GetElement(j);
+							if (!para) {
+								continue
+							}
                             if (para.GetClassType() !== "paragraph") {
                                 break;
                             }
@@ -1105,7 +1095,6 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 
 	window.Asc.plugin.onCommandCallback = function (result) {
 		//console.log("onCommandCallback", result);
-		dispatchCommandResult(window, result)
 	}
 
 	let createContentControl = function (ranges) {
@@ -1202,7 +1191,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 							if (oControl.GetContent().GetElementsCount() > 1) {
 								var lastpos = oControl.GetContent().GetElementsCount() - 1
 								var lastElement = oControl.GetContent().GetElement(lastpos)
-								if (lastElement.GetClassType() == 'paragraph' && lastElement.GetElementsCount() == 0) {
+								if (lastElement && lastElement.GetClassType() == 'paragraph' && lastElement.GetElementsCount() == 0) {
 									oControl.GetContent().RemoveElement(lastpos)
 								}
 							}
@@ -1234,6 +1223,9 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 				// get current paragraph
 				var pos = oDocument.Document.CurPos.ContentPos
 				var oElement = oDocument.GetElement(pos)
+				if (!oElement) {
+					return
+				}
 				while (oElement.GetClassType !== 'paragraph') {
 					if (oElement.GetClassType() === 'blockLvlSdt') {
 						oElement = oElement.GetContent()
@@ -1522,16 +1514,17 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 				biyueCallCommand(
 					window,
 					function () {
-						var controls = Asc.scope.controls
-
-						for (var i = 0; i < controls.length; i++) {
-							// set selection
-							var e = controls[i]
-							Api.asc_RemoveContentControlWrapper(e.InternalId)
-						}
+							// console.log('[clearAllControls] begin')	
+							var controls = Asc.scope.controls
+							for (var i = 0; i < controls.length; i++) {
+								// set selection
+								var e = controls[i]
+								Api.asc_RemoveContentControlWrapper(e.InternalId)
+							}
 					},
 					false,
-					false
+					false,
+					{name: 'clearAllControls'}
 				).then(() => {
 					console.log('删除所有控件完成')
 					// window.BiyueCustomData.client_node_id = 0
@@ -1543,6 +1536,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 	}
 	function onClearAllControls(recalc = false) {
 		return biyueCallCommand(window, function () {
+			// console.log('[onClearAllControls] begin')
 			var oDocument = Api.GetDocument()
 			var controls = oDocument.GetAllContentControls() || []
 			// 先删除所有题目的互动
@@ -1654,7 +1648,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 			}) || ''
 			var text_json = oDocument.ToJSON(false, false, false, false, true, true)
 			return { text_all, text_json }
-		}, false, recalc)
+		}, false, recalc, {name: 'onClearAllControls'})
 	}
 	// 显示分数框
 	function showScoreContent() {
@@ -2595,10 +2589,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 	window.insertHtml = insertHtml
 
 	function onContentControlChange(res) {
-		clearTimeout(timeout_controlchange)
-		timeout_controlchange = setTimeout(() => {
-			handleContentControlChange(res)
-		}, 500)
+		// todo..
 	}
 	// 重新切题
 	function reSplitQustion() {

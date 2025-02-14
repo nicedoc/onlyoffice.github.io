@@ -145,6 +145,7 @@ function updateQuestionMapByDoc(list) {
 // 获取文档列表
 function getDocList() {
 	return biyueCallCommand(window, function() {
+		// console.log('[getDocList] begin')
 		var oDocument = Api.GetDocument()
 		var elementCount = oDocument.GetElementsCount()
 		if (elementCount == 0) {
@@ -224,7 +225,7 @@ function getDocList() {
 		}
 		console.log('[getDocList] result', list)
 		return list
-	}, false, false)
+	}, false, false, {name: 'getDocList'})
 }
 // 根据文档列表生成list
 function generateListByDoc(docList) {
@@ -360,7 +361,8 @@ function clickItem(id, item, e) {
 	}
 	Asc.scope.controlId = null
 	Asc.scope.click_id = id
-	biyueCallCommand(window, function() {
+	return biyueCallCommand(window, function() {
+		// console.log('[clickItem] begin')
 		var click_id = Asc.scope.click_id
 		var oDocument = Api.GetDocument()
 		oDocument.RemoveSelection()
@@ -371,7 +373,7 @@ function clickItem(id, item, e) {
 				oRange.Select()
 			}
 		}
-	}, false, false)
+	}, false, false, {name: 'clickItem'})
 }
 
 function dropItem(list, dragId, dropId, direction) {
@@ -384,7 +386,8 @@ function dropItem(list, dragId, dropId, direction) {
 		direction: direction,
 		horList: g_horizontal_list
 	}
-	biyueCallCommand(window, function() {
+	return biyueCallCommand(window, function() {
+		// console.log('[dropItem] begin')
 		var drag_options = Asc.scope.drag_options
 		console.log('drag_options', drag_options)
 		var horList = drag_options.horList
@@ -474,6 +477,9 @@ function dropItem(list, dragId, dropId, direction) {
 		function getObjectByPos2(posArray) {
 			var objList = []
 			for (var i = 0; i < posArray.length; ++i) {
+				if (!posArray[i]) {
+					continue
+				}
 				if (i == 0) {
 					var obj = oDocument.GetElement(posArray[i].Position)
 					objList.push(obj)
@@ -529,8 +535,10 @@ function dropItem(list, dragId, dropId, direction) {
 				continue
 			}
 			if (docPos.length == 1) {
-				templist.push(oDocument.GetElement(docPos[0].Position))
-				oDocument.RemoveElement(docPos[0].Position)
+				if (docPos[0]) {
+					templist.push(oDocument.GetElement(docPos[0].Position))
+					oDocument.RemoveElement(docPos[0].Position)
+				}
 			} else {
 				if (docPos.length > 1) {
 					var objList = getObjectByPos2(docPos)
@@ -652,9 +660,9 @@ function dropItem(list, dragId, dropId, direction) {
 				}
 			}
 		}
-	}, false, false).then(res => {
+	}, false, false, {name: 'dropItem'}).then(res => {
 		// 当使用自动编号时，拖动后文档里的编号会相应更新，但目前树没有更新，需要再取一次，拿到的text才是最新的
-		handleDocUpdate()
+		return handleDocUpdate()
 		// var hlist = []
 		// // updateHorListByTree(list, hlist)
 		// // g_horizontal_list = hlist
@@ -702,7 +710,7 @@ function updateTreeRenderWhenClick(data) {
 
 function handleDocUpdate() {
 	console.log('===== handleDocUpdate getDocList')
-	getDocList().then(res => {
+	return getDocList().then(res => {
 		console.log(' handleDocUpdate 1', res)
 		updateQuestionMapByDoc(res)
 		updateHListBYDoc(res)
@@ -718,7 +726,8 @@ function handleDocUpdate() {
 function updateRangeControlType(typeName) {
 	Asc.scope.typename = typeName
 	console.log('updateRangeControlType begin:', typeName)
-	biyueCallCommand(window, function() {
+	return biyueCallCommand(window, function() {
+		// console.log('[updateRangeControlType] begin')
 		var typeName = Asc.scope.typename
 		var oDocument = Api.GetDocument()
 		var oRange = oDocument.GetRangeBySelect()
@@ -1168,7 +1177,7 @@ function updateRangeControlType(typeName) {
 		result.code = 1
 		console.log('updateControlType function end', result)
 		return result
-	}, false, true).then(res => {
+	}, false, true, {name: 'updateRangeControlType'}).then(res => {
 		console.log('updateControlType result:', res)
 		if (res) {
 			if (res.code == 1) {
@@ -1516,7 +1525,7 @@ function setBtnLoading(elementId, isLoading) {
 		if (children) {
 			children.remove()
 		}
- 	}
+	}
 	
 }
 
@@ -1532,11 +1541,14 @@ function isLoading(elementId) {
 
 function reqGetQuestionType(source) {
 	if (!source && isLoading('getQuesType')) {
-		return
+		return new Promise((resolve, reject) => {
+			resolve()
+		})
 	}
 	setBtnLoading('getQuesType', true)
 	Asc.scope.horlist = g_horizontal_list
-	biyueCallCommand(window, function() {
+	return biyueCallCommand(window, function() {
+		// console.log('[reqGetQuestionType] begin')
 		var horlist = Asc.scope.horlist
 		var target_list = []
 		var oDocument = Api.GetDocument()
@@ -1568,39 +1580,46 @@ function reqGetQuestionType(source) {
 		})
 		console.log('[reqGetQuestionType] target_list', target_list)
 		return target_list
-	}, false, false).then( control_list => {
+	}, false, false, {name: 'reqGetQuestionType'}).then( control_list => {
 		console.log('[reqGetQuestionType] control_list', control_list)
-		if (!window.BiyueCustomData.paper_uuid || !control_list || control_list.length == 0) {
-			setBtnLoading('getQuesType', false)
-			return
-		}
-		getQuesType(window.BiyueCustomData.paper_uuid, control_list).then(res => {
-			console.log('getQuesType success ', res)
-			var content_list = res.data.content_list
-			if (content_list && content_list.length) {
-				content_list.forEach(e => {
-					window.BiyueCustomData.question_map[e.id].question_type = e.question_type * 1
-					window.BiyueCustomData.question_map[e.id].question_type_name = e.question_type_name
-				})
+		return new Promise((resolve, reject) => {
+			if (!window.BiyueCustomData.paper_uuid || !control_list || control_list.length == 0) {
+				setBtnLoading('getQuesType', false)
+				return resolve()
 			}
-			setBtnLoading('getQuesType', false)
-		}).catch(res => {
-			console.log('getQuesType fail ', res)
-			setBtnLoading('getQuesType', false)
+			getQuesType(window.BiyueCustomData.paper_uuid, control_list).then(res => {
+				console.log('getQuesType success ', res)
+				var content_list = res.data.content_list
+				if (content_list && content_list.length) {
+					content_list.forEach(e => {
+						window.BiyueCustomData.question_map[e.id].question_type = e.question_type * 1
+						window.BiyueCustomData.question_map[e.id].question_type_name = e.question_type_name
+					})
+				}
+				setBtnLoading('getQuesType', false)
+				return resolve(res)
+			}).catch(res => {
+				console.log('getQuesType fail ', res)
+				setBtnLoading('getQuesType', false)
+				return reject(res)
+			})
 		})
 	})
 }
 
 function reqUploadTree() {
 	if (isLoading('uploadTree')) {
-		return
+		return new Promise((resolve, reject) => {
+			return resolve()
+		})
 	}
 	setBtnLoading('uploadTree', true)
 	Asc.scope.horlist = g_horizontal_list
 	upload_control_list = []
 	console.log('[reqUploadTree start]', Date.now())
 	Asc.scope.question_map = window.BiyueCustomData.question_map
-	biyueCallCommand(window, function() {
+	return biyueCallCommand(window, function() {
+		// console.log('[reqUploadTree] begin')
 		var horlist = Asc.scope.horlist
 		var target_list = []
 		var oDocument = Api.GetDocument()
@@ -1659,51 +1678,49 @@ function reqUploadTree() {
 			}
 		})
 		return target_list
-	}, false, false).then( control_list => {
+	}, false, false, {name: 'reqUploadTree'}).then( control_list => {
 		if (control_list) {
 			upload_control_list = control_list
 			if (control_list && control_list.length) {
 				getXml(control_list[0].id)
 			}
 		}
-		
-		
 	})
 }
 
 function getXml(controlId) {
 	window.Asc.plugin.executeMethod("SelectContentControl", [controlId])
 	window.Asc.plugin.executeMethod("GetSelectionToDownload", ["docx"], function (data) {
-        // 假设这是你的 ZIP 文件的 URL  
-        const zipFileUrl = data;        
-        fetch(zipFileUrl).then(response => {  
-            if (!response.ok) {  
-            throw new Error('Failed to fetch zip file');  
-            }  
-            return response.arrayBuffer(); // 获取 ArrayBuffer 而不是 Blob，因为 JSZip 需要它  
-        })  
-        .then(arrayBuffer => {  
-            return JSZip.loadAsync(arrayBuffer); // 使用 JSZip 加载 ArrayBuffer  
-        })  
-        .then(zip => {  
-            // 现在你可以操作 zip 对象了  
-            zip.forEach(function(relativePath, file) {  
-                if (relativePath.indexOf('word/document.xml') === -1) {
-                    return;
-                }
-                // 这里可以遍历 ZIP 文件中的所有文件  
-                file.async("text").then(function(content) {  
-                    // 假设文件是文本文件，打印文件内容和相对路径
+		// 假设这是你的 ZIP 文件的 URL  
+		const zipFileUrl = data;        
+		fetch(zipFileUrl).then(response => {  
+			if (!response.ok) {  
+			throw new Error('Failed to fetch zip file');  
+			}  
+			return response.arrayBuffer(); // 获取 ArrayBuffer 而不是 Blob，因为 JSZip 需要它  
+		})  
+		.then(arrayBuffer => {  
+			return JSZip.loadAsync(arrayBuffer); // 使用 JSZip 加载 ArrayBuffer  
+		})  
+		.then(zip => {  
+			// 现在你可以操作 zip 对象了  
+			zip.forEach(function(relativePath, file) {  
+				if (relativePath.indexOf('word/document.xml') === -1) {
+					return;
+				}
+				// 这里可以遍历 ZIP 文件中的所有文件  
+				file.async("text").then(function(content) {  
+					// 假设文件是文本文件，打印文件内容和相对路径
 					handleXml(controlId, content)
-                });  
-            });  
-        })  
-        .catch(error => {  
-            console.error('Error:', error);
+				});  
+			});  
+		})  
+		.catch(error => {  
+			console.error('Error:', error);
 			handleXmlError()
-        });
-        
-    });
+		});
+		
+	});
 }
 
 function handleXml(controlId, content) {
@@ -1749,13 +1766,13 @@ function generateTreeForUpload(control_list) {
 	})
 	var uploadTree = {
 		id: "",
-        uuid: window.BiyueCustomData.paper_uuid,
-        question_type:0,
-        question_name:"",
-        content_type:"paper",
-        content_text:"",
-        content_xml:"",
-        content_html:"",
+		uuid: window.BiyueCustomData.paper_uuid,
+		question_type:0,
+		question_name:"",
+		content_type:"paper",
+		content_text:"",
+		content_xml:"",
+		content_html:"",
 		children: tree
 	}
 	console.log('               uploadTree', uploadTree)
@@ -1799,6 +1816,7 @@ function changeProportion(id, proportion) {
 	}
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	return biyueCallCommand(window, function () {
+		// console.log('[changeProportion] begin')
 		var change_options = Asc.scope.change_options
 		var oControl = Api.LookupObject(change_options.id)
 		if (!oControl) {
@@ -1817,7 +1835,7 @@ function changeProportion(id, proportion) {
 				var parent = oControl.Sdt.GetParent()
 				if (posinparent > 1) {
 					var preElement = oParentControl.GetContent().GetElement(posinparent - 1)
-					if (preElement.GetClassType && preElement.GetClassType() == 'table' && preElement.GetTableTitle() == 'question') {
+					if (preElement && preElement.GetClassType && preElement.GetClassType() == 'table' && preElement.GetTableTitle() == 'question') {
 						var oRow = preElement.GetRow(0)
 						var cellCount = oRow.GetCellsCount()
 						for (var i = 0; i < cellCount; ++i) {
@@ -1834,7 +1852,7 @@ function changeProportion(id, proportion) {
 									}
 							}
 						}
-						if (targetCellIndex >= 0) {
+						if (preElement && targetCellIndex >= 0) {
 							// 暂时不考虑此时要设的占比，只一味丢到空单元格里
 							oParentControl.GetContent().RemoveElement(posinparent)
 							var oCell = preElement.GetCell(0, targetCellIndex);
@@ -1862,17 +1880,14 @@ function changeProportion(id, proportion) {
 
 			}
 		}
-	}, false, true).then(res => {
-		// if (res) {
-		// 	window.BiyueCustomData.question_map[res.id].proportion = res.proportion
-		// }
-	})
+	}, false, true, {name: 'changeProportion'})
 }
 
 // 批量设置题型
 function batchChangeQuesType(type) {
 	Asc.scope.ques_type = type
-	biyueCallCommand(window, function () {
+	return biyueCallCommand(window, function () {
+			// console.log('[batchChangeQuesType] begin')
 		var oDocument = Api.GetDocument()
 		var control_list = oDocument.GetAllContentControls()
 		var ques_id_list = []
@@ -1898,7 +1913,7 @@ function batchChangeQuesType(type) {
 			list: ques_id_list,
 			type: Asc.scope.ques_type
 		}
-	}, false, false).then((res) => {
+	}, false, false, {name: 'batchChangeQuesType'}).then((res) => {
 		if (!res || !res.code || !res.list) {
 			return
 		}

@@ -9,6 +9,7 @@ function updateRangeControlType(typeName) {
 	Asc.scope.node_list = window.BiyueCustomData.node_list
 	console.log('updateRangeControlType begin:', typeName)
 	return biyueCallCommand(window, function() {
+		// console.log('[updateRangeControlType] begin')
 		var typeName = Asc.scope.typename
 		var oDocument = Api.GetDocument()
 		var oRange = oDocument.GetRangeBySelect()
@@ -135,7 +136,7 @@ function updateRangeControlType(typeName) {
 				var pcount = drawingParentParagraph.GetElementsCount()
 				for (var i = 0; i < pcount; ++i) {
 					var oChild = drawingParentParagraph.GetElement(i)
-					if (oChild.GetClassType) {
+					if (oChild && oChild.GetClassType) {
 						var childType = oChild.GetClassType()
 						if (childType == 'run') {
 							if (inRun(oChild, oDrawing.Drawing.Id)) {
@@ -145,7 +146,7 @@ function updateRangeControlType(typeName) {
 							var cnt3 = oChild.GetElementsCount()
 							for (var i3 = 0; i3 < cnt3; ++i3) {
 								var oChild3 = oChild.GetElement(i3)
-								if (oChild3.GetClassType() == 'run') {
+								if (oChild3 && oChild3.GetClassType() == 'run') {
 									if (inRun(oChild3, oDrawing.Drawing.Id)) {
 										return null
 									}
@@ -796,7 +797,7 @@ function updateRangeControlType(typeName) {
 						var count = oParent.GetElementsCount()
 						for (var c = 0; c < count; ++c) {
 							var child = oParent.GetElement(c)
-							if (child.GetClassType() == 'run' && child.Run.Id == run.Id) {
+							if (child && child.GetClassType() == 'run' && child.Run.Id == run.Id) {
 								deleteAccurateRun(child)
 								break
 							}
@@ -956,7 +957,7 @@ function updateRangeControlType(typeName) {
 						if (container_type == 'inlineLvlSdt') {
 							// 判断是否处于单元格中，若是，将单元格内容选中设为题目
 							var secondContainer = getFirstElement(elementData.list, containerIndex - 1)
-							 // 处于单元格中
+							// 处于单元格中
 							if (secondContainer && secondContainer.container_type == 'tableCell') {
 								var cellContent = secondContainer.container.GetContent()
 								var cellRange = cellContent.GetRange()
@@ -1093,13 +1094,22 @@ function updateRangeControlType(typeName) {
 						return false
 					}
 					var a = pre.oElement.GetElement(pre.Position + 1)
-					if (a.GetClassType() != 'inlineLvlSdt' || a.Sdt.GetId() != control.Sdt.GetId()) {
+					if (a && a.GetClassType() != 'inlineLvlSdt' || a.Sdt.GetId() != control.Sdt.GetId()) {
 						return false
 					}
 					var p = Math.min(startEndData.oElement.Run.GetElementsCount() - 1, startEndData.Position)
 					if (p != 0) {
 						return false
 					}
+				}
+			}
+			// 判断endPos是否一致
+			var endEndData = endData.list[endData.list.length - 1]
+			var endPre = endData.list[endData.list.length - 2]
+			if (endPre.classType == 'paragraph' && endPre.Position > 0 && endEndData.Position == 0) {
+				var pre2 = endPre.oElement.GetElement(endPre.Position - 1)
+				if (pre2 && pre2.GetClassType() == 'inlineLvlSdt' && pre2.Sdt.GetId() == control.Sdt.GetId()) {
+					return true
 				}
 				// 判断endPos是否一致
 				var endEndData = endData.list[endData.list.length - 1]
@@ -1329,7 +1339,7 @@ function updateRangeControlType(typeName) {
 						var oResult = Api.asc_AddContentControl(type, {
 							Tag: JSON.stringify(tag)
 						})
-						if(oResult) {
+						if (oResult) {
 							var oControl = Api.LookupObject(oResult.InternalId)
 							// 需要返回新增的nodeIndex todo..
 							result.change_list.push({
@@ -1347,7 +1357,7 @@ function updateRangeControlType(typeName) {
 								if (oCell) {
 									if (oCell.GetContent().GetElementsCount() == 2) {
 										var oElement2 = oCell.GetContent().GetElement(1)
-										if (oElement2.GetClassType() == 'paragraph' && oElement2.Paragraph.Bounds.Bottom == 0 && oElement2.Paragraph.Bounds.Top == 0) {
+										if (oElement2 && oElement2.GetClassType() == 'paragraph' && oElement2.Paragraph.Bounds.Bottom == 0 && oElement2.Paragraph.Bounds.Top == 0) {
 											oCell.GetContent().RemoveElement(1)
 										}
 									}
@@ -1361,16 +1371,23 @@ function updateRangeControlType(typeName) {
 			}
 		}
 		return result
-	}, false, true).then(res1 => {
+	}, false, true, {name: 'updateRangeControlType'}).then(res1 => {
 		console.log('handleChangeType result', res1)
 		if (res1) {
 			if (res1.message && res1.message != '') {
 				alert(res1.message)
+				return new Promise((resolve, reject) => {
+					resolve()
+				})
 			} else {
-				getNodeList().then(res2 => {
-					handleChangeType(res1, res2)
+				return getNodeList().then(res2 => {
+					return handleChangeType(res1, res2)
 				})
 			}
+		} else {
+			return new Promise((resolve, reject) => {
+				resolve()
+			})
 		}
 	})
 }
@@ -1379,6 +1396,7 @@ function handleWrite(cmdType) {
 	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
 	Asc.scope.write_cmd = cmdType
 	return biyueCallCommand(window, function() {
+		// console.log('[handleWrite] begin')
 		var client_node_id = Asc.scope.client_node_id
 		var write_cmd = Asc.scope.write_cmd
 		var oDocument = Api.GetDocument()
@@ -1510,8 +1528,8 @@ function handleWrite(cmdType) {
 			}
 		}
 		return null
-	}, false, true).then(res => {
-		handleWriteResult(res)
+	}, false, true, {name: 'handleWrite'}).then(res => {
+		return handleWriteResult(res)
 	})
 }
 
@@ -1519,7 +1537,8 @@ function handleWrite(cmdType) {
 function handleIdentifyBox(cmdType) {
 	Asc.scope.client_node_id = window.BiyueCustomData.client_node_id
 	Asc.scope.write_cmd = cmdType
-	biyueCallCommand(window, function () {
+	return biyueCallCommand(window, function () {
+			// console.log('[handleIdentifyBox] begin')
 			var oDocument = Api.GetDocument()
 			var curPosInfo = oDocument.Document.GetContentPosition()
 			var cmdType = Asc.scope.write_cmd
@@ -1639,13 +1658,10 @@ function handleIdentifyBox(cmdType) {
 			}
 			res.client_node_id = client_node_id
 			res.sub_type = 'identify'
-			return res
-		},
-		false,
-		true
-	).then((res) => {
+			return res	
+	}, false, true, {name: 'handleIdentifyBox'}).then((res) => {
 		console.log('handleIdentifyBox result', res)
-		handleWriteResult(res)
+		return handleWriteResult(res)
 	})
 }
 
