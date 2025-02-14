@@ -324,7 +324,7 @@ function handleContextMenuShow(options) {
 							lvl: lvl
 						})
 					})
-				}				
+				}
 			}
 			return result
 	}, false, false, {name: 'handleContextMenuShow'}).then(res => {
@@ -1298,6 +1298,9 @@ function handleChangeType(res, res2) {
 			return resolve()
 		})
 	}
+	if (!res2) {
+		res2 = []
+	}
 	var change_list = res.change_list || []
 	if (change_list.length == 0) {
 		if (res.typeName != 'clearChildren') {
@@ -1769,6 +1772,10 @@ function handleChangeType(res, res2) {
 			}
 		})
 		.then(() => {
+			return notifyQuestionChange(typequesId)
+		})
+		.then(() => {
+			window.biyue.StoreCustomData()
 			if (window.BiyueCustomData.question_map[typequesId] && isTextMode(window.BiyueCustomData.question_map[typequesId].ques_mode)) {
 				return deleteAsks([{
 					ques_id: typequesId,
@@ -1795,6 +1802,7 @@ function handleChangeType(res, res2) {
 			if (updateinteraction) {
 				return setInteraction(interaction, addIds)
 			} else {
+				window.biyue.StoreCustomData()
 				return new Promise((resolve, reject) => {
 					resolve()
 				})
@@ -2392,11 +2400,11 @@ function initControls() {
 	}, false, false, {name: 'initControls'}).then(res => {
 		console.log('initControls   nodeList', res)
 		return new Promise((resolve, reject) => {
+			if (!res) {
+				return resolve()
+			}
 			// todo.. 这里暂不考虑上次的数据未保存或保存失败的情况，只假设此时的control数据和nodelist里的是一致的，只是乱码而已，其他的后续再处理
 			try {
-				if (!res) {
-					return resolve()
-				}
 				if (res.client_node_id) {
 					window.BiyueCustomData.client_node_id = res.client_node_id
 				}
@@ -3434,8 +3442,8 @@ function reqUploadTree() {
 	if (isLoading('uploadTree')) {
 		return
 	}
-  	// 先关闭智批元素，避免智批元素在全量更新的时候被带到题目里 更新之后再打开
-  	setBtnLoading('uploadTree', true)
+	// 先关闭智批元素，避免智批元素在全量更新的时候被带到题目里 更新之后再打开
+	setBtnLoading('uploadTree', true)
 	return setInteraction('none', null, false).then(() => {
 		return preGetExamTree()	// 获取题目树需要在addOnlyBigControl之前执行，否则可能出现父节点出错的情况
 	}).then((res) => {
@@ -3464,15 +3472,15 @@ function reqUploadTree() {
 					handleCompleteResult(res && res.message && res.message != '' ? res.message : '全量更新失败')
 				})
 			}
-		  } else {
+		} else {
 			handleCompleteResult('未找到可更新的题目，请检查题目列表')
-		  }
+		}
 	})
 }
 // 后端已支持结构和题目可同级出现在结构下，取代旧代码
 function getControlListForUpload() {
 	Asc.scope.node_list = window.BiyueCustomData.node_list
-    Asc.scope.question_map = window.BiyueCustomData.question_map
+	Asc.scope.question_map = window.BiyueCustomData.question_map
 	return biyueCallCommand(window, function() {
 			// console.log('[getControlListForUpload] begin')
 			var target_list = []
@@ -3631,154 +3639,154 @@ function getControlListForUpload() {
 
 // 清洗输出的html
 function cleanHtml(html) {
-  // 创建一个临时的div用以装载需要处理的HTML内容
-  var tempDiv = document.createElement('div');
+	// 创建一个临时的div用以装载需要处理的HTML内容
+	var tempDiv = document.createElement('div');
 
-  tempDiv.innerHTML = html
+	tempDiv.innerHTML = html
 
-  //如果没有子节点或者文本内容就可以删除的元素
-  const removeEmpty = { div: 1, a: 1, abbr: 1, acronym: 1, address: 1, b: 1, bdo: 1, big: 1, cite: 1, code: 1, del: 1, dfn: 1, em: 1, font: 1, i: 1, ins: 1, label: 1, kbd: 1, q: 1, s: 1, samp: 1, small: 1, span: 1, strike: 1, strong: 1, sub: 1, sup: 1, tt: 1, u: 1, 'var': 1 };
+	//如果没有子节点或者文本内容就可以删除的元素
+	const removeEmpty = { div: 1, a: 1, abbr: 1, acronym: 1, address: 1, b: 1, bdo: 1, big: 1, cite: 1, code: 1, del: 1, dfn: 1, em: 1, font: 1, i: 1, ins: 1, label: 1, kbd: 1, q: 1, s: 1, samp: 1, small: 1, span: 1, strike: 1, strong: 1, sub: 1, sup: 1, tt: 1, u: 1, 'var': 1 };
 
-  // 替换部分标签 为 p 标签
-  tempDiv.querySelectorAll('h1, h2, h3, h4, h5, li').forEach(el => {
-    const p = document.createElement('p');
-    while(el.firstChild) {
-      p.appendChild(el.firstChild);
-    }
-    el.parentNode.replaceChild(p, el);
-  });
+	// 替换部分标签 为 p 标签
+	tempDiv.querySelectorAll('h1, h2, h3, h4, h5, li').forEach(el => {
+		const p = document.createElement('p');
+		while(el.firstChild) {
+			p.appendChild(el.firstChild);
+		}
+		el.parentNode.replaceChild(p, el);
+	});
 
-  // 移除所有 div, ul, ol 标签但是保留内容
-  tempDiv.querySelectorAll('div, ul, ol').forEach(el => {
-    while(el.firstChild) {
-      el.parentNode.insertBefore(el.firstChild, el);
-    }
-    el.parentNode.removeChild(el);
-  });
+	// 移除所有 div, ul, ol 标签但是保留内容
+	tempDiv.querySelectorAll('div, ul, ol').forEach(el => {
+		while(el.firstChild) {
+			el.parentNode.insertBefore(el.firstChild, el);
+		}
+		el.parentNode.removeChild(el);
+	});
 
-  // 移除 span 标签但保留内容
-  tempDiv.querySelectorAll('span').forEach(el => {
-    while(el.firstChild) {
-      el.parentNode.insertBefore(el.firstChild, el);
-    }
-    el.parentNode.removeChild(el);
-  });
+	// 移除 span 标签但保留内容
+	tempDiv.querySelectorAll('span').forEach(el => {
+		while(el.firstChild) {
+			el.parentNode.insertBefore(el.firstChild, el);
+		}
+		el.parentNode.removeChild(el);
+	});
 
-  // 移除所有带data-zone_type="question"属性的标签
-  tempDiv.querySelectorAll('[data-zone_type="question"]').forEach(el => {
-    el.parentNode.removeChild(el);
-  });
+	// 移除所有带data-zone_type="question"属性的标签
+	tempDiv.querySelectorAll('[data-zone_type="question"]').forEach(el => {
+		el.parentNode.removeChild(el);
+	});
 
-  // 移除所有带data-属性的元素属性
-  let data_ignore_list = ['data-client_id', 'data-ques_use'] // 需要保留的data属性
-  tempDiv.querySelectorAll('*').forEach(el => {
-    Array.from(el.attributes).forEach(attr => {
-      if (attr.name.startsWith('data-') && !data_ignore_list.includes(attr.name)) {
-        el.removeAttribute(attr.name);
-      }
-    });
-  });
+	// 移除所有带data-属性的元素属性
+	let data_ignore_list = ['data-client_id', 'data-ques_use'] // 需要保留的data属性
+	tempDiv.querySelectorAll('*').forEach(el => {
+		Array.from(el.attributes).forEach(attr => {
+			if (attr.name.startsWith('data-') && !data_ignore_list.includes(attr.name)) {
+				el.removeAttribute(attr.name);
+			}
+		});
+	});
 
-  // // 移除所有style属性
-  // tempDiv.querySelectorAll('[style]').forEach(el => {
-  //   el.removeAttribute('style');
-  // });
+	// // 移除所有style属性
+	// tempDiv.querySelectorAll('[style]').forEach(el => {
+	//   el.removeAttribute('style');
+	// });
 
-  // 只保留特定的 style 属性
-  tempDiv.querySelectorAll('[style]').forEach(el => {
-    const style = el.getAttribute('style');
-    const allowedStyles = extractAllowedStyles(style);
-    if (allowedStyles) {
-      el.setAttribute('style', allowedStyles);
-    } else {
-      el.removeAttribute('style');
-    }
-  });
+	// 只保留特定的 style 属性
+	tempDiv.querySelectorAll('[style]').forEach(el => {
+		const style = el.getAttribute('style');
+		const allowedStyles = extractAllowedStyles(style);
+		if (allowedStyles) {
+			el.setAttribute('style', allowedStyles);
+		} else {
+			el.removeAttribute('style');
+		}
+	});
 
-  tempDiv.querySelectorAll('table').forEach(table => {
-    // 检查是否具有 width 属性
-    if (table.hasAttribute('width')) {
-      const widthValue = table.getAttribute('width');
-      // 检查 width 值是否包含百分比符号 '%'
-      if (widthValue.includes('%')) {
-        // 提取百分比数值
-        const percentValue = widthValue.trim();
-        // 将百分比数值应用到 style 属性
-        table.style.cssText = `width: ${percentValue} !important;display: inline-table !important;`
-      }
-    }
-  });
+	tempDiv.querySelectorAll('table').forEach(table => {
+		// 检查是否具有 width 属性
+		if (table.hasAttribute('width')) {
+			const widthValue = table.getAttribute('width');
+			// 检查 width 值是否包含百分比符号 '%'
+			if (widthValue.includes('%')) {
+				// 提取百分比数值
+				const percentValue = widthValue.trim();
+				// 将百分比数值应用到 style 属性
+				table.style.cssText = `width: ${percentValue} !important;display: inline-table !important;`
+			}
+		}
+	});
 
-  // 移除无内容的特定标签
-  Object.keys(removeEmpty).forEach(tag => {
-    tempDiv.querySelectorAll(tag).forEach(el => {
-      if (!el.textContent.trim()) {
-        el.parentNode.removeChild(el);
-      }
-    });
-  });
+	// 移除无内容的特定标签
+	Object.keys(removeEmpty).forEach(tag => {
+		tempDiv.querySelectorAll(tag).forEach(el => {
+		if (!el.textContent.trim()) {
+			el.parentNode.removeChild(el);
+		}
+		});
+	});
 
-  flattenNestedP(tempDiv)
+	flattenNestedP(tempDiv)
 
-  return tempDiv.innerHTML
+	return tempDiv.innerHTML
 }
 
 function extractAllowedStyles(style) {
-  // 允许保留的样式属性列表
-  const allowedProperties = ['text-align'];
-  const styleRules = style.split(';');
-  const filteredStyles = styleRules.filter(rule => {
-    const [property] = rule.split(':');
-    return allowedProperties.includes(property.trim());
-  });
-  return filteredStyles.join(';').trim();
+	// 允许保留的样式属性列表
+	const allowedProperties = ['text-align'];
+	const styleRules = style.split(';');
+	const filteredStyles = styleRules.filter(rule => {
+		const [property] = rule.split(':');
+		return allowedProperties.includes(property.trim());
+	});
+	return filteredStyles.join(';').trim();
 }
 
 function flattenNestedP(node) {
-  // 如果有重复嵌套的p标签则保留最里面那层
-  node.querySelectorAll('p').forEach(p => {
-    if (p.querySelector('p')) {
-      let childP = p.querySelector('p');
-      p.parentNode.insertBefore(childP, p);
-      p.parentNode.removeChild(p);
-      flattenNestedP(node);
-    }
-  });
+	// 如果有重复嵌套的p标签则保留最里面那层
+	node.querySelectorAll('p').forEach(p => {
+		if (p.querySelector('p')) {
+			let childP = p.querySelector('p');
+			p.parentNode.insertBefore(childP, p);
+			p.parentNode.removeChild(p);
+			flattenNestedP(node);
+		}
+	});
 }
 
 function getXml(controlId) {
 	window.Asc.plugin.executeMethod("SelectContentControl", [controlId])
 	window.Asc.plugin.executeMethod("GetSelectionToDownload", ["docx"], function (data) {
-        // 假设这是你的 ZIP 文件的 URL
-        const zipFileUrl = data;
-        fetch(zipFileUrl).then(response => {
-            if (!response.ok) {
-            throw new Error('Failed to fetch zip file');
-            }
-            return response.arrayBuffer(); // 获取 ArrayBuffer 而不是 Blob，因为 JSZip 需要它
-        })
-        .then(arrayBuffer => {
-            return JSZip.loadAsync(arrayBuffer); // 使用 JSZip 加载 ArrayBuffer
-        })
-        .then(zip => {
-            // 现在你可以操作 zip 对象了
-            zip.forEach(function(relativePath, file) {
-                if (relativePath.indexOf('word/document.xml') === -1) {
-                    return;
-                }
-                // 这里可以遍历 ZIP 文件中的所有文件
-                file.async("text").then(function(content) {
-                    // 假设文件是文本文件，打印文件内容和相对路径
+		// 假设这是你的 ZIP 文件的 URL
+		const zipFileUrl = data;
+		fetch(zipFileUrl).then(response => {
+			if (!response.ok) {
+			throw new Error('Failed to fetch zip file');
+			}
+			return response.arrayBuffer(); // 获取 ArrayBuffer 而不是 Blob，因为 JSZip 需要它
+		})
+		.then(arrayBuffer => {
+			return JSZip.loadAsync(arrayBuffer); // 使用 JSZip 加载 ArrayBuffer
+		})
+		.then(zip => {
+			// 现在你可以操作 zip 对象了
+			zip.forEach(function(relativePath, file) {
+				if (relativePath.indexOf('word/document.xml') === -1) {
+					return;
+				}
+				// 这里可以遍历 ZIP 文件中的所有文件
+				file.async("text").then(function(content) {
+					// 假设文件是文本文件，打印文件内容和相对路径
 					handleXml(controlId, content)
-                });
-            });
-        })
-        .catch(error => {
-            console.error('Error:', error);
+				});
+			});
+		})
+		.catch(error => {
+			console.error('Error:', error);
 			handleXmlError()
-        });
+		});
 
-    });
+	});
 }
 
 function handleXml(controlId, content) {
@@ -4605,7 +4613,7 @@ function focusAsk(writeData) {
 			}
 			if (oRange) {
 				oRange.Select()
-			}
+		}
 	}, false, false, {name: 'focusAsk'})
 }
 
@@ -4684,7 +4692,7 @@ function setSectionColumn(column) {
 				oSection.Section.Set_Columns_Num(column);
 				oSection.Section.Set_Columns_Space((25.4 / 72 / 20) * 640)
 				oSection.Section.Set_Columns_Sep(true)
-			}	
+			}
 	}, false, true, {name: 'setSectionColumn'})
 }
 
@@ -5263,63 +5271,43 @@ function splitControl(qid) {
 							a.End <= b.End);
 					};
 					let mergeRange = function(arrA, arrB)
-					{
-						let all = arrA.concat(arrB);
-						let ret = []
-						for(var i = 0; i < all.length; i++) {
-							var newE = true;
-							for (var j = 0; j < all.length; j++) {
-								if (i == j)
-									continue;
-								if (includeRange(all[i], all[j])) {
-									newE = false;
-								}
-							}
-							if (newE)
-								ret.push(all[i]);
-						}
-						return ret;
-					};
-		
-					let mergeRanges2 = function(ranges) {
-						var newRanges = []
-						for (var i = 0; i < ranges.length; ++i) {
-							if (i == 0) {
-								newRanges.push(ranges[i])
-							} else {
-								var lastRange = newRanges[newRanges.length - 1]
-								var canMerge = false
-								if (ranges[i].Element == lastRange.Element && ranges[i].Start == lastRange.End) {
-									var rText = ranges[i].GetText ? ranges[i].GetText() : ''
-									var idx = rText.indexOf('\r')
-									var lastText = lastRange.GetText ? lastRange.GetText() : ''
-									if (idx == 0 && rText[idx + 1] == lastText[lastText.length - 1]) {
-										var Start = lastRange.Start
-										var End = ranges[i].End
-										var nrange = lastRange.ExpandTo(ranges[i])
-										nrange.Start = Start
-										nrange.End = End
-										newRanges[newRanges.length - 1] = nrange
-										canMerge = true
-									}
-								}
-								if (!canMerge) {
-									newRanges.push(ranges[i])
-								}
-							}
-						}
-						return newRanges
-					}
-					//debugger;
-					var apiRanges = [];
-					textSet.forEach(e => {
-						var ranges = control.Search(e, false);
-						//debugger;;
-						apiRanges = mergeRange(apiRanges, ranges);
-					});
-					if (apiRanges.length > 1) {
-						apiRanges = mergeRanges2(apiRanges)
-					}
+                    {
+                        console.time("mergeRange");
+                        let all = arrA.concat(arrB);
+                        // Sort ranges by start position
+                        all.sort(function(a, b) {
+                            var len = Math.min(a.StartPos.length, b.StartPos.length);
+                            for (var i = 0; i< len; i++) {
+                                if (a.StartPos[i].Position != b.StartPos[i].Position)
+                                    return a.StartPos[i].Position - b.StartPos[i].Position
+                            }
+                            return 0;
+                        });
+
+                        let ret = []
+                        let last = null;
+                        for (let range of all) {
+                            if (last === null || last.End < range.Start || last.Element != range.Element) {
+                                // No overlap, add to result
+                                ret.push(range);
+                                last = range;
+                            } else if (last.End < range.End) {
+                                // Overlapping ranges, merge them
+                                last.End = range.End;
+                            }
+                        }
+                        console.timeEnd("mergeRange");
+                        return ret;
+                    };
+                                        
+                    
+                    var apiRanges = [];
+                    textSet.forEach(e => {
+                        var ranges = control.Search(e, false);
+                        //debugger;;
+                        
+                        apiRanges = mergeRange(apiRanges, ranges);
+                    });
 						// search 有bug少返回一个字符
 					apiRanges.reverse().forEach(apiRange => {
 							apiRange.Select();
@@ -5341,7 +5329,10 @@ function splitControl(qid) {
 					var elements = content.GetElementsCount();
 					for (var j = elements - 1; j >= 0; j--) {
 						var para = content.GetElement(j);
-						if (!para || para.GetClassType() !== "paragraph") {
+						if (!para) {
+							continue
+						}
+						if (para.GetClassType() !== "paragraph") {
 							break;
 						}
 						var text = para.GetText();
@@ -5414,7 +5405,7 @@ function splitControl(qid) {
 			result.client_node_id = client_node_id
 			result.ques_id = qid
 			return result
-	}, false, true, {name: 'splitControl'} ).then(res1 => {
+	}, false, true, {name: 'splitControl'}).then(res1 => {
 		if (res1) {
 			if (res1.message && res1.message != '') {
 				alert(res1.message)
@@ -5903,6 +5894,11 @@ function handleUploadPrepare(cmdType) {
 			var oTables = oDocument.GetAllTables() || []
 			var vshow = cmdType == 'show'
 			var oState = oDocument.Document.SaveDocumentState()
+			var isShow = Api.get_ShowParaMarks();
+			if (isShow) {
+				Api.put_ShowParaMarks(!isShow);
+                Api.sync_ShowParaMarks();
+			}
 			function updateFill(oDrawing, oFill) {
 				if (!oFill || !oFill.GetClassType || oFill.GetClassType() !== 'fill') {
 					return false
@@ -6129,9 +6125,9 @@ function clearMergeAsk(options) {
 	delete targetItem.other_fields;
 	var ask_list = quesData.ask_list.concat(newFields);
 	ask_list = nodeData.write_list.map(writeItem =>
-        ask_list.find(askItem => askItem.id === writeItem.id)
-    )
-    .filter(item => item !== undefined);  // 过滤掉不存在的元素
+		ask_list.find(askItem => askItem.id === writeItem.id)
+	)
+	.filter(item => item !== undefined);  // 过滤掉不存在的元素
 	quesData.ask_list = ask_list
 	updateScore(options[1])
 	// 集中作答区暂时先不考虑
@@ -6545,7 +6541,7 @@ function preGetExamTree() {
 									obj.parent_index = i
 									// console.log(qId, '5   p_id', obj.parent_id, obj.parent_index)
 									break
-								} else {
+								} else if (!list[i].is_child) {
 									obj.parent_id = 0
 									obj.parent_index = -1
 									// console.log(qId, '6   p_id', obj.parent_id, obj.parent_index)

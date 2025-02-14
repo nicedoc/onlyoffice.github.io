@@ -565,7 +565,10 @@ function changeProportion(idList, proportion) {
 						oControl.Sdt.GetLogicDocument().PreventPreDelete = true
 						for (var k = 0; k < elementcount; ++k) {
 							var cellChild = cellContent.GetElement(k)
-							if (cellChild && cellChild.GetClassType() == 'blockLvlSdt') { 
+							if (!cellChild) {
+								continue
+							}
+							if (cellChild.GetClassType() == 'blockLvlSdt') { 
 								var ctag = Api.ParseJSON(cellChild.Sdt.GetTag())
 								if (ctag.client_id) {
 									effect_id_list.push(ctag.client_id)
