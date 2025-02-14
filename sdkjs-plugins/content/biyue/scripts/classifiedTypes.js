@@ -300,11 +300,13 @@ function handleRangeType(options) {
 				var cellContent = oCell.GetContent()
 				var paragraphs = cellContent.GetAllParagraphs()
 				paragraphs.forEach(oParagraph => {
-					var childCount = oParagraph.GetElementsCount()
-					for (var i = 0; i < childCount; ++i) {
-						var oRun = oParagraph.GetElement(i)
-						if (deleteDrawingRun(oRun, 'ask_accurate')) {
-							break
+					if (oParagraph) {
+						var childCount = oParagraph.GetElementsCount()
+						for (var i = 0; i < childCount; ++i) {
+							var oRun = oParagraph.GetElement(i)
+							if (deleteDrawingRun(oRun, 'ask_accurate')) {
+								break
+							}
 						}
 					}
 				})
@@ -1335,11 +1337,12 @@ function handleRangeType(options) {
 								if (oCell.GetContent().GetElementsCount() > 1) {
 									oCell.GetContent().RemoveElement(1)
 								}
-								if (oControl.GetContent().GetElementsCount() > 1) {
-									var lastpos = oControl.GetContent().GetElementsCount() - 1
-									var lastElement = oControl.GetContent().GetElement(lastpos)
-									if (lastElement.GetClassType() == 'paragraph' && lastElement.GetElementsCount() == 0) {
-										oControl.GetContent().RemoveElement(lastpos)
+								var controlContent = oControl.GetContent()
+								if (controlContent && controlContent.GetElementsCount() > 1) {
+									var lastpos = controlContent.GetElementsCount() - 1
+									var lastElement = controlContent.GetElement(lastpos)
+									if (lastElement && lastElement.GetClassType() == 'paragraph' && lastElement.GetElementsCount() == 0) {
+										controlContent.RemoveElement(lastpos)
 									}
 								}
 							}
@@ -1915,7 +1918,7 @@ function continueAddShape() {
 			})
 			return {
 				shapeIds: shapeIds
-			}	
+			}
 	}, false, false, {name: 'continueAddShape'}).then(res => {
 		return new Promise((resolve, reject) => {
 			if ( res && res.shapeIds && 

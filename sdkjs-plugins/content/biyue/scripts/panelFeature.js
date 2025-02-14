@@ -425,7 +425,7 @@ function initPositions1() {
 		return loadImages()
 	})
 	.then(() => {
-		return drawExtroInfo(list_feature, imageDimensionsCache, false)
+		return drawExtroInfo(list_feature, imageDimensionsCache, true)
 	})
 	.then(() => {
 		return drawPageHeaderFooter(true)

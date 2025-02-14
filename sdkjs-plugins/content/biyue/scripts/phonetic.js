@@ -39,26 +39,28 @@ let SearchRubyField = function (text) {
     const fieldPatt = `$..content[?(@.type=="fldChar" || @.type=="instrText" )]`;
     JSONPath({
         path: fieldPatt, json: k, resultType: "all", callback: function (res) {
-            var node = res.value;    
-            if (node.type == "fldChar" && node.fldCharType == "begin")
-            {
-                cur_range = {
-                    beg: res.path,
-                }
-            }
-            else if (node.type == "fldChar" && node.fldCharType == "end")
-            {
-                if (cur_range.Ruby !== null)
-                {
-                    cur_range.end = res.path;
-                    ranges.push(cur_range);
-                }
-                cur_range = null;
-            }
-            else if (node.type == "instrText")
-            {
-                cur_range.Ruby= parseEQ(node.instr);
-            }
+			if (res && res.value) {
+				var node = res.value;    
+				if (node.type == "fldChar" && node.fldCharType == "begin")
+				{
+					cur_range = {
+						beg: res.path,
+					}
+				}
+				else if (node.type == "fldChar" && node.fldCharType == "end")
+				{
+					if (cur_range.Ruby !== null)
+					{
+						cur_range.end = res.path;
+						ranges.push(cur_range);
+					}
+					cur_range = null;
+				}
+				else if (node.type == "instrText")
+				{
+					cur_range.Ruby= parseEQ(node.instr);
+				}
+			}
         }
     });    
 
