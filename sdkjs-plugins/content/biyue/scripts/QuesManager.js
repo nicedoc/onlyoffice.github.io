@@ -1626,6 +1626,10 @@ function handleChangeType(res, res2) {
 			}
 		})
 		.then(() => {
+			return notifyQuestionChange(typequesId)
+		})
+		.then(() => {
+			window.biyue.StoreCustomData()
 			if (window.BiyueCustomData.question_map[typequesId] && isTextMode(window.BiyueCustomData.question_map[typequesId].ques_mode)) {
 				return deleteAsks([{
 					ques_id: typequesId,
@@ -1652,6 +1656,7 @@ function handleChangeType(res, res2) {
 			if (updateinteraction) {
 				return setInteraction(interaction, addIds)
 			} else {
+				window.biyue.StoreCustomData()
 				return new Promise((resolve, reject) => {
 					resolve()
 				})
