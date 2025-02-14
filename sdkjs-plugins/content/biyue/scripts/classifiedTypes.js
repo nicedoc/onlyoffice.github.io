@@ -38,11 +38,9 @@ function handleRangeType(options) {
 			function getControlsByClientId(cid) {
 				var allControls = oDocument.GetAllContentControls() || []
 				var findControls = allControls.filter(e => {
-					var tag = Api.ParseJSON(e.GetTag())
-					if (e.GetClassType() == 'blockLvlSdt') {
-						return tag.client_id == cid && e.GetPosInParent() >= 0
-					} else if (e.GetClassType() == 'inlineLvlSdt') {
-						return e.Sdt && e.Sdt.GetPosInParent() >= 0 && tag.client_id == cid
+					if (e.Sdt && e.Sdt.IsUseInDocument && e.Sdt.IsUseInDocument()) {
+						var tag = Api.ParseJSON(e.GetTag())
+						return tag.client_id == cid
 					}
 				})
 				if (findControls && findControls.length) {
@@ -296,6 +294,9 @@ function handleRangeType(options) {
 				if (!oCell || !oCell.GetClassType || oCell.GetClassType() != 'tableCell') {
 					return
 				}
+				if (oCell.Cell.IsUseInDocument && !oCell.Cell.IsUseInDocument()) {
+					return
+				}
 				oCell.SetBackgroundColor(255, 191, 191, true)
 				var cellContent = oCell.GetContent()
 				var paragraphs = cellContent.GetAllParagraphs()
@@ -311,7 +312,7 @@ function handleRangeType(options) {
 					}
 				})
 				var oTable = oCell.GetParentTable()
-				if (oTable && oTable.GetPosInParent() >= 0) {
+				if (oTable) {
 					var desc = Api.ParseJSON(oTable.GetTableDescription())
 					desc.biyue = 1
 					var key = `${oCell.GetRowIndex()}_${oCell.GetIndex()}`
@@ -1082,9 +1083,16 @@ function handleRangeType(options) {
 			}
 			function addCellAsk(oCell, parent_id, tname) {
 				var oTable = oCell.GetParentTable()
+				var tableTitle = Api.ParseJSON(oTable.GetTableTitle()) || {}
+				if (!tableTitle.client_id) {
+					result.client_node_id += 1
+					tableTitle.client_id = result.client_node_id
+				}
+				oTable.SetTableTitle(JSON.stringify(tableTitle))
 				result.change_list.push({
 					parent_id: parent_id,
 					table_id: oTable.Table.Id,
+					table_cid: tableTitle.client_id,
 					row_index: oCell.GetRowIndex(),
 					cell_index: oCell.GetIndex(),
 					cell_id: oCell.Cell.Id,

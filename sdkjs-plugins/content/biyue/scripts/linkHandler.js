@@ -640,11 +640,9 @@ function ShowLinkedWhenclickImage(options, control_id) {
 			function getControlsByClientId(cid) {
 				var allControls = oDocument.GetAllContentControls() || []
 				var findControls = allControls.filter(e => {
-					var tag = Api.ParseJSON(e.GetTag())
-					if (e.GetClassType() == 'blockLvlSdt') {
-						return tag.client_id == cid && e.GetPosInParent() >= 0
-					} else if (e.GetClassType() == 'inlineLvlSdt') {
-						return e.Sdt && e.Sdt.GetPosInParent() >= 0 && tag.client_id == cid
+					if (e.Sdt && e.Sdt.IsUseInDocument && e.Sdt.IsUseInDocument()) {
+						var tag = Api.ParseJSON(e.GetTag())
+						return tag.client_id == cid
 					}
 				})
 				if (findControls && findControls.length) {
