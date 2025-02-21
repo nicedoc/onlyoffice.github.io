@@ -107,7 +107,7 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 		var html = ''
 		if (list) {
 			list.forEach((e, index) => {
-				var str = e.value=='None' ? '无' : `<img src="resources/underline/${e.value}.png" alt="${e.name}" onerror="this.style.display='none'" />`
+				var str = e.value=='None' ? '无' : `<img src="resources/underline/${e.value}.png" class="underline-img" alt="${e.name}" onerror="this.style.display='none'" />`
 				html += `<div class="item ${e.valid ? 'enabled' : 'disabled'}" id=${e.id} data-id="${e.id}" data-value="${e.value}" title="${e.name}">
 					${str}
 				</div>`

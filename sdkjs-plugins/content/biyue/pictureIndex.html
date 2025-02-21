@@ -99,6 +99,55 @@
 				text-align: center;
 				margin: 8px auto;
 			}
+			.box1 {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				border-radius: 4px;
+				background-color: #fff;
+				padding: 12px 16px;
+				margin-top: 4px;
+				border: 2px solid transparent;
+				&:hover {
+					border: 2px solid #3b83f675;
+				}
+			}
+			.selected {
+				border: 2px solid #3B82F6;
+			}
+			.box-img {
+				width: 57px;
+			}
+			.progress-container {
+				width: calc(100vw - 30px);
+				height: 8px;
+				background-color: #fff;
+				border-radius: 10px;
+				margin: 8px 0;
+				position: relative;
+			}
+
+			.progress-bar {
+				height: 100%;
+				background-color: #3B82F6;
+				border-radius: 10px;
+				width: 0%;
+				position: relative;
+			}
+
+			.slider-handle {
+				width: 16px;
+				height: 16px;
+				border: 2px solid #3B82F6;
+				background-color: #ffffff;
+				border-radius: 50%;
+				position: absolute;
+				top: 50%;
+				left: calc(100% - 8px); /* 修改：使用left定位，并设置为100%减去handle半宽 */
+				transform: translateY(-50%);
+				cursor: pointer;
+				box-sizing: border-box;
+			}
 
 		</style>
 	</head>
@@ -109,16 +158,20 @@
 					<div id="imageLinkSelect"></div>
 					<div id="btnRefresh" class="btn-text-default" style="width: 45%;min-height: 22px;">刷新</div>
 				</div>
-				<div id="linkwrapper">
-					<div class="row-between title">
-						<div>关联规则</div>
-						<div style="position: relative;">
-							<i id="myIcon" class="iconfont icon-bangzhu clr1"></i>
-							<div id="tooltip" class="tooltip" style="display:none;top:0;right:20px;width: max-content;">
-								<span>全包关联：只有图片的四个角都在题干区内才会被关联。</span>
-								</br>
-								<span>面积关联：按图片和题干的重叠区域占图片的面积的百分比进行关联。</span>
-							</div>
+				<div class="row-between">
+					<div class="box1 clicked" id="areaLink">
+						<img src="resources/img/area_link.png" alt="面积关联" class="box-img">
+						<div>面积关联</div>
+					</div>
+					<div class="box1 clicked" id="allLink">
+						<img src="resources/img/all_link.png" alt="全包关联" class="box-img">
+						<div>全包关联</div>
+					</div>
+				</div>
+				<div id="linkwrapper" style="margin: 8px;">
+					<div class="progress-container">
+						<div class="progress-bar">
+							<div class="slider-handle"></div>
 						</div>
 					</div>
 					<div style="display: flex;flex-direction: row; margin-bottom: 8px;">
