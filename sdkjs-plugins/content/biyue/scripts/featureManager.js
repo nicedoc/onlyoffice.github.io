@@ -2059,11 +2059,11 @@ function drawStatistics(options, recalc) {
 					}
 				}
 			} else if (options.cmd == 'open') {
-				function updateFooter(oFooter, type, PageMargins, PageSize) {
-					if (!oFooter) {
+				function updateFooter(oHeader, type, PageMargins, PageSize) {
+					if (!oHeader) {
 						return
 					}
-					var oParagraph = oFooter.GetElement(0)
+					var oParagraph = oHeader.GetElement(0)
 					if (!oParagraph) {
 						return
 					}
@@ -2071,18 +2071,18 @@ function drawStatistics(options, recalc) {
 						// 统计
 						var stat = options.stat || {}
 						var oStatsDrawing = Api.CreateImage(
-							stat.url,
-							(stat.width || 4.8) * 36e3,
+							stat.url, 
+							(stat.width || 4.8) * 36e3, 
 							(stat.height || 4.8) * 36e3
 						)
-						var paraDrawing2 = oStatsDrawing.getParaDrawing()
-						if (paraDrawing2) {
-							// 统计以左上角为基点
-							var sx = PageSize.W - stat.right || 0
-							var sy = PageSize.H - stat.bottom || 0
-							paraDrawing2.Set_PositionH(6, false, sx, false);
-							paraDrawing2.Set_PositionV(5, false, sy, false)
-							paraDrawing2.Set_DrawingType(2);
+						oStatsDrawing.SetTitle(JSON.stringify({
+							ignore: 1
+						}))
+						var paraDrawing = oStatsDrawing.getParaDrawing()
+						oParagraph.AddDrawing(oStatsDrawing)
+						if (paraDrawing) {
+							oStatsDrawing.SetHorPosition('page', (PageSize.W - stat.width - stat.right || 0) * 36e3)
+							oStatsDrawing.SetVerPosition('page', (PageSize.H - stat.height - stat.bottom || 0) * 36e3)
 							var titleobj = {
 								feature: {
 									zone_type: 'statistics',
@@ -2091,8 +2091,8 @@ function drawStatistics(options, recalc) {
 								}
 							}
 							oStatsDrawing.SetTitle(JSON.stringify(titleobj))
-							oParagraph.AddDrawing(oStatsDrawing)
-							paraDrawing2.Set_Parent(oParagraph.Paragraph)
+							paraDrawing.Set_DrawingType(2)
+							paraDrawing.Set_Parent(oParagraph.Paragraph)
 						}
 					}
 				}
@@ -2100,30 +2100,30 @@ function drawStatistics(options, recalc) {
 					var oSection = oSections[i]
 					var PageMargins = oSection.Section.PageMargins
 					var PageSize = oSection.Section.PageSize
-					var footerList = []
-					var oTitleFooter = oSection.GetFooter('title', false)
-					if (oTitleFooter) {
-						footerList.push({
+					var headerList = []
+					var oTitleHeader = oSection.GetHeader('title', false)
+					if (oTitleHeader) {
+						headerList.push({
 							type: 'title',
-							oFooter: oTitleFooter
+							oHeader: oTitleHeader
 						})
 					}
-					var evenFooter = oSection.GetFooter('even', false)
-					if (evenFooter) {
-						footerList.push({
+					var evenHeader = oSection.GetHeader('even', false)
+					if (evenHeader) {
+						headerList.push({
 							type: 'even',
-							oFooter: evenFooter
+							oHeader: evenHeader
 						})
 					}
-					var oDefaultFooter = oSection.GetFooter('default', false)
-					if (oDefaultFooter) {
-						footerList.push({
+					var oDefaultHeader = oSection.GetHeader('default', false)
+					if (oDefaultHeader) {
+						headerList.push({
 							type: 'default',
-							oFooter: oDefaultFooter
+							oHeader: oDefaultHeader
 						})
 					}
-					footerList.forEach((footerObj) => {
-						updateFooter(footerObj.oFooter, footerObj.type, PageMargins, PageSize)
+					headerList.forEach((headerObj) => {
+						updateFooter(headerObj.oHeader, headerObj.type, PageMargins, PageSize)
 					})
 				}
 			}
@@ -2180,22 +2180,50 @@ function drawHeaderFooter0(options, calc) {
 				return
 			}
 			var pstyle = options.pagination ? options.pagination.align_style : 'center'
-			oDocument.SetEvenAndOddHdrFtr(pstyle != 'center');
-			function updateText(obj, oParagraph, defaultAlign) {
-				if (!oParagraph) {
-					return
-				}
-				if (obj && obj.text) {
+			oDocument.SetEvenAndOddHdrFtr(pstyle != 'center')
+			// 渲染页眉页脚文字
+			function updateText(obj, oParagraph, defaultAlign, type = '') {
+				if (!oParagraph) { return }
+				if (!obj || !obj.text) { return }
+				if (type == 'footer') {
+					var boxWidth = PageSize.W - PageMargins.Left - PageMargins.Right
+					var footerShape = Api.CreateShape('rect',
+						boxWidth * 36e3, // 宽度
+						(obj.font_size + 0.5) * 36e3,  // 高度
+						Api.CreateNoFill(),
+						// Api.CreateSolidFill(Api.CreateRGBColor(255, 225, 225)),
+						Api.CreateStroke(0, Api.CreateNoFill())
+					)
+					footerShape.SetPaddings(0, 0, 0, 0)
+					var footerContent = footerShape.GetContent()
+					var footerParagraph = footerContent.GetElement(0)
+					footerParagraph.AddText(obj.text)
+					footerParagraph.SetColor(2, 2, 2, false)
+					if (obj.font_bold && obj.font_bold.checked) {
+						footerParagraph.SetBold(true)
+					}
+					footerParagraph.SetFontSize(obj.font_size / 10 / (25.4 / 72 / 20))
+					footerParagraph.SetFontFamily(obj.font_family)
+					footerParagraph.SetJc(obj.align || defaultAlign) // 文字居中对齐
+					oParagraph.AddDrawing(footerShape)
+					var textoparaDrawing1 = footerShape.getParaDrawing()
+					if (textoparaDrawing1) {
+						footerShape.SetHorPosition('page', PageMargins.Left * 36e3) // 居中显示
+						footerShape.SetVerPosition('page', (PageSize.H - PageMargins.Bottom + 3.5) * 36e3)
+						footerShape.SetTitle(JSON.stringify({ignore: 1}))
+						textoparaDrawing1.Set_DrawingType(2)
+						textoparaDrawing1.Set_Parent(oParagraph.Paragraph)
+					}
+				} else {
 					oParagraph.AddText(obj.text)
-					if (obj.font_bold) {
+					if (obj.font_bold && obj.font_bold.checked) {
 						oParagraph.SetBold(true)
 					}
 					if (obj.font_family) {
 						oParagraph.SetFontFamily(obj.font_family)
 					}
 					if (obj.font_size) {
-						var twips = obj.font_size / (25.4 / 72 / 20)
-						oParagraph.SetFontSize(twips / 10)
+						oParagraph.SetFontSize(obj.font_size / 10 / (25.4 / 72 / 20))
 					}
 					oParagraph.SetJc(obj.align || defaultAlign)
 				}
@@ -2216,7 +2244,7 @@ function drawHeaderFooter0(options, calc) {
 				}
 				oParagraph.RemoveAllElements()
 				var header = options.header || {}
-				updateText(header, oParagraph, 'center')
+				updateText(header, oParagraph, 'center','header')
 				oParagraph.SetVertAlign('baseline')
 				oParagraph.SetBottomBorder(header.line_visible ? 'single' : 'none', 1, 2, 153, 153, 153)
 				if (header.image_url) {
@@ -2294,84 +2322,77 @@ function drawHeaderFooter0(options, calc) {
 				}
 			}
 			var numberDrawing = null
-			function updateFooter(oFooter, type, PageMargins, PageSize) {
-				if (!oFooter) {
+			
+			// 加载（线外请勿作答、统计图标、页码、页脚文字）
+			function updateFooter(oHeader, type, PageMargins, PageSize) {
+				if (!oHeader) {
 					return
 				}
-				var elementCount = oFooter.GetElementsCount()
-				if (elementCount > 2) {
-					for(var i = elementCount - 1; i > 0; i--) {
-						oFooter.RemoveElement(i)
-					}
-				}
-
-				var oParagraph = oFooter.GetElement(0)
-				if (!oParagraph) {
-					return
-				}
-				oParagraph.RemoveAllElements()
+				var oParagraph = oHeader.GetElement(0)
 				var footer = options.footer || {}
-				oParagraph.SetTopBorder(footer.line_visible ? 'single' : 'none', 1, 2, 153, 153, 153)
+				// 线外请勿作答渲染
 				if (footer.line_visible) {
-					var oDrawing = Api.CreateShape(
-						'rect',
-						28 * 36e3,
-						6 * 36e3,
+					// 创建横线
+					var lineWidth = PageSize.W - PageMargins.Left - PageMargins.Right
+					var lineShape = Api.CreateShape('rect',
+						lineWidth * 36e3,  // 宽度为页面宽度
+						0.05 * 36e3,        // 减小高度使线条更细
+						Api.CreateSolidFill(Api.CreateRGBColor(153, 153, 153)),
+						Api.CreateStroke(0, Api.CreateNoFill())
+					)
+					// 设置横线位置
+					oParagraph.AddDrawing(lineShape)
+					var lineParaDrawing = lineShape.getParaDrawing()
+					if (lineParaDrawing) {
+						lineShape.SetHorPosition('page', PageMargins.Left * 36e3)
+						lineShape.SetVerPosition('page', (PageSize.H - PageMargins.Bottom + 2) * 36e3)
+						lineShape.SetTitle(JSON.stringify({ignore: 1}))
+						lineParaDrawing.Set_DrawingType(2)
+						lineParaDrawing.Set_Parent(oParagraph.Paragraph)
+					}
+					// 创建文字形状
+					var textShape = Api.CreateShape('rect',
+						28 * 36e3, // 宽度
+						5.6 * 36e3,  // 高度
 						Api.CreateSolidFill(Api.CreateRGBColor(255, 255, 255)),
 						Api.CreateStroke(0, Api.CreateNoFill())
 					)
-					oDrawing.SetTitle(JSON.stringify({
+					// 添加文字
+					var textContent = textShape.GetContent()
+					var textParagraph = textContent.GetElement(0)
+					textParagraph.AddText("线外请勿作答")
+					var twips = 2.71 / (25.4 / 72 / 20)
+					textParagraph.SetFontSize(twips / 10)
+					textParagraph.SetColor(153, 153, 153, false)
+					textParagraph.SetJc('center') // 文字居中对齐
+					oParagraph.AddDrawing(textShape)
+					var textoparaDrawing = textShape.getParaDrawing()
+					if (textoparaDrawing) {
+						textShape.SetHorPosition('page', (PageSize.W - 28) / 2 * 36e3) // 居中显示
+						textShape.SetVerPosition('page', (PageSize.H - PageMargins.Bottom - 1) * 36e3)
+						textShape.SetTitle(JSON.stringify({ignore: 1}))
+						textoparaDrawing.Set_DrawingType(2)
+						textoparaDrawing.Set_Parent(oParagraph.Paragraph)
+					}
+				}
+				// 页脚文字渲染
+				updateText(footer, oParagraph, 'left', 'footer')
+				// 统计图标渲染
+				if (options.page_type == 0) {
+					var stat = options.stat || {}
+					var oStatsDrawing = Api.CreateImage(
+						stat.url, 
+						(stat.width || 4.8) * 36e3, 
+						(stat.height || 4.8) * 36e3
+					)
+					oStatsDrawing.SetTitle(JSON.stringify({
 						ignore: 1
 					}))
-					var drawContent = oDrawing.GetContent()
-					var paragraphs = drawContent.GetAllParagraphs()
-					if (paragraphs && paragraphs.length) {
-						var oRun = Api.CreateRun()
-						oRun.AddText('线外请勿作答')
-						paragraphs[0].AddElement(oRun)
-						paragraphs[0].SetColor(153, 153, 153, false)
-						var twips = 2.71 / (25.4 / 72 / 20)
-						paragraphs[0].SetFontSize(twips / 10)
-					}
-					oDrawing.SetPaddings(0, 0, 0, 0)
-					var paraDrawing = oDrawing.getParaDrawing()
-					if (paraDrawing) {
-						oDrawing.SetHorAlign('page', 'center')
-						paraDrawing.Set_PositionV(6, false, -3, false)
-						paraDrawing.Set_DrawingType(2)
-					}
-					oParagraph.AddDrawing(oDrawing)
-					paraDrawing.Set_Parent(oParagraph.Paragraph)
-				}
-				updateText(footer, oParagraph, 'left')
-				if (options.page_type == 0) {
-					// 统计
-					var stat = options.stat || {}
-					var oStatsDrawing = Api.CreateShape('rect',
-						(stat.width || 4.8) * 36e3,
-						(stat.height || 4.8) * 36e3,
-						Api.CreateSolidFill(Api.CreateRGBColor(255, 255, 255)),
-						Api.CreateStroke(0, Api.CreateNoFill()))
-					var statContent = oStatsDrawing.GetContent()
-					var paragraphs = statContent.GetAllParagraphs()
-					if (paragraphs && paragraphs.length) {
-						paragraphs[0].AddText('\ue628')
-						paragraphs[0].SetFontFamily('iconfont')
-						paragraphs[0].SetFontSize(28)
-						paragraphs[0].SetColor(153, 153, 153, false)
-					}
-					oStatsDrawing.SetPaddings(0, 0, 0, 0)
-					// var oStatsDrawing = Api.CreateImage(
-					// 	stat.url,
-					// 	(stat.width || 4.8) * 36e3,
-					// 	(stat.height || 4.8) * 36e3
-					// )
-					var paraDrawing2 = oStatsDrawing.getParaDrawing()
-					if (paraDrawing2) {
-						// 统计以左上角为基点
-						oStatsDrawing.SetHorPosition('rightMargin', (PageMargins.Right - stat.right || 0) * 36e3)
-						oStatsDrawing.SetVerPosition('page', (PageSize.H - stat.bottom || 0) * 36e3)
-						paraDrawing2.Set_DrawingType(2);
+					var oparaDrawing = oStatsDrawing.getParaDrawing()
+					oParagraph.AddDrawing(oStatsDrawing)
+					if (oparaDrawing) {
+						oStatsDrawing.SetHorPosition('page', (PageSize.W - stat.width - stat.right || 0) * 36e3)
+						oStatsDrawing.SetVerPosition('page', (PageSize.H - stat.height - stat.bottom || 0) * 36e3)
 						var titleobj = {
 							feature: {
 								zone_type: 'statistics',
@@ -2380,11 +2401,11 @@ function drawHeaderFooter0(options, calc) {
 							}
 						}
 						oStatsDrawing.SetTitle(JSON.stringify(titleobj))
-						oParagraph.AddDrawing(oStatsDrawing)
-						paraDrawing2.Set_Parent(oParagraph.Paragraph)
+						oparaDrawing.Set_DrawingType(2)
+						oparaDrawing.Set_Parent(oParagraph.Paragraph)
 					}
 				}
-				// 页码
+				// 页码渲染
 				var oAddNum = getPageNumberDrawing(20, options.pagination.font_size, type) // numberDrawing.Copy()
 				var align = 'center'
 				if (options.pagination.align_style == 'oddLeftEvenRight') {
@@ -2405,55 +2426,28 @@ function drawHeaderFooter0(options, calc) {
 				var oSection = oSections[i]
 				var PageMargins = oSection.Section.PageMargins
 				var PageSize = oSection.Section.PageSize
-				var footerList = []
 				var headerList = []
 				var oTitleHeader = oSection.GetHeader('title', false)
-				var oTitleFooter = oSection.GetFooter('title', false)
 				if (oSection.Section.IsTitlePage()) {
 					if (!oTitleHeader) {
 						oTitleHeader = oSection.GetHeader('title', true)
 					}
-					if (!oTitleFooter) {
-						oTitleFooter = oSection.GetFooter('title', true)
-					}
-				}
-				if (oTitleFooter) {
-						footerList.push({
-						type: 'title',
-						oFooter: oTitleFooter
-					})
 				}
 				if (oTitleHeader) {
 					headerList.push({
 						type: 'title',
-						oHeader: oTitleHeader
+						oHeader: oTitleHeader,
+						genre: 'all'
 					})
 				}
-				if (pstyle != 'center') {
-					var evenFooter = oSection.GetFooter('even', false)
-					if (!evenFooter) {
-						evenFooter = oSection.GetFooter('even', true)
-					}
-					footerList.push({
-						type: 'even',
-						oFooter: evenFooter
-					})
-				}
-				var oDefaultFooter = oSection.GetFooter('default', false)
-				if (!oDefaultFooter) {
-					oDefaultFooter = oSection.GetFooter('default', true)
-				}
-				footerList.push({
-					type: 'default',
-					oFooter: oDefaultFooter
-				})
 				var oDefaultHeader = oSection.GetHeader('default', false)
 				if (!oDefaultHeader) {
 					oDefaultHeader = oSection.GetHeader('default', true)
 				}
 				headerList.push({
 					type: 'default',
-					oHeader: oDefaultHeader
+					oHeader: oDefaultHeader,
+					genre: 'all'
 				})
 				var oEvenHeader = oSection.GetHeader('even', false)
 				if (!oEvenHeader) {
@@ -2461,17 +2455,27 @@ function drawHeaderFooter0(options, calc) {
 				}
 				headerList.push({
 					type: 'even',
-					oHeader: oEvenHeader
+					oHeader: oEvenHeader,
+					genre: 'header'
 				})
-				headerList.forEach((headerObj) => {
-					var oHeader = headerObj.oHeader
-					updateHeader(oHeader, PageMargins)
-					oSection.SetHeaderDistance((PageMargins.Top - 6) / (25.4 / 72 / 20))
-				})
-				// numberDrawing = getPageNumberDrawing(20, options.pagination.font_size)
-				footerList.forEach((footerObj) => {
-					updateFooter(footerObj.oFooter, footerObj.type, PageMargins, PageSize)
-					oSection.SetFooterDistance((PageMargins.Bottom - 4) / (25.4 / 72 / 20))
+				if (pstyle != 'center') {
+					var evenHeader = oSection.GetHeader('even', false)
+					if (!evenHeader) {
+						evenHeader = oSection.GetHeader('even', true)
+					}
+					headerList.push({
+						type: 'even',
+						oHeader: evenHeader,
+						genre: 'footer'
+					})
+				}
+				headerList.forEach((item) => {
+					if (['all', 'header'].includes(item.genre)) {
+						updateHeader(item.oHeader, PageMargins)
+					}
+					if (['all', 'footer'].includes(item.genre)) {
+						updateFooter(item.oHeader, item.type, PageMargins, PageSize)
+					}
 				})
 			}
 			console.log('==================== draw header footer end')
