@@ -336,16 +336,16 @@ function updateFeatureList(res) {
 				page_num = 0
 			} else if (e.zone_type == ZONE_TYPE.SELF_EVALUATION) {
 				x = PageMargins.Left
-				y = PageSize.H - PageMargins.Bottom
+				y = PageSize.H - PageMargins.Bottom + 4
 			} else if (e.zone_type == ZONE_TYPE.THER_EVALUATION) {
 				x = PageMargins.Left + 60
-				y = PageSize.H - PageMargins.Bottom
+				y = PageSize.H - PageMargins.Bottom + 4
 			} else if (e.zone_type == ZONE_TYPE.PASS || e.zone_type == ZONE_TYPE.END) {
 				x = PageSize.W - PageMargins.Right - ZONE_SIZE[ZONE_TYPE.IGNORE].w - 4 - ZONE_SIZE[ZONE_TYPE.PASS].w
-				y = PageSize.H - PageMargins.Bottom
+				y = PageSize.H - PageMargins.Bottom + 4
 			} else if (e.zone_type == ZONE_TYPE.IGNORE) {
 				x = PageSize.W - PageMargins.Right - ZONE_SIZE[ZONE_TYPE.IGNORE].w
-				y = PageSize.H - PageMargins.Bottom
+				y = PageSize.H - PageMargins.Bottom + 4
 			}
 			setXY(
 				index,
