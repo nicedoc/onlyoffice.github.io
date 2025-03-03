@@ -2712,8 +2712,11 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 	function onContentControlChange(res) {
 		// todo..
 	}
+	var isRequest = true
 	// 重新切题
 	function reSplitQustion() {
+		if (!isRequest) return
+		isRequest = false
 		return deleteAllFeatures().then(() => {
 			return onClearAllControls()
 		}).then((result) => {
@@ -2748,6 +2751,8 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 			.catch((err) => {
 				console.error(err)
 				throw err // 抛出错误以便外部捕获
+			}).finally(() => {
+				isRequest = true
 			})
 	}
 
