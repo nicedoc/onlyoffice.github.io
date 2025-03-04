@@ -16,15 +16,15 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 		window.Asc.plugin.sendToPlugin('onWindowMessage', { type: 'initDialog', initmsg: 'pictureIndexMessage' })
 	}
 	function updateProgress(percent) {
-		if (!percent) return;
-		
-		percent = Math.round(percent);
-		// 限制在50-100之间
-		percent = Math.max(50, Math.min(100, percent));
-		
-		link_coverage_percent = percent
-		$('.progress-bar').css('width', percent + '%');
-		$('.progress-text').text(percent + '%');
+		percent = Math.round(percent)
+    if (percent < 50 || percent > 100) return;
+
+    // 将 50-100 的范围按比例转换为 0-100
+    const internalPercent = Math.round((percent - 50) * 2);
+
+    link_coverage_percent = internalPercent;
+    $('.progress-bar').css('width', internalPercent + '%');
+    $('.progress-text').text(percent + '%'); // 显示时仍然使用 50-100
 	}
 	function init() {
 		select_image_link = new ComponentSelect({
@@ -57,7 +57,7 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 		showCom('#imageLinkTip', false)
 		updateListIgnore()
 		$('.box1').eq(link_type == 'area' ? 0 : 1).addClass('selected')
-		updateProgress(link_coverage_percent)
+		updateProgress(link_coverage_percent || 70)
 
 		const $progressBar = $('.progress-bar');
 		const $container = $('.progress-container');
@@ -76,17 +76,17 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 		// 再添加新的事件监听器
 		$(document).on('mousemove', function(e) {
 			if (!isDragging) return;
-
+	
 			const containerOffset = $container.offset();
 			let x = e.pageX - containerOffset.left;
 			const containerWidth = $container.width();
-
+	
 			// 限制拖动范围
 			x = Math.max(0, Math.min(x, containerWidth));
-			
-			// 计算百分比
+	
+			// 计算百分比并更新传入的参数
 			const percent = (x / containerWidth) * 100;
-			updateProgress(percent);
+			updateProgress((percent / 2) + 50);
 		});
 
 		 // 处理鼠标离开窗口的情况
@@ -116,15 +116,23 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 		$container.on('click', function(e) {
 			// 只有在非拖动状态下才处理点击事件
 			if (!isDragging) {
-				const containerOffset = $(this).offset();
-				const x = e.pageX - containerOffset.left;
-				const percent = (x / $(this).width()) * 100;
-				updateProgress(percent);
+					const containerOffset = $(this).offset();
+					const x = e.pageX - containerOffset.left;
+					const percent = (x / $(this).width()) * 100;
+					updateProgress((percent / 2) + 50); // 更新传入的参数
 			}
 		});
 	}
 
 	function updateListIgnore() {
+		const list = list_doc.filter(e => {
+			return !e.ques_use || e.ques_use.length === 0
+		})
+		if (list && list.length > 0) {
+			$('.list-none').hide()
+		} else {
+			$('.list-none').show()
+		}
 		showCom('.ignore-none', $('.list-ignore').children().length === 0)
 	}
 
@@ -135,7 +143,7 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 			cmd: 'autoLink',
 			data: {
 				link_type: link_type,
-				link_coverage_percent: link_coverage_percent
+				link_coverage_percent: Math.round(link_coverage_percent / 2) + 50
 			}
 		})
 	}
@@ -146,6 +154,16 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 	}
 	 
 	function renderList(list, listId) {
+		if (listId == 'list') {
+			list = list.filter(e => {
+				return !e.ques_use || e.ques_use.length === 0
+			})
+			if (list && list.length > 0) {
+				$('.list-none').hide()
+			} else {
+				$('.list-none').show()
+			}
+		}
 		var html = ''
 		if (list) {
 			list.forEach((e, index) => {
@@ -235,6 +253,7 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 			}
 			var id = dataset.id
 			var target_ignore = false
+			const item = targetList[index]
 			if (dataset.ignore) {
 				moveAndSort($(`#${id}`), '.list')
 				$(`#${id}`).removeAttr("data-ignore")
@@ -260,7 +279,7 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 				type: 'pictureIndexMessage',
 				cmd: 'ignore',
 				data: {
-					...targetList[index],
+					...item,
 					ignore: target_ignore
 				}
 			})
@@ -445,12 +464,13 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 	}
 	
 	function onAreaLink() {
-		link_type = 'area'
-		showCom('.progress-container', true)
-		showCom('.progress-text-wrapper', true)
-		$('.selected').removeClass('selected')
-		$('.box1').eq(0).addClass('selected')
-		updateProgress(link_coverage_percent || 70)
+    link_type = 'area';
+    showCom('.progress-container', true);
+    showCom('.progress-text-wrapper', true);
+    $('.selected').removeClass('selected');
+    $('.box1').eq(0).addClass('selected');
+		link_coverage_percent = link_coverage_percent
+    updateProgress((link_coverage_percent / 2) + 50); // 更新传入的参数
 	}
 
 	function onAllLink() {
@@ -508,7 +528,7 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 		console.log('pictureIndexMessage 接收的消息', message)
 		if (message) {
 			list_doc = message.list || []
-			list_ignore = message.list_ignore || []
+			list_ignore = message.list_ignore
 			if (message.BiyueCustomData && message.BiyueCustomData.question_map) {
 				question_map = message.BiyueCustomData.question_map
 				var node_list = message.BiyueCustomData.node_list || []

@@ -119,11 +119,13 @@
 				text-align: center;
 				line-height: 18px;
 			}
-			.none,
-			.ignore-none {
+			.none, .list-none, .ignore-none {
 				color: #bbb;
 				text-align: center;
 				margin: 8px auto;
+			}
+			.list-none {
+				display: none;
 			}
 			.box1 {
 				display: flex;
@@ -234,8 +236,9 @@
 				</div>
 			</div>
 			<div id="imageLinkTip" style="text-align: center;"></div>
-			<div class="ignore-header">关联列表</div>
+			<div class="ignore-header">未关联列表</div>
 			<div class="list"></div>
+			<div class="list-none">暂无数据</div>
 			<div class="ignore-header">已忽略列表</div>
 			<div class="list-ignore"></div>
 			<div class="ignore-none">暂无数据</div>

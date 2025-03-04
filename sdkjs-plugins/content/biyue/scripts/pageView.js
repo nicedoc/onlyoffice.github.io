@@ -444,7 +444,8 @@ function showPanelLink() {
 			type:'panelRight',
 			icons:['resources/light/img.png']
 		}, 'pictureIndexMessage', {
-			list: res.list
+			list: res.list,
+			list_ignore: res.list_ignore
 		})
 	})
 	// showCom('#panelLink', true)
