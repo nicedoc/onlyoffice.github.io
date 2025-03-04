@@ -24,6 +24,8 @@ import {
 	let page_size = ''
 	let numericFields = ['x', 'y', 'w', 'h', 'page']
 	let g_times = null
+	// 配置预览图数量和卷面数量不一致的提示
+	let tips = '检测到上传数量和实际渲染不符合，请检查卷面。'
 	window.Asc.plugin.init = function () {
 		console.log('examExport init')
 		window.Asc.plugin.sendToPlugin('onWindowMessage', { type: 'exportMessage' })
@@ -52,20 +54,20 @@ import {
 			preview = document.getElementById('preview')
 		}
 		if (fileInput){
-		fileInput.addEventListener('change', () => {
-			if (preview) {
-				preview.innerHTML = '' // 清空预览区域
-			}
-			const files = fileInput.files
-			Array.from(files).forEach((file) => {
-				const reader = new FileReader()
-				reader.onload = () => {
-					const img = document.createElement('img')
-					img.src = reader.result
-					img.style.maxWidth = '100px' // 设置预览图片的最大宽度
-					preview.appendChild(img)
+			fileInput.addEventListener('change', () => {
+				if (preview) {
+					preview.innerHTML = '' // 清空预览区域
 				}
-				reader.readAsDataURL(file)
+				const files = fileInput.files
+				Array.from(files).forEach((file) => {
+					const reader = new FileReader()
+					reader.onload = () => {
+						const img = document.createElement('img')
+						img.src = reader.result
+						img.style.maxWidth = '100px' // 设置预览图片的最大宽度
+						preview.appendChild(img)
+					}
+					reader.readAsDataURL(file)
 				})
 			})
 		}
@@ -337,7 +339,6 @@ function onUpdatePostions() {
 						files.forEach((e) => {
 							console.log('===== ', e[0])
 						})
-
 						for (const [filename, file] of files) {
 							if (!file.dir) {
 								// 只处理文件，忽略文件夹
@@ -368,6 +369,12 @@ function onUpdatePostions() {
 							}
 						}
 						if (img_file_list && img_file_list.length > 0) {
+							// 如果预览图数量和卷面数量不一致，则提示且按钮禁用
+							if (files.length !== questionPositions.paper_info.pageCount) {
+								$('#upload-tips').text(tips)
+								$('#uploadPreview').prop('disabled', true)
+								$('#workbook_preview').css('max-height', '580px')
+							}
 							// 显示上传按钮
 							$('#preview-label').show()
 							$('#uploadPreview').show()

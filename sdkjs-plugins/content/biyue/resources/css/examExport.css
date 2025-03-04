@@ -84,6 +84,12 @@ input {
     color: #E6A23C;
   }
 
+  .upload-tips {
+    color: #ff0000;
+    padding: 10px 20px;
+    text-align: center;
+  }
+
   .uploadPreview {
     background-color: #4CAF50;
     color: white;
@@ -95,10 +101,17 @@ input {
     font-size: 16px;
     cursor: pointer;
     border-radius: 4px;
+    &:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
   }
 
   .uploadPreview:hover {
     background-color: #45a049;
+    &:disabled {
+      background-color: #ccc;
+    }
   }
 
   .footer {
