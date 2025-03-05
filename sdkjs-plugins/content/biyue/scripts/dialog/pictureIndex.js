@@ -13,7 +13,6 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 	let isDragging = false;
 	window.Asc.plugin.init = function () {
 		console.log('picture index init')
-		onConfirmAutoLink()
 		window.Asc.plugin.sendToPlugin('onWindowMessage', { type: 'initDialog', initmsg: 'pictureIndexMessage' })
 	}
 	function updateProgress(percent) {
@@ -123,6 +122,7 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 					updateProgress((percent / 2) + 50); // 更新传入的参数
 			}
 		});
+		onConfirmAutoLink()
 	}
 
 	function updateListIgnore() {
