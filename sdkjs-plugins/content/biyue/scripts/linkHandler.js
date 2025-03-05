@@ -141,8 +141,8 @@ function imageAutoLink(ques_id, calc) {
 						if (field.y >= quesField.y - 1 && 
 							field.y + field.h <= quesField.y + quesField.h + 1
 						) {
-							if (field.x >= quesField.x - 1 && 
-								field.x + field.w <= quesField.x + quesField.w + 1
+							if (field.x >= quesField.x - 0.5 && 
+								field.x + field.w <= quesField.x + quesField.w + 0.5
 							) { // 全在范围内
 								flag = 1
 								break
