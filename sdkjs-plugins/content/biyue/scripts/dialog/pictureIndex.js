@@ -175,7 +175,7 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 				html += `<div class="item-pic clicked row-between" id=${e.uid} ${dataset}>
 					<div>
 						<span>${e.type == 'table' ? '表格' : '图片'} ${uid}</span>
-						<i class="iconfont dot icon-puma"></i>
+						<i class="iconfont dot icon-puma" ${dataset}></i>
 					</div>
 					<div class="row-align-center">
 						<div ${dataset} class="ignore">${listId == 'list' ? '忽略' : '恢复'}</div>
@@ -358,6 +358,7 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 	}
 
 	function renderQuesList(data, ignore) {
+		$('.list-ques').remove()
 		if (ignore) {
 			hideQuesList(true, false)
 		} else {
@@ -388,7 +389,7 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 				html += '<div class="none">尚未切题</div>'
 			}
 			html += '</div>'
-			$('.list-ques').show().insertAfter(`#${data.uid}`).html(html)
+			$('#' + data.uid).after(`<div class="list-ques">${html}</div>`)
 			for (var quesId of ques_indexs) {
 				showLinkButton(quesId, data.ques_use.includes(quesId))
 				addClickEvent(`#q${quesId} .ques-text`, locateQues)
@@ -551,8 +552,6 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 				})
 				link_coverage_percent = message.BiyueCustomData.link_coverage_percent
 				link_type = message.BiyueCustomData.link_type || 'all'
-			} else {
-				question_map = {}
 			}
 		}
 		if (message.type == 'autolink') {
