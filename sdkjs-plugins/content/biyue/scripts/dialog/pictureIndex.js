@@ -517,6 +517,7 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 		if (isLoading('btnRefresh')) { 
 			return
 		}
+		$('.selected').removeClass('selected');
 		setBtnLoading('btnRefresh', true)
 		hideQuesList()
 		window.Asc.plugin.sendToPlugin('onWindowMessage', {
