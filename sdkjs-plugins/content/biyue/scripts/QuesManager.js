@@ -18,7 +18,7 @@ var g_click_value = null
 var upload_control_list = []
 
 // 处理文档点击
-function handleDocClick(options) {
+function handleDocClick2(options) {
 	window.Asc.plugin.executeMethod('GetCurrentContentControlPr', [], function(returnValue) {
 		console.log('GetCurrentContentControlPr', returnValue)
 		if (returnValue && returnValue.Tag) {
@@ -80,6 +80,130 @@ function handleDocClick(options) {
 			ShowLinkedWhenclickImage(options)
 		}
 	})
+}
+function handleDocClick(options) {
+	console.log('handleDocClick', options)
+	return handleDetailClick().then(res => {
+		console.log('handleDocClick res', res)
+		var obj = {
+			InternalId: res.InternalId
+		}
+		g_click_value = null
+		if (res.InternalId && res.control_tag) {
+			var tag = getJsonData(res.control_tag)
+			g_click_value = {
+				InternalId: res.InternalId,
+				Tag: tag,
+			}
+			if (tag.regionType == 'choiceOption' && res.parent_control_tag) {
+				tag = getJsonData(res.parent_control_tag)
+				g_click_value = {
+					InternalId: res.parent_control_id,
+					Tag: tag
+				}
+			}
+			if (tag.client_id) {
+				if (res.click_type == 'table') {
+					if (res.cell_id) {
+						obj.cell_id = res.cell_id
+						obj.table_id = res.table_id
+						obj.table_title = res.table_title
+						obj.table_desc = res.table_desc
+					}
+				}
+			}
+		}
+		if (res.click_type == 'drawing' && res.drawing_title) {
+			var drawingTitle = getJsonData(res.drawing_title)
+			if (drawingTitle.feature && (drawingTitle.feature.sub_type == 'identify' || drawingTitle.feature.sub_type == 'write')) {
+				obj.drawing_client_id = drawingTitle.feature.client_id
+				obj.client_id = drawingTitle.feature.parent_id
+			} else {
+				window.biyue.sendToDialog('pictureIndex', 'locatePicture', {
+					uid: drawingTitle.pid
+				}, false)
+			}
+		}
+		if (res.click_type == 'table') {
+			window.biyue.sendToDialog('pictureIndex', 'locatePicture', {
+				uid: getJsonData(res.table_title).tid
+			}, false)
+		}
+		if (obj.InternalId || obj.client_id) {
+			var event = new CustomEvent('clickSingleQues', {
+				detail: Object.assign({}, tag, obj),
+			})
+			document.dispatchEvent(event)
+		}
+		if (options.isSelectionUse) {
+			var shortcutKey = window.BiyueCustomData ? window.BiyueCustomData.ask_shortcut : null
+			if (shortcutKey && shortcutKey != '') {
+				var sckey = `${shortcutKey}Key`
+				if (options[sckey]) {
+					// 划分小问
+					// updateRangeControlType('write')
+					handleRangeType({
+						typeName: 'write'
+					})
+					return
+				}
+			}
+		}
+		ShowLinkedWhenclickImage(options, obj.InternalId)
+	})
+}
+function handleDetailClick() {
+	return biyueCallCommand(window, function() {
+		var oDocument = Api.GetDocument()
+		var selectedDrawings = oDocument.GetSelectedDrawings() || []
+		var result = {}
+		// 点击的是control
+		var controlPr = Api.asc_GetContentControlProperties()
+		if (controlPr && controlPr.InternalId) {
+			result.click_type = 'control'
+			result.InternalId = controlPr.InternalId
+			result.control_tag = controlPr.Tag
+			var oControl = Api.LookupObject(controlPr.InternalId)
+			if (oControl) {
+				result.control_type = oControl.GetClassType()
+				var parentControl = oControl.GetParentContentControl()
+				if (parentControl) {
+					result.parent_control_id = parentControl.Sdt.Id
+					result.parent_control_tag = parentControl.GetTag()
+					result.parent_control_type = parentControl.GetClassType()
+				}
+			}
+		}
+		// 点击的是图片
+		if (selectedDrawings.length) {
+			var oDrawing = selectedDrawings[0]
+			if (oDrawing) {
+				result.click_type = 'drawing'
+				result.drawing_title = oDrawing.GetTitle()
+				result.drawing_id = oDrawing.Drawing.Id
+			}
+		}
+		// 点击的是表格
+		var selectedElementsInfo = oDocument.Document.GetSelectedElementsInfo()
+		if (selectedElementsInfo && selectedElementsInfo.m_bTable) {
+			var paragrahs = oDocument.Document.GetSelectedParagraphs()
+			if (paragrahs && paragrahs.length == 1) {
+				var oParagraph = Api.LookupObject(paragrahs[0].Id)
+				var oTable = oParagraph.GetParentTable()
+				if (oTable) {
+					result.click_type = 'table'
+					result.table_id = oTable.Table.Id
+					result.table_title = oTable.GetTableTitle()
+					result.table_desc = oTable.GetTableDescription()
+					var oCell = oParagraph.GetParentTableCell()
+					result.cell_id = oCell.Cell.Id
+					result.row_index = oCell.GetRowIndex()
+					result.cell_index = oCell.GetIndex()
+				}
+			}
+		}
+		return result
+	}, false, false, {name: 'handleDetailClick'})
 }
 // 右建显示菜单
 function handleContextMenuShow(options) {
@@ -729,6 +853,12 @@ function getContextMenuItems(type, selectedRes) {
 				})
 			}
 		}
+		if (type == 'Selection') {
+			items.push({
+				id: 'setUnderLine',
+				text: '设置下划线'
+			})
+		}
 		if (selectedRes.bTable) {
 			items.push({
 				id: 'tableRelation',
@@ -807,6 +937,18 @@ function onContextMenuClick(id) {
 				break
 			case 'mergeAsk':
 				mergeAsk(strs)
+				break
+			case 'setUnderLine':
+				window.biyue.refreshDialog({
+					winName:'setUnderlineWindow',
+					name:'设置下划线',
+					url:'setUnderline.html',
+					width:400,
+					height:800,
+					isModal:false,
+					type:'panelRight',
+					icons:['resources/light/underline.png']
+				})
 				break
 			default:
 				break
@@ -1179,6 +1321,7 @@ function handleChangeType(res, res2) {
 		targetLevel = 'question'
 	}
 	var addIds = []
+	var ask_client_id = 0
 	var update_node_id = g_click_value ? g_click_value.Tag.client_id : 0
 	var other_asks_remove = []
 	function updateAskList(qid, ask_list) {
@@ -1480,6 +1623,7 @@ function handleChangeType(res, res2) {
 										id: item.client_id,
 										score: 1
 									})
+									ask_client_id = item.client_id
 									reSortAsks(real_parent_id)
 									updateScore(real_parent_id)
 								}
@@ -1678,7 +1822,7 @@ function handleChangeType(res, res2) {
 	var use_gather = window.BiyueCustomData.choice_display && window.BiyueCustomData.choice_display.style != 'brackets_choice_region'
 	if (use_gather) {
 		return deleteChoiceOtherWrite(null, false).then(() => {
-			return notifyQuestionChange(update_node_id)
+			return notifyQuestionChange(update_node_id, ask_client_id)
 		}).then(() => {
 			return updateChoice()
 		}).then((res3) => {
@@ -1696,7 +1840,7 @@ function handleChangeType(res, res2) {
 	} else {
 		if (updateinteraction) {
 			return deleteChoiceOtherWrite(null, false).then(res3 => {
-				return notifyQuestionChange(update_node_id)
+				return notifyQuestionChange(update_node_id, ask_client_id)
 			}).then(() => {
 				return setInteraction(interaction, addIds).then(() => {
 					window.biyue.StoreCustomData(() => {
@@ -1710,7 +1854,7 @@ function handleChangeType(res, res2) {
 			})
 		} else {
 			return deleteChoiceOtherWrite(null, true).then(res => {
-				return notifyQuestionChange(update_node_id)
+				return notifyQuestionChange(update_node_id, ask_client_id)
 			}).then(() => {
 				window.biyue.StoreCustomData(() => {
 					if (updateLinked) {
@@ -1723,17 +1867,21 @@ function handleChangeType(res, res2) {
 		}
 	}
 }
-function notifyQuestionChange(update_node_id) {
+function notifyQuestionChange(update_node_id, ask_client_id) {
 	if (window.tab_select == 'tabTree' && window.tree_lock) {
 		return refreshTree()
 	}
 	return new Promise((resolve, reject) => {
 		var eventname = window.tab_select != 'tabQues' ? 'clickSingleQues' : 'updateQuesData'
+		var detail = {
+			client_id: update_node_id
+		}
+		if (ask_client_id) {
+			detail.ask_client_id = ask_client_id
+		}
 		document.dispatchEvent(
 			new CustomEvent(eventname, {
-				detail: {
-					client_id: update_node_id
-				}
+				detail: detail
 			})
 		)
 		resolve()
@@ -2254,6 +2402,9 @@ function initControls() {
 			}
 			// todo.. 这里暂不考虑上次的数据未保存或保存失败的情况，只假设此时的control数据和nodelist里的是一致的，只是乱码而已，其他的后续再处理
 			try {
+				if (!res) {
+					return resolve()
+				}
 				if (res.client_node_id) {
 					window.BiyueCustomData.client_node_id = res.client_node_id
 				}
@@ -4634,6 +4785,7 @@ function handleImageIgnore(cmdType) {
 		var cmdType = Asc.scope.cmdType
 		var oDocument = Api.GetDocument()
 		var drawings = oDocument.GetAllDrawingObjects() || []
+		var list = []
 		// 若调用oState的方式，oDrawing.Drawing.selected得到的值会是false，因而这里暂时注释
 		// var oState = oDocument.Document.SaveDocumentState()
 		drawings.forEach(oDrawing => {
@@ -4643,10 +4795,8 @@ function handleImageIgnore(cmdType) {
 					if (tag.feature) {
 						tag.feature.partical_no_dot = 1
 					} else {
-						tag = {
-							feature: {
-								partical_no_dot: 1
-							}
+						tag.feature = {
+							partical_no_dot: 1
 						}
 					}
 				} else {
@@ -4660,10 +4810,22 @@ function handleImageIgnore(cmdType) {
 				} else {
 					oDrawing.ClearShadow()
 				}
+				list.push({
+					uid: tag.pid,
+					partical_no_dot: cmdType == 'add'
+				})
 			}
 		})
+		return list
 		// oDocument.Document.LoadDocumentState(oState)
-	}, false, false, {name: 'handleImageIgnore'})
+	}, false, false, {name: 'handleImageIgnore'}).then((res) => {
+		if (res) {
+			window.biyue.sendToDialog('pictureIndex', 'updateUse', {
+				from: 'particalNoDot',
+				list: res
+			}, false)
+		}
+	})
 }
 // todo。。分栏需要考虑的因素很多，需要之后再考虑
 function setSectionColumn(column) {
@@ -6810,6 +6972,17 @@ function splitWordAsk() {
 	}, false, false, {name: 'splitWordAsk'})
 }
 
+function setUnderLine(id) {
+	Asc.scope.undlerline_id = id
+	return biyueCallCommand(window, function() {
+		var undlerline_id = Asc.scope.undlerline_id
+		var oRange = Api.GetDocument().GetRangeBySelect()
+		if (oRange) {
+			oRange.SetUnderline(undlerline_id)
+		}
+		return true
+	}, false, true, {name: 'setUnderLine'})
+}
 export {
 	handleDocClick,
 	handleContextMenuShow,
@@ -6842,5 +7015,6 @@ export {
 	focusControl,
 	setNumberingLevel,
 	splitWordAsk,
-	focusControlById
-	}
+	focusControlById,
+	setUnderLine
+}

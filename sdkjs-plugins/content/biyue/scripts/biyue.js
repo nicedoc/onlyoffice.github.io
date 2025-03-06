@@ -41,12 +41,14 @@ import {
 	focusControl,
 	splitWordAsk,
 	deleteAsks,
-	focusControlById
+	focusControlById,
+	setUnderLine
 } from './QuesManager.js'
 import {
 	tagImageCommon,
 	updateLinkedInfo,
-	locateItem
+	locateItem,
+	handlePictureIndexMessage
 } from './linkHandler.js'
 import { layoutRepair, removeAllComment, layoutDetect } from './layoutFixHandler.js'
 import { reqSaveInfo } from './api/paper.js'
@@ -236,6 +238,9 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 					}
 					if (message.initmsg == 'uploadValidationMessage') {
 						obj.validate_info = Asc.scope.upload_validate
+					} else if (message.initmsg == 'pictureIndexMessage') {
+						obj.list = Asc.scope.list_picture
+						obj.list_ignore = Asc.scope.list_ignore
 					}
 					modal.command(message.initmsg, obj)
 				}
@@ -294,6 +299,9 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 						tree_info: Asc.scope.tree_info
 					})
 				}
+				break
+			case 'pictureIndexMessage':
+				handlePictureIndexMessage(modal, message)
 				break
 			case 'showSymbols':
 				modal.command('initSymbols')
@@ -388,6 +396,9 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 				} else if (message.cmd == 'locateControl') {
 					focusControlById(message.data)
 				}
+				break
+			case 'setUnderLineMessage':
+				setUnderLine(message.data)
 				break
 			default:
 				break
@@ -902,6 +913,18 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		this.attachToolbarMenuClickEvent("insertSymbol", function (data) {
 			window.biyue.showDialog('addSymbolWindow', '插入符号', 'addSymbol.html', 600, 400, false, 'panelRight', ['resources/light/symbol.png'])
 		});
+		this.attachToolbarMenuClickEvent('setUnderline', function (data) {
+			window.biyue.refreshDialog({
+				winName:'setUnderlineWindow',
+				name:'设置下划线',
+				url:'setUnderline.html',
+				width:400,
+				height:800,
+				isModal:false,
+				type:'panelRight',
+				icons:['resources/light/underline.png']
+			})
+		})
 		this.attachToolbarMenuClickEvent("batchScore", onBatchScoreSet);
 		this.attachToolbarMenuClickEvent("batchQuesType", onBatchQuesTypeSet);
 		this.attachToolbarMenuClickEvent("imageLink", function (data) {
@@ -961,6 +984,15 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 					text: "插入符号",
 					hint: "插入符号",
 					icons: "resources/buttons/symbol.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: false
+				}, {					
+					id: "setUnderline",
+					type: "button",
+					text: "设置下划线",
+					hint: "设置下划线",
+					icons: "resources/buttons/underline.png", 
 					lockInViewMode: true,
 					enableToggle: false,
 					separator: false
@@ -2460,7 +2492,11 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 	function handleInit() {
 		initPaperInfo().then((res2) => {
 			console.log('initPaperInfo', res2)
-			updatePageSizeMargins().then(() => {
+			updatePageSizeMargins().then((res) => {
+				if (res) {
+					window.BiyueCustomData.picture_id = res.pictureId
+					window.BiyueCustomData.table_id = res.tableId
+				}
 				// 是否初次导入
 				var isFirstLoad =
 					!window.BiyueCustomData.node_list ||
@@ -2594,14 +2630,19 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 	function onContentControlChange(res) {
 		// todo..
 	}
+	var isRequest = true
 	// 重新切题
 	function reSplitQustion() {
+		if (!isRequest) return
+		isRequest = false
 		return deleteAllFeatures().then(() => {
 			return onClearAllControls()
 		}).then((result) => {
-				var ranges = newSplit(result.text_json)
-				console.log('splitQuestion:', ranges)
-				return createContentControl(ranges)
+				if (result) {
+					var ranges = newSplit(result.text_json)
+					console.log('splitQuestion:', ranges)
+					return createContentControl(ranges)
+				}
 			})
 			// .then(() => {
 			// 	console.log('2.处理需要分列的题目')
@@ -2628,6 +2669,8 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 			.catch((err) => {
 				console.error(err)
 				throw err // 抛出错误以便外部捕获
+			}).finally(() => {
+				isRequest = true
 			})
 	}
 
@@ -2668,6 +2711,25 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		}
 	}
 
+	function sendToDialog(winName, msgId, data, activateDialog = true) {
+		if (!winName || !msgId) {
+			return
+		}
+		var win = windows[winName]
+		if (!win) {
+			return
+		}
+		var win2 = windowList.find(e => {
+			return e.name == winName
+		})
+		if (win2 && win2.visible) {
+			if (activateDialog) {
+				win.activate()
+			}
+			win.command(msgId, data)
+		}
+	}
+
 	window.biyue = {
 		showDialog: showDialog,
 		StoreCustomData: StoreCustomData,
@@ -2679,6 +2741,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		sendMessageToWindow: sendMessageToWindow,
 		refreshDialog: refreshDialog,
 		closeDialog: closeDialog,
-		onImageAutoLink: onImageAutoLink
+		onImageAutoLink: onImageAutoLink,
+		sendToDialog: sendToDialog
 	}
 })(window, undefined)

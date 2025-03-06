@@ -586,10 +586,15 @@ function initListener() {
 				return e.id == id
 			})
 			if (nodeData) {
-				showQuesData({
+				var obj = {
 					client_id: nodeData.id,
 					regionType: nodeData.regionType
-				})
+				}
+				if (event.detail.ask_client_id) {
+					obj.regionType = 'write'
+					obj.ask_client_id = event.detail.ask_client_id
+				}
+				showQuesData(obj)
 			} else {
 				var quesData = window.BiyueCustomData.question_map[id]
 				if (quesData) {

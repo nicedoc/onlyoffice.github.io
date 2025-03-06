@@ -16,15 +16,15 @@ import {
 } from './QuesManager.js'
 import {
 	imageAutoLink,
-	onAllCheck
+	onAllCheck,
+	getPictureList
 } from './linkHandler.js'
-import { showCom, updateText, addClickEvent, getInfoForServerSave, setBtnLoading, isLoading, getYYMMDDHHMMSS } from './model/util.js'
+import { showCom, updateText, addClickEvent, getInfoForServerSave, setBtnLoading, isLoading, getYYMMDDHHMMSS, updateHintById } from './model/util.js'
 import { reqSaveInfo, onLatexToImg, logOnlyOffice} from './api/paper.js'
 import { biyueCallCommand } from './command.js'
 import { generateTree, updateTreeSelect, clickTreeLock, initTreeListener } from './panelTree.js'
 import ComponentSelect from '../components/Select.js'
 import NumberInput from '../components/NumberInput.js'
-var timeout_paste_hint = null
 var select_image_link = null
 var select_link_type = null
 var input_coverage_percent = null
@@ -368,20 +368,6 @@ function insertContent(str) {
 	}, false, true, {name: 'insertContent'})
 }
 
-function updateHintById(id, message, color, duration = 1500) {
-	var tooltip = document.getElementById(id);
-	if (!tooltip) {
-		return
-	}
-	tooltip.textContent = message;
-	tooltip.style.color = color || '#999';
-	tooltip.style.display = 'block';
-	clearTimeout(timeout_paste_hint)
-	timeout_paste_hint = setTimeout(function() {
-		tooltip.style.display = 'none';
-	}, duration);
-}
-
 function updatePasteHint(message, color) {
 	updateHintById('pastehint', message, color)
 }
@@ -421,16 +407,42 @@ function onPasteInputClear() {
 	com.val('')
 }
 function showPanelLink() {
-	showCom('#panelLink', true)
-	var link_type = window.BiyueCustomData.link_type || 'all'
-	if (select_link_type) {
-		select_link_type.setSelect(link_type)
-	}
-	showCom('#CoveragePercentInput', link_type == 'area')
-	if (input_coverage_percent && link_type == 'area') {
-		var percent = window.BiyueCustomData.link_coverage_percent || 80
-		input_coverage_percent.setValue(percent + '')
-	}
+	return getPictureList().then(res => {
+		if (!res) {
+			return
+		}
+		if (res.picture_id) {
+			window.BiyueCustomData.picture_id = res.picture_id
+		}
+		if (res.table_id) {
+			window.BiyueCustomData.table_id = res.table_id
+		}
+		Asc.scope.list_picture = res.list
+		Asc.scope.list_ignore = res.list_ignore
+		window.biyue.refreshDialog({
+			winName:'pictureIndex',
+			name:'待处理图片',
+			url:'pictureIndex.html',
+			width:400,
+			height:800,
+			isModal:false,
+			type:'panelRight',
+			icons:['resources/light/img.png']
+		}, 'pictureIndexMessage', {
+			list: res.list,
+			list_ignore: res.list_ignore
+		})
+	})
+	// showCom('#panelLink', true)
+	// var link_type = window.BiyueCustomData.link_type || 'all'
+	// if (select_link_type) {
+	// 	select_link_type.setSelect(link_type)
+	// }
+	// showCom('#CoveragePercentInput', link_type == 'area')
+	// if (input_coverage_percent && link_type == 'area') {
+	// 	var percent = window.BiyueCustomData.link_coverage_percent || 80
+	// 	input_coverage_percent.setValue(percent + '')
+	// }
 }
 function changeImageLink(data) {
 	enableBtnImageLink(data.value * 1)
