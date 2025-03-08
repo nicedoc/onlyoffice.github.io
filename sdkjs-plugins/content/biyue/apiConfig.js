@@ -21,7 +21,15 @@ function setApiConfig(apiConfig) {
 export {
 	VUE_APP_GO_API,
 	VUE_APP_AUTH_API,
+	VUE_APP_VER_PREFIX
+}
+
+const ApiConfig = {
+	VUE_APP_GO_API,
+	VUE_APP_AUTH_API,
 	VUE_APP_VER_PREFIX,
     VUE_APP_DEBUG,
     setApiConfig
 }
+
+export default ApiConfig
