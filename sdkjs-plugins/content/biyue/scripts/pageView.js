@@ -199,6 +199,7 @@ function handlePaperInfoResult(success, res) {
 	showCom('#initloading', false)
 	if (success) {
 		showCom('.tabs', true)
+		showCom('#hint1', false)
 		// changeTabPanel('tabTree')
 	} else {
 		showCom('#hint1', true)

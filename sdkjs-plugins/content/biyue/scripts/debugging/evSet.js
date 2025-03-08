@@ -1,6 +1,6 @@
 import ComponentSelect from '../../components/Select.js'
 import { addClickEvent, showCom } from '../model/util.js'
-import { VUE_APP_DEBUG, VUE_APP_VER_PREFIX, setApiConfig } from '../../apiConfig.js'
+import apiConfig from '../../apiConfig.js'
 import { setXToken } from '../auth.js'
 import { setBaseURL } from '../request.js'
 import { setAuthBaseURL } from '../request_auth.js'
@@ -27,7 +27,7 @@ var ev_list = [{
 }]
 var select_ev = null
 function initSetEv() {
-	showCom('#setConfigEv', VUE_APP_DEBUG && VUE_APP_VER_PREFIX != 'prod')
+	showCom('#setConfigEv', apiConfig.VUE_APP_DEBUG && apiConfig.VUE_APP_VER_PREFIX != 'prod')
 	showCom('#ev-set-box', false)
 	addClickEvent('#setConfigEv', function() {
 		showCom('#ev-set-box', true)
@@ -56,7 +56,7 @@ function render() {
 	select_ev = new ComponentSelect({
 		id: 'evSelect',
 		options: ev_list,
-		value_select: '',
+		value_select: 'master',
 		width: '70%',
 		enabled: true
 	})
@@ -75,7 +75,9 @@ function onConfirmSet() {
 	var item = ev_list.find(e => {
 		return e.value == ev
 	})
-	setApiConfig(item)
+	if (apiConfig.setApiConfig) {
+		apiConfig.setApiConfig(item)
+	}
 	setXToken(token)
 	setBaseURL(item.go_api)
 	setAuthBaseURL(item.auth_api)
