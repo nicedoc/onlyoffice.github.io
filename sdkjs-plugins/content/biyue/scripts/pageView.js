@@ -25,6 +25,7 @@ import { biyueCallCommand } from './command.js'
 import { generateTree, updateTreeSelect, clickTreeLock, initTreeListener } from './panelTree.js'
 import ComponentSelect from '../components/Select.js'
 import NumberInput from '../components/NumberInput.js'
+import { initSetEv } from './debugging/evSet.js'
 var select_image_link = null
 var select_link_type = null
 var input_coverage_percent = null
@@ -186,6 +187,7 @@ function initView() {
 	})
 	addClickEvent('#panelTree #lock', clickTreeLock)
 	addClickEvent('#downloadExamHtml', clickDownloadExamHtml)
+	initSetEv()
 }
 
 function onFeature() {
@@ -197,6 +199,7 @@ function handlePaperInfoResult(success, res) {
 	showCom('#initloading', false)
 	if (success) {
 		showCom('.tabs', true)
+		showCom('#hint1', false)
 		// changeTabPanel('tabTree')
 	} else {
 		showCom('#hint1', true)
