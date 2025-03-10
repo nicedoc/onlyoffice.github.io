@@ -183,6 +183,14 @@ function layoutDetect(all) {
 						result.hasWhiteBg = true
 						oParagraph.AddComment(type_map['hasWhiteBg'], "biyueFix", `repair${oParagraph.Paragraph.Id}}:hasWhiteBg`)
 					}
+					var style = oParagraph.GetStyle()
+					if (style) {
+						var textPr = style.GetTextPr()
+						if (textPr && textPr.TextPr && isWhite(textPr.TextPr.Shd)) {
+							result.hasWhiteBg = true
+						}
+					}
+
 					if (!result.hasBookmark && hasBookmark(oParagraph)) {
 						result.hasBookmark = true
 					}
@@ -514,6 +522,20 @@ function layoutRepair(cmdData) {
 							if (oParaPr && oParaPr.ParaPr && isWhite(oParaPr.ParaPr.Shd)) {
 								oParaPr.SetShd("clear", 255, 255, 255, true);
 								fixed = true
+							}
+						}
+						var style = oParagraph.GetStyle()
+						if (style) {
+							var textPr = style.GetTextPr()
+							if (textPr) {
+								var shd = textPr.GetShd()
+								if (shd) {
+									var rgb = shd.GetRGB()
+									if (rgb == 16777215) {
+										textPr.SetShd("clear", 255, 255, 255, true);
+										fixed = true
+									}
+								}
 							}
 						}
 					} else if (cmdData.type == 2 && cmdData.value == 'bookmark') { // 删除书签
