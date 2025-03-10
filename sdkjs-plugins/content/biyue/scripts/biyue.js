@@ -2633,7 +2633,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		})
 	}
 
-	function showDialog(winName, name, url, width, height, isModal, type, icons) {
+	function showDialog(winName, name, url, width, height, isModal, type, icons, x, y) {
 		let location = window.location
 		let start = location.pathname.lastIndexOf('/') + 1
 		let file = location.pathname.substring(start)
@@ -2653,6 +2653,10 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		}
 		if (icons) {
 			variation.icons = icons
+		}
+		if (x && y) {
+			variation.x = x
+			variation.y = y
 		}
 		if (!windows) {
 			console.log('windows is null')
