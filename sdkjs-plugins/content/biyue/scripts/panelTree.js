@@ -270,7 +270,9 @@ function renderTree() {
 							}
 						}
 					} else if (quesData.level_type == 'struct') {
-						menuItems.push('question')
+						if (!select_list || select_list.length <= 1) {
+							menuItems.push('question')
+						}
 					}
 					menuItems.push('setLevel')
 					if (menuItems.length) {
