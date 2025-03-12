@@ -668,7 +668,17 @@ function clickMenu(id, cmd) {
 	}
 }
 function setLevel(id, level) {
-	return setNumberingLevel(!select_list || select_list.length == 0 ? [id] : select_list, level).then((res) => {
+	var list = []
+	if (select_list && select_list.length) {
+		if (select_list.includes(id)) {
+			list = select_list
+		} else {
+			list = [id]
+		}
+	} else {
+		list = [id]
+	}
+	return setNumberingLevel(list, level).then((res) => {
 		return generateTree()
 	})
 }
