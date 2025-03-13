@@ -208,8 +208,8 @@ function layoutDetect(all) {
 	}).then(res => {
 		Asc.scope.layout_detect_result = res
 		var x, y
-		if (window.screen) {
-			x = window.screen.width - 305
+		if (window.outerWidth) {
+			x = window.outerWidth - 305
 			y = 150
 		}
 		window.biyue.showDialog('layoutRepairWindow', '字符检测', 'layoutRepair.html', 250, 400, false, undefined, undefined, x, y)
