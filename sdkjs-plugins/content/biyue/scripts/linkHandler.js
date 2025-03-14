@@ -831,7 +831,7 @@ function handleIgnore(data) {
 		if (picData.type == 'table') {
 			var tables = oDocument.GetAllTables() || []
 			var oTable = tables.find(e => {
-				return oTable.Table.Id == picData.id
+				return e.Table.Id == picData.id
 			})
 			if (oTable) {
 				var title = Api.ParseJSON(oTable.GetTableTitle())

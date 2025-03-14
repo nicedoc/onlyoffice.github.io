@@ -122,7 +122,14 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 					updateProgress((percent / 2) + 50); // 更新传入的参数
 			}
 		});
-		onConfirmAutoLink()
+		// 如果列表中的表格没有关联题目且是全包关联时，则进行自动关联
+		const list = list_doc.filter(e => {
+			return (!e.ques_use || e.ques_use.length === 0) && e.type == 'table'
+		})
+		const classList = document.getElementById('allLink').classList
+		if (list && list.length > 0 && classList.contains('selected')) {
+			onConfirmAutoLink()
+		}
 	}
 
 	function updateListIgnore() {
@@ -471,8 +478,7 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
     showCom('.progress-text-wrapper', true);
     $('.selected').removeClass('selected');
     $('.box1').eq(0).addClass('selected');
-		link_coverage_percent = link_coverage_percent
-    updateProgress((link_coverage_percent / 2) + 50); // 更新传入的参数
+    updateProgress(link_coverage_percent); // 更新传入的参数
 	}
 
 	function onAllLink() {

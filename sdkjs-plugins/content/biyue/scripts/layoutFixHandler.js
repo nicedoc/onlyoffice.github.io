@@ -33,6 +33,7 @@ function layoutDetect(all) {
 					hasWhiteBg: false, // 存在背景为白色的段落
 					hasSmallImage: false, // 存在宽高过小的图片
 					hasBookmark: false, // 存在书签
+					hasTableExceed: false // 存在表格超出
 				}
 				var type_map = {
 					'hasSmallImage': '宽高过小的图片',
@@ -42,7 +43,8 @@ function layoutDetect(all) {
 					'has65307': '中文分号',
 					'has12288': '中文空格',
 					'hasWhiteBg': '段落背景为白色',
-					'hasBookmark': '存在书签'
+					'hasBookmark': '存在书签',
+					'hasTableExceed': '存在表格超出'
 				}
 				function isWhite(shd) {
 					return shd && shd.Fill && shd.Fill.r == 255 && shd.Fill.g == 255 && shd.Fill.b == 255 && shd.Fill.Auto == false
@@ -167,6 +169,20 @@ function layoutDetect(all) {
 						result.hasBookmark = true
 					}
 				}
+				// 检测表格是否超出
+				var tables = oDocument.GetAllTables() || []
+				var sections = oDocument.GetSections() || []
+				var pageSize = { W: 0 }
+				if (sections.length > 0) {
+					pageSize = sections[0].Section.PageSize
+				}
+				for (var i = 0; i < tables.length; i++) {
+					var table = tables[i].Table
+					var bounds = Api.LookupObject(table.Id).Table.GetContentBounds(0)
+					if (bounds.Left < 0 || bounds.Left > pageSize.W || bounds.Right < 0 || bounds.Right > pageSize.W) {
+						result.hasTableExceed = true
+					}
+				}
 				return result
 		}, false, false, {name: 'layoutDetect'})
 	}).then(res => {
@@ -209,7 +225,8 @@ function layoutRepair(cmdData) {
 				'has65307': '中文分号',
 				'has12288': '中文空格',
 				'hasWhiteBg': '段落背景为白色',
-				'hasBookmark': '存在书签'
+				'hasBookmark': '存在书签',
+				'hasTableExceed': '存在表格超出'
 			}
 			function getTabReplaceTarget(width, target) {
 				var str = ''
@@ -432,7 +449,22 @@ function layoutRepair(cmdData) {
 					}
 				}
 			}
-			if (cmdData.type == 1 && cmdData.value == 'tab') { // 将括号里的tab替换为空格
+			if (cmdData.type == 3 && cmdData.value == 'table') { // 修复表格超出
+				var tables = oDocument.GetAllTables() || []
+				var sections = oDocument.GetSections() || []
+				var pageSize = { W: 0 }
+				if (sections.length > 0) {
+					pageSize = sections[0].Section.PageSize
+				}
+				for (var i = 0; i < tables.length; i++) {
+					var table = tables[i].Table
+					var obj = Api.LookupObject(table.Id)
+					var bounds = obj.Table.Bounds
+					if (bounds.Left < 0 || bounds.Left > pageSize.W || bounds.Right < 0 || bounds.Right > pageSize.W) {
+						obj.SetTableInd(0)
+					}
+				}
+			} else if (cmdData.type == 1 && cmdData.value == 'tab') { // 将括号里的tab替换为空格
 				var bflag = []
 				for (var i = 0, imax = paragrahs.length; i < imax; ++i) {
 					var oParagraph = paragrahs[i]

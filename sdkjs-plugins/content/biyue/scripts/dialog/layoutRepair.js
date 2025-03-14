@@ -74,6 +74,14 @@
 		text1: '书签，',
 		text2: '建议删除，',
 		value: 'bookmark'
+	}, {
+		idname: 'table',
+		repair: true,
+		type: 'warning',
+		keyname: 'hasTableExceed',
+		text1: '表格超出，',
+		text2: '建议修复，',
+		value: 'table'
 	}]
 	window.Asc.plugin.init = function () {
 		console.log('layoutRepair init')
@@ -102,6 +110,9 @@
 				}
 				if (item.delete) {
 					str +='<span class="delete">删除></span>'
+				}
+				if (item.repair) {
+					str +='<span class="repair">修复></span>'
 				}
 				str += '</div>'
 			}
@@ -132,7 +143,7 @@
 		var value = detect_list[i].value
 		var newValue = detect_list[i].newValue
 		var idName = `#${detect_list[i].idname}`
-		var classlist = ['.ignore', '.replace', '.delete']
+		var classlist = ['.ignore', '.replace', '.delete', '.repair']
 		for (var j = 0; j < classlist.length; ++j) {
 			addCmdEvent(detect_list[i].idname, classlist[j], j, value, newValue, idName, detect_list[i].keyname)
 		}
