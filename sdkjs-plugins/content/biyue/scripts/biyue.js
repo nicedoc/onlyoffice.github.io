@@ -20,6 +20,7 @@ import { getVersion } from "./ver.js"
 import { ReplaceRubyField } from "./phonetic.js";
 import {
 	initExtroInfo,
+	handleFeatureMessage
 } from './panelFeature.js'
 import { biyueCallCommand } from './command.js'
 import {
@@ -41,6 +42,7 @@ import {
 	focusControl,
 	splitWordAsk,
 	deleteAsks,
+	insertImage,
 	focusControlById,
 	setUnderLine
 } from './QuesManager.js'
@@ -53,7 +55,7 @@ import {
 import { layoutRepair, removeAllComment, layoutDetect } from './layoutFixHandler.js'
 import { reqSaveInfo } from './api/paper.js'
 
-import { initView, onSaveData, clickSplitQues, clickUploadTree, showTypeErrorPanel, changeTabPanel, onFeature, showPanelLink, onImageAutoLink } from './pageView.js'
+import { initView, onSaveData, clickSplitQues, clickUploadTree, showTypeErrorPanel, changeTabPanel, onFeature, showPanelLink, onImageAutoLink, onUploadTypeErrorList, clickDownloadExamHtml } from './pageView.js'
 
 import { setInteraction, updateChoice, deleteAllFeatures } from './featureManager.js'
 import { getInfoForServerSave, showCom } from './model/util.js'
@@ -101,6 +103,11 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 					// 重新打开上传的时候关闭的识别区域
     				// 必须保证一个执行完成之后在去开启下一个
 					showOrHiddenRegion('show')
+				}
+				if (win && win.type == 'panel') {
+					biyueCallCommand(window, function() {
+						Api.asc_OpenPlugin('asc.{BE5CBF95-C0AD-4842-B157-AC40FEDD9443}')
+					})
 				}
 			}
 		})
@@ -238,7 +245,11 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 					}
 					if (message.initmsg == 'uploadValidationMessage') {
 						obj.validate_info = Asc.scope.upload_validate
-					} else if (message.initmsg == 'pictureIndexMessage') {
+					} else if (message.initmsg == 'featureMessage') {
+						obj.feature_map = window.feature_map
+					} else if (message.initmsg == 'quesTypeErrorReportMessage') {
+						obj.tree_info = Asc.scope.tree_info
+					} else if (message.initmsg == 'pictureIndexMessage' || message.initmsg == 'pictureListMessage') {
 						obj.list = Asc.scope.list_picture
 						obj.list_ignore = Asc.scope.list_ignore
 					}
@@ -309,6 +320,9 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 			case 'insertSymbol':
 				// closeWindow(modal.id)
 				insertSymbol(message.data)
+				break
+			case 'insertSymbolImage':
+				insertImage(message.data)
 				break
 			case 'focusQuestion':
 				var event = new CustomEvent('focusQuestion', {
@@ -395,6 +409,24 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 					onFeature()
 				} else if (message.cmd == 'locateControl') {
 					focusControlById(message.data)
+				}
+				break
+			case 'featureMessage':
+				handleFeatureMessage(message)
+				break
+			case 'quesTypeErrorReportMessage':
+				if (message.cmd == 'refreshTypeError') {
+					preGetExamTree().then(res => {
+						Asc.scope.tree_info = res
+						modal.command('quesTypeErrorReportMessage', {
+							tree_info: Asc.scope.tree_info,
+							BiyueCustomData: window.BiyueCustomData
+						})
+					})
+				} else if (message.cmd == 'uploadTypeError') {
+					onUploadTypeErrorList(message.data)
+				} else if (message.cmd == 'downloadExamHtml') {
+					clickDownloadExamHtml()
 				}
 				break
 			case 'setUnderLineMessage':
@@ -913,6 +945,9 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		this.attachToolbarMenuClickEvent("insertSymbol", function (data) {
 			window.biyue.showDialog('addSymbolWindow', '插入符号', 'addSymbol.html', 600, 400, false, 'panelRight', ['resources/light/symbol.png'])
 		});
+		this.attachToolbarMenuClickEvent('insertSymbolImage', function (data) {
+			window.biyue.showDialog('addSymbolImageWindow', '插入符号图片', 'addSymbolImage.html', 600, 400, false, 'panelRight', ['resources/light/symbol.png'])
+		})
 		this.attachToolbarMenuClickEvent('setUnderline', function (data) {
 			window.biyue.refreshDialog({
 				winName:'setUnderlineWindow',
@@ -934,6 +969,8 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		this.attachToolbarMenuClickEvent("uploadTypeError", function () {
 			showTypeErrorPanel()
 		})
+		this.attachToolbarMenuClickEvent("uploadPaper", importExam);
+		this.attachToolbarMenuClickEvent("save", onSaveData);
 		function getToolbarItems() {
 		let items = {
 			guid: window.Asc.plugin.info.guid,
@@ -987,7 +1024,16 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 					lockInViewMode: true,
 					enableToggle: false,
 					separator: false
-				}, {					
+				}, {
+					id: "insertSymbolImage",
+					type: "button",
+					text: "插入符号图片",
+					hint: "插入符号图片",
+					icons: "resources/buttons/symbol.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: false
+				}, {
 					id: "setUnderline",
 					type: "button",
 					text: "设置下划线",
@@ -996,7 +1042,8 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 					lockInViewMode: true,
 					enableToggle: false,
 					separator: false
-				}, {
+				},
+				{
 					id: "batchScore",
 					type: "button",
 					text: "批量分数",
@@ -1033,6 +1080,24 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 					enableToggle: false,
 					separator: false
 				}, {
+					id: "uploadPaper",
+					type: "button",
+					text: "上传卷面",
+					hint: "上传卷面",
+					icons: "resources/buttons/upload2.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: true
+				}, {
+					id: "save",
+					type: "button",
+					text: "手动保存",
+					hint: "手动保存",
+					icons: "resources/buttons/save.png", 
+					lockInViewMode: true,
+					enableToggle: false,
+					separator: false
+				}, {
 					id: "uploadTypeError",
 					type: "button",
 					text: "题型错误上报",
@@ -1040,7 +1105,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 					icons: "resources/buttons/error.png", 
 					lockInViewMode: true,
 					enableToggle: false,
-					separator: true
+					separator: false
 				}
 			]
 			}]
@@ -1861,12 +1926,27 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		if (id == -1) {
 			console.log('StoreCustomData', window.BiyueCustomData)
 			closeAllWindows()
-			onSaveData(false).then(() => {
-				StoreCustomData(() => {
-					console.log('store custom data done')
-					window.Asc.plugin.executeCommand("close", '')
+			if (window.write_zone_add) {
+				window.write_zone_add = false
+				biyueCallCommand(window, function() {
+					Api.sync_EndAddShape()
+					Api.isStartAddShape = false
+				}, false, false).then(() => {
+					onSaveData(false).then(() => {
+						StoreCustomData(() => {
+							console.log('store custom data done')
+							window.Asc.plugin.executeCommand("close", '')
+						})
+					})
 				})
-			})
+			} else {
+				onSaveData(false).then(() => {
+					StoreCustomData(() => {
+						console.log('store custom data done')
+						window.Asc.plugin.executeCommand("close", '')
+					})
+				})
+			}
 			return
 		}
 	}
@@ -2482,6 +2562,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 						window.BiyueCustomData.client_node_id = 1
 					}
 					console.log('BiyueCustomData', window.BiyueCustomData)
+					window.write_zone_add = false
 					handleInit()
 					return params
 				}
@@ -2552,7 +2633,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		})
 	}
 
-	function showDialog(winName, name, url, width, height, isModal, type, icons) {
+	function showDialog(winName, name, url, width, height, isModal, type, icons, x, y) {
 		let location = window.location
 		let start = location.pathname.lastIndexOf('/') + 1
 		let file = location.pathname.substring(start)
@@ -2572,6 +2653,10 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		}
 		if (icons) {
 			variation.icons = icons
+		}
+		if (x && y) {
+			variation.x = x
+			variation.y = y
 		}
 		if (!windows) {
 			console.log('windows is null')
@@ -2595,7 +2680,8 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 			windowList.push({
 				name: winName,
 				id: windows[winName].id,
-				visible: true
+				visible: true,
+				type: type
 			})
 		}
 		return windows[winName]
@@ -2741,7 +2827,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		sendMessageToWindow: sendMessageToWindow,
 		refreshDialog: refreshDialog,
 		closeDialog: closeDialog,
-		onImageAutoLink: onImageAutoLink,
-		sendToDialog: sendToDialog
+		sendToDialog: sendToDialog,
+		onImageAutoLink: onImageAutoLink
 	}
 })(window, undefined)

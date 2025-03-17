@@ -1,10 +1,18 @@
 import { biyueCallCommand } from "./command.js";
+import { getPictureList } from "./linkHandler.js";
 function layoutDetect(all) {
 	Asc.scope.layout_all_range = !!all
-	return removeAllComment().then(() => {
+	return removeAllComment()
+	.then(() => {
 		return biyueCallCommand(window, function() {
 				// console.log('[layoutDetect] begin')
 				var oDocument = Api.GetDocument()
+				var oSections = oDocument.GetSections() || []
+				var pageSize = {}
+				if (oSections[0] && oSections[0].Section) {
+					pageSize.width = oSections[0].Section.GetPageWidth()
+					pageSize.height = oSections[0].Section.GetPageHeight()
+				}
 				var oRange = null
 				if (Asc.scope.layout_all_range) {
 					oRange = oDocument.GetRange()
@@ -33,6 +41,7 @@ function layoutDetect(all) {
 					hasWhiteBg: false, // 存在背景为白色的段落
 					hasSmallImage: false, // 存在宽高过小的图片
 					hasBookmark: false, // 存在书签
+					hasOutOfRange: false, // 存在超出范围的图片
 					hasTableExceed: false // 存在表格超出
 				}
 				var type_map = {
@@ -44,6 +53,7 @@ function layoutDetect(all) {
 					'has12288': '中文空格',
 					'hasWhiteBg': '段落背景为白色',
 					'hasBookmark': '存在书签',
+					'hasOutOfRange': '超出范围的图片',
 					'hasTableExceed': '存在表格超出'
 				}
 				function isWhite(shd) {
@@ -125,12 +135,22 @@ function layoutDetect(all) {
 					if (elementcount > 0) {
 						for (var i = elementcount - 1; i >= 0; --i) {
 							var oElement = oParagraph.Paragraph.Content[i]
-							if (oElement.GetType && oElement.GetType() == 71) { // 书签
+							if (oElement && oElement.GetType && oElement.GetType() == 71) { // 书签
 								return true
 							}
 						}
 					}
 					return false
+				}
+				function isOutOfRange(oDrawing) {
+					if (!oDrawing || !oDrawing.Drawing) {
+						return false
+					}
+					var bounds = oDrawing.Drawing.getRectBounds ? oDrawing.Drawing.getRectBounds() : oDrawing.Drawing.bounds
+					if (!bounds) {
+						return false
+					}
+					return bounds.l < 0 || bounds.l > pageSize.width || bounds.t < 0 || bounds.t > pageSize.height || bounds.r < 0 || bounds.r > pageSize.width || bounds.b < 0 || bounds.b > pageSize.height
 				}
 				for (var i = 0, imax = paragraphs.length; i < imax; ++i) {
 					var oParagraph = paragraphs[i]
@@ -165,8 +185,23 @@ function layoutDetect(all) {
 						result.hasWhiteBg = true
 						oParagraph.AddComment(type_map['hasWhiteBg'], "biyueFix", `repair${oParagraph.Paragraph.Id}}:hasWhiteBg`)
 					}
+					var style = oParagraph.GetStyle()
+					if (style) {
+						var textPr = style.GetTextPr()
+						if (textPr && textPr.TextPr && isWhite(textPr.TextPr.Shd)) {
+							result.hasWhiteBg = true
+						}
+					}
+
 					if (!result.hasBookmark && hasBookmark(oParagraph)) {
 						result.hasBookmark = true
+					}
+					var oDrawings = oParagraph.GetAllDrawingObjects() || []
+					for (var oDrawing of oDrawings) {
+						if (isOutOfRange(oDrawing)) {
+							result.hasOutOfRange = true
+							break
+						}
 					}
 				}
 				// 检测表格是否超出
@@ -183,16 +218,26 @@ function layoutDetect(all) {
 						result.hasTableExceed = true
 					}
 				}
+				
 				return result
 		}, false, false, {name: 'layoutDetect'})
 	}).then(res => {
 		Asc.scope.layout_detect_result = res
-		window.biyue.showDialog('layoutRepairWindow', '字符检测', 'layoutRepair.html', 250, 400, false)
+		var x, y
+		if (window.outerWidth) {
+			x = window.outerWidth - 305
+			y = 150
+		}
+		window.biyue.showDialog('layoutRepairWindow', '字符检测', 'layoutRepair.html', 250, 400, false, undefined, undefined, x, y)
 	})
 }
 
 // 排版修复
 function layoutRepair(cmdData) {
+	if (cmdData.type == 4 && cmdData.value == 'outOfRange') {
+		window.biyue.closeDialog('layoutRepairWindow')
+		return showOutOfRange()
+	}
 	Asc.scope.cmdData = cmdData
 	return biyueCallCommand(window, function() {
 			// console.log('[layoutRepair begin]')
@@ -511,6 +556,20 @@ function layoutRepair(cmdData) {
 								fixed = true
 							}
 						}
+						var style = oParagraph.GetStyle()
+						if (style) {
+							var textPr = style.GetTextPr()
+							if (textPr) {
+								var shd = textPr.GetShd()
+								if (shd) {
+									var rgb = shd.GetRGB()
+									if (rgb == 16777215) {
+										textPr.SetShd("clear", 255, 255, 255, true);
+										fixed = true
+									}
+								}
+							}
+						}
 					} else if (cmdData.type == 2 && cmdData.value == 'bookmark') { // 删除书签
 						removeBookmark(oParagraph)
 					}
@@ -553,6 +612,29 @@ function removeAllComment() {
 	}, false, false, {name: 'removeAllComment'})
 }
 
+function showOutOfRange() {
+	return getPictureList(true).then(res => {
+		if (res.picture_id) {
+			window.BiyueCustomData.picture_id = res.picture_id
+		}
+		if (res.table_id) {
+			window.BiyueCustomData.table_id = res.table_id
+		}
+		Asc.scope.list_picture = res.list
+		window.biyue.refreshDialog({
+			winName:'pictureList',
+			name:'超出范围图片',
+			url:'pictureList.html',
+			width:400,
+			height:800,
+			isModal:false,
+			type:'panelRight',
+			icons:['resources/light/img.png']
+		}, 'pictureListMessage', {
+			list: res.list
+		})
+	})
+}
 export {
 	layoutDetect,
 	layoutRepair,

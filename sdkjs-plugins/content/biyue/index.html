@@ -181,21 +181,6 @@
 		font-weight: 700;
       }
     }
-	#saveData {
-		width: 80px;
-		height: 32px;
-		margin-right: 12px;
-		background-color: #D9D9D9;
-		color: #555;
-	}
-	.exambottom {
-		position: fixed;
-		bottom: 30px;
-		display: flex;
-		flex-direction: row;
-		left: 13px;
-		right: 13px;
-	}
 	.btn-normal {
 		border-radius: 2px;
 		background-color: #D9D9D9;
@@ -342,43 +327,6 @@
 			margin-bottom: 8px;
 			padding-bottom: 4px;
 		}
-		#panelTypeErrorUpload {
-			display: flex;
-			flex-direction: column;
-			padding: 12px;
-		}
-		#typeErrorDiv {
-			padding: 8px 4px;
-			flex: 1;
-			overflow-y: auto;
-			.item {
-				display: flex;
-				justify-content: space-between;
-				align-items: center; /* 垂直居中对齐 */
-				width: 100%; /* 根据需要调整 */
-				padding: 2px 0;
-			}
-			.content {
-				display: flex;
-				align-items: center;
-				flex: 1; /* 让 content 占据尽可能多的空间 */
-  				overflow: hidden; /* 防止内部元素超出边界 */
-			}
-			.ques-type-name {
-			  margin-left: 10px;
-			  margin-right: 4px;
-			}
-			.target-select {
-				width: 70px;
-			}
-			select:focus-visible {
-				outline: none;
-			}
-		}
-		.upload-wrapper {
-			padding-top: 12px;
-			text-align: center;
-		}
 		#panelTree {
 			padding: 0 4px 0 8px;
 			height: calc(100% - 38px);
@@ -422,7 +370,7 @@
 				}
 			}
 			#tree {
-				max-height: calc(100vh - 150px);
+				max-height: calc(100vh - 80px);
 				overflow-y: auto;
 				padding-left: 24px;
 				.selected {
@@ -500,8 +448,11 @@
 		<div id="panelTree">
 			<div class="row-between font-14" style="width: 100%;padding: 6px;">
 				<div id="sum"></div>
-				<div class="clicked" id="lock">
-					<i class="iconfont icon-dingzi-u"></i>
+				<div class="row-align-center">
+					<div class="clicked clr1" id="refreshDoc" style="margin-right: 8px;" title="同步文档内容">刷新</div>
+					<div class="clicked" id="lock">
+						<i class="iconfont icon-dingzi-u"></i>
+					</div>
 				</div>
 			</div>
 			<div id="tree">
@@ -515,13 +466,6 @@
 				<i class="iconfont icon-tips-one" style="font-size: 80px;"></i>
 				<div>该课时为导学页，</div>
 				<div>请在调整后进行卷面上传</div>
-			</div>
-			<div class="exambottom">
-			<div id="saveData" class="row-center br2 clicked">
-				<i class="iconfont icon-baocun font-12 mr-4"></i>
-				<span>保存</span>
-			</div>
-			<div id="importExam" class="flex-1 bg1 clr-white h-32 row-center br2 clicked">上传卷面</div>
 			</div>
 		</div>
         <div class="panel-box" id="panelFeature">
@@ -551,27 +495,6 @@
 				<div id="imageLinkCheck" class="bg1 clr-white h-32 row-center br2 clicked" style="padding: 0 32px;margin-top: 16px;">关联检查</div>
 			</div>
 		</div>
-		<div class="panel-box" id="panelTypeErrorUpload">
-			<div class="row-between">
-				<div class="font-14 bold">
-					题型错误上报
-					<span class="clicked" style="color: #2489f6;" id="downloadExamHtml">下载题目html</span>
-				</div>
-				<div class="clicked bg1 clr-white br4 border-b panelclose" data-panel="panelTypeErrorUpload" style="padding: 2px 8px;">关闭<i class="iconfont icon-return clr-white"></i></div>
-			</div>
-			<div id="uploadHint"></div>
-			<div class="b-b-b ml-4 row-between" style="padding-bottom: 4px;margin-top: 2px;">
-				<div>
-					<span for="check_level"><input type="checkbox" id="check_level" style="margin-right: 2px;">展示层级结构</span>
-					<span for="check_text_ques ml-4"><input type="checkbox" id="check_text_ques" style="margin-right: 2px;">显示文本题</span>
-				</div>
-				<div style="margin-right: 8px;">目标题型</div>
-			</div>
-			<div id="typeErrorDiv"></div>
-			<div class="upload-wrapper row-center w100 b-t-b">
-				<div id="uploadTypeError" class="flex bg1 clr-white p-4-8 w-fit br2 clicked">上报日志</div>
-			</div>
-		</div>
         <div class="button_wrapper">
           <div id="extro_buttons">
 			<div style="display: flex;justify-content: flex-end;">
@@ -579,7 +502,6 @@
 			</div>
             <!-- <div id="getDocInfo" class="btn-text-default">获取文档信息</div> -->
             <!-- <div id="splitQuestionBtn" class="btn-text-default">切题</div>         -->
-            <!-- <div class="btn-text-default" id="importExam">准备上传</div>-->
             <div class="btn-text-default" id="getAllPositions">获取所有坐标</div>
 			<div id="clearControl" class="btn-text-default">删除所有控件 </div>
 			<div id="tabFeature" class="btn-text-default">智批元素</div>

@@ -326,7 +326,7 @@ function updateRangeControlType(typeName) {
 					}
 				})
 				var oTable = oCell.GetParentTable()
-				if (oTable && oTable.GetPosInParent() >= 0) {
+				if (oTable && oTable.Table.IsUseInDocument && oTable.Table.IsUseInDocument()) {
 					var desc = Api.ParseJSON(oTable.GetTableDescription())
 					desc.biyue = 1
 					var key = `${oCell.GetRowIndex()}_${oCell.GetIndex()}`
@@ -1102,21 +1102,12 @@ function updateRangeControlType(typeName) {
 							return false
 						}
 					}
-				}
-				// 判断endPos是否一致
-				var endEndData = endData.list[endData.list.length - 1]
-				var endPre = endData.list[endData.list.length - 2]
-				if (endPre.classType == 'paragraph' && endPre.Position > 0 && endEndData.Position == 0) {
-					var pre2 = endPre.oElement.GetElement(endPre.Position - 1)
-					if (pre2 && pre2.GetClassType() == 'inlineLvlSdt' && pre2.Sdt.GetId() == control.Sdt.GetId()) {
-						return true
-					}
 					// 判断endPos是否一致
 					var endEndData = endData.list[endData.list.length - 1]
 					var endPre = endData.list[endData.list.length - 2]
 					if (endPre.classType == 'paragraph' && endPre.Position > 0 && endEndData.Position == 0) {
 						var pre2 = endPre.oElement.GetElement(endPre.Position - 1)
-						if (pre2.GetClassType() == 'inlineLvlSdt' && pre2.Sdt.GetId() == control.Sdt.GetId()) {
+						if (pre2 && pre2.GetClassType() == 'inlineLvlSdt' && pre2.Sdt.GetId() == control.Sdt.GetId()) {
 							return true
 						}
 					} else if (endPre.classType == 'inlineLvlSdt' && endPre.Sdt.GetId() == control.Sdt.GetId()) {
@@ -1339,7 +1330,7 @@ function updateRangeControlType(typeName) {
 							var oResult = Api.asc_AddContentControl(type, {
 								Tag: JSON.stringify(tag)
 							})
-							if (oResult) {
+							if(oResult) {
 								var oControl = Api.LookupObject(oResult.InternalId)
 								// 需要返回新增的nodeIndex todo..
 								result.change_list.push({

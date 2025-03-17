@@ -14,6 +14,7 @@ import { getInteractionTypes } from './model/feature.js'
 import proportionHandler from './handler/proportionHandler.js'
 import uploadValidateHandler from './handler/validateUpload.js'
 import { isChoiceMode, isTextMode } from "./model/ques.js";
+import { showAddShapeState } from './panelQuestionDetail.js'
 var g_click_value = null
 var upload_control_list = []
 
@@ -211,6 +212,7 @@ function handleContextMenuShow(options) {
 	Asc.scope.add_write_zone_data = null
 	window.write_zone_add = false
 	Asc.scope.menu_options = options
+	showAddShapeState(false)
 	return biyueCallCommand(window, function() {
 			// console.log('[handleContextMenuShow begin]')
 			Api.isStartAddShape = false
@@ -324,7 +326,7 @@ function handleContextMenuShow(options) {
 					})
 				}
 			}
-			return result 
+			return result
 	}, false, false, {name: 'handleContextMenuShow'}).then(res => {
 		window.Asc.plugin.executeMethod('AddContextMenuItem', [getContextMenuItems(options.type, res)])
 	})
@@ -1104,7 +1106,7 @@ function getNodeList() {
 				var list = []
 				var shapes = oDocument.GetAllShapes() || []
 				for (var oShape of shapes) {
-					if (oShape.GetTitle) {
+					if (oShape.Drawing && oShape.Drawing.IsUseInDocument && oShape.Drawing.IsUseInDocument() && oShape.GetTitle) {
 						var titleObj = Api.ParseJSON(oShape.GetTitle())	
 						if (titleObj.feature && titleObj.feature.zone_type == 'question' && titleObj.feature.sub_type == 'write') {
 							list.push({
@@ -1141,7 +1143,8 @@ function getNodeList() {
 						} else if (oElement.GetClassType() == 'table') {
 							// todo..可能需要过滤下打分区
 							var rows = oElement.GetRowsCount()
-							var tableTitle = Api.ParseJSON(oElement.GetTableDescription()) || {}
+							var tableTitle = Api.ParseJSON(oElement.GetTableTitle()) || {}
+							var tableDesc = Api.ParseJSON(oElement.GetTableDescription()) || {}
 							for (var i1 = 0; i1 < rows; ++i1) {
 								var oRow = oElement.GetRow(i1)
 								var cells = oRow.GetCellsCount()
@@ -1149,8 +1152,9 @@ function getNodeList() {
 									var oCell = oRow.GetCell(i2)
 									var shd = oCell.Cell.Get_Shd()
 									var fill = shd.Fill
+									var oCellContent = oCell.GetContent()
 									if (fill && fill.r == 255 && fill.g == 191 && fill.b == 191) {
-										var oldId = tableTitle[`${i1}_${i2}`]
+										var oldId = tableDesc[`${i1}_${i2}`]
 										var obj = Object.assign({}, {
 											index: write_list.length,
 											id: 'c_' + oCell.Cell.Id,
@@ -1161,10 +1165,20 @@ function getNodeList() {
 											cell_index: i2,
 											old_id: oldId
 										})
+										if (tableTitle.client_id) {
+											obj.table_cid = tableTitle.client_id
+										}
 										write_list.push(obj)
-										tableTitle[`${i1}_${i2}`] = 'c_' + oCell.Cell.Id
+										tableDesc[`${i1}_${i2}`] = 'c_' + oCell.Cell.Id
+										var drawings = oCellContent.GetAllDrawingObjects() || []
+										for (var oDrawing of drawings) {
+											var drawingTitle = Api.ParseJSON(oDrawing.GetTitle())
+											if (drawingTitle.feature && drawingTitle.feature.write_id == oldId) {
+												drawingTitle.feature.write_id = obj.id
+												oDrawing.SetTitle(JSON.stringify(drawingTitle))
+											}
+										}
 									} else {
-										var oCellContent = oCell.GetContent()
 										var cnt1 = oCellContent.GetElementsCount()
 										for (var i3 = 0; i3 < cnt1; ++i3) {
 											var oElement2 = oCellContent.GetElement(i3)
@@ -1180,7 +1194,7 @@ function getNodeList() {
 									}
 								}
 							}
-							oElement.SetTableDescription(JSON.stringify(tableTitle))
+							oElement.SetTableDescription(JSON.stringify(tableDesc))
 						}
 					}
 					if (all_write_list.length) {
@@ -1383,6 +1397,16 @@ function handleChangeType(res, res2) {
 		})
 		var ask_list = quesData.ask_list
 		if (ask_list) {
+			for (var ask of ask_list) {
+				if (targetMap[ask.id] === undefined) {
+					var index = targetAsks.findIndex(e => {
+						return e.old_id == ask.id
+					})
+					if (index >= 0) {
+						ask.id = targetAsks[index].id
+					}
+				}
+			}
 			ask_list = ask_list.sort((a, b) => {
 				return targetMap[a.id] - targetMap[b.id]
 			})
@@ -2362,7 +2386,7 @@ function initControls() {
 			})
 			var cellAskMap = {}
 			oTables.forEach(oTable => {
-				if (oTable.GetPosInParent() >= 0) {
+				if (oTable.Table.IsUseInDocument && oTable.Table.IsUseInDocument()) {
 					var desc = Api.ParseJSON(oTable.GetTableDescription())
 					Object.keys(desc).forEach(key => {
 						if (key != 'biyue') {
@@ -2824,11 +2848,11 @@ function getQuestionHtml(ids, getLatestParent) {
 			var getLatestParent = Asc.scope.getLatestParent
 			function getControlsByClientId(cid) {
 				var findControls = controls.filter(e => {
-					var tag = Api.ParseJSON(e.GetTag())
-					if (e.GetClassType() == 'blockLvlSdt') {
-						return tag.client_id == cid && e.GetPosInParent() >= 0
-					} else if (e.GetClassType() == 'inlineLvlSdt') {
-						return e.Sdt && e.Sdt.GetPosInParent() >= 0 && tag.client_id == cid
+					if (e.Sdt && e.Sdt.IsUseInDocument && e.Sdt.IsUseInDocument()) {
+						var tag = Api.ParseJSON(e.GetTag())
+						if (e.GetClassType() == 'blockLvlSdt' || e.GetClassType() == 'inlineLvlSdt') {
+							return tag.client_id == cid
+						}
 					}
 				})
 				if (findControls && findControls.length) {
@@ -3198,8 +3222,10 @@ function deleteChoiceOtherWrite(ids, recalc = true) {
 					continue
 				}
 				var oControl = controls.find(e => {
-					var tag = Api.ParseJSON(e.GetTag())
-					return e.GetClassType() == 'blockLvlSdt' && e.GetPosInParent() >= 0 && tag.client_id == nodeData.id
+					if (e.Sdt && e.Sdt.IsUseInDocument && e.Sdt.IsUseInDocument() && e.GetClassType() == 'blockLvlSdt') {
+						var tag = Api.ParseJSON(e.GetTag())
+						return tag.client_id == nodeData.id
+					}
 				})
 				if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
 					continue
@@ -3385,12 +3411,33 @@ function showAskCells(cmdType) {
 			var cmdType = Asc.scope.cmdType
 			var oTables = Api.GetDocument().GetAllTables() || []
 			function getCell(write_data) {
-				for (var i = 0; i < oTables.length; ++i) {
-					var oTable = oTables[i]
-					if (oTable.GetPosInParent() == -1) { continue }
-					var desc = Api.ParseJSON(oTable.GetTableDescription())
-					var keys = Object.keys(desc)
-					if (keys.length) {
+				if (!write_data) {
+					return null
+				}
+				var oCell = Api.LookupObject(write_data.cell_id)
+				if (oCell && oCell.GetClassType() == 'tableCell' && oCell.Cell && oCell.Cell.IsUseInDocument && oCell.Cell.IsUseInDocument()) {
+					return oCell
+				}
+				if (write_data.table_cid) {
+					for (var table of oTables) {
+						var tableTitle = Api.ParseJSON(table.GetTableTitle())
+						if (tableTitle && tableTitle.client_id == write_data.table_cid) {
+							return table.GetCell(write_data.row_index, write_data.cell_index)
+						}
+					}
+				} else {
+					for (var oTable of oTables) {
+						if (oTable.Table.IsUseInDocument && !oTable.Table.IsUseInDocument()) {
+							continue
+						}
+						var desc = Api.ParseJSON(table.GetTableDescription())
+						if (typeof desc != 'object') {
+							continue
+						}
+						var keys = Object.keys(desc)
+						if (!keys || keys.length == 0) {
+							continue
+						}
 						for (var j = 0; j < keys.length; ++j) {
 							var key = keys[j]
 							if (desc[key] == write_data.id) {
@@ -3400,7 +3447,6 @@ function showAskCells(cmdType) {
 								} else if (write_data.row_index == rc[0] && write_data.cell_index == rc[1]) {
 									return oTable.GetCell(rc[0], rc[1])
 								}
-
 							}
 						}
 					}
@@ -3419,15 +3465,9 @@ function showAskCells(cmdType) {
 									return w.id == ask.id
 								})
 								if (writeData && writeData.sub_type == 'cell' && writeData.cell_id) {
-									var oCell = Api.LookupObject(writeData.cell_id)
-									if (oCell && oCell.GetClassType && oCell.GetClassType() == 'tableCell') {
-										var oTable = oCell.GetParentTable()
-										if (oTable && oTable.GetPosInParent() == -1) {
-											oCell = getCell(writeData)
-										}
-										if (oCell) {
-											oCell.SetBackgroundColor(255, 191, 191, cmdType == 'show' ? false : true)
-										}
+									var oCell = getCell(writeData)
+									if (oCell) {
+										oCell.SetBackgroundColor(255, 191, 191, cmdType == 'show' ? false : true)
 									}
 								}
 							})
@@ -3457,16 +3497,17 @@ function reqUploadTree() {
 	}).then((res) => {
 		Asc.scope.choice_html_map = res
 		return getControlListForUpload()
-	}).then(control_list => {
-		if (control_list && control_list.length) {
-			var repeatList = judgeRepeat(control_list)
+	}).then(res => {
+		const { target_list, common_use } = res
+		if (target_list && target_list.length) {
+			var repeatList = judgeRepeat(target_list)
 			if (repeatList && repeatList.length) {
 				uploadValidateHandler.showValidateDialog({
 					source: 'uploadTree',
 					repeat_list: repeatList,
 				})
 			} else {
-				generateTreeForUpload(control_list).then(() => {
+				generateTreeForUpload(target_list, common_use).then(() => {
 					handleCompleteResult('全量更新成功')
 				}).catch((res) => {
 					handleCompleteResult(res && res.message && res.message != '' ? res.message : '全量更新失败')
@@ -3482,369 +3523,276 @@ function getControlListForUpload() {
 	Asc.scope.node_list = window.BiyueCustomData.node_list
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	return biyueCallCommand(window, function() {
-		// console.log('[getControlListForUpload] begin')
-		var target_list = []
-		var oDocument = Api.GetDocument()
-		var controls = oDocument.GetAllContentControls()
-		var question_map = Asc.scope.question_map
-		var tree_info = Asc.scope.tree_info || {}
-		var handledcontrol = {}
-		for (var i = 0, imax = controls.length; i < imax; ++i) {
-			var oControl = controls[i]
-			if (handledcontrol[oControl.Sdt.GetId()]) {
-				continue
-			}
-			var tag = Api.ParseJSON(oControl.GetTag() || '{}')
-			if (tag.regionType != 'question' || !tag.client_id) {
-				continue
-			}
-			var quesData
-			var clientid = tag.mid ? tag.mid : tag.client_id
-			var quesData = question_map[clientid]
-			if (!quesData) {
-				continue
-			}
-			if (!question_map[clientid].level_type) {
-				continue
-			}
-			if (!tree_info.list) {
-				continue
-			}
-			var itemData = tree_info.list.find(e => {
-				return e.id == clientid
-			})
-			if (!itemData) {
-				continue
-			}
-			var parent_id = itemData.parent_id
-			var useControl = oControl
-			if (tag.big) {
-				var childcontrols = oControl.GetAllContentControls() || []
-				var bigControl = childcontrols.find(e => {
-					var btag = Api.ParseJSON(e.GetTag())
-					return e.GetClassType() == 'blockLvlSdt' && btag.onlybig == 1 && btag.link_id == tag.client_id
-				})
-				if (bigControl) {
-					useControl = bigControl
+			// console.log('[getControlListForUpload] begin')
+			var target_list = []
+			var oDocument = Api.GetDocument()
+			var controls = oDocument.GetAllContentControls()
+			var question_map = Asc.scope.question_map
+			var tree_info = Asc.scope.tree_info || {}
+			var handledcontrol = {}
+			function getHtml(oRange, sel) {
+				if (!oRange) {
+					return
 				}
+				if (sel) {
+					oRange.Select()
+				}
+				let text_data = {
+					data: "",
+					// 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
+					pushData: function (format, value) {
+						this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : "";
+					}
+				};
+				Api.asc_CheckCopy(text_data, 2);
+				var rev = text_data.data
+				// Api.asc_RemoveSelection();
+				return rev
 			}
-			var oRange = null
-			if (tag.mid) {
-				for (var idkey in quesData.ids) {
-					var control = controls.find(e => {
-						var tag2 = Api.ParseJSON(e.GetTag())
-						return e.GetClassType() == 'blockLvlSdt' && e.GetPosInParent() >= 0 && tag2.client_id == quesData.ids[idkey] && tag2.mid == tag.mid
+			for (var i = 0, imax = controls.length; i < imax; ++i) {
+				var oControl = controls[i]
+				if (handledcontrol[oControl.Sdt.GetId()]) {
+					continue
+				}
+				var tag = Api.ParseJSON(oControl.GetTag() || '{}')
+				if (tag.regionType != 'question' || !tag.client_id) {
+					continue
+				}
+				var quesData
+				var clientid = tag.mid ? tag.mid : tag.client_id
+				var quesData = question_map[clientid]
+				if (!quesData) {
+					continue
+				}
+				if (!question_map[clientid].level_type) {
+					continue
+				}
+				if (!tree_info.list) {
+					continue
+				}
+				var itemData = tree_info.list.find(e => {
+					return e.id == clientid
+				})
+				if (!itemData) {
+					continue
+				}
+				var parent_id = itemData.parent_id
+				var useControl = oControl
+				if (tag.big) {
+					var childcontrols = oControl.GetAllContentControls() || []
+					var bigControl = childcontrols.find(e => {
+						var btag = Api.ParseJSON(e.GetTag())
+						return e.GetClassType() == 'blockLvlSdt' && btag.onlybig == 1 && btag.link_id == tag.client_id
 					})
-					if (control) {
-						handledcontrol[control.Sdt.GetId()] = 1
-						var parentcell = control.GetParentTableCell()
-						if (!oRange) {
-							oRange = parentcell.GetContent().GetRange()
-						} else {
-							oRange = oRange.ExpandTo(parentcell.GetContent().GetRange())
+					if (bigControl) {
+						useControl = bigControl
+					}
+				}
+				var oRange = null
+				if (tag.mid) {
+					for (var idkey in quesData.ids) {
+						var control = controls.find(e => {
+							var tag2 = Api.ParseJSON(e.GetTag())
+							return e.GetClassType() == 'blockLvlSdt' && e.Sdt.IsUseInDocument && e.Sdt.IsUseInDocument() && tag2.client_id == quesData.ids[idkey] && tag2.mid == tag.mid
+						})
+						if (control) {
+							handledcontrol[control.Sdt.GetId()] = 1
+							var parentcell = control.GetParentTableCell()
+							if (!oRange) {
+								oRange = parentcell.GetContent().GetRange()
+							} else {
+								oRange = oRange.ExpandTo(parentcell.GetContent().GetRange())
+							}
 						}
 					}
-				}
-			} else {
-				handledcontrol[oControl.Sdt.GetId()] = 1
-				oRange = useControl.GetRange()
-			}
-			oRange.Select()
-			let text_data = {
-				data:     "",
-				// 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
-				pushData: function (format, value) {
-				this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : "";
-				}
-			};
-			Api.asc_CheckCopy(text_data, 2);
-			var content_html = text_data.data
-			target_list.push({
-				id: clientid + '',
-				parent_id: parent_id ? parent_id + '' : '',
-				uuid: question_map[clientid].uuid || '',
-				regionType: question_map[clientid].level_type,
-				content_type: question_map[clientid].level_type,
-				content_xml: '',
-				content_html: content_html,
-				content_text: oRange.GetText(),
-				question_type: question_map[clientid].question_type,
-				question_name: question_map[clientid].ques_name || question_map[clientid].ques_default_name,
-				control_id: oControl.Sdt.GetId(),
-				lvl: itemData.lvl
-			})
-		}
-		console.log('target_list', target_list)
-		return target_list
-	}, false, false, {name: 'getControlListForUpload'})
-}
-
-function getControlListForUpload2() {
-	Asc.scope.node_list = window.BiyueCustomData.node_list
-	Asc.scope.question_map = window.BiyueCustomData.question_map
-	return biyueCallCommand(window, function() {
-		var target_list = []
-		var oDocument = Api.GetDocument()
-		var controls = oDocument.GetAllContentControls()
-		var question_map = Asc.scope.question_map
-		console.log('question_map', question_map)
-		var handledcontrol = {}
-		function getFirstParagraph(oControl) {
-			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
-				return null
-			}
-			var paragraphs = oControl.GetAllParagraphs()
-			for (var i = 0; i < paragraphs.length; ++i) {
-				var oParagraph = paragraphs[i]
-				if (oParagraph) {
-					var parent1 = oParagraph.Paragraph.Parent
-					var parent2 = parent1.Parent
-					if (parent2 && parent2.Id == oControl.Sdt.GetId()) {
-						return oParagraph
-					}
-				}
-			}
-			return null
-		}
-		function getLvl(oControl, paraIndex) {
-			var oParagraph = getFirstParagraph(oControl)
-			if (!oParagraph) {
-				return null
-			}
-			var oNumberingLevel = oParagraph.GetNumbering()
-			if (oNumberingLevel) {
-				return oNumberingLevel.Lvl
-			}
-			return null
-		}
-		function getParentId(target_list, lvl) {
-			var parent_id = 0
-			for (var j = target_list.length - 1; j >= 0; --j) {
-				var preNode = target_list[j]
-				// 由于struct未必有lvl，因此先将Lvl的判断移除
-				if (preNode.content_type == 'struct') {
-					if (lvl === 0) {
-						parent_id = 0
-					} else if (!preNode.lvl) {
-						parent_id = preNode.id
-					} else if (lvl && lvl > preNode.lvl) {
-						parent_id = preNode.id
-					} else {
-						parent_id = 0
-					}
-					return parent_id
-				}
-			}
-			return parent_id
-		}
-		for (var i = 0, imax = controls.length; i < imax; ++i) {
-			var oControl = controls[i]
-			if (handledcontrol[oControl.Sdt.GetId()]) {
-				continue
-			}
-			var tag = Api.ParseJSON(oControl.GetTag() || '{}')
-			if (tag.regionType != 'question' || !tag.client_id) {
-				continue
-			}
-			var quesData
-			var clientid = tag.mid ? tag.mid : tag.client_id
-			var quesData = question_map[clientid]
-			if (!quesData) {
-				continue
-			}
-			if (!question_map[clientid].level_type) {
-				continue
-			}
-			var lvl = getLvl(oControl, 0)
-			var oParentControl = oControl.GetParentContentControl()
-			var parent_id = 0
-			if (question_map[clientid].level_type == 'question') {
-				if (oParentControl) {
-					var parentTag = Api.ParseJSON(oParentControl.GetTag() || '{}')
-					parent_id = parentTag.client_id
 				} else {
-					// 根据level, 查找在它前面的比它lvl小的struct
-					parent_id = getParentId(target_list, lvl)
+					handledcontrol[oControl.Sdt.GetId()] = 1
+					oRange = useControl.GetRange()
 				}
-			}
-			var useControl = oControl
-			if (tag.big) {
-				var childcontrols = oControl.GetAllContentControls() || []
-				var bigControl = childcontrols.find(e => {
-					var btag = Api.ParseJSON(e.GetTag())
-					return e.GetClassType() == 'blockLvlSdt' && btag.onlybig == 1 && btag.link_id == tag.client_id
+				var content_html = getHtml(oRange, true)
+				target_list.push({
+					id: clientid + '',
+					parent_id: parent_id ? parent_id + '' : '',
+					uuid: question_map[clientid].uuid || '',
+					regionType: question_map[clientid].level_type,
+					content_type: question_map[clientid].level_type,
+					content_xml: '',
+					content_html: content_html,
+					content_text: oRange.GetText(),
+					question_type: question_map[clientid].question_type,
+					question_name: question_map[clientid].ques_name || question_map[clientid].ques_default_name,
+					control_id: oControl.Sdt.GetId(),
+					lvl: itemData.lvl
 				})
-				if (bigControl) {
-					useControl = bigControl
-				}
-				parent_id = getParentId(target_list, lvl)
 			}
-			var oRange = null
-			if (tag.mid) {
-				for (var idkey in quesData.ids) {
-					var control = controls.find(e => {
-						var tag2 = Api.ParseJSON(e.GetTag())
-						return e.GetClassType() == 'blockLvlSdt' && e.GetPosInParent() >= 0 && tag2.client_id == quesData.ids[idkey] && tag2.mid == tag.mid
-					})
-					if (control) {
-						handledcontrol[control.Sdt.GetId()] = 1
-						var parentcell = control.GetParentTableCell()
-						if (!oRange) {
-							oRange = parentcell.GetContent().GetRange()
-						} else {
-							oRange = oRange.ExpandTo(parentcell.GetContent().GetRange())
-						}
+			console.log('target_list', target_list)
+			var common_use = [] // 关联图片表格
+			var oDrawings = oDocument.GetAllDrawingObjects() || []
+			var oTables = oDocument.GetAllTables() || []
+			function addUse(client_id, ques_use, html, type) {
+				var queslist = ques_use.split('_')
+				queslist = queslist.map(e => {
+					return {
+						id: e,
+						uuid: question_map[clientid].uuid || '',
 					}
+				})
+				common_use.push({
+					type: type,
+					commonId: client_id,
+					ques_use: queslist,
+					content_html: html
+				})
+			}		
+			for (var oDrawing of oDrawings) {
+				let title = oDrawing.GetTitle()
+				var titleObj = Api.ParseJSON(title)
+				if (!titleObj || !titleObj.feature || !titleObj.feature.ques_use) {
+					continue
 				}
-			} else {
-				handledcontrol[oControl.Sdt.GetId()] = 1
-				oRange = useControl.GetRange()
+				var paraDrawing = oDrawing.getParaDrawing()
+				if (!paraDrawing) {
+					continue
+				}
+				oDrawing.Select()
+				var parentRun = paraDrawing.GetRun()
+				if (parentRun) {
+					var oRun = Api.LookupObject(parentRun.Id)
+					var contentpos = oDocument.Document.GetContentPosition()
+					var oRange = oRun.GetRange(contentpos, contentpos)
+					addUse(titleObj.feature.client_id, titleObj.feature.ques_use,getHtml(oRange, true), 'image')
+				}
 			}
-			oRange.Select()
-			let text_data = {
-				data:     "",
-				// 返回的数据中class属性里面有binary格式的dom信息，需要删除掉
-				pushData: function (format, value) {
-				this.data = value ? value.replace(/class="[a-zA-Z0-9-:;+"\/=]*/g, "") : "";
+			for (var oTable of oTables) {
+				let title = Api.ParseJSON(oTable.GetTableTitle())
+				if (!title || !title.ques_use) {
+					continue
 				}
-			};
-			Api.asc_CheckCopy(text_data, 2);
-			var content_html = text_data.data
-			target_list.push({
-				id: clientid,
-				parent_id: parent_id,
-				uuid: question_map[clientid].uuid || '',
-				regionType: question_map[clientid].level_type,
-				content_type: question_map[clientid].level_type,
-				content_xml: '',
-				content_html: content_html,
-				content_text: oRange.GetText(),
-				question_type: question_map[clientid].question_type,
-				question_name: question_map[clientid].ques_name || question_map[clientid].ques_default_name,
-				control_id: oControl.Sdt.GetId(),
-				lvl: lvl
-			})
-		}
-		console.log('target_list', target_list)
-		return target_list
-	}, false, false, {name: 'getControlListForUpload'})
+				var oRange = oTable.GetRange()
+				addUse(title.client_id, title.ques_use, getHtml(oRange, true), 'table')
+			}
+			return {
+				target_list,
+				common_use
+			}
+	  }, false, false, {name: 'getControlListForUpload'})
 }
 
 // 清洗输出的html
 function cleanHtml(html) {
-// 创建一个临时的div用以装载需要处理的HTML内容
-var tempDiv = document.createElement('div');
+	// 创建一个临时的div用以装载需要处理的HTML内容
+	var tempDiv = document.createElement('div');
 
-tempDiv.innerHTML = html
+	tempDiv.innerHTML = html
 
-//如果没有子节点或者文本内容就可以删除的元素
-const removeEmpty = { div: 1, a: 1, abbr: 1, acronym: 1, address: 1, b: 1, bdo: 1, big: 1, cite: 1, code: 1, del: 1, dfn: 1, em: 1, font: 1, i: 1, ins: 1, label: 1, kbd: 1, q: 1, s: 1, samp: 1, small: 1, span: 1, strike: 1, strong: 1, sub: 1, sup: 1, tt: 1, u: 1, 'var': 1 };
+	//如果没有子节点或者文本内容就可以删除的元素
+	const removeEmpty = { div: 1, a: 1, abbr: 1, acronym: 1, address: 1, b: 1, bdo: 1, big: 1, cite: 1, code: 1, del: 1, dfn: 1, em: 1, font: 1, i: 1, ins: 1, label: 1, kbd: 1, q: 1, s: 1, samp: 1, small: 1, span: 1, strike: 1, strong: 1, sub: 1, sup: 1, tt: 1, u: 1, 'var': 1 };
 
-// 替换部分标签 为 p 标签
-tempDiv.querySelectorAll('h1, h2, h3, h4, h5, li').forEach(el => {
-	const p = document.createElement('p');
-	while(el.firstChild) {
-	p.appendChild(el.firstChild);
-	}
-	el.parentNode.replaceChild(p, el);
-});
-
-// 移除所有 div, ul, ol 标签但是保留内容
-tempDiv.querySelectorAll('div, ul, ol').forEach(el => {
-	while(el.firstChild) {
-	el.parentNode.insertBefore(el.firstChild, el);
-	}
-	el.parentNode.removeChild(el);
-});
-
-// 移除 span 标签但保留内容
-tempDiv.querySelectorAll('span').forEach(el => {
-	while(el.firstChild) {
-	el.parentNode.insertBefore(el.firstChild, el);
-	}
-	el.parentNode.removeChild(el);
-});
-
-// 移除所有带data-zone_type="question"属性的标签
-tempDiv.querySelectorAll('[data-zone_type="question"]').forEach(el => {
-	el.parentNode.removeChild(el);
-});
-
-// 移除所有带data-属性的元素属性
-let data_ignore_list = ['data-client_id', 'data-ques_use'] // 需要保留的data属性
-tempDiv.querySelectorAll('*').forEach(el => {
-	Array.from(el.attributes).forEach(attr => {
-	if (attr.name.startsWith('data-') && !data_ignore_list.includes(attr.name)) {
-		el.removeAttribute(attr.name);
-	}
+	// 替换部分标签 为 p 标签
+	tempDiv.querySelectorAll('h1, h2, h3, h4, h5, li').forEach(el => {
+		const p = document.createElement('p');
+		while(el.firstChild) {
+			p.appendChild(el.firstChild);
+		}
+		el.parentNode.replaceChild(p, el);
 	});
-});
 
-// // 移除所有style属性
-// tempDiv.querySelectorAll('[style]').forEach(el => {
-//   el.removeAttribute('style');
-// });
-
-// 只保留特定的 style 属性
-tempDiv.querySelectorAll('[style]').forEach(el => {
-	const style = el.getAttribute('style');
-	const allowedStyles = extractAllowedStyles(style);
-	if (allowedStyles) {
-	el.setAttribute('style', allowedStyles);
-	} else {
-	el.removeAttribute('style');
-	}
-});
-
-tempDiv.querySelectorAll('table').forEach(table => {
-	// 检查是否具有 width 属性
-	if (table.hasAttribute('width')) {
-	const widthValue = table.getAttribute('width');
-	// 检查 width 值是否包含百分比符号 '%'
-	if (widthValue.includes('%')) {
-		// 提取百分比数值
-		const percentValue = widthValue.trim();
-		// 将百分比数值应用到 style 属性
-		table.style.cssText = `width: ${percentValue} !important;display: inline-table !important;`
-	}
-	}
-});
-
-// 移除无内容的特定标签
-Object.keys(removeEmpty).forEach(tag => {
-	tempDiv.querySelectorAll(tag).forEach(el => {
-	if (!el.textContent.trim()) {
+	// 移除所有 div, ul, ol 标签但是保留内容
+	tempDiv.querySelectorAll('div, ul, ol').forEach(el => {
+		while(el.firstChild) {
+			el.parentNode.insertBefore(el.firstChild, el);
+		}
 		el.parentNode.removeChild(el);
-	}
 	});
-});
 
-flattenNestedP(tempDiv)
+	// 移除 span 标签但保留内容
+	tempDiv.querySelectorAll('span').forEach(el => {
+		while(el.firstChild) {
+			el.parentNode.insertBefore(el.firstChild, el);
+		}
+		el.parentNode.removeChild(el);
+	});
 
-return tempDiv.innerHTML
+	// 移除所有带data-zone_type="question"属性的标签
+	tempDiv.querySelectorAll('[data-zone_type="question"]').forEach(el => {
+		el.parentNode.removeChild(el);
+	});
+
+	// 移除所有带data-属性的元素属性
+	let data_ignore_list = ['data-client_id', 'data-ques_use'] // 需要保留的data属性
+	tempDiv.querySelectorAll('*').forEach(el => {
+		Array.from(el.attributes).forEach(attr => {
+			if (attr.name.startsWith('data-') && !data_ignore_list.includes(attr.name)) {
+				el.removeAttribute(attr.name);
+			}
+		});
+	});
+
+	// // 移除所有style属性
+	// tempDiv.querySelectorAll('[style]').forEach(el => {
+	//   el.removeAttribute('style');
+	// });
+
+	// 只保留特定的 style 属性
+	tempDiv.querySelectorAll('[style]').forEach(el => {
+		const style = el.getAttribute('style');
+		const allowedStyles = extractAllowedStyles(style);
+		if (allowedStyles) {
+			el.setAttribute('style', allowedStyles);
+		} else {
+			el.removeAttribute('style');
+		}
+	});
+
+	tempDiv.querySelectorAll('table').forEach(table => {
+		// 检查是否具有 width 属性
+		if (table.hasAttribute('width')) {
+			const widthValue = table.getAttribute('width');
+			// 检查 width 值是否包含百分比符号 '%'
+			if (widthValue.includes('%')) {
+				// 提取百分比数值
+				const percentValue = widthValue.trim();
+				// 将百分比数值应用到 style 属性
+				table.style.cssText = `width: ${percentValue} !important;display: inline-table !important;`
+			}
+		}
+	});
+
+	// 移除无内容的特定标签
+	Object.keys(removeEmpty).forEach(tag => {
+		tempDiv.querySelectorAll(tag).forEach(el => {
+		if (!el.textContent.trim()) {
+			el.parentNode.removeChild(el);
+		}
+		});
+	});
+
+	flattenNestedP(tempDiv)
+
+	return tempDiv.innerHTML
 }
 
 function extractAllowedStyles(style) {
-// 允许保留的样式属性列表
-const allowedProperties = ['text-align'];
-const styleRules = style.split(';');
-const filteredStyles = styleRules.filter(rule => {
-	const [property] = rule.split(':');
-	return allowedProperties.includes(property.trim());
-});
-return filteredStyles.join(';').trim();
+	// 允许保留的样式属性列表
+	const allowedProperties = ['text-align'];
+	const styleRules = style.split(';');
+	const filteredStyles = styleRules.filter(rule => {
+		const [property] = rule.split(':');
+		return allowedProperties.includes(property.trim());
+	});
+	return filteredStyles.join(';').trim();
 }
 
 function flattenNestedP(node) {
-// 如果有重复嵌套的p标签则保留最里面那层
-node.querySelectorAll('p').forEach(p => {
-	if (p.querySelector('p')) {
-	let childP = p.querySelector('p');
-	p.parentNode.insertBefore(childP, p);
-	p.parentNode.removeChild(p);
-	flattenNestedP(node);
-	}
-});
+	// 如果有重复嵌套的p标签则保留最里面那层
+	node.querySelectorAll('p').forEach(p => {
+		if (p.querySelector('p')) {
+			let childP = p.querySelector('p');
+			p.parentNode.insertBefore(childP, p);
+			p.parentNode.removeChild(p);
+			flattenNestedP(node);
+		}
+	});
 }
 
 function getXml(controlId) {
@@ -3939,7 +3887,7 @@ function judgeRepeat(target_list) {
 }
 
 // 后端已支持结构和题目可同级出现在结构下，取代旧代码
-function generateTreeForUpload(control_list) {
+function generateTreeForUpload(control_list, common_use) {
 	return new Promise((resolve, reject) => {
 		if (!control_list) {
 			reject(null)
@@ -3965,6 +3913,11 @@ function generateTreeForUpload(control_list) {
 			}
 			map[e.id] = { ...e, children: [] };
 		});
+		if (common_use) {
+			common_use.forEach(e => {
+				e.content_html = cleanHtml(e.content_html || '')
+			})
+		}
 		control_list.forEach(item => {
 			if (item.parent_id && item.parent_id != item.id) {
 				if (map[item.parent_id] && map[item.parent_id].children) {
@@ -3989,81 +3942,7 @@ function generateTreeForUpload(control_list) {
 		}
 		console.log('               uploadTree', uploadTree)
 		var version = getTimeString()
-		reqComplete(uploadTree, version).then(res => {
-			console.log('reqComplete', res)
-			console.log('[reqUploadTree end]', Date.now())
-			if (res.data.questions) {
-				res.data.questions.forEach(e => {
-					window.BiyueCustomData.question_map[e.id].uuid = e.uuid
-				})
-				Object.keys(window.BiyueCustomData.question_map).forEach(e => {
-					var index = res.data.questions.findIndex(e2 => {
-						return e2.uuid == window.BiyueCustomData.question_map[e].uuid
-					})
-					if (index == -1) {
-						window.BiyueCustomData.question_map[e].uuid = ''
-					}
-				})
-			}
-			resolve(res)
-		}).catch(res => {
-			console.log('reqComplete fail', res)
-			console.log('[reqUploadTree end]', Date.now())
-			reject(res)
-		})
-	})
-}
-
-function generateTreeForUpload2(control_list) {
-	return new Promise((resolve, reject) => {
-		if (!control_list) {
-			reject(null)
-		}
-		var tree = []
-		var choicemap = Asc.scope.choice_html_map || {}
-		control_list.forEach((e) => {
-			e.content_html = cleanHtml(e.content_html || '')
-			if (choicemap[e.id]) {
-				e.content_without_opt = cleanHtml(choicemap[e.id].steam || '')
-				e.options = []
-				if (choicemap[e.id].options) {
-					choicemap[e.id].options.forEach(option => {
-						e.options.push({
-							value: option.value,
-							html: cleanHtml(option.html)
-						})
-					})
-				}
-				e.option_type = choicemap[e.id].option_type
-			}
-			if (e.parent_id == 0) {
-				e.id = e.id + ''
-				tree.push(e)
-			} else {
-				var parent = getDataById(tree, e.parent_id)
-				if (parent) {
-					if (!parent.children) {
-						parent.children = []
-					}
-					e.id = e.id + ''
-					parent.children.push(e)
-				}
-			}
-		})
-		var uploadTree = {
-			id: "",
-			uuid: window.BiyueCustomData.paper_uuid,
-			question_type:0,
-			question_name:"",
-			content_type:"paper",
-			content_text:"",
-			content_xml:"",
-			content_html:"",
-			children: tree
-		}
-		console.log('               uploadTree', uploadTree)
-		var version = getTimeString()
-		reqComplete(uploadTree, version).then(res => {
+		reqComplete(uploadTree, version, common_use).then(res => {
 			console.log('reqComplete', res)
 			console.log('[reqUploadTree end]', Date.now())
 			if (res.data.questions) {
@@ -4262,7 +4141,7 @@ function deleteAsks(askList, recalc = true, notify = true) {
 			}
 			function removeCellAskRecord(oCell) {
 				var oTable = oCell.GetParentTable()
-				if (oTable && oTable.GetPosInParent() >= 0) {
+				if (oTable && oTable.Table.IsUseInDocument && oTable.Table.IsUseInDocument()) {
 					var desc = Api.ParseJSON(oTable.GetTableDescription())
 					var key = `${oCell.GetRowIndex()}_${oCell.GetIndex()}`
 					if (desc[key]) {
@@ -4291,13 +4170,10 @@ function deleteAsks(askList, recalc = true, notify = true) {
 				if (client_id) {
 					if (control_id) {
 						var oControl = Api.LookupObject(control_id)
-						if (oControl && oControl.GetTag) {
-							var pos = oControl.GetClassType() == 'inlineLvlSdt' ? oControl.Sdt.GetPosInParent() : oControl.GetPosInParent()
-							if (pos >= 0) {
-								var tag = Api.ParseJSON(oControl.GetTag())
-								if (tag.client_id == client_id) {
-									return oControl
-								}
+						if (oControl && oControl.GetTag && oControl.Sdt && oControl.Sdt.IsUseInDocument && oControl.Sdt.IsUseInDocument()) {
+							var tag = Api.ParseJSON(oControl.GetTag())
+							if (tag.client_id == client_id) {
+								return oControl
 							}
 						}
 					}
@@ -4619,11 +4495,11 @@ function focusControl(id) {
 			var controls = oDocument.GetAllContentControls()
 			function getControlsByClientId(cid) {
 				var findControls = controls.filter(e => {
-					var tag = Api.ParseJSON(e.GetTag())
-					if (e.GetClassType() == 'blockLvlSdt') {
-						return tag.client_id == cid && e.GetPosInParent() >= 0
-					} else if (e.GetClassType() == 'inlineLvlSdt') {
-						return e.Sdt && e.Sdt.GetPosInParent() >= 0 && tag.client_id == cid
+					if (e.Sdt && e.Sdt.IsUseInDocument && e.Sdt.IsUseInDocument()) {
+						var tag = Api.ParseJSON(e.GetTag())
+						if (e.GetClassType() == 'blockLvlSdt' || e.GetClassType() == 'inlineLvlSdt') {
+							return tag.client_id == cid
+						}
 					}
 				})
 				if (findControls && findControls.length) {
@@ -4677,20 +4553,41 @@ function focusAsk(writeData) {
 			var drawings = oDocument.GetAllDrawingObjects() || []
 			var controls = oDocument.GetAllContentControls() || []
 			var oTables = oDocument.GetAllTables() || []
-			function getCell(wData) {
-				for (var i = 0; i < oTables.length; ++i) {
-					var oTable = oTables[i]
-					if (oTable.GetPosInParent() == -1) { continue }
-					var desc = Api.ParseJSON(oTable.GetTableDescription())
-					var keys = Object.keys(desc)
-					if (keys.length) {
+			function getCell(write_data) {
+				if (!write_data) {
+					return null
+				}
+				var oCell = Api.LookupObject(write_data.cell_id)
+				if (oCell && oCell.GetClassType() == 'tableCell' && oCell.Cell && oCell.Cell.IsUseInDocument && oCell.Cell.IsUseInDocument()) {
+					return oCell
+				}
+				if (write_data.table_cid) {
+					for (var table of oTables) {
+						var tableTitle = Api.ParseJSON(table.GetTableTitle())
+						if (tableTitle && tableTitle.client_id == write_data.table_cid) {
+							return table.GetCell(write_data.row_index, write_data.cell_index)
+						}
+					}
+				} else {
+					for (var oTable of oTables) {
+						if (oTable.Table.IsUseInDocument && !oTable.Table.IsUseInDocument()) {
+							continue
+						}
+						var desc = Api.ParseJSON(table.GetTableDescription())
+						if (typeof desc != 'object') {
+							continue
+						}
+						var keys = Object.keys(desc)
+						if (!keys || keys.length == 0) {
+							continue
+						}
 						for (var j = 0; j < keys.length; ++j) {
 							var key = keys[j]
-							if (desc[key] == wData.id) {
+							if (desc[key] == write_data.id) {
 								var rc = key.split('_')
-								if (wData.row_index == undefined) {
+								if (write_data.row_index == undefined) {
 									return oTable.GetCell(rc[0], rc[1])
-								} else if (wData.row_index == rc[0] && wData.cell_index == rc[1]) {
+								} else if (write_data.row_index == rc[0] && write_data.cell_index == rc[1]) {
 									return oTable.GetCell(rc[0], rc[1])
 								}
 							}
@@ -4705,13 +4602,9 @@ function focusAsk(writeData) {
 			for (var wData of writeList) {
 				if (wData.sub_type == 'control') {
 					var oControls = controls.filter(e => {
-						var tag = Api.ParseJSON(e.GetTag())
-						if (tag.client_id == wData.id && e.Sdt) {
-							if (e.GetClassType() == 'blockLvlSdt') {
-								return e.GetPosInParent() >= 0
-							} else if (e.GetClassType() == 'inlineLvlSdt') {
-								return e.Sdt.GetPosInParent() >= 0
-							}
+						if (e.Sdt && e.Sdt.IsUseInDocument && e.Sdt.IsUseInDocument()) {
+							var tag = Api.ParseJSON(e.GetTag())
+							return tag.client_id == wData.id
 						}
 					})
 					if (oControls && oControls.length) {
@@ -4724,6 +4617,11 @@ function focusAsk(writeData) {
 								oRange = oControls[0].GetRange()
 							}
 						}
+					}
+					if (ids.length == 1) {
+						oDocument.Document.MoveCursorToContentControl(ids[0], true)
+					} else if (oRange) {
+						oRange.Select()
 					}
 				} else if (wData.sub_type == 'write' || wData.sub_type == 'identify') {
 					var oDrawing = drawings.find(e => {
@@ -4752,21 +4650,20 @@ function focusAsk(writeData) {
 							}
 						} 
 					}
-				} else if (wData.sub_type == 'cell' && wData.cell_id) {
-					var oCell = Api.LookupObject(wData.cell_id)
-					if (oCell && oCell.GetClassType() == 'tableCell') {
-						var table = oCell.GetParentTable()
-						if (table.GetPosInParent() == -1) {
-							oCell = getCell(wData)
-						}
-						if (oCell) {
-							var cellContent = oCell.GetContent()
-							if (cellContent) {
-								rangeCount++
-								if (oRange) {
-									oRange = oRange.ExpandTo(cellContent.GetRange())
-								} else {
-									oRange = cellContent.GetRange()
+				} else if (write_data.sub_type == 'cell') {
+					var oRange = null
+					for (var wData of writeList) {
+						if (wData.cell_id) {
+							var oCell = getCell(wData)
+							if (oCell) {
+								var cellContent = oCell.GetContent()
+								if (cellContent) {
+									rangeCount++
+									if (oRange) {
+										oRange = oRange.ExpandTo(cellContent.GetRange())
+									} else {
+										oRange = cellContent.GetRange()
+									}
 								}
 							}
 						}
@@ -4775,7 +4672,7 @@ function focusAsk(writeData) {
 			}
 			if (oRange) {
 				oRange.Select()
-		}
+			}
 	}, false, false, {name: 'focusAsk'})
 }
 
@@ -5351,12 +5248,12 @@ function splitControl(qid) {
 				if (!control_id) {
 					control = Api.LookupObject(control_id)
 				}
-				if (!control || control.GetClassType() != 'blockLvlSdt' || control.GetPosInParent() == -1) {
+				if (!control || control.GetClassType() != 'blockLvlSdt' || (control.Sdt && control.Sdt.IsUseInDocument && !control.Sdt.IsUseInDocument()) ) {
 					var controls = oDocument.GetAllContentControls()
 					if (controls) {
 						control = controls.find(e => {
 							var tag = Api.ParseJSON(e.GetTag())
-							return tag.client_id == nodeId && e.GetClassType() == 'blockLvlSdt' && e.GetPosInParent() >= 0
+							return tag.client_id == nodeId && e.GetClassType() == 'blockLvlSdt' && e.Sdt && e.Sdt.IsUseInDocument && e.Sdt.IsUseInDocument()
 						})
 					}
 				}
@@ -5530,9 +5427,16 @@ function splitControl(qid) {
 							var text = control.GetRange().GetText()
 							if (text && text.replace(/[\s\r\n]/g, '').length === 0) {
 								var oTable = oCell.GetParentTable()
+								var tableTitle = Api.ParseJSON(oTable.GetTableTitle()) || {}
+								if (!tableTitle.client_id) {
+									client_node_id += 1
+									tableTitle.client_id = client_node_id
+								}
+								oTable.SetTableTitle(JSON.stringify(tableTitle))
 								result.change_list.push({
 									parent_id: obj.client_id,
 									table_id: oTable.Table.Id,
+									table_cid: client_node_id,
 									row_index: oCell.GetRowIndex(),
 									cell_index: oCell.GetIndex(),
 									cell_id: oCell.Cell.Id,
@@ -6102,12 +6006,33 @@ function handleUploadPrepare(cmdType) {
 			})
 			// 处理单元格小问
 			function getCell(write_data) {
-				for (var i = 0; i < oTables.length; ++i) {
-					var oTable = oTables[i]
-					if (oTable.GetPosInParent() == -1) { continue }
-					var desc = Api.ParseJSON(oTable.GetTableDescription())
-					var keys = Object.keys(desc)
-					if (keys.length) {
+				if (!write_data) {
+					return null
+				}
+				var oCell = Api.LookupObject(write_data.cell_id)
+				if (oCell && oCell.GetClassType() == 'tableCell' && oCell.Cell && oCell.Cell.IsUseInDocument && oCell.Cell.IsUseInDocument()) {
+					return oCell
+				}
+				if (write_data.table_cid) {
+					for (var table of oTables) {
+						var tableTitle = Api.ParseJSON(table.GetTableTitle())
+						if (tableTitle && tableTitle.client_id == write_data.table_cid) {
+							return table.GetCell(write_data.row_index, write_data.cell_index)
+						}
+					}
+				} else {
+					for (var oTable of oTables) {
+						if (oTable.Table.IsUseInDocument && !oTable.Table.IsUseInDocument()) {
+							continue
+						}
+						var desc = Api.ParseJSON(table.GetTableDescription())
+						if (typeof desc != 'object') {
+							continue
+						}
+						var keys = Object.keys(desc)
+						if (!keys || keys.length == 0) {
+							continue
+						}
 						for (var j = 0; j < keys.length; ++j) {
 							var key = keys[j]
 							if (desc[key] == write_data.id) {
@@ -6117,7 +6042,6 @@ function handleUploadPrepare(cmdType) {
 								} else if (write_data.row_index == rc[0] && write_data.cell_index == rc[1]) {
 									return oTable.GetCell(rc[0], rc[1])
 								}
-
 							}
 						}
 					}
@@ -6148,15 +6072,7 @@ function handleUploadPrepare(cmdType) {
 											return w.id == wid
 										})
 										if (writeData && writeData.sub_type == 'cell' && writeData.cell_id) {
-											var oCell = Api.LookupObject(writeData.cell_id)
-											if (oCell && oCell.GetClassType && oCell.GetClassType() == 'tableCell') {
-												var oTable = oCell.GetParentTable()
-												if (oTable && oTable.GetPosInParent() == -1) {
-													oCell = getCell(writeData)
-												}
-											} else {
-												oCell = getCell(writeData)
-											}
+											var oCell = getCell(writeData)
 											if (oCell) {
 												oCell.SetBackgroundColor(255, 191, 191, cmdType == 'show' ? false : true)
 											}
@@ -6209,16 +6125,17 @@ function importExam() {
 	}).then((res) => {
 		Asc.scope.choice_html_map = res
 		return getControlListForUpload()
-	}).then(control_list => {
-		if (control_list && control_list.length) {
-			var repeatList = judgeRepeat(control_list)
+	}).then(res => {
+		const { target_list, common_use } = res
+		if (target_list && target_list.length) {
+			var repeatList = judgeRepeat(target_list)
 			if (repeatList && repeatList.length) {
 				uploadValidateHandler.showValidateDialog({
 					source: 'uploadExam',
 					repeat_list: repeatList,
 				})
 			} else {
-				generateTreeForUpload(control_list).then(() => {
+				generateTreeForUpload(target_list, common_use).then(() => {
 					setBtnLoading('uploadTree', false)
 					setInteraction('useself').then(() => {
 						return getAllPositions2()
@@ -6228,6 +6145,7 @@ function importExam() {
 					}).then(() => {
 						setBtnLoading('importExam', false)
 						if (uploadValidateHandler.onValidate()) {
+							console.log('[打开上传窗口]', Date.now())
 							window.biyue.showDialog('exportExamWindow', '上传试卷', 'examExport.html', 1000, 800, true)
 						} else {
 							handleUploadPrepare('show').then(() => {
@@ -6545,246 +6463,212 @@ function insertSymbol(unicode) {
 	})
 }
 
+function insertImage(data) {
+	if (!data) {
+		return
+	}
+	Asc.scope.insert_data = data
+	return biyueCallCommand(window, function() {
+		var image_data = Asc.scope.insert_data
+		var oDocument = Api.GetDocument()
+		var pos = oDocument.Document.Get_CursorLogicPosition()
+		var oDrawing = Api.CreateImage(image_data.src, image_data.width * 36e3, image_data.height * 36e3)
+		if (pos && pos.length && pos[pos.length - 1]) {
+			var lastElement = pos[pos.length - 1].Class
+			if (lastElement.Add_ToContent) {
+				lastElement.Add_ToContent(
+					pos[pos.length - 1].Position,
+					oDrawing.getParaDrawing()
+				)
+				oDocument.Document.MoveCursorRight()
+
+			}
+		}
+	}, false, true, {name: 'insertImage'})
+}
+
 function preGetExamTree() {
 	Asc.scope.node_list = window.BiyueCustomData.node_list
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	return biyueCallCommand(window, function() {
-			// console.log('[preGetExamTree begin]')
-			var node_list = Asc.scope.node_list || []
-			var question_map = Asc.scope.question_map || {}
-			var oDocument = Api.GetDocument()
-			var controls = oDocument.GetAllContentControls() || []
-			function getFirstParagraph(oControl) {
-				if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
-					return null
-				}
-				var paragraphs = oControl.GetAllParagraphs()
-				for (var i = 0; i < paragraphs.length; ++i) {
-					var oParagraph = paragraphs[i]
-					if (oParagraph) {
-						var parent1 = oParagraph.Paragraph.Parent
-						var parent2 = parent1.Parent
-						if (parent2 && parent2.Id == oControl.Sdt.GetId()) {
-							return oParagraph
-						}
-					}
-				}
+		var node_list = Asc.scope.node_list || []
+		var question_map = Asc.scope.question_map || {}
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls() || []
+		function getValidParent(oControl) {
+			if (!oControl) {
 				return null
 			}
-			function getLvl(oControl, paraIndex) {
-				var oParagraph = getFirstParagraph(oControl)
-				if (!oParagraph) {
-					return null
-				}
-				var oNumberingLevel = oParagraph.GetNumbering()
-				if (oNumberingLevel) {
-					return oNumberingLevel.Lvl
-				}
-				return null
-			}
-			function getValidParent(oControl) {
-				if (!oControl) {
-					return null
-				}
-				var oParentControl = oControl.GetParentContentControl()
-				if (oParentControl) {
-					var tag = Api.ParseJSON(oParentControl.GetTag())
-					var qId = tag.mid ? tag.mid : tag.client_id
-					if (question_map[qId]) {
-						return oParentControl
-					} else {
-						return getValidParent(oParentControl)
-					}
-				}
-				return null
-			}
-			var list = []
-			var handled = {}
-			for (var oControl of controls) {
-				var tag = Api.ParseJSON(oControl.GetTag())
-				if (!tag.client_id) {
-					continue
-				}
+			var oParentControl = oControl.GetParentContentControl()
+			if (oParentControl) {
+				var tag = Api.ParseJSON(oParentControl.GetTag())
 				var qId = tag.mid ? tag.mid : tag.client_id
-				if (handled[qId]) {
-					continue
-				}
-				var quesData = question_map[qId]
-				if (!quesData) {
-					continue
-				}
-				if (quesData.level_type != 'struct' && quesData.level_type != 'question') {
-					continue
-				}
-				handled[qId] = true
-				var nodeData = node_list.find(e => {
-					return e.id == tag.client_id
-				})
-				var is_big = nodeData ? nodeData.is_big : false
-				var lvl = null
-				var obj = {
-					id: qId,
-					level_type: quesData.level_type,
-					parent_id: 0,
-					parent_index: -1,
-					is_big: is_big,
-				}
-				var oParentControl = getValidParent(oControl)
-				if (quesData.level_type == 'struct') {
-					lvl = getLvl(oControl)
-				} else if (quesData.level_type == 'question') {
-					lvl = getLvl(oControl, is_big ? 0 : -1)
-				}
-				obj.lvl = lvl
-				if (oParentControl && quesData.level_type == 'question') {
-					var parentTag = Api.ParseJSON(oParentControl.GetTag() || '{}')
-					var p_id = parentTag.mid ? parentTag.mid : parentTag.client_id
-					obj.parent_id = p_id
-					obj.parent_index = list.findIndex(e => {
-						return e.id == p_id
-					})
-					// console.log(qId, '1   p_id', obj.parent_id, obj.parent_index)
-				} else if (lvl === 0) {
-					obj.parent_id = 0
-					obj.parent_index = -1
-					// console.log(qId, '2   p_id', obj.parent_id, obj.parent_index)
+				if (question_map[qId]) {
+					return oParentControl
 				} else {
-					// 根据level, 查找在它前面的比它lvl小的struct
-					if (list.length > 0) {
-						for (var i = list.length - 1; i >= 0; --i) {
-							if (list[i].lvl === null) {
+					return getValidParent(oParentControl)
+				}
+			}
+			return null
+		}
+		var list = []
+		var handled = {}
+		for (var oControl of controls) {
+			var tag = Api.ParseJSON(oControl.GetTag())
+			if (!tag.client_id) {
+				continue
+			}
+			var qId = tag.mid ? tag.mid : tag.client_id
+			if (handled[qId]) {
+				continue
+			}
+			var quesData = question_map[qId]
+			if (!quesData) {
+				continue
+			}
+			if (quesData.level_type != 'struct' && quesData.level_type != 'question') {
+				continue
+			}
+			handled[qId] = true
+			var nodeData = node_list.find(e => {
+				return e.id == tag.client_id
+			})
+			var is_big = nodeData ? nodeData.is_big : false
+			var lvl = quesData.lvl
+			if (!lvl) {
+				lvl = tag.lvl
+			}
+			var obj = {
+				id: qId,
+				level_type: quesData.level_type,
+				parent_id: 0,
+				parent_index: -1,
+				is_big: is_big,
+				lvl: lvl
+			}
+
+			var oParentControl = getValidParent(oControl)
+			if (oParentControl && quesData.level_type == 'question') {
+				var parentTag = Api.ParseJSON(oParentControl.GetTag() || '{}')
+				var p_id = parentTag.mid ? parentTag.mid : parentTag.client_id
+				obj.parent_id = p_id
+				obj.parent_index = list.findIndex(e => {
+					return e.id == p_id
+				})
+			} else {
+				if (list.length && lvl !== null) {
+					var min_p_index = list.length
+					var max_struct_index = -1
+					for (var i = list.length - 1; i >= 0; --i) {
+						console.log(qId, lvl, obj.level_type, list[i].lvl, list[i].id, list[i].level_type, list[i].parent_index)
+						if (list[i].lvl == null) {
+							break
+						}
+						if (list[i].level_type == 'struct') {
+							if (max_struct_index == -1) {
+								max_struct_index = i
+							}
+						}
+						min_p_index = Math.min(min_p_index, list[i].parent_index);
+						if (list[i].lvl < lvl) {
+							if (quesData.level_type == 'struct') {
 								if (list[i].level_type == 'struct') {
-									if (lvl === null) {
-										obj.parent_id = list[i].parent_id
-										obj.parent_index = list[i].parent_index
-									} else {
+									if (isValidParent(list.length - 1, list, i)) {
 										obj.parent_id = list[i].id
 										obj.parent_index = i
-									}
-									// console.log(qId, '3   p_id', obj.parent_id, obj.parent_index)
-									break
-								} else if (list[i].is_child) {
-									continue
-								} else {
-									obj.parent_id = list[i].parent_id
-									obj.parent_index = list[i].parent_index
-									// console.log(qId, '4   p_id', obj.parent_id, obj.parent_index)
-									break
-								}
-							} else if (list[i].lvl === 0) {
-								if (list[i].level_type == 'struct') {
-									obj.parent_id = list[i].id
-									obj.parent_index = i
-									// console.log(qId, '5   p_id', obj.parent_id, obj.parent_index)
-									break
-								} else if (!list[i].is_child) {
-									obj.parent_id = 0
-									obj.parent_index = -1
-									// console.log(qId, '6   p_id', obj.parent_id, obj.parent_index)
-									break
-								}
-							} else if (list[i].lvl < lvl) {
-								if (list[i].level_type == 'struct') {
-									obj.parent_id = list[i].id
-									obj.parent_index = i
-									// console.log(qId, '7   p_id', obj.parent_id, obj.parent_index)
-									break
-								} else {
-									if (list[i].is_child) {
-										continue
-									} else {
-										obj.parent_id = list[i].parent_id
-										obj.parent_index = list[i].parent_index
-										// console.log(qId, '8   p_id', obj.parent_id, obj.parent_index)
-									}
-									break
-								}
-							} else if (list[i].lvl === lvl) {
-								if (list[i].level_type == 'struct') {
-									if (list[i].parent_id || quesData.level_type == 'struct') {
-										obj.parent_id = list[i].parent_id
-										obj.parent_index = i
-										// console.log(qId, '9   p_id', obj.parent_id, obj.parent_index)
-									} else {
-										obj.parent_id = list[i].id
-										obj.parent_index = i
-										// console.log(qId, '10   p_id', obj.parent_id, obj.parent_index)
-									}
-									break
-								} else if (list[i].level_type == 'question') {
-									if (quesData.level_type == 'struct') {
-										continue
-									} else if (list[i].is_child) {
-										continue
-									} else {
-										obj.parent_id = list[i].parent_id
-										obj.parent_index = list[i].parent_index
-										// console.log(qId, '11   p_id', obj.parent_id, obj.parent_index)
 										break
 									}
 								}
-							} else if (list[i].lvl > lvl) {
-								if (list[i].level_type == 'struct' && list[i].parent_id == 0 && quesData.level_type == 'question' && lvl > 0) {
+							} else {
+								if (max_struct_index >= 0) {
+									if (max_struct_index > i) {
+										if (min_p_index >= 0 && min_p_index >= i) {
+											if (isValidParent(list.length - 1, list, i)) {
+												obj.parent_id = list[i].id
+												obj.parent_index = i
+												break
+											}
+										} else if (min_p_index == -1) {
+											if (isValidParent(list.length - 1, list, i)) {
+												obj.parent_id = list[i].id
+												obj.parent_index = i
+												break
+											}
+										}
+										continue
+									}
+								}
+								if (isValidParent(list.length - 1, list, i)) {
 									obj.parent_id = list[i].id
 									obj.parent_index = i
 									break
 								}
-								continue
 							}
-						}
-					}
-				}
-				var parentTableCell1 = oControl.GetParentTableCell()
-				if (parentTableCell1) {
-					obj.cell_id = parentTableCell1.Cell.Id
-				}
-				list.push(obj)
-				if (is_big) {
-					var bindex = list.length - 1
-					var childControls = oControl.GetAllContentControls()
-					for (var oChildControl of childControls) {
-						var childTag = Api.ParseJSON(oChildControl.GetTag() || '{}')
-						var childId = childTag.mid || childTag.client_id
-						if (handled[childId] || oChildControl.GetClassType() != 'blockLvlSdt') {
-							continue
-						}
-						var quesData2 = question_map[childId]
-						if (!quesData2) {
-							continue
-						}
-						if (quesData2.level_type != 'struct' && quesData2.level_type != 'question') {
-							continue
-						}
-						handled[childId] = true
-						var parentControl2 = getValidParent(oChildControl)
-						if (parentControl2) {
-							var parentTag2 = Api.ParseJSON(parentControl2.GetTag() || '{}')
-							var parentId2 = parentTag2.mid || parentTag2.client_id
-							var parentIndex2 = list.findIndex(e => {
-								return e.id == parentId2
-							})
-							var obj2 = {
-								id: childId,
-								level_type: quesData2.level_type,
-								parent_id: parentId2,
-								parent_index: parentIndex2,
-								is_big: childTag.big == 1,
-								lvl: getLvl(oChildControl, childTag.big == 1 ? 0 : -1),
-								is_child: true
-							}
-							// console.log(childId, '12   p_id', parentId2, parentIndex2)
-							var parentTableCell = oChildControl.GetParentTableCell()
-							if (parentTableCell) {
-								obj2.cell_id = parentTableCell.Cell.Id
-							}
-							list.push(obj2)
-							list[bindex].end_id = childId
 						}
 					}
 				}
 			}
-			return list
-	}, false, false, {name: 'preGetExamTree'}).then((list => {
+			var parentTableCell1 = oControl.GetParentTableCell()
+			if (parentTableCell1) {
+				obj.cell_id = parentTableCell1.Cell.Id
+			}
+			list.push(obj)
+			if (is_big) {
+				var bindex = list.length - 1
+				var childControls = oControl.GetAllContentControls()
+				for (var oChildControl of childControls) {
+					var childTag = Api.ParseJSON(oChildControl.GetTag() || '{}')
+					var childId = childTag.mid || childTag.client_id
+					if (handled[childId] || oChildControl.GetClassType() != 'blockLvlSdt') {
+						continue
+					}
+					var quesData2 = question_map[childId]
+					if (!quesData2) {
+						continue
+					}
+					if (quesData2.level_type != 'struct' && quesData2.level_type != 'question') {
+						continue
+					}
+					handled[childId] = true
+					var parentControl2 = getValidParent(oChildControl)
+					if (parentControl2) {
+						var parentTag2 = Api.ParseJSON(parentControl2.GetTag() || '{}')
+						var parentId2 = parentTag2.mid || parentTag2.client_id
+						var parentIndex2 = list.findIndex(e => {
+							return e.id == parentId2
+						})
+						var obj2 = {
+							id: childId,
+							level_type: quesData2.level_type,
+							parent_id: parentId2,
+							parent_index: parentIndex2,
+							is_big: childTag.big == 1,
+							lvl: quesData2.lvl || childTag.lvl,
+							is_child: true
+						}
+						// console.log(childId, '12   p_id', parentId2, parentIndex2)
+						var parentTableCell = oChildControl.GetParentTableCell()
+						if (parentTableCell) {
+							obj2.cell_id = parentTableCell.Cell.Id
+						}
+						list.push(obj2)
+						list[bindex].end_id = childId
+					}
+				}
+			}
+			// 判断父节点是否有效
+			function isValidParent(preIndex, list, targetIndex) {
+				for (var i = preIndex; i >= targetIndex; --i) {
+					var pIndex = list[i].parent_index
+					if (i > targetIndex && pIndex < targetIndex) {
+						return false
+					}
+				}
+				return true
+			}
+		}
+		return list
+	}, false, false, {name: 'preGetExamTree'}).then(list => {
 		// 传入OO处理的js代码的列表结构不支持层级过深，嵌套达到5级，就会导致树形结构出错，command无法返回结果
 		return new Promise((resolve, reject) => {
 			if (!list) {
@@ -6818,79 +6702,35 @@ function preGetExamTree() {
 			}
 			resolve({list: list, tree: tree})
 		})
-	}))
+	})
 }
 
 function setNumberingLevel(ids, lvl) {
 	Asc.scope.ids = ids
 	Asc.scope.lvl = lvl
 	return biyueCallCommand(window, function() {
-			// console.log('[setNumberingLevel] begin')
-			var ids = Asc.scope.ids || []
-			var lvl = Asc.scope.lvl
-			var oDocument = Api.GetDocument()
-			var controls = oDocument.GetAllContentControls()
-			var list = []
-			function getFirstParagraph(oControl) {
-				if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
-					return null
-				}
-				var paragraphs = oControl.GetAllParagraphs()
-				for (var i = 0; i < paragraphs.length; ++i) {
-					var oParagraph = paragraphs[i]
-					if (oParagraph) {
-						var parent1 = oParagraph.Paragraph.Parent
-						var parent2 = parent1.Parent
-						if (parent2 && parent2.Id == oControl.Sdt.GetId()) {
-							return oParagraph
-						}
-					}
-				}
-				return null
+		var ids = Asc.scope.ids || []
+		var lvl = Asc.scope.lvl
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls() || []
+		var list = []
+		for (var oControl of controls) {
+			if (oControl.GetClassType() != 'blockLvlSdt') {
+				continue
 			}
-			for (var oControl of controls) {
-				if (oControl.GetClassType() != 'blockLvlSdt') {
-					continue
-				}
-				var tag = Api.ParseJSON(oControl.GetTag() || '{}')
-				var id = tag.mid || tag.client_id
-				if (ids.indexOf(id) == -1) {
-					continue
-				}
-				tag.lvl = lvl
-				oControl.SetTag(JSON.stringify(tag))
-				var numberingtext = ''
-				var oParagraph = getFirstParagraph(oControl)
-				if (oParagraph) {
-					var oNumberingLevel = oParagraph.GetNumbering()
-					if (oNumberingLevel) { // ApiNumberingLevel
-						var oNumbering = oNumberingLevel.GetNumbering()
-						var oNumLvl = oNumbering.GetLevel(lvl)
-						oParagraph.SetNumbering(oNumLvl)
-						numberingtext = oParagraph.Paragraph.GetNumberingText()
-					} else {
-						var oNumbering = Api.GetDocument().CreateNumbering("numbered")  // ApiNumbering
-						for (var i = 0; i < 10; ++i) {
-							var oNumLvl = oNumbering.GetLevel(i)
-							oNumLvl.SetCustomType("none", '', "left");
-							oNumLvl.SetRestart(false);
-							oNumLvl.SetSuff("none")
-							var oParaPr = oNumLvl.GetParaPr()
-							oParaPr.SetIndFirstLine(0);
-							oParaPr.SetIndLeft(0)
-							if (lvl == i) {
-								oParagraph.SetNumbering(oNumLvl)		
-							}
-						}
-					}
-				}
-				list.push({
-					id: id,
-					numbing_text: numberingtext,
-					text: oControl.GetRange().GetText()
-				})
+			var tag = Api.ParseJSON(oControl.GetTag() || '{}')
+			var id = tag.mid || tag.client_id
+			if (ids.indexOf(id) == -1) {
+				continue
 			}
-			return list
+			tag.lvl = lvl
+			oControl.SetTag(JSON.stringify(tag))
+			list.push({
+				id: id,
+				lvl: lvl
+			})
+		}
+		return list
 	}, false, false, {name: 'setNumberingLevel'}).then(list => {
 		return new Promise((resolve, reject) => {
 			try {
@@ -6899,8 +6739,7 @@ function setNumberingLevel(ids, lvl) {
 					for (var item of list) {
 						var question = question_map[item.id]
 						if (question) {
-							question.text = item.text
-							question.ques_default_name = item.numbing_text ? getNumberingText(item.numbing_text) : GetDefaultName(question.level_type, question.text)
+							question.lvl = item.lvl
 						}
 					}
 				}	
@@ -6984,6 +6823,79 @@ function setUnderLine(id) {
 		return true
 	}, false, true, {name: 'setUnderLine'})
 }
+function refreshDocTree() {
+	Asc.scope.question_map = window.BiyueCustomData.question_map
+	return biyueCallCommand(window, function() {
+		var question_map = Asc.scope.question_map || {}
+		var oDocument = Api.GetDocument()
+		var controls = oDocument.GetAllContentControls() || []
+		function getControlsByClientId(cid) {
+			var findControls = controls.filter(e => {
+				var tag = Api.ParseJSON(e.GetTag())
+				if (e.GetClassType() == 'blockLvlSdt') {
+					return tag.client_id == cid && e.GetPosInParent() >= 0
+				} else if (e.GetClassType() == 'inlineLvlSdt') {
+					return e.Sdt && e.Sdt.GetPosInParent() >= 0 && tag.client_id == cid
+				}
+			})
+			if (findControls && findControls.length) {
+				return findControls[0]
+			}
+		}
+		function GetNumberingValue(oControl) {
+			if (!oControl || oControl.GetClassType() != 'blockLvlSdt') {
+				return null
+			}
+			var paragraphs = oControl.GetAllParagraphs()
+			for (var i = 0; i < paragraphs.length; ++i) {
+				var oParagraph = paragraphs[i]
+				if (oParagraph) {
+					var parent1 = oParagraph.Paragraph.Parent
+					var parent2 = parent1.Parent
+					if (parent2) {
+						if (parent2.Id == oControl.Sdt.GetId()) {
+							if (oParagraph.Paragraph.HaveNumbering()) {
+								var oNumberingLevel = oParagraph.GetNumbering()
+								return {text: oParagraph.Paragraph.GetNumberingText(), lvl: oNumberingLevel ? oNumberingLevel.Lvl : 0} 
+							}
+							return null
+						}
+					}
+				}
+			}
+			return null
+		}
+		var newQuesMaps = {}
+		for (var id in question_map) {
+			var ques_data = question_map[id]
+			var ids = ques_data.is_merge ? ques_data.ids : [id]
+			var text = ''
+			var numbing_text = ''
+			for (var cid of ids) {
+				var oControl = getControlsByClientId(cid)
+				if (oControl) {
+					text += oControl.GetRange().GetText()
+					if (!numbing_text) {
+						numbing_text = GetNumberingValue(oControl)
+					}
+				}
+			}
+			newQuesMaps[id] = {
+				text: text,
+				numbing_text: numbing_text ? numbing_text.text : ''
+			}
+		}
+		return newQuesMaps
+	}, false, false, {name: 'refreshDocTree'}).then(res => {
+		if (res) {
+			for (var id in res) {
+				window.BiyueCustomData.question_map[id].text = res[id].text
+				window.BiyueCustomData.question_map[id].ques_default_name = res[id].numbing_text ? getNumberingText(res[id].numbing_text) : GetDefaultName(window.BiyueCustomData.question_map[id].level_type, res[id].text)
+			}
+		}
+		return refreshTree()
+	})
+}
 export {
 	handleDocClick,
 	handleContextMenuShow,
@@ -7016,6 +6928,8 @@ export {
 	focusControl,
 	setNumberingLevel,
 	splitWordAsk,
+	insertImage,
 	focusControlById,
-	setUnderLine
+	setUnderLine,
+	refreshDocTree
 }

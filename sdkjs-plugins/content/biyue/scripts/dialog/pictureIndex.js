@@ -478,7 +478,7 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
     showCom('.progress-text-wrapper', true);
     $('.selected').removeClass('selected');
     $('.box1').eq(0).addClass('selected');
-    updateProgress(link_coverage_percent); // 更新传入的参数
+	updateProgress(link_coverage_percent); // 更新传入的参数
 	}
 
 	function onAllLink() {
@@ -529,7 +529,8 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 		hideQuesList()
 		window.Asc.plugin.sendToPlugin('onWindowMessage', {
 			type: 'pictureIndexMessage',
-			cmd: 'refresh'
+			cmd: 'refresh',
+			data: 'pictureIndex'
 		})
 	}
 

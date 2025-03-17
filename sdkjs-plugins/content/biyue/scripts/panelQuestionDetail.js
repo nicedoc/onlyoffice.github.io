@@ -8,6 +8,7 @@ import { getDataByParams, getFocusAskData, isChoiceMode, isTextMode } from '../s
 import { extractChoiceOptions, removeChoiceOptions, setChoiceOptionLayout } from './choiceQuestion.js'
 import { hasInteraction, getInteractionTypes } from '../scripts/model/feature.js'
 import proportionHandler from './handler/proportionHandler.js'
+import { leaveAddShape } from './classifiedTypes.js'
 // 单题详情
 var proportionTypes = [
 	{ value: 1, label: '默认' },
@@ -148,7 +149,10 @@ function initElements() {
 			<div id="scorelist"></div>
 		</div>
     	<div id="panelQuesAsks"></div>
-		<div id="resplitQues" class="under clicked">重新切题</div>
+		<div class="row-between">
+			<div id="resplitQues" class="under clicked">重新切题</div>
+			<div id="leaveShape" class="under clr1 clicked">退出添加作答区状态</div>
+		</div>
   	</div>
   `
 	$('#panelQues').html(content)
@@ -208,6 +212,8 @@ function initElements() {
 	addClickEvent('#resplitQues', resplitQues)
 	addClickEvent('#applyToQues', () => {onApplyAllQues(false)})
 	addClickEvent('#applyToAllQues', () => {onApplyAllQues(true)})
+	showAddShapeState(false)
+	addClickEvent('#leaveShape', leaveAddShape)
 	inited = true
 	workbook_id = window.BiyueCustomData.workbook_info ? window.BiyueCustomData.workbook_info.id : 0
 }
@@ -1094,4 +1100,8 @@ function changeBracketSpace(id, val) {
 	console.log('changeBracketSpace', id, val)
 }
 
-export { showQuesData, initListener }
+function showAddShapeState(v) {
+	showCom('#leaveShape', v)
+}
+
+export { showQuesData, initListener, showAddShapeState }

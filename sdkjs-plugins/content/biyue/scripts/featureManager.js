@@ -30,7 +30,9 @@ var c_oAscRelativeFromV = {
 }
 
 function handleFeature(options, recalc = true) {
-	if (!options) { return }
+	if (!options) { 
+		return
+	}
 	options.size = Object.assign({}, ZONE_SIZE[options.zone_type], (options.size || {}))
 	if (options.v == undefined) {
 		options.v = 1
@@ -43,14 +45,13 @@ function handleFeature(options, recalc = true) {
 		console.log('loading...')
 		return
 	}
-	drawList([options], recalc).then(() => {
+	return drawList([options], recalc).then(() => {
 		setLoading(false)
-		// handleNext()
 	})
 }
 
 function drawExtroInfo(list, imageDimensionsCache, calc) {
-	if (!list) {
+	if (!list) { 
 		return new Promise((resolve, reject) => {
 			return resolve()
 		})
@@ -334,15 +335,13 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 				var LvlText = oNumberingLvl.LvlText || []
 				if (LvlText && LvlText.length) {
 					if (LvlText[0].Value!='\ue749') {
-						var targetInd = oParagraph.GetParentTableCell() ? 280 : 0
-						oParagraph.SetIndFirstLine(targetInd)
+						oParagraph.SetIndFirstLine(0)
 						return
 					}
 				}
 				var key = `${oNum.Id}_${level}`
 				if (handledNumbering[key]) {
-					var targetInd = oParagraph.GetParentTableCell() ? 280 : 0
-					oParagraph.SetIndFirstLine(targetInd)
+					oParagraph.SetIndFirstLine(0)
 					return
 				}
 				handledNumbering[key] = 1
@@ -370,40 +369,40 @@ function deleteAllFeatures(exceptList, specifyFeatures) {
 						}
 					}
 				}
-					oNumberingLevel.SetCustomType(sType, str, "left")
-					var oTextPr = oNumberingLevel.GetTextPr();
-					oTextPr.SetFontFamily("iconfont");
-					var targetInd = oParagraph.GetParentTableCell() ? 280 : 0
-					oParagraph.SetIndFirstLine(targetInd)
-					return true
-				}
-				var controls = oDocument.GetAllContentControls()
-				if (controls) {
-					for (var j = 0, jmax = controls.length; j < jmax; ++j) {
-						var oControl = controls[j]
-						if (oControl.GetClassType() == 'blockLvlSdt') {
-							var childControls = oControl.GetAllContentControls() || []
-							if (childControls.length) {
-								for (var c = childControls.length - 1; c >= 0; --c) {
-									var tag = Api.ParseJSON(childControls[c].GetTag())
-									if (tag.regionType == 'num' && childControls[c].GetClassType() == 'inlineLvlSdt') {
-										var parent = childControls[c].Sdt.Parent
-										if (parent && parent.GetType() == 1) {
-											var oParent = Api.LookupObject(parent.Id)
-											if (oParent) {
-												var pos = childControls[c].Sdt.GetPosInParent()
-												if (pos >= 0) {
-													oParent.RemoveElement(pos)
-												}
+				oNumberingLevel.SetCustomType(sType, str, "left")
+				var oTextPr = oNumberingLevel.GetTextPr();
+				oTextPr.SetFontFamily("iconfont");
+				var targetInd = oParagraph.GetParentTableCell() ? 280 : 0
+				oParagraph.SetIndFirstLine(targetInd)
+				return true
+			}
+			var controls = oDocument.GetAllContentControls()
+			if (controls) {
+				for (var j = 0, jmax = controls.length; j < jmax; ++j) {
+					var oControl = controls[j]
+					if (oControl.GetClassType() == 'blockLvlSdt') {
+						var childControls = oControl.GetAllContentControls() || []
+						if (childControls.length) {
+							for (var c = childControls.length - 1; c >= 0; --c) {
+								var tag = Api.ParseJSON(childControls[c].GetTag())
+								if (tag.regionType == 'num' && childControls[c].GetClassType() == 'inlineLvlSdt') {
+									var parent = childControls[c].Sdt.Parent
+									if (parent && parent.GetType() == 1) {
+										var oParent = Api.LookupObject(parent.Id)
+										if (oParent) {
+											var pos = childControls[c].Sdt.GetPosInParent()
+											if (pos >= 0) {
+												oParent.RemoveElement(pos)
 											}
 										}
 									}
 								}
 							}
-							var firstParagraph = getFirstParagraph(oControl)
-							hideSimple(firstParagraph)
 						}
+						var firstParagraph = getFirstParagraph(oControl)
+						hideSimple(firstParagraph)
 					}
+				}
 			}
 	}, false, true, {name: 'deleteAllFeatures'})
 }
@@ -1016,9 +1015,9 @@ function drawList(list, recalc = true) {
 												}
 											}
 										}
-									})								
+									})
 								} else {
-									var page_num = options.page_num || options.p
+									var page_num = options.page_num != undefined ? options.page_num : options.p
 									if (options.zone_type == ZONE_TYPE.THER_EVALUATION ||
 										options.zone_type == ZONE_TYPE.SELF_EVALUATION ||
 										options.zone_type == ZONE_TYPE.PASS ||
@@ -1072,7 +1071,7 @@ function setInteraction(type, quesIds, recalc = true) {
 	Asc.scope.interaction_quesIds = quesIds
 	Asc.scope.question_map = window.BiyueCustomData.question_map
 	Asc.scope.node_list = window.BiyueCustomData.node_list
-	Asc.scope.simple_interaction = 1 // window.BiyueCustomData.simple_interaction
+	Asc.scope.simple_interaction = window.BiyueCustomData.simple_interaction
 	return biyueCallCommand(window, function() {
 			// console.log('[setInteraction] begin')
 			var interaction_type_use = Asc.scope.interaction_type_use
@@ -1093,10 +1092,17 @@ function setInteraction(type, quesIds, recalc = true) {
 			
 			function updateParagraphInd(oParagraph, vshow) {
 				var targetInd = 0
-				if (oParagraph.GetParentTableCell()) {
-					targetInd = vshow ? 0 : vInd
-				} else {
-					targetInd = vshow ? (0 - vInd) : 0
+				if (vshow) {
+					var parentCell = oParagraph.GetParentTableCell()
+					if (!parentCell) {
+						targetInd = 0 - vInd
+					}
+				}
+				if (oParagraph.Paragraph.Get_CurrentColumn) {
+					var column = oParagraph.Paragraph.Get_CurrentColumn(0)
+					if (column) {
+						targetInd = 0
+					}
 				}
 				oParagraph.SetIndFirstLine(targetInd)
 			}
@@ -1195,6 +1201,7 @@ function setInteraction(type, quesIds, recalc = true) {
 					})
 				}
 				if (!vshow) {
+					oParagraph.SetIndFirstLine(0)
 					return
 				}
 				var oFill = Api.CreateNoFill()
@@ -1204,6 +1211,10 @@ function setInteraction(type, quesIds, recalc = true) {
 				)
 				var width = 5
 				var height = 5
+				var oFirstBounds = oParagraph.Paragraph.GetMulLineBounds(0, 1)
+				if (oFirstBounds && oFirstBounds.Bottom) {
+					height = oFirstBounds.Bottom - oFirstBounds.Top
+				}
 				var oDrawing = Api.CreateShape(
 					'rect',
 					width * 36e3,
@@ -1232,7 +1243,6 @@ function setInteraction(type, quesIds, recalc = true) {
 						oDrawing.SetTitle(JSON.stringify(titleobj))
 					}
 				}
-				
 				var horOffset = 0
 				var hasLevel = false
 				var oNumberingLevel = oParagraph.GetNumbering()
@@ -1250,16 +1260,58 @@ function setInteraction(type, quesIds, recalc = true) {
 					}
 				}
 				var style = 'inFront'
-				if (!hasLevel) {
-					var parentCell = oParagraph.GetParentTableCell()
-					if (parentCell && parentCell.GetIndex() > 0) {
+				var parentCell = oParagraph.GetParentTableCell()
+				if (parentCell && parentCell.GetIndex() > 0) {
+					if (hasLevel) {
+						oParagraph.SetIndFirstLine(5 / (25.4 / 72 / 20))
+					} else {
 						style = 'tight'
 					}
+				} else {
+					var ind = 0
+					if (oParagraph.Paragraph.Get_CurrentColumn) {
+						var column = oParagraph.Paragraph.Get_CurrentColumn(0)
+						if (column) {
+							ind = 5
+						}
+					}
+					oParagraph.SetIndFirstLine(ind / (25.4 / 72 / 20))
 				}
 				oDrawing.SetWrappingStyle(style)
 				horOffset -= 5
 				oDrawing.SetHorPosition('character', horOffset * 36e3)
-				oDrawing.SetVerPosition('line', 0.5 * 36e3)
+				var oLineBounds = oParagraph.Paragraph.GetLineBounds(0)
+				
+				var lineTop = oLineBounds.Top
+				var oFirstTop = oFirstBounds.Top
+				var pageBounds = oParagraph.Paragraph.GetPageBounds(0)
+				var oPageTop = pageBounds.Top
+				var top = lineTop || oPageTop
+				var oParaPr = oParagraph.GetParaPr()
+				var verValue = 0
+				if (oParaPr && oParaPr.ParaPr && oParaPr.ParaPr.GetTextAlignment) {
+					var alignment = oParaPr.ParaPr.GetTextAlignment()
+					if (alignment != 4) {
+						if (top && oFirstTop) {
+							// console.log('===== 此时获取oPageTop:', oPageTop, 'lineTop', lineTop, 'oFirstTop', oFirstTop)
+							// console.log('+++++ 设置的Y偏移为', oFirstTop - top)
+							// console.log('GetLineBounds(0)', oLineBounds)
+							// console.log('GetMulLineBounds(0, 1)', oFirstBounds)
+							// console.log('GetPageBounds(0)', pageBounds)
+							// console.log('alignment', alignment)
+							if (alignment == 3) {
+								var bottom = oLineBounds.Bottom ? oLineBounds.Bottom : oFirstBounds.Bottom
+								verValue = (bottom - top - 5 + 2) / 2
+							} else {
+								verValue = oFirstTop - top
+							}
+							// console.log('======== verValue', verValue)
+						} else {
+							console.log('===== 此时尚未获取top', oPageTop, lineTop, oFirstTop)
+						}
+					}
+				}
+				oDrawing.SetVerPosition('line', verValue * 36e3)
 				var oRun = Api.CreateRun()
 				oRun.AddDrawing(oDrawing)
 				oParagraph.AddElement(oRun, 0)
@@ -1270,9 +1322,7 @@ function setInteraction(type, quesIds, recalc = true) {
 				}
 				if (simple_interaction == 2) {
 					showSimpleShape(oParagraph, vshow)
-					if (vshow) {
-						return
-					}
+					return
 				} else {
 					showSimpleShape(oParagraph, false)
 				}
@@ -1449,7 +1499,10 @@ function setInteraction(type, quesIds, recalc = true) {
 							var count = oParent.GetElementsCount()
 							for (var c = 0; c < count; ++c) {
 								var child = oParent.GetElement(c)
-								if (child && child.GetClassType() == 'run' && child.Run.Id == run.Id) {
+								if (!child) {
+									continue
+								}
+								if (child.GetClassType() == 'run' && child.Run.Id == run.Id) {
 									deleteAccurateRun(child)
 									break
 								}
@@ -1479,8 +1532,7 @@ function setInteraction(type, quesIds, recalc = true) {
 				if (!oCell || oCell.GetClassType() != 'tableCell') {
 					return
 				}
-				var oTable = oCell.GetParentTable()
-				if (oTable.GetPosInParent() == -1) {
+				if (oCell.Cell.IsUseInDocument && !oCell.Cell.IsUseInDocument()) {
 					return
 				}
 				oCell.SetCellMarginLeft(0)
@@ -1503,8 +1555,8 @@ function setInteraction(type, quesIds, recalc = true) {
 
 			function getControl(client_id, regionType) {
 				return controls.find(e => {
-					var tag = Api.ParseJSON(e.GetTag())
-					if ((e.GetClassType() == 'blockLvlSdt' && e.GetPosInParent() >= 0) || (e.GetClassType() == 'inlineLvlSdt' && e.Sdt.GetPosInParent() >= 0)) {
+					if (e.Sdt && e.Sdt.IsUseInDocument && e.Sdt.IsUseInDocument()) {
+						var tag = Api.ParseJSON(e.GetTag())
 						return tag.client_id == client_id && tag.regionType == regionType
 					}
 				})
@@ -1677,29 +1729,27 @@ function setInteraction(type, quesIds, recalc = true) {
 				}
 				return null
 			}
-			for (var i = 0, imax = controls.length; i < imax; ++i) {
-				var oControl = controls[i]
-				var tag = Api.ParseJSON(oControl.GetTag() || '{}')
-				var targetQuesId = tag.mid ? tag.mid : tag.client_id
-				if (quesIds) {
-					var qindex = quesIds.findIndex(e => {
-						return e == targetQuesId
+			for (var id in question_map) {
+				var quesData = question_map[id]
+				if (quesData.level_type != 'question') {
+					continue
+				}
+				var ids = quesData.is_merge && quesData.ids ? quesData.ids : [id]
+				var controlList = controls.filter(e => {
+					var tag = Api.ParseJSON(e.GetTag())
+					return ids.find(e => {
+						return tag.client_id == e
 					})
-					if (qindex == -1) {
-						continue
-					}
+				})
+				if (controlList) {
+					controlList.forEach((oControl, index) => {
+						handleControl(id, oControl, index)
+					})
 				}
-				if (tag.regionType != 'question') {
-					continue
-				}
-				if (!question_map[targetQuesId]) {
-					continue
-				}
+			}
+			function handleControl(targetQuesId, oControl, index) {
 				var interaction_type = interaction_type_use
 				if (interaction_type_use != 'none') {
-					if (!question_map[targetQuesId] || question_map[targetQuesId].level_type != 'question') {
-						continue
-					}
 					if (question_map[targetQuesId].mark_mode == 2) {
 						if (interaction_type_use == 'accurate') {
 							interaction_type = 'simple'
@@ -1714,6 +1764,7 @@ function setInteraction(type, quesIds, recalc = true) {
 					interaction_type = 'none'
 				}
 				var ask_list = question_map[targetQuesId].ask_list
+				var tag = Api.ParseJSON(oControl.GetTag())
 				var nodeData = node_list.find(e => {
 					return e.id == tag.client_id
 				})
@@ -1724,7 +1775,7 @@ function setInteraction(type, quesIds, recalc = true) {
 				var isGatherChoice = (question_map[targetQuesId].ques_mode == 1 || question_map[targetQuesId].ques_mode == 5) && nodeData.use_gather
 				var type = isGatherChoice ? 'none' : interaction_type
 				var firstParagraph = getFirstParagraph(oControl)
-				if (firstParagraph) {
+				if (firstParagraph && !index) {
 					showSimple(firstParagraph, type != 'none')
 				}
 				if (isGatherChoice && nodeData.gather_cell_id) {

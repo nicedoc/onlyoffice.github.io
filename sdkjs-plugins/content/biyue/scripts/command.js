@@ -41,8 +41,12 @@ async function biyueCallCommand(window, func, isClose, isCalc, params) {
             }
             else
             {
-                reject(error);
 				handleCommandError(window, params, error)
+				if (params && !params.stop) {
+					resolve(null)
+				} else {
+					reject(error);
+				}
             }
         });
     });
