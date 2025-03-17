@@ -2006,7 +2006,8 @@ function endAddShape() {
 						parent_id: params.ques_id,
 						client_id: result.client_node_id,
 						t: Date.now()
-					}
+					},
+					noheight: 1 // 有这个后，当处于单元格中时不计算高度，保证原本单元格内容不会跑版
 				}
 				oDrawing.SetTitle(JSON.stringify(titleobj))
 				if (oDrawing.SetPaddings) {
