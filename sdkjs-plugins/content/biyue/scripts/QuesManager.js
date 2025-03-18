@@ -10,7 +10,7 @@ import { layoutDetect } from './layoutFixHandler.js'
 import { setBtnLoading, isLoading } from './model/util.js'
 import { refreshTree } from './panelTree.js'
 import { extractChoiceOptions, removeChoiceOptions, getChoiceOptionAndSteam, setChoiceOptionLayout } from './choiceQuestion.js'
-import { getInteractionTypes } from './model/feature.js'
+import { getInteractionTypes, getWorkbookInteraction } from './model/feature.js'
 import proportionHandler from './handler/proportionHandler.js'
 import uploadValidateHandler from './handler/validateUpload.js'
 import { isChoiceMode, isTextMode } from "./model/ques.js";
@@ -1755,6 +1755,9 @@ function handleChangeType(res, res2) {
 	if (addIds && addIds.length) {
 		if (level_type == 'write' || level_type == 'clear' || level_type == 'clearAll') {
 			if (question_map[addIds[0]]) {
+				if (!question_map[addIds[0]].interaction) {
+					question_map[addIds[0]].interaction = getWorkbookInteraction(window.BiyueCustomData)
+				}
 				interaction = question_map[addIds[0]].interaction
 				updateinteraction = true
 			}
@@ -3073,7 +3076,7 @@ function reqGetQuestionType(ids, getLatestParent) {
 				if (content_list && content_list.length) {
 					content_list.forEach(e => {
 						window.BiyueCustomData.question_map[e.id].question_type = e.question_type * 1
-						window.BiyueCustomData.question_map[e.id].ques_mode = getQuesMode(e.question_type)
+							window.BiyueCustomData.question_map[e.id].ques_mode = getQuesMode(e.question_type)
 						// window.BiyueCustomData.question_map[e.id].question_type_name = e.question_type_name
 						// 存储时question_type_name莫名其妙变得很大，不再存储
 					})
@@ -6560,7 +6563,7 @@ function preGetExamTree() {
 					var min_p_index = list.length
 					var max_struct_index = -1
 					for (var i = list.length - 1; i >= 0; --i) {
-						console.log(qId, lvl, obj.level_type, list[i].lvl, list[i].id, list[i].level_type, list[i].parent_index)
+						// console.log(qId, lvl, obj.level_type, list[i].lvl, list[i].id, list[i].level_type, list[i].parent_index)
 						if (list[i].lvl == null) {
 							break
 						}
