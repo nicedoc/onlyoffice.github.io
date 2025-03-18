@@ -1326,10 +1326,10 @@ function setInteraction(type, quesIds, recalc = true) {
 					return
 				}
 				if (simple_interaction == 2) {
-					showSimpleShape(oParagraph, vshow)
 					if (vshow && hasNumberingSimple(oParagraph)) {
 						showNumberingSimple(oParagraph, false)
 					}
+					showSimpleShape(oParagraph, vshow)
 				} else {
 					showSimpleShape(oParagraph, false)
 					showNumberingSimple(oParagraph, vshow)
@@ -1357,7 +1357,7 @@ function setInteraction(type, quesIds, recalc = true) {
 				return false
 			}
 
-			function showNumberingSimple(oParagraph, vshow, hidden) {
+			function showNumberingSimple(oParagraph, vshow) {
 				var oNumberingLevel = oParagraph.GetNumbering()
 				if (!oNumberingLevel) {
 					showControlSimple(oParagraph, vshow)
