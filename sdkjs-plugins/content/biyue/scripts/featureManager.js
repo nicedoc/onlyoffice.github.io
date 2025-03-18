@@ -1211,9 +1211,14 @@ function setInteraction(type, quesIds, recalc = true) {
 				)
 				var width = 5
 				var height = 5
-				var oFirstBounds = oParagraph.Paragraph.GetMulLineBounds(0, 1)
+				// 判断段落的首页是否为空
+				var validPageIndex = oParagraph.Paragraph.IsEmptyPage(0) ? 1 : 0
+				var oFirstBounds = oParagraph.Paragraph.GetMulLineBounds(validPageIndex, 1)
 				if (oFirstBounds && oFirstBounds.Bottom) {
 					height = oFirstBounds.Bottom - oFirstBounds.Top
+				}
+				if (height < 3) {
+					height = 5
 				}
 				var oDrawing = Api.CreateShape(
 					'rect',
@@ -1280,11 +1285,11 @@ function setInteraction(type, quesIds, recalc = true) {
 				oDrawing.SetWrappingStyle(style)
 				horOffset -= 5
 				oDrawing.SetHorPosition('character', horOffset * 36e3)
-				var oLineBounds = oParagraph.Paragraph.GetLineBounds(0)
+				var oLineBounds = oParagraph.Paragraph.GetLineBounds(validPageIndex)
 				
 				var lineTop = oLineBounds.Top
 				var oFirstTop = oFirstBounds.Top
-				var pageBounds = oParagraph.Paragraph.GetPageBounds(0)
+				var pageBounds = oParagraph.Paragraph.GetPageBounds(validPageIndex)
 				var oPageTop = pageBounds.Top
 				var top = lineTop || oPageTop
 				var oParaPr = oParagraph.GetParaPr()
