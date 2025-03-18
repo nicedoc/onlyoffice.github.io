@@ -76,7 +76,9 @@ function getInfoForServerSave() {
 		node_list: window.BiyueCustomData.node_list || [],
 		question_map: treemap,
 		client_node_id: window.BiyueCustomData.client_node_id,
-		time: window.BiyueCustomData.time
+		time: window.BiyueCustomData.time,
+		simple_interaction: window.BiyueCustomData.simple_interaction,
+		interaction: window.BiyueCustomData.interaction
 	}
 	return JSON.stringify(info)
 }

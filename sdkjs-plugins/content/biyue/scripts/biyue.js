@@ -926,8 +926,24 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 						// console.log('========= window.BiyueCustomData', window.BiyueCustomData)
 						return
 					}
-					window.BiyueCustomId = customData[0].ItemId
-					window.BiyueCustomData = customData[0].Content
+					if (customData.length > 1 && customData[0].Content && customData[0].Content.paper_uuid) {
+						var puuid = customData[0].Content.paper_uuid
+						var items = customData.filter(e => {
+							return e.Content.paper_uuid == puuid
+						})
+						if (items.length > 1) {
+							items = items.sort((a, b) => {
+								var timea = new Date(a.Content.time).getTime()
+								var timeb = new Date(b.Content.time).getTime()
+								return timeb - timea
+							})
+						}
+						window.BiyueCustomId = items[0].ItemId
+						window.BiyueCustomData = items[0].Content
+					} else {
+						window.BiyueCustomId = customData[0].ItemId
+						window.BiyueCustomData = customData[0].Content
+					}
 					console.log('biyue plugin inited BiyueCustomData:', window.BiyueCustomData)
 				}
 			)
@@ -1117,7 +1133,9 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 
 	function StoreCustomData(callback) {
 		if (window.BiyueCustomData === undefined) {
-			callback()
+			if (callback) {
+				callback()
+			}
 			return
 		}
 		window.BiyueCustomData.time = new Date().toString()
