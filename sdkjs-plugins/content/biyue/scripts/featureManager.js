@@ -1734,6 +1734,14 @@ function setInteraction(type, quesIds, recalc = true) {
 				if (quesData.level_type != 'question') {
 					continue
 				}
+				if (quesIds) {
+					var qindex = quesIds.findIndex(e => {
+						return e == id
+					})
+					if (qindex == -1) {
+						continue
+					}
+				}
 				var ids = quesData.is_merge && quesData.ids ? quesData.ids : [id]
 				var controlList = controls.filter(e => {
 					var tag = Api.ParseJSON(e.GetTag())
