@@ -338,6 +338,9 @@ import { showCom } from '../model/util.js'
 				BiyueCustomData = message.BiyueCustomData
 			} else if (message.field) {
 				BiyueCustomData[message.field] = message.data
+				if (feature_map[message.field]) {
+					feature_map[message.field] = message.data
+				}
 			}
 			if (message.feature_map) {
 				feature_map = message.feature_map
