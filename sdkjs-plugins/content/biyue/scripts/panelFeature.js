@@ -216,16 +216,18 @@ function changeItem(type, data, id) {
 	})
 	if (id == 'interaction') {
 		window.BiyueCustomData.interaction = data.value
-		window.biyue.sendToDialog('featureDialog', 'featureUpdate', {
-			field: 'interaction',
-			data: window.BiyueCustomData.interaction
-		})
-		if (data.value == 'none') {
-			deleteAllFeatures(null, ['ques_interaction'])
-		} else {
-			setInteraction(data.value)
-		}
 		updateAllInteraction(data.value)
+		window.biyue.StoreCustomData(() => {
+			window.biyue.sendToDialog('featureDialog', 'featureUpdate', {
+				field: 'interaction',
+				data: window.BiyueCustomData.interaction
+			})
+			if (data.value == 'none') {
+				deleteAllFeatures(null, ['ques_interaction'])
+			} else {
+				setInteraction(data.value)
+			}
+		})
 	} else {
 		if (!window.feature_map) {
 			window.feature_map = {}
