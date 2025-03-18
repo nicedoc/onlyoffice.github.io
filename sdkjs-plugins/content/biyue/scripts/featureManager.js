@@ -1327,10 +1327,37 @@ function setInteraction(type, quesIds, recalc = true) {
 				}
 				if (simple_interaction == 2) {
 					showSimpleShape(oParagraph, vshow)
-					return
+					if (vshow && hasNumberingSimple(oParagraph)) {
+						showNumberingSimple(oParagraph, false)
+					}
 				} else {
 					showSimpleShape(oParagraph, false)
+					showNumberingSimple(oParagraph, vshow)
 				}
+			}
+
+			function hasNumberingSimple(oParagraph) {
+				var oNumberingLevel = oParagraph.GetNumbering()
+				if (!oNumberingLevel) {
+					return false
+				}
+				var level = oNumberingLevel.Lvl
+				var oNum = oNumberingLevel.Num
+				if (!oNum) {
+					return false
+				}
+				var oNumberingLvl = oNum.GetLvl(level)
+				if (!oNumberingLvl) {
+					return false
+				}
+				var LvlText = oNumberingLvl.LvlText || []
+				if (LvlText && LvlText.length) {
+					return LvlText[0].Value==SIMPLE_CHAR
+				}
+				return false
+			}
+
+			function showNumberingSimple(oParagraph, vshow, hidden) {
 				var oNumberingLevel = oParagraph.GetNumbering()
 				if (!oNumberingLevel) {
 					showControlSimple(oParagraph, vshow)
