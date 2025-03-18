@@ -680,6 +680,7 @@ function setLevel(id, level) {
 	} else {
 		list = [id]
 	}
+	select_list = []
 	return setNumberingLevel(list, level).then((res) => {
 		return generateTree()
 	})
