@@ -64,6 +64,8 @@ function getList() {
 	var scale = 0.2647058823529412
 	var page_type = window.BiyueCustomData.page_type
 	var feature_map = window.feature_map || {}
+	var oldInteraction = window.BiyueCustomData.interaction
+	var newInteraction = 'none'
 	if (page_type == 0) {
 		// 二维码
 		if (extra_info.workbook_qr_code_show) {
@@ -134,23 +136,33 @@ function getList() {
 			label: '日期/评语'
 		})
 		feature_map[ZONE_TYPE_NAME[ZONE_TYPE.IGNORE]] = { sel: 'open' }
+		
 		// 互动模式
 		if (extra_info.hidden_correct_region && !extra_info.hidden_correct_region.checked) {
-			var value_select = extra_info.start_interaction.checked ? 'accurate' : 'simple'
-			window.BiyueCustomData.interaction = value_select
-		} else {
-			window.BiyueCustomData.interaction = 'none'
+			newInteraction = extra_info.start_interaction.checked ? 'accurate' : 'simple'
 		}
 		list.push({
 			id: 'interaction',
 			label: '互动模式'
 		})
-	} else {
-		window.BiyueCustomData.interaction = 'none'
 	}
+	if (oldInteraction) {
+		if (newInteraction != oldInteraction) {
+			var newIndex = getInteractionIndex(newInteraction)
+			var oldIndex = getInteractionIndex(oldInteraction)
+			if (newIndex > oldIndex) {
+				newInteraction = oldInteraction
+			}
+		}
+	}
+	window.BiyueCustomData.interaction = newInteraction
 	feature_map.interaction = { sel: window.BiyueCustomData.interaction }
 	window.feature_map = feature_map
 	return list
+}
+function getInteractionIndex(v) {
+	var types = ['none', 'simple', 'accurate']
+	return types.indexOf(v)
 }
 function changeAll(data) {
 	if (!window.BiyueCustomData.workbook_info) {
