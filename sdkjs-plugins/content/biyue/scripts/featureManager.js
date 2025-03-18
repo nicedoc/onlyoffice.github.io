@@ -1326,6 +1326,9 @@ function setInteraction(type, quesIds, recalc = true) {
 					return
 				}
 				if (simple_interaction == 2) {
+					if (vshow) {
+						showControlSimple(oParagraph, false)
+					}
 					if (vshow && hasNumberingSimple(oParagraph)) {
 						showNumberingSimple(oParagraph, false)
 					}
