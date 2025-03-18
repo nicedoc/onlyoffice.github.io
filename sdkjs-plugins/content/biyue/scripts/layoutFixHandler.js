@@ -670,8 +670,7 @@ function showOutOfRange() {
 		if (res.table_id) {
 			window.BiyueCustomData.table_id = res.table_id
 		}
-		var list = res.list.filter(item => item.type != 'table')
-		Asc.scope.list_picture = list
+		Asc.scope.list_picture = res.list
 		window.biyue.refreshDialog({
 			winName:'pictureList',
 			name:'超出范围图片',
@@ -682,7 +681,7 @@ function showOutOfRange() {
 			type:'panelRight',
 			icons:['resources/light/img.png']
 		}, 'pictureListMessage', {
-			list: list
+			list: res.list
 		})
 	})
 }

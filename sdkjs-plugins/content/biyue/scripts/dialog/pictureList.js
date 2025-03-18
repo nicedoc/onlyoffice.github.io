@@ -11,16 +11,19 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 	}
 	 
 	function renderList(list, listId) {
+		list = list.filter(item => item.type != 'table')
 		var html = ''
 		if (list) {
 			list.forEach((e, index) => {
-				var uid = e.sort_id
-				var dataset = `data-id=${e.uid} data-type=${e.type} data-sort-id="${e.sort_id}"`
-				html += `<div class="item-pic clicked row-between" id=${e.uid} ${dataset}>
-					<div>
-						<span>${e.type == 'table' ? '表格' : '图片'} ${uid}</span>
-					</div>
-				</div>`
+				if (e.type != 'table') {
+					var uid = e.sort_id
+					var dataset = `data-id=${e.uid} data-type=${e.type} data-sort-id="${e.sort_id}"`
+					html += `<div class="item-pic clicked row-between" id=${e.uid} ${dataset}>
+						<div>
+							<span>图片 ${uid}</span>
+						</div>
+					</div>`
+				}
 			})
 		}
 		updateText(`.${listId}`, html)
