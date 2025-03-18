@@ -73,7 +73,8 @@ function layoutDetect(all) {
 						}
 					}
 					var runContent = oRun.Run.Content || []
-					var isUnderline = oRun.GetUnderline()
+					const single = Asc?.UnderlineType?.Single >= 0 ? Asc?.UnderlineType?.Single : 12
+					var isUnderline = oRun.GetUnderline() == single
 					// 判断是否在括号内存在tab
 					for (var k = 0, kmax = runContent.length; k < kmax; ++k) {
 						var type = runContent[k].GetType()
@@ -212,10 +213,14 @@ function layoutDetect(all) {
 					pageSize = sections[0].Section.PageSize
 				}
 				for (var i = 0; i < tables.length; i++) {
-					var table = tables[i].Table
-					var bounds = Api.LookupObject(table.Id).Table.GetContentBounds(0)
-					if (bounds.Left < 0 || bounds.Left > pageSize.W || bounds.Right < 0 || bounds.Right > pageSize.W) {
-						result.hasTableExceed = true
+					const tableObj = tables[i].GetTableTitle() ? JSON.parse(tables[i].GetTableTitle()) : {}
+					// 忽略有ignore标识的检测（智批元素，打分区，集中作答区等）
+					if (!tableObj.ignore) {
+						var table = tables[i].Table
+						var bounds = Api.LookupObject(table.Id).Table.GetContentBounds(0)
+						if (bounds.Left < 0 || bounds.Left > pageSize.W || bounds.Right < 0 || bounds.Right > pageSize.W) {
+							result.hasTableExceed = true
+						}
 					}
 				}
 				
@@ -297,7 +302,8 @@ function layoutRepair(cmdData) {
 					var len = runContent.length
 					var element2 = runContent[k]
 					var elementType = element2.GetType()
-					if (elementType == 21 || elementType == 2) {
+					const single = Asc?.UnderlineType?.Single >= 0 ? Asc?.UnderlineType?.Single : 12
+					if ((elementType == 21 || elementType == 2) && oRun.GetUnderline() == single) {
 						if (!find && k > 0) {
 							var newRun = oRun.Run.Split_Run(k + 1)
 							parent.Add_ToContent(pos + 1, newRun)
@@ -494,19 +500,63 @@ function layoutRepair(cmdData) {
 					}
 				}
 			}
+			// 处理表格超出
+			function handleTable(oDocument, table, bounds, pageSize, PageMargins) {
+				// 偏移超出，修改偏移值
+				table.SetTableInd(0)
+				const tableWidth = bounds.Right - bounds.Left // 表格宽度
+				var isDoubleColumn = 1 // 1单栏，2双栏
+				// 获取当前是单栏还是双栏
+				var paragraph = oDocument.Document.GetCurrentParagraph()
+				if (paragraph) {
+					var oParagraph = Api.LookupObject(paragraph.Id)
+					var oSection = oParagraph.GetSection()
+					if(oSection) {
+						isDoubleColumn = oSection.Section.GetColumnsCount()
+					}
+				}
+				// 1.设置为左对齐，并检查宽度(单栏情况下)
+				// 2.如果超出左边，则左对齐，如果超出右边，则右对齐，并检查宽度(双栏情况下)
+				const pageWidth = pageSize.W - PageMargins.Left - PageMargins.Right // 版面宽度
+				if (tableWidth > pageWidth / isDoubleColumn) {
+					table.SetWidth('percent', 100)
+				}
+				var align = 0
+				if (isDoubleColumn == 1 || bounds.Left < 0) {
+					align = 1
+				} else if (bounds.Right > pageSize.W) {
+					align = 4
+				}
+				if (align > 0) {
+					table.Table.Set_Props({
+						PositionH: {
+							Align: align,
+							RelativeFrom: 0,
+							UseAlign: true,
+							Value: 0
+						}
+					})
+				}
+			}
 			if (cmdData.type == 3 && cmdData.value == 'table') { // 修复表格超出
 				var tables = oDocument.GetAllTables() || []
 				var sections = oDocument.GetSections() || []
 				var pageSize = { W: 0 }
+				var PageMargins = {}
 				if (sections.length > 0) {
 					pageSize = sections[0].Section.PageSize
+					PageMargins = sections[0].Section.PageMargins
 				}
 				for (var i = 0; i < tables.length; i++) {
-					var table = tables[i].Table
-					var obj = Api.LookupObject(table.Id)
-					var bounds = obj.Table.Bounds
-					if (bounds.Left < 0 || bounds.Left > pageSize.W || bounds.Right < 0 || bounds.Right > pageSize.W) {
-						obj.SetTableInd(0)
+					const tableObj = tables[i].GetTableTitle() ? JSON.parse(tables[i].GetTableTitle()) : {}
+					// 忽略有ignore标识的检测（智批元素，打分区，集中作答区等）
+					if (!tableObj.ignore) {
+						var table = tables[i].Table
+						var obj = Api.LookupObject(table.Id)
+						var bounds = obj.Table.Bounds
+						if (bounds.Left < 0 || bounds.Left > pageSize.W || bounds.Right < 0 || bounds.Right > pageSize.W) {
+							handleTable(oDocument, obj, bounds, pageSize, PageMargins)
+						}
 					}
 				}
 			} else if (cmdData.type == 1 && cmdData.value == 'tab') { // 将括号里的tab替换为空格
@@ -620,7 +670,8 @@ function showOutOfRange() {
 		if (res.table_id) {
 			window.BiyueCustomData.table_id = res.table_id
 		}
-		Asc.scope.list_picture = res.list
+		var list = res.list.filter(item => item.type != 'table')
+		Asc.scope.list_picture = list
 		window.biyue.refreshDialog({
 			winName:'pictureList',
 			name:'超出范围图片',
@@ -631,7 +682,7 @@ function showOutOfRange() {
 			type:'panelRight',
 			icons:['resources/light/img.png']
 		}, 'pictureListMessage', {
-			list: res.list
+			list: list
 		})
 	})
 }
