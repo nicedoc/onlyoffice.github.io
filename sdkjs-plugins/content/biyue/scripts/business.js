@@ -179,9 +179,11 @@ function updatePageSizeMargins() {
 				title.tid = `t_${++tableId}`
 				oTable.SetTableTitle(JSON.stringify(title))
 			})
+			var controls = oDocument.GetAllContentControls()
 			return {
 				pictureId,
-				tableId
+				tableId,
+				control_count: controls.length
 			}
 	}, false, true, {name: 'updatePageSizeMargins'})
 }

@@ -928,10 +928,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 						return
 					}
 					if (customData.length > 1 && customData[0].Content && customData[0].Content.paper_uuid) {
-						var puuid = customData[0].Content.paper_uuid
-						var items = customData.filter(e => {
-							return e.Content.paper_uuid == puuid
-						})
+						var items = [].concat(customData)
 						if (items.length > 1) {
 							items = items.sort((a, b) => {
 								var timea = new Date(a.Content.time).getTime()
@@ -2613,17 +2610,19 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 						})
 						if (hasNull) {
 							isFirstLoad = true
-							window.BiyueCustomData.node_list = []
-							window.BiyueCustomData.question_map = {}	
+							resetCustomData();
 						}
 						// 无切题信息，需要重新切题，当初次导入处理
 						if (!find) {
 							isFirstLoad = true
 						}
 					} else {
-						window.BiyueCustomData.node_list = []
-						window.BiyueCustomData.question_map = {}
+						resetCustomData();
 					}
+				}
+				if (res.control_count == 0) {
+					resetCustomData();
+					isFirstLoad = true;
 				}
 				if (isFirstLoad) {
 					Asc.scope.split_getdoc = true
@@ -2650,6 +2649,13 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 				}
 			})
 		})
+	}
+
+	function resetCustomData() {
+		window.BiyueCustomData.node_list = []
+		window.BiyueCustomData.question_map = {}
+		delete window.BiyueCustomData.interaction;
+		delete window.BiyueCustomData.simple_interaction;
 	}
 
 	function showDialog(winName, name, url, width, height, isModal, type, icons, x, y) {
