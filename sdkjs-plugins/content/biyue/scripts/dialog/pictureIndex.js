@@ -11,6 +11,7 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 	let link_coverage_percent = ''
 	let link_type = ''
 	let isDragging = false;
+	let isFirstAutoLink = true;
 	window.Asc.plugin.init = function () {
 		console.log('picture index init')
 		window.Asc.plugin.sendToPlugin('onWindowMessage', { type: 'initDialog', initmsg: 'pictureIndexMessage' })
@@ -22,7 +23,7 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
     // 将 50-100 的范围按比例转换为 0-100
     const internalPercent = Math.round((percent - 50) * 2);
 
-    link_coverage_percent = internalPercent;
+    link_coverage_percent = percent;
     $('.progress-bar').css('width', internalPercent + '%');
     $('.progress-text').text(percent + '%'); // 显示时仍然使用 50-100
 	}
@@ -122,7 +123,15 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 					updateProgress((percent / 2) + 50); // 更新传入的参数
 			}
 		});
-		onConfirmAutoLink()
+		// 如果列表中的表格没有关联题目且是全包关联时，则进行自动关联
+		const list = list_doc.filter(e => {
+			return (!e.ques_use || e.ques_use.length === 0) && e.type == 'table'
+		})
+		const classList = document.getElementById('allLink').classList
+		if (list && list.length > 0 && classList.contains('selected') && isFirstAutoLink) {
+			onConfirmAutoLink()
+		}
+		isFirstAutoLink = false
 	}
 
 	function updateListIgnore() {
@@ -144,7 +153,7 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 			cmd: 'autoLink',
 			data: {
 				link_type: link_type,
-				link_coverage_percent: Math.round(link_coverage_percent / 2) + 50
+				link_coverage_percent: link_coverage_percent
 			}
 		})
 	}
@@ -254,6 +263,7 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 			}
 			var id = dataset.id
 			var target_ignore = false
+			targetList[index].ques_use = []
 			const item = targetList[index]
 			if (dataset.ignore) {
 				moveAndSort($(`#${id}`), '.list')
@@ -471,8 +481,7 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
     showCom('.progress-text-wrapper', true);
     $('.selected').removeClass('selected');
     $('.box1').eq(0).addClass('selected');
-		link_coverage_percent = link_coverage_percent
-    updateProgress((link_coverage_percent / 2) + 50); // 更新传入的参数
+		updateProgress(link_coverage_percent); // 更新传入的参数
 	}
 
 	function onAllLink() {
@@ -523,7 +532,8 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 		hideQuesList()
 		window.Asc.plugin.sendToPlugin('onWindowMessage', {
 			type: 'pictureIndexMessage',
-			cmd: 'refresh'
+			cmd: 'refresh',
+			data: 'pictureIndex'
 		})
 	}
 

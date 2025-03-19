@@ -12,11 +12,9 @@ function getChoiceQuesData() {
 		var controls = oDocument.GetAllContentControls() || []
 		function getControlsByClientId(cid) {
 			var findControls = controls.filter(e => {
-				var tag = Api.ParseJSON(e.GetTag())
-				if (e.GetClassType() == 'blockLvlSdt') {
-					return tag.client_id == cid && e.GetPosInParent() >= 0
-				} else if (e.GetClassType() == 'inlineLvlSdt') {
-					return e.Sdt && e.Sdt.GetPosInParent() >= 0 && tag.client_id == cid
+				if (e.Sdt && e.Sdt.IsUseInDocument && e.Sdt.IsUseInDocument()) {
+					var tag = Api.ParseJSON(e.GetTag())
+					return tag.client_id == cid
 				}
 			})
 			if (findControls && findControls.length) {
@@ -322,11 +320,9 @@ function getChoiceOptionAndSteam(ids) {
 		var ids = Asc.scope.ids || []
 		function getControlsByClientId(cid) {
 			var findControls = controls.filter(e => {
-				var tag = Api.ParseJSON(e.GetTag())
-				if (e.GetClassType() == 'blockLvlSdt') {
-					return tag.client_id == cid && e.GetPosInParent() >= 0
-				} else if (e.GetClassType() == 'inlineLvlSdt') {
-					return e.Sdt && e.Sdt.GetPosInParent() >= 0 && tag.client_id == cid
+				if (e.Sdt && e.Sdt.IsUseInDocument && e.Sdt.IsUseInDocument()) {
+					var tag = Api.ParseJSON(e.GetTag())
+					return tag.client_id == cid
 				}
 			})
 			if (findControls && findControls.length) {
@@ -1284,7 +1280,7 @@ function setChoiceOptionLayout(options) {
 			if (oControl.GetClassType() != 'blockLvlSdt') {
 				continue
 			}
-			if (oControl.GetPosInParent() < 0) {
+			if (oControl.Sdt && oControl.Sdt.IsUseInDocument && !oControl.Sdt.IsUseInDocument()) {
 				continue
 			}
 			var tag = Api.ParseJSON(oControl.GetTag())

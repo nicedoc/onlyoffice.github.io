@@ -179,9 +179,11 @@ function updatePageSizeMargins() {
 				title.tid = `t_${++tableId}`
 				oTable.SetTableTitle(JSON.stringify(title))
 			})
+			var controls = oDocument.GetAllContentControls()
 			return {
 				pictureId,
-				tableId
+				tableId,
+				control_count: controls.length
 			}
 	}, false, true, {name: 'updatePageSizeMargins'})
 }
@@ -2797,12 +2799,33 @@ function getAllPositions2() {
 				}
 			}
 			function getCell(write_data) {
-				for (var i = 0; i < oTables.length; ++i) {
-					var oTable = oTables[i]
-					if (oTable.GetPosInParent() == -1) { continue }
-					var desc = Api.ParseJSON(oTable.GetTableDescription())
-					var keys = Object.keys(desc)
-					if (keys.length) {
+				if (!write_data) {
+					return null
+				}
+				var oCell = Api.LookupObject(write_data.cell_id)
+				if (oCell && oCell.GetClassType() == 'tableCell' && oCell.Cell && oCell.Cell.IsUseInDocument && oCell.Cell.IsUseInDocument()) {
+					return oCell
+				}
+				if (write_data.table_cid) {
+					for (var table of oTables) {
+						var tableTitle = Api.ParseJSON(table.GetTableTitle())
+						if (tableTitle && tableTitle.client_id == write_data.table_cid) {
+							return table.GetCell(write_data.row_index, write_data.cell_index)
+						}
+					}
+				} else {
+					for (var oTable of oTables) {
+						if (oTable.Table.IsUseInDocument && !oTable.Table.IsUseInDocument()) {
+							continue
+						}
+						var desc = Api.ParseJSON(table.GetTableDescription())
+						if (typeof desc != 'object') {
+							continue
+						}
+						var keys = Object.keys(desc)
+						if (!keys || keys.length == 0) {
+							continue
+						}
 						for (var j = 0; j < keys.length; ++j) {
 							var key = keys[j]
 							if (desc[key] == write_data.id) {
@@ -2812,7 +2835,6 @@ function getAllPositions2() {
 								} else if (write_data.row_index == rc[0] && write_data.cell_index == rc[1]) {
 									return oTable.GetCell(rc[0], rc[1])
 								}
-								
 							}
 						}
 					}
@@ -2979,11 +3001,9 @@ function getAllPositions2() {
 			}
 			function getControlsByClientId(cid) {
 				var findControls = controls.filter(e => {
-					var tag = Api.ParseJSON(e.GetTag())
-					if (e.GetClassType() == 'blockLvlSdt') {
-						return tag.client_id == cid && e.GetPosInParent() >= 0
-					} else if (e.GetClassType() == 'inlineLvlSdt') {
-						return e.Sdt && e.Sdt.GetPosInParent() >= 0 && tag.client_id == cid
+					if (e.Sdt && e.Sdt.IsUseInDocument && e.Sdt.IsUseInDocument()) {
+						var tag = Api.ParseJSON(e.GetTag())
+						return tag.client_id == cid
 					}
 				})
 				if (findControls && findControls.length) {
@@ -3281,10 +3301,7 @@ function getAllPositions2() {
 										find = true
 									}
 								} else if (askData.sub_type == 'cell') {
-									var oCell = Api.LookupObject(askData.cell_id)
-									if (!oCell || oCell.GetClassType() != 'tableCell' || oCell.GetParentTable().GetPosInParent() == -1) {
-										oCell = getCell(askData)
-									}
+									var oCell = getCell(askData)
 									if (oCell) {
 										var d = getCellBounds(oCell, ask_score, mark_order)
 										item.write_ask_region = item.write_ask_region.concat(d)

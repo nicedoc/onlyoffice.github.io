@@ -10,6 +10,8 @@ var big_info = {
 	child_ids: [],
 	end_id: 0
 }
+var select_list = []
+var click_id = 0
 function generateTree() {
 	if (window.BiyueCustomData.page_type * 1) {
 		showCom('#panelTree .none', false)
@@ -239,8 +241,8 @@ function renderTree() {
 			}
 			var com = $(`#panelTree #${item.level_type == 'question' ? 'ques' : 'group'}-${item.id}`)
 			if (com) {
-				function clickHandler() {
-					clickTreeItem(item.id)
+				function clickHandler(e) {
+					clickTreeItem(item.id, e)
 				}
 				com.off('click', clickHandler)
 				com.on('click', clickHandler)
@@ -256,19 +258,21 @@ function renderTree() {
 						if (nodeData && !quesData.is_merge) { // 合并题不可设置为大题, 当题目处于单元格中时，只能清除大题，不可构建大小题
 							if (nodeData.is_big) {
 								menuItems.push('clearBig')
-								if (!item.cell_id) {
-									menuItems.push('setBig2')
-								}
+								// if (!item.cell_id) {
+								// 	menuItems.push('setBig2')
+								// }
 								updateMenuPos(event)
 							} else if (!item.cell_id) {
-								menuItems.push('setBig2')
-								if (item.lvl !== null) {
-									menuItems.push('setBig')
-								}
+								// menuItems.push('setBig2')
+								// if (item.lvl !== null) {
+								// 	menuItems.push('setBig')
+								// }
 							}
 						}
 					} else if (quesData.level_type == 'struct') {
-						menuItems.push('question')
+						if (!select_list || select_list.length <= 1) {
+							menuItems.push('question')
+						}
 					}
 					menuItems.push('setLevel')
 					if (menuItems.length) {
@@ -519,7 +523,7 @@ function generateMenuItems(options, id, currentLevel) {
 				name = '设置为 - 题目'
 				break
 			case 'setLevel':
-				name = currentLevel === null ? '设置级别' : '调整级别'
+				name = currentLevel === null ? '设置层级' : '调整层级'
 				isSubMenu = true
 				break
 			default:
@@ -571,7 +575,7 @@ function generateMenuItems(options, id, currentLevel) {
 	})
 }
 
-function clickTreeItem(id) {
+function clickTreeItem(id, event) {
 	focusControl(id)
 	if (big_info && big_info.visible_big_set) {
 		updateSelect(0)
@@ -594,7 +598,61 @@ function clickTreeItem(id) {
 			showCom('#panelTree #bigconfirm', true)
 		}
 	} else {
-		updateSelect(id)
+		// updateSelect(id)
+		var isSelect = false
+		if (event.ctrlKey) {
+			var index = select_list.indexOf(id)
+			if (index >= 0) {
+				select_list.splice(index, 1)
+			} else {
+				select_list.push(id)
+				isSelect = true
+			}
+		} else if (event.shiftKey) {
+			if (click_id) {
+				var click_index = g_tree_info.list.findIndex(e => {
+					return e.id == click_id
+				})
+				if (click_index >= 0) {
+					var curIndex = g_tree_info.list.findIndex(e => {
+						return e.id == id
+					})
+					if (curIndex >= 0) {
+						var start = Math.min(click_index, curIndex)
+						var end = Math.max(click_index, curIndex)
+						select_list = g_tree_info.list.slice(start, end + 1).map(e => {
+							return e.id
+						})
+					}
+				}
+			} else {
+				select_list = [id]
+			}
+			isSelect = true
+		} else {
+			select_list = [id]
+			isSelect = true
+			click_id = id
+		}
+		var oldSelected = $('#panelTree #tree .selected')
+		if (oldSelected) {
+			oldSelected.each(function() {
+				var aid = $(this).attr('id')
+				var find = select_list.find(e => {
+					return `box-${e}` == aid
+				})
+				if (!find) {
+					// 移除选中样式
+					$(this).removeClass('selected')
+				}
+			});
+		}
+		if (isSelect) {
+			select_list.forEach(e => {
+				var $target = $(`#panelTree #box-${e}`)
+				$target.addClass('selected')
+			})
+		}
 	}
 }
 
@@ -612,7 +670,18 @@ function clickMenu(id, cmd) {
 	}
 }
 function setLevel(id, level) {
-	return setNumberingLevel([id], level).then((res) => {
+	var list = []
+	if (select_list && select_list.length) {
+		if (select_list.includes(id)) {
+			list = select_list
+		} else {
+			list = [id]
+		}
+	} else {
+		list = [id]
+	}
+	select_list = []
+	return setNumberingLevel(list, level).then((res) => {
 		return generateTree()
 	})
 }
@@ -630,9 +699,12 @@ function updateSelect(qid, updateScroll) {
 	if (oldSelected) {
 		oldSelected.removeClass('selected')
 	}
+	click_id = 0
+	select_list = []
 	var $target = $(`#panelTree #box-${qid}`)
 	if ($target && $target.length) {
 		$target.addClass('selected')
+		select_list = [qid]
 		if (updateScroll) {
 			var $container = $('#panelTree #tree')
 			if ($container.length) {
