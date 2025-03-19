@@ -107,6 +107,7 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 				if (win && win.type == 'panel') {
 					biyueCallCommand(window, function() {
 						Api.asc_OpenPlugin('asc.{BE5CBF95-C0AD-4842-B157-AC40FEDD9443}')
+						Api.GetDocument().Document.private_Redraw(-1, -1); // 强制触发一次重新绘制
 					})
 				}
 			}
