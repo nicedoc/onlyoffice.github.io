@@ -175,9 +175,12 @@ function updatePageSizeMargins() {
 			Api.asc_SetTab('tab_biyue')
 			var allTables = oDocument.GetAllTables() || []
 			allTables.forEach(oTable => {
-				var title = Api.ParseJSON(oTable.GetTableTitle())
-				title.tid = `t_${++tableId}`
-				oTable.SetTableTitle(JSON.stringify(title))
+				var tTitle = oTable.GetTableTitle()
+				var title = Api.ParseJSON(tTitle)
+				if (tTitle != 'questionTable') {
+					title.tid = `t_${++tableId}`
+					oTable.SetTableTitle(JSON.stringify(title))
+				}
 			})
 			var controls = oDocument.GetAllContentControls()
 			return {
