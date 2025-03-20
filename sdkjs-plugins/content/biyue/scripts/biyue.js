@@ -2151,6 +2151,10 @@ import { VUE_APP_VER_PREFIX } from '../apiConfig.js'
 		console.log('undo', e)
 	}
 
+	window.Asc.plugin.event_onRedo = function (e) {
+		console.log('redo', e)
+	}
+
 	window.Asc.plugin.event_onChangeContentControl = function (res) {
 		// console.log('event_onChangeContentControl', res)
 		//   onContentControlChange(res)
