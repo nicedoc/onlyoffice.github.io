@@ -381,7 +381,7 @@ function getContextMenuItems(type, selectedRes) {
 				}
 			}
 		}
-		var askIndex = -1 
+		var askIndex = -1
 		var is_merge_ask = false
 		var can_merge = false
 		if (qid) {
@@ -546,11 +546,11 @@ function getContextMenuItems(type, selectedRes) {
 							if (cData.level_type == 'question' && nodeData.is_big) {
 								cData.level_type = 'big'
 							}
-							if ( type != 'Selection' && 
-								selectedRes.cells && 
-								selectedRes.cells.length == 1 && 
-								nodeData.write_list && 
-								question_map[cData.ques_id] && 
+							if ( type != 'Selection' &&
+								selectedRes.cells &&
+								selectedRes.cells.length == 1 &&
+								nodeData.write_list &&
+								question_map[cData.ques_id] &&
 								question_map[cData.ques_id].ask_list) {
 								var cellId = selectedRes.cells[0].Id
 								var cellRecordId = selectedRes.cells[0].recordId
@@ -627,7 +627,7 @@ function getContextMenuItems(type, selectedRes) {
 				value: 'choiceOption',
 				text: '设置为 - 选项',
 				icon: 'rect'
-			}, 
+			},
 			{
 				value: 'clearBig',
 				text: '清除 - 大题',
@@ -687,10 +687,10 @@ function getContextMenuItems(type, selectedRes) {
 						valueMap['question'] = 1
 						valueMap['struct'] = 1
 					}
-				} else if (curControl.classType == 'inlineLvlSdt' && 
+				} else if (curControl.classType == 'inlineLvlSdt' &&
 					tag.regionType == 'choiceOption' && cData &&
-					cData.parent_id && 
-					question_map[cData.parent_id] && 
+					cData.parent_id &&
+					question_map[cData.parent_id] &&
 					(isChoiceMode(question_map[cData.parent_id].ques_mode))) {
 					valueMap['choiceOption'] = 1
 				}
@@ -708,7 +708,7 @@ function getContextMenuItems(type, selectedRes) {
 						valueMap['write'] = 1
 						if (question_map[cData.ques_id]) {
 							if (isChoiceMode(question_map[cData.ques_id].ques_mode)) {
-								valueMap['choiceOption'] = 1	
+								valueMap['choiceOption'] = 1
 							} else if (isTextQues) {
 								valueMap['write'] = 0
 							}
@@ -754,7 +754,7 @@ function getContextMenuItems(type, selectedRes) {
 					}
 				}
 			}
-			
+
 			list.forEach((e, index) => {
 				if (valueMap[e.value]) {
 					var id = `updateControlType:${e.value}`
@@ -811,7 +811,7 @@ function getContextMenuItems(type, selectedRes) {
 					})
 				}
 			}
-			var canBatch = type == 'Selection' || (cData && ( cData.level_type == 'question' || cData.level_type == 'struct')) 
+			var canBatch = type == 'Selection' || (cData && ( cData.level_type == 'question' || cData.level_type == 'struct'))
 			if (canBatch) {
 				var questypes = window.BiyueCustomData.paper_options ? window.BiyueCustomData.paper_options.question_type : []
 				var itemsQuesType = questypes.map((e) => {
@@ -934,7 +934,7 @@ function onContextMenuClick(id) {
 			case 'tableRelation':
 				preGetExamTree().then(res => {
 					Asc.scope.tree_info = res
-					window.biyue.showDialog('imageRelationWindow', funcName == 'imageRelation' ? '图片关联' : '表格关联', 'imageRelation.html', 800, 600, false)	
+					window.biyue.showDialog('imageRelationWindow', funcName == 'imageRelation' ? '图片关联' : '表格关联', 'imageRelation.html', 800, 600, false)
 				})
 				break
 			case 'mergeAsk':
@@ -1107,7 +1107,7 @@ function getNodeList() {
 				var shapes = oDocument.GetAllShapes() || []
 				for (var oShape of shapes) {
 					if (oShape.Drawing && oShape.Drawing.IsUseInDocument && oShape.Drawing.IsUseInDocument() && oShape.GetTitle) {
-						var titleObj = Api.ParseJSON(oShape.GetTitle())	
+						var titleObj = Api.ParseJSON(oShape.GetTitle())
 						if (titleObj.feature && titleObj.feature.zone_type == 'question' && titleObj.feature.sub_type == 'write') {
 							list.push({
 								id: titleObj.feature.client_id,
@@ -1455,7 +1455,7 @@ function handleChangeType(res, res2) {
 			return true
 		}
 		return false
-	}	
+	}
 	if (res.typeName == 'mergeQuestion') {
 		var writelist = []
 		change_list.forEach((item, idx) => {
@@ -1695,7 +1695,7 @@ function handleChangeType(res, res2) {
 						write_list: ask_list
 					})
 				}
-				
+
 				if (targetLevel == 'question') {
 					addIds.push(item.client_id)
 				} else if (targetLevel == 'struct') {
@@ -1913,7 +1913,7 @@ function notifyQuestionChange(update_node_id, ask_client_id) {
 		)
 		resolve()
 	})
-	
+
 }
 
 function updateAllChoice() {
@@ -2345,10 +2345,10 @@ function initControls() {
 						if (quesData) {
 							if (quesData.level_type == 'question') {
 								tagInfo.clr = tagInfo.color = '#d9d9d940'
-								changecolor = true	
+								changecolor = true
 							} else if (quesData.level_type == 'struct') {
 								tagInfo.clr = tagInfo.color = '#CFF4FF80'
-								changecolor = true	
+								changecolor = true
 							}
 						}
 					}
@@ -2569,7 +2569,7 @@ function confirmLevelSet(levels) {
 							if (parent2.Id == oControl.Sdt.GetId()) {
 								if (oParagraph.Paragraph.HaveNumbering()) {
 									var oNumberingLevel = oParagraph.GetNumbering()
-									return {text: oParagraph.Paragraph.GetNumberingText(), lvl: oNumberingLevel ? oNumberingLevel.Lvl : 0} 
+									return {text: oParagraph.Paragraph.GetNumberingText(), lvl: oNumberingLevel ? oNumberingLevel.Lvl : 0}
 								}
 								return null
 							}
@@ -2968,7 +2968,7 @@ function getQuestionHtml(ids, getLatestParent) {
 							}
 						}
 					}
-					
+
 					return {
 						lvl: oNumberingLevel.Lvl,
 						text: ''
@@ -3646,7 +3646,7 @@ function getControlListForUpload() {
 					ques_use: queslist,
 					content_html: html
 				})
-			}		
+			}
 			for (var oDrawing of oDrawings) {
 				let title = oDrawing.GetTitle()
 				var titleObj = Api.ParseJSON(title)
@@ -3690,6 +3690,8 @@ function cleanHtml(html) {
 
 	//如果没有子节点或者文本内容就可以删除的元素
 	const removeEmpty = { div: 1, a: 1, abbr: 1, acronym: 1, address: 1, b: 1, bdo: 1, big: 1, cite: 1, code: 1, del: 1, dfn: 1, em: 1, font: 1, i: 1, ins: 1, label: 1, kbd: 1, q: 1, s: 1, samp: 1, small: 1, span: 1, strike: 1, strong: 1, sub: 1, sup: 1, tt: 1, u: 1, 'var': 1 };
+	// removeEmpty里没有文本但是有下列标签的不能被删除
+	const preserveElements = ['img', 'svg'];
 
 	// 替换部分标签 为 p 标签
 	tempDiv.querySelectorAll('h1, h2, h3, h4, h5, li').forEach(el => {
@@ -3720,15 +3722,39 @@ function cleanHtml(html) {
 	tempDiv.querySelectorAll('[data-zone_type="question"]').forEach(el => {
 		el.parentNode.removeChild(el);
 	});
+	// 替换所有带data-underline=属性的u标签
+	updateUnderlineStyles(tempDiv)
 
 	// 移除所有带data-属性的元素属性
 	let data_ignore_list = ['data-client_id', 'data-ques_use'] // 需要保留的data属性
 	tempDiv.querySelectorAll('*').forEach(el => {
 		Array.from(el.attributes).forEach(attr => {
-			if (attr.name.startsWith('data-') && !data_ignore_list.includes(attr.name)) {
-				el.removeAttribute(attr.name);
-			}
+		if (attr.name.startsWith('data-') && !data_ignore_list.includes(attr.name)) {
+			el.removeAttribute(attr.name);
+		}
 		});
+	});
+	// 处理有裁切的图片
+	tempDiv.querySelectorAll('[style]').forEach(el => {
+		const styleValue = el.style.cssText;
+		// 使用正则表达式匹配 clip-path 属性
+		const clipPathRegex = /clip-path:\s*([^;]+);/;
+		const match = styleValue.match(clipPathRegex);
+		let clipPath = ''
+		if (match && el.tagName === 'IMG') {
+			// 如果匹配成功，返回 clip-path 的值
+			clipPath = match[1].trim();
+			// 使用空格分割字符串得到数值数组
+			const valuesStr = clipPath.slice(5, -1);
+			const valuesArray = valuesStr.split(' ');
+
+			// 将数组元素分别赋值给变量 a, b, c, d
+			let top = valuesArray[0].replace('%', '');
+			const right = valuesArray[1].replace('%', '');
+			const down = valuesArray[2].replace('%', '');
+			const left = valuesArray[3].replace('%', '');
+			el.src += `__top=${Number(top)}&right=${Number(right)}&down=${Number(down)}&left=${Number(left)}`
+		}
 	});
 
 	// // 移除所有style属性
@@ -3764,7 +3790,7 @@ function cleanHtml(html) {
 	// 移除无内容的特定标签
 	Object.keys(removeEmpty).forEach(tag => {
 		tempDiv.querySelectorAll(tag).forEach(el => {
-		if (!el.textContent.trim()) {
+		if (!el.textContent.trim() && !preserveElements.some(e => el.querySelector(e))) {
 			el.parentNode.removeChild(el);
 		}
 		});
@@ -3775,9 +3801,61 @@ function cleanHtml(html) {
 	return tempDiv.innerHTML
 }
 
+// 处理下划线样式
+function updateUnderlineStyles(container = document) {
+	// 查询有data-underline属性的u标签
+  container.querySelectorAll('u[data-underline]').forEach(u => {
+		const span = document.createElement('span');
+    const underlineType = u.getAttribute('data-underline');
+    // 替换成span标签，保留原有内容
+    span.innerHTML = u.innerHTML;
+    // 设置通用样式
+    span.style.cssText = 'vertical-align: unset;line-height: 1.5em;text-underline-offset: 3px;';
+    // 根据属性值设置样式
+    switch(underlineType) {
+			case '8':
+				// 点状线
+				span.style.textDecoration = 'underline dotted';
+				span.style.textDecorationStyle = 'from-font';
+				break;
+			case '10':
+				// 双下划线
+				span.style.textDecoration = 'underline double';
+				span.style.textDecorationStyle = 'from-font';
+				break;
+			case '11':
+				// 无下划线样式
+				break;
+			case '12':
+				// 下划线
+				span.style.textDecoration = 'underline';
+				break;
+			case '14':
+				// 波浪线
+				span.style.textDecoration = 'underline wavy';
+				span.style.textDecorationStyle = 'from-font';
+				break;
+    }
+    // 替换节点
+    u.parentNode.replaceChild(span, u);
+	});
+	// 清除掉其他的u标签
+	container.querySelectorAll('u').forEach(u => {
+		// 创建文档片段存放子节点
+		const fragment = document.createDocumentFragment();
+			// 将子节点转移到片段
+			while(u.firstChild) {
+				fragment.appendChild(u.firstChild);
+			}
+			// 用子节点替换原u标签
+			u.parentNode.replaceChild(fragment, u);
+	});
+}
+
+
 function extractAllowedStyles(style) {
 	// 允许保留的样式属性列表
-	const allowedProperties = ['text-align'];
+	const allowedProperties = ['text-align', 'text-decoration', 'vertical-align', 'text-underline-offset'];
 	const styleRules = style.split(';');
 	const filteredStyles = styleRules.filter(rule => {
 		const [property] = rule.split(':');
@@ -4033,7 +4111,7 @@ function batchChangeProportion(proportion) {
 				return e.id
 			}),
 			from: 'proportion'
-		})	
+		})
 	}).then(() => {
 		return window.biyue.StoreCustomData()
 	})
@@ -4258,10 +4336,10 @@ function deleteAsks(askList, recalc = true, notify = true) {
 								var parentControl = e.GetParentContentControl()
 								if (parentControl && parentControl.Sdt.GetId() != quesControlId) {
 									continue
-								}	
+								}
 							}
 							if (e.GetClassType() == 'inlineLvlSdt' && tag.regionType != 'num') {
-								Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())	
+								Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
 							} else if (e.GetClassType() == 'blockLvlSdt' && tag.regionType == 'write') {
 								Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
 							}
@@ -4450,7 +4528,7 @@ function deleteAsks(askList, recalc = true, notify = true) {
 				} else {
 					deleteOneNode(qid, 1, 1, qid)
 				}
-				
+
 			}
 			return {
 				question_map: question_map,
@@ -4651,7 +4729,7 @@ function focusAsk(writeData) {
 									}
 								}
 							}
-						} 
+						}
 					}
 				} else if (write_data.sub_type == 'cell') {
 					var oRange = null
@@ -5267,7 +5345,7 @@ function splitControl(qid) {
 					let styledString = ''
 					let currentIndex = 0
 					const styles = []
-		
+
 					ranges.forEach(([start, end], index) => {
 						// 添加高亮前的部分
 						if (start > currentIndex) {
@@ -5279,13 +5357,13 @@ function splitControl(qid) {
 						styles.push('border: 1px solid red; padding: 2px')
 						currentIndex = end
 					})
-		
+
 					// 添加剩余的部分
 					if (currentIndex < str.length) {
 						styledString += '%c' + str.substring(currentIndex)
 						styles.push('')
 					}
-		
+
 					console.log(styledString, ...styles)
 				}
 				var obj = Api.ParseJSON(control.GetTag())
@@ -5307,7 +5385,7 @@ function splitControl(qid) {
 							Api.asc_RemoveContentControlWrapper(e.Sdt.GetId())
 						})
 					}
-		
+
 					// 标记inline的答题区域
 					var text = control.GetRange().GetText()
 					// console.log('text', text)
@@ -5325,7 +5403,7 @@ function splitControl(qid) {
 					}
 					var textSet = new Set();
 					regionTexts.forEach(e => textSet.add(e));
-		
+
 					let includeRange = function(a, b)
 					{
 						return (a.Element === b.Element &&
@@ -5361,13 +5439,13 @@ function splitControl(qid) {
                         console.timeEnd("mergeRange");
                         return ret;
                     };
-                                        
-                    
+
+
                     var apiRanges = [];
                     textSet.forEach(e => {
                         var ranges = control.Search(e, false);
                         //debugger;;
-                        
+
                         apiRanges = mergeRange(apiRanges, ranges);
                     });
 						// search 有bug少返回一个字符
@@ -5402,7 +5480,7 @@ function splitControl(qid) {
 							break;
 						}
 					}
-		
+
 					// if (j < elements - 1) {
 					// 	var range = content.GetElement(j + 1).GetRange();
 					// 	var endRange = content.GetElement(elements - 1).GetRange();
@@ -5773,7 +5851,7 @@ function tidyTree() {
 					}
 					var tag = Api.ParseJSON(childDrawings[j].GetTitle())
 					if (tag.feature && tag.feature.zone_type == 'question') {
-						if (tag.feature.sub_type == 'write') {						
+						if (tag.feature.sub_type == 'write') {
 							var run = paraDrawing.GetRun()
 							if (run) {
 								var paragraph = run.GetParagraph()
@@ -6081,7 +6159,7 @@ function handleUploadPrepare(cmdType) {
 											}
 										}
 									}
-									
+
 								})
 							}
 						}
@@ -6093,7 +6171,7 @@ function handleUploadPrepare(cmdType) {
 }
 
 function importExam() {
-	if (isLoading('importExam')) { 
+	if (isLoading('importExam')) {
 		return
 	}
 	setBtnLoading('importExam', true)
@@ -6248,7 +6326,7 @@ function mergeOneAsk(options) {
 		for (var i = 1; i < options.ask_ids.length; ++i) {
 			for (var j = 0; j < quesData.ask_list.length; ++j) {
 				if (quesData.ask_list[j].id == options.ask_ids[i]) {
-					quesData.ask_list.splice(j, 1)	
+					quesData.ask_list.splice(j, 1)
 					break
 				} else if (quesData.ask_list[j].other_fields) {
 					var k = quesData.ask_list[j].other_fields.findIndex(e => {
@@ -6379,7 +6457,7 @@ function insertSymbol(unicode) {
 					if (question_map[qid] && question_map[qid].level_type == 'question') {
 						ques_id = qid
 					}
-					parent_id = tag.client_id	
+					parent_id = tag.client_id
 				}
 				return { parent_id, ques_id }
 			}
@@ -6684,7 +6762,7 @@ function preGetExamTree() {
 				list.forEach(item => {
 					map.set(item.id, { ...item, children: [] });
 				});
-		
+
 				list.forEach(item => {
 					if (item.parent_id && item.parent_id != item.id) {
 						if (map.has(item.parent_id)) {
@@ -6745,7 +6823,7 @@ function setNumberingLevel(ids, lvl) {
 							question.lvl = item.lvl
 						}
 					}
-				}	
+				}
 			} catch (error) {
 				console.log(error)
 			}
@@ -6859,7 +6937,7 @@ function refreshDocTree() {
 						if (parent2.Id == oControl.Sdt.GetId()) {
 							if (oParagraph.Paragraph.HaveNumbering()) {
 								var oNumberingLevel = oParagraph.GetNumbering()
-								return {text: oParagraph.Paragraph.GetNumberingText(), lvl: oNumberingLevel ? oNumberingLevel.Lvl : 0} 
+								return {text: oParagraph.Paragraph.GetNumberingText(), lvl: oNumberingLevel ? oNumberingLevel.Lvl : 0}
 							}
 							return null
 						}
