@@ -798,7 +798,12 @@ function getPictureList(outOfRange) {
 				title.pid = `d_${++picture_id}` 
 				oDrawing.SetTitle(JSON.stringify(title))
 			}
-			var targetList = title.ignore == 2 ? list_ignore : list
+			var targetList = []
+			if (outOfRange) {
+				targetList = list
+			} else {
+				targetList = title.ignore == 2 ? list_ignore : list
+			}
 			var obj = {
 				type: 'drawing',
 				uid: title.pid,
