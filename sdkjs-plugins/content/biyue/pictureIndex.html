@@ -53,9 +53,12 @@
 			.ignore-header {
 				font-size: 14px;
 				font-weight: bold;
-				padding-left: 8px;
+				padding: 0 8px;
 				color: #555;
 				margin-top: 8px;
+				display: flex;
+				flex-direction: row;
+				justify-content: space-between;
 			}
 			.list-ques {
 				background-color: #fff;
@@ -191,6 +194,13 @@
 			.ignore {
 				margin-right: 4px;
 			}
+			.confirm-link {
+				line-height: 20px;
+				height: 20px;
+				font-size: 12px;
+				font-weight: normal;
+				display: none;
+			}
 		</style>
 	</head>
 	<body>
@@ -236,7 +246,10 @@
 				</div>
 			</div>
 			<div id="imageLinkTip" style="text-align: center;"></div>
-			<div class="ignore-header">未关联列表</div>
+			<div class="ignore-header">
+				<div>未关联列表</div>
+				<div id="confirmLink" class="clr1 clicked confirm-link">确定</div>
+			</div>
 			<div class="list"></div>
 			<div class="list-none">暂无数据</div>
 			<div class="ignore-header">已忽略列表</div>

@@ -11,7 +11,9 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 	let link_coverage_percent = ''
 	let link_type = ''
 	let isDragging = false;
-	let isFirstAutoLink = true;
+	// let isFirstAutoLink = true;
+	let target_list = []
+	let target_data = {}
 	window.Asc.plugin.init = function () {
 		console.log('picture index init')
 		window.Asc.plugin.sendToPlugin('onWindowMessage', { type: 'initDialog', initmsg: 'pictureIndexMessage' })
@@ -41,6 +43,7 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 			width: '45%',
 			pop_width: '100%'
 		})
+		addClickEvent('#confirmLink', onConfirmLink)
 		addClickEvent('#areaLink', onAreaLink)
 		addClickEvent('#allLink', onAllLink)
 		enableBtnImageLink(true)
@@ -124,14 +127,14 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 			}
 		});
 		// 如果列表中的表格没有关联题目且是全包关联时，则进行自动关联
-		const list = list_doc.filter(e => {
-			return (!e.ques_use || e.ques_use.length === 0) && e.type == 'table'
-		})
-		const classList = document.getElementById('allLink').classList
-		if (list && list.length > 0 && classList.contains('selected') && isFirstAutoLink) {
-			onConfirmAutoLink()
-		}
-		isFirstAutoLink = false
+		// const list = list_doc.filter(e => {
+		// 	return (!e.ques_use || e.ques_use.length === 0) && e.type == 'table'
+		// })
+		// const classList = document.getElementById('allLink').classList
+		// if (list && list.length > 0 && classList.contains('selected') && isFirstAutoLink) {
+		// 	onConfirmAutoLink()
+		// }
+		// isFirstAutoLink = false
 	}
 
 	function updateListIgnore() {
@@ -263,7 +266,6 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 			}
 			var id = dataset.id
 			var target_ignore = false
-			targetList[index].ques_use = []
 			const item = targetList[index]
 			if (dataset.ignore) {
 				moveAndSort($(`#${id}`), '.list')
@@ -274,6 +276,7 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 				list_doc.push(targetList[index])
 				// list_doc.splice(targetIndex, 0, targetList[index])
 				list_ignore.splice(index, 1)
+				renderList(list_doc, 'list')
 			} else {
 				moveAndSort($(`#${id}`), '.list-ignore')
 				$(`#${id}`).attr("data-ignore", '1')
@@ -296,6 +299,7 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 			})
 		}
 	}
+
 	function moveAndSort(item, targetListSelector) {
 		let type = item.data('type');
 		let sortId = item.data('sort-id');
@@ -324,6 +328,9 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 			var data = list_doc.find(e => {
 				return e.uid == dataset.id
 			})
+			data.ques_use = []
+			target_list = []
+			target_data = {}
 			renderQuesList(data, false)
 		}
 	}
@@ -426,28 +433,41 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 			return e.id == ques_visible_id
 		})
 		if (data) {
-			var targetQuesUse = data.ques_use || []
-			var index = targetQuesUse.findIndex(e => {
+			target_list = data.ques_use || []
+			var index = target_list.findIndex(e => {
 				return e == dataset.id
 			})
 			var isLink = index >= 0
 			if (isLink) {
-				targetQuesUse.splice(index, 1)
+				target_list.splice(index, 1)
 			} else {
-				targetQuesUse.push(dataset.id)
+				target_list.push(dataset.id)
 			}
-			window.Asc.plugin.sendToPlugin('onWindowMessage', {
-				type: 'pictureIndexMessage',
-				cmd: 'link',
-				data: {
-					target_type: data.type,
-					target_id: data.id,
-					ques_use: targetQuesUse,
-					ques_id: dataset.id
-				}
-			})
+			if (target_list.length > 0) {
+				$('.confirm-link').show()
+			} else {
+				$('.confirm-link').hide()
+			}
+			target_data = data
 			showLinkButton(dataset.id, !isLink)
 		}
+	}
+
+	// 提交关联
+	function onConfirmLink() {
+		if (target_list.length == 0) {
+			return
+		}
+		window.Asc.plugin.sendToPlugin('onWindowMessage', {
+			type: 'pictureIndexMessage',
+			cmd: 'link',
+			data: {
+				target_type: target_data.type,
+				target_id: target_data.id,
+				ques_use: target_list,
+				ques_id: target_list[target_list.length - 1].id
+			}
+		})
 	}
 
 	function showLinkButton(qid, linked) {
@@ -518,6 +538,7 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 			$('.list-ques').appendTo('.info')
 		}
 		$('.list-ques').hide()
+		$('.confirm-link').hide()
 		if (resetVisibleId) {
 			ques_visible_id = 0
 		}
@@ -619,11 +640,13 @@ import { addClickEvent, updateText, showCom, updateHintById, setBtnLoading, isLo
 						showDotButton(item.uid, item.partical_no_dot)
 					}
 				} else {
+					$('.confirm-link').hide()
 					if (picdata) {
 						picdata.ques_use = item.ques_use
 					} else {
 						list_doc.push(item)
 					}
+					renderList(list_doc, 'list')
 				}
 			}
 		}
